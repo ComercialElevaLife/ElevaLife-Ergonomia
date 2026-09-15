@@ -113,9 +113,9 @@
               fill="var(--card)" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3"
               opacity="${destacar ? 1 : 0.55}" />
         <text x="${bx + LARGURA_CAIXA / 2}" y="${by + 13}" text-anchor="middle"
-              font-size="8.5" fill="currentColor" opacity="0.8">${item.regiao}</text>
-        <text x="${bx + LARGURA_CAIXA / 2}" y="${by + 26}" text-anchor="middle"
-              font-size="12.5" font-weight="700" fill="${destacar ? "var(--teal-escuro)" : "currentColor"}">${formatarValor(valor)}</text>
+              font-size="9.5" fill="currentColor" opacity="0.85">${item.regiao}</text>
+        <text x="${bx + LARGURA_CAIXA / 2}" y="${by + 27}" text-anchor="middle"
+              font-size="14" font-weight="700" fill="${destacar ? "var(--teal-escuro)" : "currentColor"}">${formatarValor(valor)}</text>
       </g>
     `;
   }

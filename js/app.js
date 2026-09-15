@@ -122,7 +122,7 @@
 
   function configurarChartDefaults() {
     Chart.defaults.font.family = "'Montserrat', system-ui, -apple-system, sans-serif";
-    Chart.defaults.font.size = 11;
+    Chart.defaults.font.size = 12;
     Chart.defaults.color = corTextoSecundario();
     Chart.defaults.responsive = true;
     Chart.defaults.maintainAspectRatio = false;
