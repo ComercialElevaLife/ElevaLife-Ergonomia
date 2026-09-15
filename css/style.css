@@ -249,6 +249,28 @@ h1, h2, h3, .titulo-marca {
 .cabecalho nav.abas button.ativa { background: #fff; color: var(--vinho-escuro); }
 .cabecalho nav.abas button[disabled] { opacity: 0.45; cursor: not-allowed; }
 
+.barra-export {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.btn-exportar {
+  appearance: none;
+  border: 1px solid rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 13px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background .15s, opacity .15s;
+  white-space: nowrap;
+}
+.btn-exportar:hover:not(:disabled) { background: rgba(255,255,255,0.2); }
+.btn-exportar:disabled { opacity: 0.35; cursor: not-allowed; }
+
 /* ---------------------------- Filtros ---------------------------- */
 
 .barra-filtros {
@@ -466,6 +488,7 @@ main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1400px; margin: 0 a
   .cabecalho { padding: 14px clamp(12px, 4vw, 20px); gap: 8px; }
   .cabecalho .titulos .tagline { display: none; }
   .cabecalho nav.abas button { padding: 7px 11px; font-size: 12px; }
+  .btn-exportar { padding: 6px 10px; font-size: 11px; }
 }
 
 .altura-chart { position: relative; height: 230px; }

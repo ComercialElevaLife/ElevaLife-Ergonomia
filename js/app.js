@@ -1914,6 +1914,7 @@
         });
         const btnRef = document.getElementById("btn-toggle-referencia");
         if (btnRef) btnRef.textContent = "Ver tabelas de referencia";
+        atualizarEstadoExportacao();
       });
     });
   }
@@ -1939,7 +1940,285 @@
         btn.textContent = "Fechar tabelas de referencia";
         renderizarAbaReferencia();
       }
+      atualizarEstadoExportacao();
     });
+  }
+
+  // ------------------------------------------------------------------
+  // Exportar relatorio (PDF/Excel) da TELA ATUAL, respeitando os filtros
+  // ativos (globais e, quando houver, os de pagina). PDF = KPIs + graficos
+  // da aba aberta; Excel = tabela(s) de dados brutos filtrados dessa aba.
+  // So disponivel nas 3 abas de dashboard (Ergo / Med Ocup / Compativeis).
+  // ------------------------------------------------------------------
+  const TITULOS_ABA = { ergo: "Dashboard Ergo", medocup: "Dashboard Med Ocup", compativeis: "Dashboard Compativeis" };
+  const TABELAS_POR_ABA = { ergo: ["mapaRisco", "planoAcao"], medocup: ["absenteismo"], compativeis: ["compativeis"] };
+  const NOMES_PLANILHA = { mapaRisco: "Mapa Risco", planoAcao: "Plano Acao", absenteismo: "Absenteismo", compativeis: "Compativeis" };
+
+  function abaAtualChave() {
+    const btn = document.querySelector('#nav-abas button[data-aba].ativa');
+    return btn ? btn.dataset.aba : null;
+  }
+
+  function resumoFiltrosAtivos() {
+    const partes = [];
+    ORDEM_FILTROS.forEach((campo) => {
+      const vals = (window.BI.filtros || {})[campo];
+      if (vals && vals.length) partes.push(`${LABELS_FILTRO[campo] || campo}: ${vals.join(", ")}`);
+    });
+    const fp = window.BI.filtrosPagina || {};
+    Object.keys(fp).forEach((campo) => {
+      if (fp[campo] && fp[campo].length) partes.push(`${campo}: ${fp[campo].join(", ")}`);
+    });
+    return partes.length ? partes.join("  |  ") : "Nenhum filtro ativo (todos os dados)";
+  }
+
+  function atualizarEstadoExportacao() {
+    const referenciaEl = document.getElementById("aba-referencia");
+    const referenciaAberta = referenciaEl ? !referenciaEl.hidden : false;
+    const chave = abaAtualChave();
+    const habilitado = !referenciaAberta && !!TITULOS_ABA[chave];
+    ["btn-exportar-pdf", "btn-exportar-excel"].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (btn) btn.disabled = !habilitado;
+    });
+  }
+
+  // Linhas de dados filtradas de um cadastro, aplicando os mesmos filtros
+  // globais (e, no caso de Compativeis, os filtros de pagina) usados pelos
+  // graficos - garante que a exportacao reflita exatamente o que esta na
+  // tela.
+  function linhasFiltradasParaExportar(chaveTabela) {
+    const cfg = CADASTROS_CONFIG[chaveTabela];
+    let linhas = window.BI.Calc.filtrar(window.BI.dados[chaveTabela] || [], window.BI.filtros, cfg.camposData);
+    if (chaveTabela === "compativeis") linhas = aplicarFiltrosPagina(linhas);
+    return linhas;
+  }
+
+  function exportarExcel() {
+    const chave = abaAtualChave();
+    const chavesTabela = TABELAS_POR_ABA[chave];
+    if (!chavesTabela) return;
+    if (typeof XLSX === "undefined") {
+      mostrarErro("A biblioteca de exportacao Excel nao carregou (script externo bloqueado ou indisponivel).");
+      return;
+    }
+    const wb = XLSX.utils.book_new();
+    chavesTabela.forEach((chaveTabela) => {
+      const linhas = linhasFiltradasParaExportar(chaveTabela).map((l) => {
+        const copia = Object.assign({}, l);
+        delete copia._id;
+        return copia;
+      });
+      const ws = XLSX.utils.json_to_sheet(linhas);
+      XLSX.utils.book_append_sheet(wb, ws, NOMES_PLANILHA[chaveTabela] || chaveTabela);
+    });
+    const dataArquivo = hojeMeiaNoite().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `bi-ergonomia-${chave}-${dataArquivo}.xlsx`);
+  }
+
+  // Reamostra um canvas (grafico Chart.js ja renderizado, ou diagrama SVG
+  // rasterizado) para uma LARGURA FIXA em pixels antes de exportar como PNG
+  // - o canvas de origem pode estar em qualquer resolucao (varia com a
+  // largura da tela do usuario / devicePixelRatio), e sem esse teto o PDF
+  // fica com dezenas de MB. 700px de largura e nitido o suficiente para
+  // impressao no tamanho em que a imagem entra na pagina.
+  function reamostrarCanvas(canvasOrigem, larguraMaximaPx, formato, qualidade) {
+    // Nunca amplia (deixaria a imagem borrada e MAIOR em bytes) - so limita
+    // o teto quando a origem for maior que o alvo.
+    const larguraAlvoPx = Math.min(larguraMaximaPx, canvasOrigem.width);
+    const escala = larguraAlvoPx / canvasOrigem.width;
+    const alturaAlvoPx = Math.max(1, Math.round(canvasOrigem.height * escala));
+    const tmp = document.createElement("canvas");
+    tmp.width = larguraAlvoPx;
+    tmp.height = alturaAlvoPx;
+    const ctx = tmp.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, tmp.width, tmp.height);
+    ctx.drawImage(canvasOrigem, 0, 0, tmp.width, tmp.height);
+    return tmp.toDataURL(formato || "image/jpeg", qualidade);
+  }
+
+  // Graficos (Chart.js) exportam como JPEG - fundo solido, formas simples,
+  // bem mais leve que PNG sem perda perceptivel de qualidade.
+  function reamostrarCanvasParaJpeg(canvasOrigem, larguraMaximaPx) {
+    return reamostrarCanvas(canvasOrigem, larguraMaximaPx, "image/jpeg", 0.88);
+  }
+
+  // Rasteriza um <svg> autocontido (diagrama corporal) para PNG, resolvendo
+  // "currentColor" para uma cor fixa antes de serializar - fora do DOM da
+  // pagina o navegador nao teria de onde herdar essa cor. Usa PNG (nao
+  // JPEG) porque os diagramas tem texto pequeno em caixas solidas - JPEG
+  // borraria esses rotulos a ponto de ficarem ilegiveis no PDF.
+  function svgParaPngDataUrl(svgEl, larguraAlvoPx) {
+    return new Promise((resolve, reject) => {
+      try {
+        const vb = svgEl.viewBox && svgEl.viewBox.baseVal && svgEl.viewBox.baseVal.width
+          ? svgEl.viewBox.baseVal
+          : { width: svgEl.clientWidth || 300, height: svgEl.clientHeight || 400 };
+        const clone = svgEl.cloneNode(true);
+        clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+        clone.style.color = window.BI.Calc.resolverCorCSS("var(--texto-principal)") || "#222222";
+        const svgStr = new XMLSerializer().serializeToString(clone);
+        const svgDataUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgStr);
+        const img = new Image();
+        img.onload = () => {
+          const larguraOrigem = Math.max(1, Math.round(vb.width * 2.4));
+          const alturaOrigem = Math.max(1, Math.round(vb.height * 2.4));
+          const origem = document.createElement("canvas");
+          origem.width = larguraOrigem;
+          origem.height = alturaOrigem;
+          const ctxOrigem = origem.getContext("2d");
+          ctxOrigem.fillStyle = "#ffffff";
+          ctxOrigem.fillRect(0, 0, larguraOrigem, alturaOrigem);
+          ctxOrigem.drawImage(img, 0, 0, larguraOrigem, alturaOrigem);
+          resolve(reamostrarCanvas(origem, Math.min(larguraAlvoPx || 600, larguraOrigem), "image/png"));
+        };
+        img.onerror = () => reject(new Error("Falha ao carregar SVG para rasterizacao"));
+        img.src = svgDataUrl;
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  // Extrai um texto simples e legivel dos "tiles" de KPI (grade-status /
+  // grade-totais), linha a linha, para reproduzir esses numeros no PDF sem
+  // reimplementar o layout visual.
+  function extrairTextoTiles(tilesEl) {
+    return (tilesEl.innerText || "")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+  }
+
+  async function exportarPDF() {
+    const chave = abaAtualChave();
+    if (!TITULOS_ABA[chave]) return;
+    const jsPDFCtor = window.jspdf && window.jspdf.jsPDF;
+    if (!jsPDFCtor) {
+      mostrarErro("A biblioteca de exportacao PDF nao carregou (script externo bloqueado ou indisponivel).");
+      return;
+    }
+    const secao = document.getElementById("aba-" + chave);
+    if (!secao) return;
+
+    const doc = new jsPDFCtor({ unit: "pt", format: "a4" });
+    const margem = 36;
+    const larguraPagina = doc.internal.pageSize.getWidth();
+    const alturaPagina = doc.internal.pageSize.getHeight();
+    const larguraUtil = larguraPagina - margem * 2;
+    let y = margem;
+
+    function novaPagina() { doc.addPage(); y = margem; }
+    function garantirEspaco(altura) { if (y + altura > alturaPagina - margem) novaPagina(); }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(46, 95, 98);
+    doc.text("BI Ergonomia - ElevaLife", margem, y);
+    y += 20;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(90, 90, 90);
+    doc.text(TITULOS_ABA[chave], margem, y);
+    y += 14;
+    doc.text("Gerado em " + new Date().toLocaleString("pt-BR"), margem, y);
+    y += 14;
+    doc.setFontSize(9);
+    const linhasFiltro = doc.splitTextToSize("Filtros ativos: " + resumoFiltrosAtivos(), larguraUtil);
+    doc.text(linhasFiltro, margem, y);
+    y += linhasFiltro.length * 11 + 6;
+    doc.setDrawColor(220, 220, 220);
+    doc.line(margem, y, margem + larguraUtil, y);
+    y += 16;
+
+    const cartoes = Array.from(secao.querySelectorAll(".cartao"));
+    for (const cartao of cartoes) {
+      const tituloEl = cartao.querySelector(".cartao-titulo");
+      const subEl = cartao.querySelector(".cartao-sub");
+      const titulo = tituloEl ? tituloEl.textContent.trim() : "";
+      const sub = subEl ? subEl.textContent.trim() : "";
+
+      garantirEspaco(50);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(30, 30, 30);
+      doc.text(titulo, margem, y);
+      y += 14;
+      if (sub) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(120, 120, 120);
+        doc.text(sub, margem, y);
+        y += 12;
+      }
+
+      const tilesEl = cartao.querySelector(".grade-status, .grade-totais");
+      if (tilesEl) {
+        const linhasTexto = extrairTextoTiles(tilesEl);
+        garantirEspaco(linhasTexto.length * 12 + 6);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(50, 50, 50);
+        linhasTexto.forEach((linha) => { doc.text(linha, margem + 8, y); y += 12; });
+      }
+
+      const canvas = cartao.querySelector("canvas");
+      if (canvas && registroGraficos[canvas.id]) {
+        const imgData = reamostrarCanvasParaJpeg(canvas, 700);
+        const larguraImg = Math.min(larguraUtil, 380);
+        const alturaImg = larguraImg * (canvas.height / canvas.width || 0.6);
+        garantirEspaco(alturaImg + 10);
+        doc.addImage(imgData, "JPEG", margem, y, larguraImg, alturaImg);
+        y += alturaImg + 8;
+        const legendaEl = cartao.querySelector(".legenda");
+        if (legendaEl && legendaEl.textContent.trim()) {
+          const linhasLeg = doc.splitTextToSize(legendaEl.textContent.trim().replace(/\s+/g, "  "), larguraUtil);
+          garantirEspaco(linhasLeg.length * 11 + 4);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(90, 90, 90);
+          doc.text(linhasLeg, margem, y);
+          y += linhasLeg.length * 11 + 4;
+        }
+      }
+
+      const svgsDiagrama = Array.from(cartao.querySelectorAll(".figura-diagrama svg"));
+      for (const svg of svgsDiagrama) {
+        try {
+          const imgData = await svgParaPngDataUrl(svg, 600);
+          const vb = svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width ? svg.viewBox.baseVal : { width: 300, height: 420 };
+          const larguraImg = Math.min(larguraUtil, 260);
+          const alturaImg = larguraImg * (vb.height / vb.width);
+          garantirEspaco(alturaImg + 8);
+          doc.addImage(imgData, "PNG", margem, y, larguraImg, alturaImg);
+          y += alturaImg + 8;
+        } catch (e) {
+          console.warn("BI Ergonomia - falha ao rasterizar diagrama para o PDF:", e);
+        }
+      }
+
+      y += 10;
+    }
+
+    const dataArquivo = hojeMeiaNoite().toISOString().slice(0, 10);
+    doc.save(`bi-ergonomia-${chave}-${dataArquivo}.pdf`);
+  }
+
+  function configurarExportacao() {
+    const btnPdf = document.getElementById("btn-exportar-pdf");
+    const btnExcel = document.getElementById("btn-exportar-excel");
+    if (btnPdf) {
+      btnPdf.addEventListener("click", () => {
+        exportarPDF().catch((e) => mostrarErro("Erro ao gerar PDF: " + (e && e.message ? e.message : String(e))));
+      });
+    }
+    if (btnExcel) {
+      btnExcel.addEventListener("click", () => {
+        try { exportarExcel(); } catch (e) { mostrarErro("Erro ao gerar Excel: " + (e && e.message ? e.message : String(e))); }
+      });
+    }
+    atualizarEstadoExportacao();
   }
 
   // ------------------------------------------------------------------
@@ -2065,6 +2344,7 @@
       montarCadastros();
       configurarAbas();
       configurarToggleReferencia();
+      configurarExportacao();
       renderizarTudo();
 
       const disponivel = await window.BI.DB.iniciar(aoAtualizarColecaoDB);
