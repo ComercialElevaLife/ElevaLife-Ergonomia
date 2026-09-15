@@ -9,9 +9,9 @@
 (function () {
   "use strict";
 
-  const ORDEM_FILTROS = ["Ano/Mes", "Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"];
+  const ORDEM_FILTROS = ["Ano", "Mes", "Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"];
   const LABELS_FILTRO = {
-    "Ano/Mes": "Ano/Mes", "Cliente": "Cliente", "Unidade": "Unidade", "Setor": "Setor",
+    "Ano": "Ano", "Mes": "Mes", "Cliente": "Cliente", "Unidade": "Unidade", "Setor": "Setor",
     "Posto Trabalho": "Posto de Trabalho", "Cargo": "Cargo", "Atividade": "Atividade",
   };
 
@@ -171,23 +171,160 @@
   }
 
   // ------------------------------------------------------------------
-  // Filtros globais (UI)
+  // Componente generico: dropdown multi-selecao com caixas de selecao
+  // embutidas (usado na barra de filtros globais e nos filtros de pagina).
+  // Cada campo guarda um ARRAY de valores selecionados em `estado[campo]`
+  // (array vazio = "Todos") - varios valores marcados no mesmo campo
+  // trazem a UNIAO das variacoes (OR); campos diferentes se combinam em E.
   // ------------------------------------------------------------------
+  const paineisMultiSelectAbertos = new Set();
+
+  function fecharPaineisMultiSelect(exceto) {
+    paineisMultiSelectAbertos.forEach((campoId) => {
+      if (campoId === exceto) return;
+      const painel = document.getElementById("painel-" + campoId);
+      const botao = document.getElementById("botao-" + campoId);
+      if (painel) painel.hidden = true;
+      if (botao) botao.setAttribute("aria-expanded", "false");
+      paineisMultiSelectAbertos.delete(campoId);
+    });
+  }
+  document.addEventListener("click", (ev) => {
+    if (ev.target.closest(".multi-select")) return;
+    fecharPaineisMultiSelect(null);
+  });
+
+  // Cria (uma unica vez) a estrutura DOM de um filtro multi-selecao.
+  // `aoMudar` e chamado apos qualquer alteracao no array `estado[campo]`.
+  function criarMultiSelect(campoId, rotuloCampo, estado, campo, aoMudar) {
+    const div = document.createElement("div");
+    div.className = "campo-filtro campo-filtro-multi";
+
+    const label = document.createElement("label");
+    label.textContent = rotuloCampo;
+    label.setAttribute("for", "botao-" + campoId);
+    div.appendChild(label);
+
+    const wrap = document.createElement("div");
+    wrap.className = "multi-select";
+    wrap.dataset.campo = campoId;
+
+    const botao = document.createElement("button");
+    botao.type = "button";
+    botao.id = "botao-" + campoId;
+    botao.className = "multi-select-botao";
+    botao.setAttribute("aria-haspopup", "listbox");
+    botao.setAttribute("aria-expanded", "false");
+    const textoBotao = document.createElement("span");
+    textoBotao.className = "multi-select-texto";
+    textoBotao.textContent = "Todos";
+    const seta = document.createElement("span");
+    seta.className = "multi-select-seta";
+    seta.setAttribute("aria-hidden", "true");
+    seta.textContent = "▾";
+    botao.appendChild(textoBotao);
+    botao.appendChild(seta);
+    botao.addEventListener("click", () => {
+      const estaAberto = !painel.hidden;
+      fecharPaineisMultiSelect(estaAberto ? null : campoId);
+      painel.hidden = estaAberto;
+      botao.setAttribute("aria-expanded", String(!estaAberto));
+      if (!estaAberto) paineisMultiSelectAbertos.add(campoId); else paineisMultiSelectAbertos.delete(campoId);
+    });
+
+    const painel = document.createElement("div");
+    painel.id = "painel-" + campoId;
+    painel.className = "multi-select-painel";
+    painel.hidden = true;
+    painel.setAttribute("role", "listbox");
+
+    const topo = document.createElement("div");
+    topo.className = "multi-select-topo";
+    const btnTodos = document.createElement("button");
+    btnTodos.type = "button";
+    btnTodos.textContent = "Marcar todos";
+    btnTodos.addEventListener("click", () => {
+      const cbs = painel.querySelectorAll('input[type="checkbox"]');
+      estado[campo] = Array.from(cbs).map((cb) => cb.value);
+      cbs.forEach((cb) => { cb.checked = true; });
+      aoMudar();
+    });
+    const btnNenhum = document.createElement("button");
+    btnNenhum.type = "button";
+    btnNenhum.textContent = "Limpar";
+    btnNenhum.addEventListener("click", () => {
+      estado[campo] = [];
+      painel.querySelectorAll('input[type="checkbox"]').forEach((cb) => { cb.checked = false; });
+      aoMudar();
+    });
+    topo.appendChild(btnTodos);
+    topo.appendChild(btnNenhum);
+
+    const lista = document.createElement("div");
+    lista.className = "multi-select-lista";
+
+    painel.appendChild(topo);
+    painel.appendChild(lista);
+    wrap.appendChild(botao);
+    wrap.appendChild(painel);
+    div.appendChild(wrap);
+
+    div._refs = { botao, textoBotao, painel, lista };
+    return div;
+  }
+
+  // Reconcilia as opcoes disponiveis (cascata) e o texto do botao de um
+  // multi-select ja criado, SEM recriar a estrutura - preserva o painel
+  // aberto/fechado enquanto o usuario marca varias caixas em sequencia.
+  function atualizarMultiSelect(div, estado, campo, opcoesValor, formatarOpcao) {
+    const { textoBotao, lista } = div._refs;
+    const selecionadosValidos = (estado[campo] || []).filter((v) => opcoesValor.includes(v));
+    estado[campo] = selecionadosValidos;
+
+    lista.innerHTML = "";
+    opcoesValor.forEach((v) => {
+      const item = document.createElement("label");
+      item.className = "multi-select-item";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = v;
+      cb.checked = selecionadosValidos.includes(v);
+      cb.addEventListener("change", () => {
+        const arr = estado[campo].slice();
+        if (cb.checked) { if (!arr.includes(v)) arr.push(v); }
+        else { const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); }
+        estado[campo] = arr;
+        div._aoMudar();
+      });
+      const texto = document.createElement("span");
+      texto.textContent = formatarOpcao ? formatarOpcao(v) : v;
+      item.appendChild(cb);
+      item.appendChild(texto);
+      lista.appendChild(item);
+    });
+
+    if (!selecionadosValidos.length) textoBotao.textContent = "Todos";
+    else if (selecionadosValidos.length === 1) textoBotao.textContent = formatarOpcao ? formatarOpcao(selecionadosValidos[0]) : selecionadosValidos[0];
+    else textoBotao.textContent = `${selecionadosValidos.length} selecionados`;
+  }
+
+  // ------------------------------------------------------------------
+  // Filtros globais (UI) - valem para TODAS as telas (Ergo/Med Ocup/
+  // Compativeis leem o mesmo window.BI.filtros a cada renderizacao).
+  // ------------------------------------------------------------------
+  const multiSelectsGlobais = {};
+
   function montarBarraFiltros() {
     const container = document.getElementById("barra-filtros");
     container.innerHTML = "";
     ORDEM_FILTROS.forEach((campo) => {
-      const div = document.createElement("div");
-      div.className = "campo-filtro";
-      const label = document.createElement("label");
-      label.textContent = LABELS_FILTRO[campo];
-      label.setAttribute("for", "filtro-" + slug(campo));
-      const select = document.createElement("select");
-      select.id = "filtro-" + slug(campo);
-      select.dataset.campo = campo;
-      select.addEventListener("change", aoMudarFiltro);
-      div.appendChild(label);
-      div.appendChild(select);
+      const campoId = "filtro-" + slug(campo);
+      const div = criarMultiSelect(campoId, LABELS_FILTRO[campo], window.BI.filtros, campo, () => {
+        atualizarOpcoesFiltros();
+        renderizarTudo();
+      });
+      div._aoMudar = () => { atualizarOpcoesFiltros(); renderizarTudo(); };
+      multiSelectsGlobais[campo] = div;
       container.appendChild(div);
     });
 
@@ -206,41 +343,24 @@
 
   function atualizarOpcoesFiltros() {
     const opcoes = window.BI.Calc.opcoesDeFiltro(window.BI.dados.mapaRisco, window.BI.filtros);
+    const meta = window.BI.dados._meta;
+    const anos = window.BI.Calc.anosDisponiveis(meta.meses);
+    const meses = window.BI.Calc.mesesDisponiveis(meta.meses);
     ORDEM_FILTROS.forEach((campo) => {
-      const select = document.getElementById("filtro-" + slug(campo));
-      let lista;
-      if (campo === "Ano/Mes") {
-        lista = window.BI.dados._meta.meses.slice();
+      const div = multiSelectsGlobais[campo];
+      if (!div) return;
+      if (campo === "Ano") {
+        atualizarMultiSelect(div, window.BI.filtros, campo, anos);
+      } else if (campo === "Mes") {
+        atualizarMultiSelect(div, window.BI.filtros, campo, meses, (mm) => window.BI.Calc.rotuloMes(mm));
       } else {
-        lista = opcoes[campo];
+        atualizarMultiSelect(div, window.BI.filtros, campo, opcoes[campo]);
       }
-      if (window.BI.filtros[campo] !== "Todos" && !lista.includes(window.BI.filtros[campo])) {
-        window.BI.filtros[campo] = "Todos";
-      }
-      select.innerHTML = "";
-      const optTodos = document.createElement("option");
-      optTodos.value = "Todos";
-      optTodos.textContent = "Todos";
-      select.appendChild(optTodos);
-      lista.forEach((v) => {
-        const opt = document.createElement("option");
-        opt.value = v;
-        opt.textContent = campo === "Ano/Mes" ? window.BI.Calc.formatarMesLabel(v) : v;
-        select.appendChild(opt);
-      });
-      select.value = window.BI.filtros[campo];
     });
   }
 
-  function aoMudarFiltro(ev) {
-    const campo = ev.target.dataset.campo;
-    window.BI.filtros[campo] = ev.target.value;
-    atualizarOpcoesFiltros();
-    renderizarTudo();
-  }
-
   function limparFiltros() {
-    ORDEM_FILTROS.forEach((c) => { window.BI.filtros[c] = "Todos"; });
+    ORDEM_FILTROS.forEach((c) => { window.BI.filtros[c] = []; });
     atualizarOpcoesFiltros();
     renderizarTudo();
   }
@@ -500,6 +620,8 @@
   // Turno Trabalho, conforme RD. Independentes dos filtros globais do
   // topo; aplicados so aos 8 indicadores desta aba.
   // ------------------------------------------------------------------
+  const multiSelectsPagina = {};
+
   function montarFiltrosPagina() {
     const container = document.getElementById("barra-filtros-compativeis");
     if (!container) return;
@@ -509,28 +631,11 @@
       { campo: "Turno Trabalho", opcoes: TURNOS_POOL },
     ];
     campos.forEach((cfg) => {
-      const div = document.createElement("div");
-      div.className = "campo-filtro";
-      const label = document.createElement("label");
-      label.textContent = cfg.campo;
-      label.setAttribute("for", "filtro-pagina-" + slug(cfg.campo));
-      const select = document.createElement("select");
-      select.id = "filtro-pagina-" + slug(cfg.campo);
-      select.dataset.campo = cfg.campo;
-      select.addEventListener("change", aoMudarFiltroPagina);
-      const optTodos = document.createElement("option");
-      optTodos.value = "Todos";
-      optTodos.textContent = "Todos";
-      select.appendChild(optTodos);
-      cfg.opcoes.forEach((v) => {
-        const opt = document.createElement("option");
-        opt.value = v;
-        opt.textContent = v;
-        select.appendChild(opt);
-      });
-      select.value = window.BI.filtrosPagina[cfg.campo];
-      div.appendChild(label);
-      div.appendChild(select);
+      const campoId = "filtro-pagina-" + slug(cfg.campo);
+      const div = criarMultiSelect(campoId, cfg.campo, window.BI.filtrosPagina, cfg.campo, () => renderizarTudo());
+      div._aoMudar = () => renderizarTudo();
+      multiSelectsPagina[cfg.campo] = div;
+      atualizarMultiSelect(div, window.BI.filtrosPagina, cfg.campo, cfg.opcoes);
       container.appendChild(div);
     });
 
@@ -542,24 +647,21 @@
     container.appendChild(btnLimpar);
   }
 
-  function aoMudarFiltroPagina(ev) {
-    window.BI.filtrosPagina[ev.target.dataset.campo] = ev.target.value;
-    renderizarTudo();
-  }
-
   function limparFiltrosPagina() {
-    window.BI.filtrosPagina["Status Restricao"] = "Todos";
-    window.BI.filtrosPagina["Turno Trabalho"] = "Todos";
-    montarFiltrosPagina();
+    window.BI.filtrosPagina["Status Restricao"] = [];
+    window.BI.filtrosPagina["Turno Trabalho"] = [];
+    Object.keys(multiSelectsPagina).forEach((campo) => {
+      atualizarMultiSelect(multiSelectsPagina[campo], window.BI.filtrosPagina, campo,
+        campo === "Status Restricao" ? STATUS_RESTRICAO_POOL : TURNOS_POOL);
+    });
     renderizarTudo();
   }
 
   function aplicarFiltrosPagina(linhas) {
     const fp = window.BI.filtrosPagina;
-    return linhas.filter((l) =>
-      (fp["Status Restricao"] === "Todos" || l["Status Restricao"] === fp["Status Restricao"]) &&
-      (fp["Turno Trabalho"] === "Todos" || l["Turno Trabalho"] === fp["Turno Trabalho"])
-    );
+    const statusOk = (l) => !fp["Status Restricao"].length || fp["Status Restricao"].includes(l["Status Restricao"]);
+    const turnoOk = (l) => !fp["Turno Trabalho"].length || fp["Turno Trabalho"].includes(l["Turno Trabalho"]);
+    return linhas.filter((l) => statusOk(l) && turnoOk(l));
   }
 
   // Converte um mapa {chave: qtd} (saida de Calc.contagemPorCampo) numa lista
@@ -1194,7 +1296,7 @@
     estado.formAberto = true;
     const filtros = window.BI.filtros;
     const prefill = {};
-    window.BI.Calc.DIMENSOES.forEach((d) => { if (filtros[d] && filtros[d] !== "Todos") prefill[d] = filtros[d]; });
+    window.BI.Calc.DIMENSOES.forEach((d) => { if (filtros[d] && filtros[d].length === 1) prefill[d] = filtros[d][0]; });
     estado.valoresForm = prefill;
     renderizarFormCadastro(chave);
   }
@@ -1510,11 +1612,14 @@
       const dados = await resp.json();
 
       window.BI.dados = dados;
+      // Cada campo guarda um ARRAY de valores selecionados (multi-selecao);
+      // array vazio = "Todos". Este objeto e compartilhado por Ergo/Med
+      // Ocup/Compativeis - o filtro selecionado vale para todas as telas.
       window.BI.filtros = {
-        Cliente: "Todos", Unidade: "Todos", Setor: "Todos",
-        "Posto Trabalho": "Todos", Cargo: "Todos", Atividade: "Todos", "Ano/Mes": "Todos",
+        Cliente: [], Unidade: [], Setor: [],
+        "Posto Trabalho": [], Cargo: [], Atividade: [], Ano: [], Mes: [],
       };
-      window.BI.filtrosPagina = { "Status Restricao": "Todos", "Turno Trabalho": "Todos" };
+      window.BI.filtrosPagina = { "Status Restricao": [], "Turno Trabalho": [] };
 
       const spanData = document.getElementById("data-geracao");
       if (spanData) spanData.textContent = formatarDataBR(dados._meta.gerado_em) + ` (referencia de calculo: ${formatarDataBR(hojeMeiaNoite().toISOString().slice(0, 10))})`;

@@ -124,16 +124,31 @@
   }
 
   // ------------------------------------------------------------------
-  // Filtros globais
+  // Filtros globais - MULTI-SELECAO: cada campo guarda um ARRAY de valores
+  // selecionados (nunca uma string); array vazio = "Todos" (sem restricao).
+  // Varios valores no mesmo campo = OR ("traz variacoes": Setor A OU Setor
+  // B); campos diferentes = AND (Setor... E Cargo...), como de costume em
+  // filtros de BI.
   // ------------------------------------------------------------------
+  function vazio(v) { return !v || (Array.isArray(v) && v.length === 0); }
+
   function linhaPassaFiltros(linha, filtros, camposData) {
     for (const dim of DIMENSOES) {
       const v = filtros[dim];
-      if (v && v !== "Todos" && dim in linha && linha[dim] !== v) return false;
+      if (!vazio(v) && dim in linha && !v.includes(linha[dim])) return false;
     }
-    const am = filtros["Ano/Mes"];
-    if (am && am !== "Todos" && camposData && camposData.length) {
-      const ok = camposData.some((c) => linha[c] && String(linha[c]).slice(0, 7) === am);
+    const anos = filtros["Ano"];
+    const meses = filtros["Mes"];
+    if ((!vazio(anos) || !vazio(meses)) && camposData && camposData.length) {
+      const ok = camposData.some((c) => {
+        const val = linha[c];
+        if (!val) return false;
+        const ano = String(val).slice(0, 4);
+        const mes = String(val).slice(5, 7);
+        if (!vazio(anos) && !anos.includes(ano)) return false;
+        if (!vazio(meses) && !meses.includes(mes)) return false;
+        return true;
+      });
       if (!ok) return false;
     }
     return true;
@@ -148,13 +163,26 @@
   function opcoesDeFiltro(mapaRisco, filtros) {
     const resultado = {};
     for (const dim of DIMENSOES) {
-      const filtrosSemEssaDim = Object.assign({}, filtros, { [dim]: "Todos" });
+      const filtrosSemEssaDim = Object.assign({}, filtros, { [dim]: [] });
       const linhas = filtrar(mapaRisco, filtrosSemEssaDim, []);
       const valores = Array.from(new Set(linhas.map((l) => l[dim]))).sort((a, b) => a.localeCompare(b, "pt-BR"));
       resultado[dim] = valores;
     }
     return resultado;
   }
+
+  const NOMES_MES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+  // Anos/meses disponiveis para os filtros separados Ano/Mes - derivados de
+  // _meta.meses ("YYYY-MM"), nunca hardcoded (acompanha o periodo real dos
+  // dados, ficticios ou reais).
+  function anosDisponiveis(meses) {
+    return Array.from(new Set((meses || []).map((m) => m.slice(0, 4)))).sort();
+  }
+  function mesesDisponiveis(meses) {
+    return Array.from(new Set((meses || []).map((m) => m.slice(5, 7)))).sort();
+  }
+  function rotuloMes(mm) { return NOMES_MES[Number(mm) - 1] || mm; }
 
   // ------------------------------------------------------------------
   // Indicadores - Dashboard "Ergo"
@@ -402,6 +430,9 @@
     buscarPorChave,
     filtrar,
     opcoesDeFiltro,
+    anosDisponiveis,
+    mesesDisponiveis,
+    rotuloMes,
     mapaRiscoGlobal,
     topSetores,
     statusPlanoAcao,

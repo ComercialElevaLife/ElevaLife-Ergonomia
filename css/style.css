@@ -160,6 +160,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 html, body {
   margin: 0;
@@ -283,6 +284,91 @@ h1, h2, h3, .titulo-marca {
 }
 .campo-filtro select:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
 
+/* ---- Multi-select (dropdown com caixas de selecao embutidas) ---- */
+
+.multi-select { position: relative; }
+
+.multi-select-botao {
+  width: 100%;
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--linha);
+  background: var(--creme);
+  color: var(--texto);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  text-align: left;
+}
+.multi-select-botao:hover { border-color: var(--teal); }
+.multi-select-botao:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+.multi-select-botao .multi-select-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.multi-select-botao .multi-select-seta { flex: none; font-size: 10px; color: var(--cinza-quente); transition: transform .12s; }
+.multi-select-botao[aria-expanded="true"] .multi-select-seta { transform: rotate(180deg); }
+
+.multi-select-painel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  width: max-content;
+  max-width: 260px;
+  background: var(--card);
+  border: 1px solid var(--linha);
+  border-radius: 9px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.16);
+  z-index: 40;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.multi-select-topo {
+  display: flex;
+  gap: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed var(--linha);
+}
+.multi-select-topo button {
+  flex: 1;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--teal-escuro);
+  background: var(--creme);
+  border: none;
+  border-radius: 6px;
+  padding: 5px 6px;
+  cursor: pointer;
+}
+.multi-select-topo button:hover { background: var(--vinho-suave); color: #fff; }
+
+.multi-select-lista {
+  max-height: 230px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.multi-select-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--texto);
+  padding: 5px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.multi-select-item:hover { background: var(--creme); }
+.multi-select-item input[type="checkbox"] { flex: none; accent-color: var(--teal-escuro); cursor: pointer; width: 14px; height: 14px; }
+
 .btn-limpar-filtros {
   font-family: inherit;
   font-size: 12px;
@@ -311,7 +397,8 @@ h1, h2, h3, .titulo-marca {
   gap: 8px 10px;
   align-items: flex-end;
 }
-.barra-filtros-pagina .campo-filtro select { background: var(--card); }
+.barra-filtros-pagina .campo-filtro select,
+.barra-filtros-pagina .multi-select-botao { background: var(--card); }
 
 .chip-contagem {
   font-size: 11px;
