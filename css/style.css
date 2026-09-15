@@ -256,6 +256,22 @@ h1, h2, h3, .titulo-marca {
 }
 .btn-limpar-filtros:hover { background: var(--vinho-suave-2); color: #fff; }
 
+/* Filtros de pagina (so na aba Compativeis - Status Restricao, Turno) -
+   mesmo visual dos filtros globais, mas nao fixos (nao sticky) e dentro
+   do fluxo do conteudo, para deixar claro que valem so para esta aba. */
+.barra-filtros-pagina {
+  background: var(--creme);
+  border: 1px solid var(--linha);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: flex-end;
+}
+.barra-filtros-pagina .campo-filtro select { background: var(--card); }
+
 .chip-contagem {
   font-size: 11px;
   color: var(--cinza-quente);
@@ -335,6 +351,44 @@ main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1400px; margin: 0 a
 .tile-status .rotulo .ponto { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 .tile-status .valor { font-size: 24px; font-weight: 700; color: var(--texto); }
 .tile-status .pct { font-size: 11px; color: var(--cinza-quente); }
+
+/* ---------------------------- Stat tiles (totais Med Ocup) ---------------------------- */
+
+.grade-totais {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+@media (max-width: 700px) { .grade-totais { grid-template-columns: 1fr; } }
+
+.tile-total {
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--creme);
+  border-left: 5px solid var(--teal);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tile-total .rotulo { font-size: 11px; font-weight: 700; color: var(--texto-secundario); }
+.tile-total .valor { font-size: 26px; font-weight: 700; color: var(--texto); }
+.tile-total .sub { font-size: 11px; color: var(--cinza-quente); }
+
+/* ---------------------------- Diagramas corporais (SVG) ---------------------------- */
+
+.figura-diagrama {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.figura-diagrama > div { width: 100%; max-width: 300px; }
+.figura-diagrama figcaption {
+  font-size: 10.5px;
+  color: var(--cinza-quente);
+  text-align: center;
+}
 
 /* ---------------------------- Legendas customizadas ---------------------------- */
 
@@ -471,6 +525,127 @@ table.tabela-dados tbody td { color: var(--texto); font-variant-numeric: tabular
 .tabela-paginacao button:disabled { opacity: 0.35; cursor: not-allowed; }
 .tabela-paginacao button:not(:disabled):hover { background: var(--vinho-suave-2); color: #fff; }
 
+/* ---------------------------- Cadastros (CRUD real) ---------------------------- */
+
+.aviso-somente-leitura {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--status-warning);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.bloco-cadastro { display: flex; flex-direction: column; }
+
+.cadastro-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-novo-registro, .btn-cad-primario, .btn-cad-secundario {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 7px;
+  padding: 7px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.btn-novo-registro, .btn-cad-primario {
+  background: var(--teal);
+  color: #fff;
+}
+.btn-novo-registro:hover, .btn-cad-primario:hover { background: var(--teal-escuro); }
+.btn-cad-secundario {
+  background: transparent;
+  color: var(--texto-secundario);
+  border-color: var(--linha);
+}
+.btn-cad-secundario:hover { background: var(--creme); }
+.btn-novo-registro:disabled, .btn-cad-primario:disabled {
+  opacity: 0.45; cursor: not-allowed; background: var(--cinza-quente);
+}
+
+.btn-acao-linha {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  border: none;
+  border-radius: 5px;
+  padding: 4px 9px;
+  margin-right: 4px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--teal-escuro);
+}
+.btn-acao-linha:hover { background: var(--creme); }
+.btn-acao-linha.excluir { color: var(--status-critical); }
+.btn-acao-linha:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.form-cadastro {
+  border: 1px solid var(--teal);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+  background: var(--surface);
+}
+.form-cadastro .form-titulo { font-size: 12.5px; font-weight: 700; margin-bottom: 10px; color: var(--teal-escuro); }
+
+.form-cadastro-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px 12px;
+}
+
+.campo-form { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.campo-form label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--cinza-quente);
+  font-weight: 700;
+}
+.campo-form input, .campo-form select {
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--linha);
+  background: var(--card);
+  color: var(--texto);
+  width: 100%;
+}
+.campo-form input:focus, .campo-form select:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+.campo-form input:disabled, .campo-form select:disabled { opacity: 0.6; background: var(--creme); }
+.campo-form .valor-calculado {
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: var(--creme);
+  border: 1px dashed var(--linha);
+}
+
+.form-cadastro-acoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+
+.form-cadastro-erro {
+  font-size: 11.5px;
+  color: var(--status-critical);
+  margin-top: 8px;
+}
+
 /* ---------------------------- Aviso de erro ---------------------------- */
 
 .aviso-erro {
@@ -489,4 +664,16 @@ footer.rodape {
   font-size: 10.5px;
   color: var(--cinza-quente);
   padding: 18px 16px 30px;
+}
+
+.link-referencia {
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--teal-escuro);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
 }

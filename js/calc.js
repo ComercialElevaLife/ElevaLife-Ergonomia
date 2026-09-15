@@ -15,6 +15,15 @@
   const NIVEIS_RISCO = ["Baixo", "Medio", "Alto", "Muito Alto"];
   const STATUS_ACAO_ORDEM = ["Nao Iniciado", "Em Andamento", "Atrasada", "Concluida com atraso", "Concluida"];
 
+  // As 12 dimensoes do Mapa de Risco (conforme RD) - usadas para calcular
+  // "Risco Global" automaticamente na tela de cadastro (nunca digitado a mao).
+  const DIMENSOES_RISCO = [
+    "Col. Cervical", "Tronco", "Ombros", "Cotovelos", "Punhos", "Maos/Dedos",
+    "Joelhos", "Pernas", "Tornozelos", "Pes/Dedos", "Psicossocial/Cognitivo", "Ambiental",
+  ];
+
+  const STATUS_RESTRICAO_ORDEM = ["Ativa", "Em Avaliacao", "Encerrada"];
+
   const COR_STATUS = {
     "Baixo": "var(--status-good)",
     "Medio": "var(--status-warning)",
@@ -25,6 +34,9 @@
     "Atrasada": "var(--status-critical)",
     "Concluida com atraso": "var(--status-serious)",
     "Concluida": "var(--status-good)",
+    "Ativa": "var(--status-warning)",
+    "Em Avaliacao": "var(--status-neutral)",
+    "Encerrada": "var(--status-good)",
   };
 
   // Resolve uma custom property CSS para hex/rgb utilizavel pelo Chart.js
@@ -70,6 +82,32 @@
     if (!concl) return "Nao Iniciado"; // programada no futuro, ainda nao iniciada
     if (concl > prog) return "Concluida com atraso";
     return "Concluida";
+  }
+
+  // ------------------------------------------------------------------
+  // Risco Global - calculado a partir da MEDIA das 12 dimensoes (nunca do
+  // maximo), mesma regra usada na geracao dos dados ficticios.
+  // ------------------------------------------------------------------
+  function calcularRiscoGlobal(scores) {
+    const valores = DIMENSOES_RISCO.map((d) => Number(scores[d]) || 0);
+    const media = valores.reduce((a, b) => a + b, 0) / (valores.length || 1);
+    if (media >= 2.7) return "Muito Alto";
+    if (media >= 2.15) return "Alto";
+    if (media >= 1.55) return "Medio";
+    return "Baixo";
+  }
+
+  function nivelReduzido(nivel) {
+    const idx = NIVEIS_RISCO.indexOf(nivel);
+    if (idx <= 0) return NIVEIS_RISCO[0];
+    return NIVEIS_RISCO[idx - 1];
+  }
+
+  // Busca a linha cuja chave composta (Cliente+Unidade+Setor+Posto+Cargo+
+  // Atividade) bate com chaveObj - usada para "puxar" o Risco Global atual
+  // do posto ao lancar um registro em Plano Acao/Absenteismo/Compativeis.
+  function buscarPorChave(linhas, chaveObj) {
+    return linhas.find((l) => DIMENSOES.every((d) => l[d] === chaveObj[d])) || null;
   }
 
   // ------------------------------------------------------------------
@@ -206,6 +244,122 @@
   }
 
   // ------------------------------------------------------------------
+  // Indicadores - Dashboard "Med Ocup"
+  // Taxa de Frequencia = (nr de casos de afastamento / HHT) x 1.000.000,
+  // onde HHT (Homens-Hora Trabalhados) = Qtd Colaboradores x Qtd Dias Uteis x 8h,
+  // somado linha a linha de Dias Uteis (metodologia padrao de SST/CIPA - NBR 14280).
+  // ------------------------------------------------------------------
+  function hhtDaLinha(linha) {
+    return (Number(linha["Qtd Colaboradores"]) || 0) * (Number(linha["Qtd Dias Uteis"]) || 0) * 8;
+  }
+
+  function calcularTaxaFrequencia(absenteismoF, diasUteisF) {
+    const hht = diasUteisF.reduce((acc, l) => acc + hhtDaLinha(l), 0);
+    return hht ? (absenteismoF.length / hht) * 1000000 : 0;
+  }
+
+  function totaisMedOcup(absenteismoF, diasUteisF) {
+    const qtdColaboradores = diasUteisF.length
+      ? Math.round(diasUteisF.reduce((a, l) => a + (Number(l["Qtd Colaboradores"]) || 0), 0) / diasUteisF.length)
+      : 0;
+    const qtdDiasPerdidos = absenteismoF.reduce((a, l) => a + (Number(l["Qtd Dias"]) || 0), 0);
+    return { qtdColaboradores, qtdDiasPerdidos, taxaFrequencia: calcularTaxaFrequencia(absenteismoF, diasUteisF) };
+  }
+
+  function evolucaoTaxaFrequencia(absenteismoF, diasUteisF) {
+    const meses = new Set();
+    absenteismoF.forEach((l) => { if (l["Dt Afastamento"]) meses.add(String(l["Dt Afastamento"]).slice(0, 7)); });
+    diasUteisF.forEach((l) => { if (l["Ano/Mes Uteis"]) meses.add(l["Ano/Mes Uteis"]); });
+    return Array.from(meses).sort().map((m) => {
+      const absMes = absenteismoF.filter((l) => String(l["Dt Afastamento"]).slice(0, 7) === m);
+      const duMes = diasUteisF.filter((l) => l["Ano/Mes Uteis"] === m);
+      return {
+        mes: m,
+        qtdAtestados: absMes.length,
+        qtdDiasPerdidos: absMes.reduce((a, l) => a + (Number(l["Qtd Dias"]) || 0), 0),
+        taxaFrequencia: calcularTaxaFrequencia(absMes, duMes),
+      };
+    });
+  }
+
+  function taxaFrequenciaPorSetor(absenteismoF, diasUteisF) {
+    const setores = Array.from(new Set(diasUteisF.map((l) => l.Setor))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return setores.map((setor) => ({
+      setor,
+      taxaFrequencia: calcularTaxaFrequencia(absenteismoF.filter((l) => l.Setor === setor), diasUteisF.filter((l) => l.Setor === setor)),
+    }));
+  }
+
+  // Soma "Qtd Dias" de Absenteismo por regiao corporal - usado nos diagramas
+  // de Med Ocup (frente/costas). Parametrizada por lista de regioes (nunca
+  // uma funcao por regiao).
+  function somaDiasPorRegiao(absenteismoF, regioes) {
+    const mapa = {};
+    regioes.forEach((r) => (mapa[r] = 0));
+    absenteismoF.forEach((l) => { if (l["Regiao Corporal"] in mapa) mapa[l["Regiao Corporal"]] += Number(l["Qtd Dias"]) || 0; });
+    return mapa;
+  }
+
+  // ------------------------------------------------------------------
+  // Indicadores - Dashboard "Compativeis"
+  // ------------------------------------------------------------------
+  function contagemPorCampo(linhas, campo) {
+    const mapa = {};
+    linhas.forEach((l) => { const v = l[campo] || "Nao informado"; mapa[v] = (mapa[v] || 0) + 1; });
+    return mapa;
+  }
+
+  function distribuicaoIdade(compativeisF) {
+    const faixas = [
+      { min: 0, max: 24, label: "Ate 24" }, { min: 25, max: 34, label: "25-34" },
+      { min: 35, max: 44, label: "35-44" }, { min: 45, max: 54, label: "45-54" },
+      { min: 55, max: 200, label: "55+" },
+    ];
+    const contagem = faixas.map((f) => ({ label: f.label, qtd: 0 }));
+    compativeisF.forEach((l) => {
+      const idade = Number(l.Idade) || 0;
+      const idx = faixas.findIndex((f) => idade >= f.min && idade <= f.max);
+      if (idx >= 0) contagem[idx].qtd += 1;
+    });
+    return contagem;
+  }
+
+  function statusRestricaoPorSetor(compativeisF) {
+    const setores = Array.from(new Set(compativeisF.map((l) => l.Setor))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return setores.map((setor) => {
+      const linha = { setor };
+      STATUS_RESTRICAO_ORDEM.forEach((s) => (linha[s] = 0));
+      compativeisF.filter((l) => l.Setor === setor).forEach((l) => { linha[l["Status Restricao"]] = (linha[l["Status Restricao"]] || 0) + 1; });
+      return linha;
+    });
+  }
+
+  function statusRestricaoPorTurno(compativeisF) {
+    const turnos = Array.from(new Set(compativeisF.map((l) => l["Turno Trabalho"]))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return turnos.map((turno) => {
+      const linha = { turno };
+      STATUS_RESTRICAO_ORDEM.forEach((s) => (linha[s] = 0));
+      compativeisF.filter((l) => l["Turno Trabalho"] === turno).forEach((l) => { linha[l["Status Restricao"]] = (linha[l["Status Restricao"]] || 0) + 1; });
+      return linha;
+    });
+  }
+
+  function compativelPorSetor(compativeisF) {
+    const compat = compativeisF.filter((l) => l["Atividade Compativel"] === "Sim");
+    const setores = Array.from(new Set(compat.map((l) => l.Setor))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return setores.map((setor) => ({ setor, qtd: compat.filter((l) => l.Setor === setor).length }));
+  }
+
+  // Conta restricoes (linhas) por regiao corporal (Segmento Corporal) - mesma
+  // logica dos diagramas de Med Ocup, mas contando ocorrencias, nao dias.
+  function contagemPorRegiao(compativeisF, regioes) {
+    const mapa = {};
+    regioes.forEach((r) => (mapa[r] = 0));
+    compativeisF.forEach((l) => { if (l["Segmento Corporal"] in mapa) mapa[l["Segmento Corporal"]] += 1; });
+    return mapa;
+  }
+
+  // ------------------------------------------------------------------
   // Formatacao
   // ------------------------------------------------------------------
   function formatarMesLabel(am) {
@@ -221,12 +375,17 @@
   global.BI = global.BI || {};
   global.BI.Calc = {
     DIMENSOES,
+    DIMENSOES_RISCO,
     NIVEIS_RISCO,
     STATUS_ACAO_ORDEM,
+    STATUS_RESTRICAO_ORDEM,
     resolverCorCSS,
     corStatus,
     construirMapaCores,
     calcularStatusAcao,
+    calcularRiscoGlobal,
+    nivelReduzido,
+    buscarPorChave,
     filtrar,
     opcoesDeFiltro,
     mapaRiscoGlobal,
@@ -237,6 +396,17 @@
     serieMensal,
     mapaRiscoPorSetor,
     statusPlanoAcaoPorSetor,
+    calcularTaxaFrequencia,
+    totaisMedOcup,
+    evolucaoTaxaFrequencia,
+    taxaFrequenciaPorSetor,
+    somaDiasPorRegiao,
+    contagemPorCampo,
+    distribuicaoIdade,
+    statusRestricaoPorSetor,
+    statusRestricaoPorTurno,
+    compativelPorSetor,
+    contagemPorRegiao,
     formatarMesLabel,
     formatarStatusLabel,
   };

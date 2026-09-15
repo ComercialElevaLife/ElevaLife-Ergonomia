@@ -14,9 +14,9 @@
   </div>
   <nav class="abas" id="nav-abas">
     <button type="button" data-aba="ergo" class="ativa">Ergo</button>
-    <button type="button" data-aba="medocup" disabled title="Fase 3 - em construcao">Med Ocup</button>
-    <button type="button" data-aba="compativeis" disabled title="Fase 4 - em construcao">Compativeis</button>
-    <button type="button" data-aba="dados">Dados (input)</button>
+    <button type="button" data-aba="medocup">Med Ocup</button>
+    <button type="button" data-aba="compativeis">Compativeis</button>
+    <button type="button" data-aba="cadastros">Cadastros</button>
   </nav>
 </div>
 
@@ -99,20 +99,155 @@
     </div>
   </section>
 
-  <section id="aba-dados" hidden>
+  <section id="aba-medocup" hidden>
+    <div class="grade">
+
+      <!-- 1. Cards de totais -->
+      <div class="cartao col-12">
+        <div class="cartao-titulo">Totais do periodo filtrado</div>
+        <div class="cartao-sub">Colaboradores, dias perdidos e taxa de frequencia (NBR 14280)</div>
+        <div class="grade-totais" id="tiles-totais-medocup"></div>
+      </div>
+
+      <!-- 2. Evolucao da Taxa de Frequencia -->
+      <div class="cartao col-7">
+        <div class="cartao-titulo">Evolucao da Taxa de Frequencia</div>
+        <div class="cartao-sub">Por Ano/Mes - passe o mouse para ver atestados e dias perdidos</div>
+        <div class="altura-chart alta"><canvas id="chart-evolucao-taxa"></canvas></div>
+      </div>
+
+      <!-- 3. Taxa de Frequencia por Setor -->
+      <div class="cartao col-5">
+        <div class="cartao-titulo">Taxa de Frequencia por Setor</div>
+        <div class="cartao-sub">Casos de afastamento por milhao de HHT</div>
+        <div class="altura-chart alta"><canvas id="chart-taxa-por-setor"></canvas></div>
+      </div>
+
+      <!-- 4. Diagrama corporal - dias perdidos -->
+      <div class="cartao col-6">
+        <div class="cartao-titulo">Dias perdidos por regiao - Frente</div>
+        <div class="cartao-sub">Soma de "Qtd Dias" de afastamento por regiao corporal</div>
+        <figure class="figura-diagrama">
+          <div id="diagrama-medocup-frente"></div>
+          <figcaption>Silhueta vista de frente; lado Direito da pessoa aparece a esquerda da imagem.</figcaption>
+        </figure>
+      </div>
+      <div class="cartao col-6">
+        <div class="cartao-titulo">Dias perdidos por regiao - Costas</div>
+        <div class="cartao-sub">Soma de "Qtd Dias" de afastamento por regiao corporal</div>
+        <figure class="figura-diagrama">
+          <div id="diagrama-medocup-costas"></div>
+          <figcaption>Silhueta vista de costas; lado Direito da pessoa aparece a direita da imagem.</figcaption>
+        </figure>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="aba-compativeis" hidden>
+    <div class="barra-filtros-pagina" id="barra-filtros-compativeis">
+      <!-- filtros de pagina (Status Restricao, Turno Trabalho) inseridos via JS -->
+    </div>
+    <div class="grade">
+
+      <!-- 1. Genero -->
+      <div class="cartao col-3">
+        <div class="cartao-titulo">Genero</div>
+        <div class="cartao-sub">Colaboradores em restricao/acompanhamento</div>
+        <div class="altura-chart"><canvas id="chart-compat-genero"></canvas></div>
+        <div class="legenda" id="legenda-compat-genero"></div>
+      </div>
+
+      <!-- 2. Idade -->
+      <div class="cartao col-5">
+        <div class="cartao-titulo">Idade</div>
+        <div class="cartao-sub">Distribuicao por faixa etaria</div>
+        <div class="altura-chart"><canvas id="chart-compat-idade"></canvas></div>
+      </div>
+
+      <!-- 6. Em Atividade Compativel -->
+      <div class="cartao col-4">
+        <div class="cartao-titulo">Em Atividade Compativel</div>
+        <div class="cartao-sub">Recolocado em atividade compativel com a restricao</div>
+        <div class="altura-chart"><canvas id="chart-compat-atividade"></canvas></div>
+        <div class="legenda" id="legenda-compat-atividade"></div>
+      </div>
+
+      <!-- 3. Status por Setor -->
+      <div class="cartao col-6">
+        <div class="cartao-titulo">Status por Setor</div>
+        <div class="cartao-sub">Contagem por status de restricao</div>
+        <div class="altura-chart alta"><canvas id="chart-compat-status-setor"></canvas></div>
+        <div class="legenda" id="legenda-compat-status-setor"></div>
+      </div>
+
+      <!-- 4. Restricao por Turno -->
+      <div class="cartao col-6">
+        <div class="cartao-titulo">Restricao por Turno</div>
+        <div class="cartao-sub">Contagem por status de restricao</div>
+        <div class="altura-chart alta"><canvas id="chart-compat-restricao-turno"></canvas></div>
+        <div class="legenda" id="legenda-compat-restricao-turno"></div>
+      </div>
+
+      <!-- 7. Compativel por Setor -->
+      <div class="cartao col-12">
+        <div class="cartao-titulo">Compativel por Setor</div>
+        <div class="cartao-sub">Colaboradores em atividade compativel = "Sim", por setor</div>
+        <div class="altura-chart"><canvas id="chart-compat-compativel-setor"></canvas></div>
+      </div>
+
+      <!-- 5. Diagrama corporal - restricoes -->
+      <div class="cartao col-6">
+        <div class="cartao-titulo">Restricoes por regiao - Frente</div>
+        <div class="cartao-sub">Contagem de restricoes por regiao corporal</div>
+        <figure class="figura-diagrama">
+          <div id="diagrama-compat-frente"></div>
+          <figcaption>Silhueta vista de frente; lado Direito da pessoa aparece a esquerda da imagem.</figcaption>
+        </figure>
+      </div>
+      <div class="cartao col-6">
+        <div class="cartao-titulo">Restricoes por regiao - Costas</div>
+        <div class="cartao-sub">Contagem de restricoes por regiao corporal</div>
+        <figure class="figura-diagrama">
+          <div id="diagrama-compat-costas"></div>
+          <figcaption>Silhueta vista de costas; lado Direito da pessoa aparece a direita da imagem.</figcaption>
+        </figure>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="aba-cadastros" hidden>
     <p class="dados-intro">
-      Estas sao as 6 tabelas que alimentam o BI (a "camada de input") - os mesmos filtros globais acima se aplicam
-      aqui, para voce conferir que os numeros dos graficos batem com as linhas de origem. Dados ficticios, produto
-      ElevaLife sem integracao com sistemas externos nesta fase.
+      Cadastro real das 4 tabelas operacionais do BI Ergonomia. O que voce salvar aqui fica gravado de verdade
+      neste BI - qualquer pessoa que abrir este link ve os mesmos dados. Lista CID e Dias Uteis sao tabelas de
+      referencia (fixas) e ficam disponiveis so para consulta no rodape da pagina.
     </p>
-    <div class="grade" id="grade-dados"></div>
+    <div class="aviso-somente-leitura" id="aviso-somente-leitura" hidden>
+      Banco de dados indisponivel nesta visualizacao (modo somente leitura) - os cadastros abaixo mostram os
+      dados ficticios de exemplo, mas novos lancamentos nao podem ser salvos por aqui agora.
+    </div>
+    <div class="grade" id="grade-cadastros"></div>
+  </section>
+
+  <section id="aba-referencia" hidden>
+    <p class="dados-intro">
+      Tabelas de referencia (estaticas, so para consulta) - alimentam calculos como CID de afastamento e
+      contagem de dias uteis/colaboradores por Ano/Mes.
+    </p>
+    <div class="grade" id="grade-referencia"></div>
   </section>
 </main>
 
-<footer class="rodape">BI Ergonomia · ElevaLife · Dados ficticios para validacao (Fase 2 de 5) · Gerado em <span id="data-geracao"></span></footer>
+<footer class="rodape">
+  BI Ergonomia · ElevaLife · Produto ElevaLife, dados ficticios nesta fase de validacao · Gerado em <span id="data-geracao"></span>
+  · <button type="button" class="link-referencia" id="btn-toggle-referencia">Ver tabelas de referencia</button>
+</footer>
 
 <div class="tooltip-chart" id="tooltip-flutuante" style="display:none;"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="js/calc.js"></script>
+<script src="js/db.js"></script>
+<script src="js/diagramas.js"></script>
 <script src="js/app.js"></script>
