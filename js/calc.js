@@ -350,12 +350,14 @@
     return mapa;
   }
 
+  const FAIXAS_IDADE = [
+    { min: 0, max: 24, label: "Ate 24" }, { min: 25, max: 34, label: "25-34" },
+    { min: 35, max: 44, label: "35-44" }, { min: 45, max: 54, label: "45-54" },
+    { min: 55, max: 200, label: "55+" },
+  ];
+
   function distribuicaoIdade(compativeisF) {
-    const faixas = [
-      { min: 0, max: 24, label: "Ate 24" }, { min: 25, max: 34, label: "25-34" },
-      { min: 35, max: 44, label: "35-44" }, { min: 45, max: 54, label: "45-54" },
-      { min: 55, max: 200, label: "55+" },
-    ];
+    const faixas = FAIXAS_IDADE;
     const contagem = faixas.map((f) => ({ label: f.label, qtd: 0 }));
     compativeisF.forEach((l) => {
       const idade = Number(l.Idade) || 0;
@@ -433,6 +435,7 @@
     anosDisponiveis,
     mesesDisponiveis,
     rotuloMes,
+    FAIXAS_IDADE,
     mapaRiscoGlobal,
     topSetores,
     statusPlanoAcao,

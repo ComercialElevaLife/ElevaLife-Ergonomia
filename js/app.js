@@ -150,6 +150,182 @@
   }
 
   // ------------------------------------------------------------------
+  // Drill-down: clicar em qualquer grafico (fatia, barra, ponto) abre um
+  // painel flutuante com o detalhamento das linhas brutas por tras
+  // daquele numero - reaproveita as MESMAS colunas ja definidas em
+  // CADASTROS_CONFIG (chave "mapaRisco"/"planoAcao"/"absenteismo"/
+  // "compativeis") para nao duplicar a forma de exibir cada tabela.
+  // ------------------------------------------------------------------
+  let elDrillDown = null;
+
+  function obterPainelDrillDown() {
+    if (elDrillDown) return elDrillDown;
+    const painel = document.createElement("div");
+    painel.className = "drilldown-painel";
+    painel.id = "drilldown-painel";
+    painel.hidden = true;
+    const cab = document.createElement("div");
+    cab.className = "drilldown-cabecalho";
+    const titulos = document.createElement("div");
+    titulos.className = "drilldown-titulos";
+    const titulo = document.createElement("div");
+    titulo.className = "titulo";
+    titulo.id = "drilldown-titulo";
+    const sub = document.createElement("div");
+    sub.className = "sub";
+    sub.id = "drilldown-sub";
+    titulos.appendChild(titulo);
+    titulos.appendChild(sub);
+    const btnFechar = document.createElement("button");
+    btnFechar.type = "button";
+    btnFechar.className = "drilldown-fechar";
+    btnFechar.setAttribute("aria-label", "Fechar detalhamento");
+    btnFechar.textContent = "×";
+    btnFechar.addEventListener("click", fecharDrillDown);
+    cab.appendChild(titulos);
+    cab.appendChild(btnFechar);
+    const corpo = document.createElement("div");
+    corpo.className = "drilldown-corpo";
+    corpo.id = "drilldown-corpo";
+    painel.appendChild(cab);
+    painel.appendChild(corpo);
+    document.body.appendChild(painel);
+    elDrillDown = painel;
+    return painel;
+  }
+
+  function fecharDrillDown() {
+    if (elDrillDown) elDrillDown.hidden = true;
+  }
+
+  document.addEventListener("click", (ev) => {
+    if (!elDrillDown || elDrillDown.hidden) return;
+    if (ev.target.closest(".drilldown-painel") || ev.target.closest("canvas") || ev.target.closest(".figura-diagrama")) return;
+    fecharDrillDown();
+  });
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") fecharDrillDown(); });
+
+  // colunas de exibicao por tabela de origem (mesma forma das listas de
+  // Cadastros - ver CADASTROS_CONFIG mais abaixo neste arquivo)
+  function colunasDrillDown(chave) {
+    const cfg = CADASTROS_CONFIG[chave];
+    const extra = chave === "planoAcao" ? ["Status Acao"] : [];
+    return { colunas: cfg.colunasTabela.concat(extra), colunasData: cfg.colunasData || [] };
+  }
+
+  function celulaFormatada(col, linha, colunasData) {
+    let v = linha[col];
+    if (colunasData.includes(col)) v = formatarDataBR(v);
+    else if (col === "Risco Global" && v) v = window.BI.Calc.rotuloNivel(v);
+    return v === null || v === undefined || v === "" ? "-" : String(v);
+  }
+
+  const LIMITE_LINHAS_DRILLDOWN = 30;
+
+  function abrirDrillDown(campoOuTitulo, subtitulo, chave, linhas, evt) {
+    const painel = obterPainelDrillDown();
+    document.getElementById("drilldown-titulo").textContent = campoOuTitulo;
+    document.getElementById("drilldown-sub").textContent = subtitulo;
+
+    const corpo = document.getElementById("drilldown-corpo");
+    corpo.innerHTML = "";
+
+    if (!linhas.length) {
+      const vazio = document.createElement("div");
+      vazio.className = "drilldown-vazio";
+      vazio.textContent = "Nenhum registro para esta selecao.";
+      corpo.appendChild(vazio);
+    } else {
+      const { colunas, colunasData } = colunasDrillDown(chave);
+      const hoje = hojeMeiaNoite();
+      const scroll = document.createElement("div");
+      scroll.className = "tabela-scroll";
+      const tabela = document.createElement("table");
+      tabela.className = "tabela-dados";
+      const thead = document.createElement("thead");
+      const trHead = document.createElement("tr");
+      colunas.forEach((c) => { const th = document.createElement("th"); th.textContent = c; trHead.appendChild(th); });
+      thead.appendChild(trHead);
+      const tbody = document.createElement("tbody");
+      linhas.slice(0, LIMITE_LINHAS_DRILLDOWN).forEach((linha) => {
+        const tr = document.createElement("tr");
+        colunas.forEach((c) => {
+          const td = document.createElement("td");
+          if (c === "Status Acao") td.textContent = window.BI.Calc.calcularStatusAcao(linha["Dt Programada"], linha["Dt Conclusao"], hoje);
+          else td.textContent = celulaFormatada(c, linha, colunasData);
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      tabela.appendChild(thead);
+      tabela.appendChild(tbody);
+      scroll.appendChild(tabela);
+      corpo.appendChild(scroll);
+      if (linhas.length > LIMITE_LINHAS_DRILLDOWN) {
+        const nota = document.createElement("div");
+        nota.className = "drilldown-nota";
+        nota.textContent = `Mostrando ${LIMITE_LINHAS_DRILLDOWN} de ${linhas.length} registros.`;
+        corpo.appendChild(nota);
+      }
+    }
+
+    painel.hidden = false;
+    // Posiciona proximo ao clique, sem sair da tela.
+    const W = 460, margem = 12;
+    let x = (evt && evt.clientX != null ? evt.clientX : window.innerWidth / 2) + 14;
+    let y = evt && evt.clientY != null ? evt.clientY : window.innerHeight / 2;
+    if (x + W + margem > window.innerWidth) x = window.innerWidth - W - margem;
+    if (x < margem) x = margem;
+    const alturaEstimada = Math.min(400, window.innerHeight * 0.7);
+    if (y + alturaEstimada + margem > window.innerHeight) y = Math.max(margem, window.innerHeight - alturaEstimada - margem);
+    painel.style.left = x + "px";
+    painel.style.top = y + "px";
+  }
+
+  // Resolve o elemento REALMENTE sob o cursor (independente do modo de
+  // interacao do tooltip, que usa "index"/intersect:false) - clique deve
+  // sempre mirar o segmento/barra visualmente clicado.
+  function elementoClicado(chart, evt) {
+    const els = chart.getElementsAtEventForMode(evt, "nearest", { intersect: true }, false);
+    return els && els.length ? els[0] : null;
+  }
+
+  // Diagramas corporais (SVG) tambem sao clicaveis: cada rotulo de regiao
+  // (js/diagramas.js) recebe um data-regiao - aqui so ligamos o clique
+  // apos cada renderizacao (o SVG e recriado via innerHTML a cada vez).
+  function ligarCliqueDiagrama(containerId, linhasFonte, campoRegiao, chave) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.querySelectorAll("[data-regiao]").forEach((g) => {
+      const regiao = g.getAttribute("data-regiao");
+      const abrir = (ev) => {
+        abrirDrillDown(
+          `Regiao corporal - ${regiao}`, "Registros desta regiao", chave,
+          linhasFonte.filter((l) => l[campoRegiao] === regiao), ev
+        );
+      };
+      g.addEventListener("click", abrir);
+      g.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); abrir(ev); } });
+    });
+  }
+
+  // Anexa onClick + onHover (cursor) a um objeto de opcoes do Chart.js.
+  // `resolver(el, chart)` recebe o elemento clicado e devolve
+  // {titulo, subtitulo, chave, linhas} (ou null/undefined para ignorar).
+  function comCliqueDrillDown(opcoes, resolver) {
+    return Object.assign({}, opcoes, {
+      onHover(evt, elements) { evt.native.target.style.cursor = elements.length ? "pointer" : "default"; },
+      onClick(evt, elements, chart) {
+        const el = (elements && elements[0]) || elementoClicado(chart, evt);
+        if (!el) return;
+        const res = resolver(el, chart);
+        if (!res) return;
+        abrirDrillDown(res.titulo, res.subtitulo, res.chave, res.linhas, evt.native || evt);
+      },
+    });
+  }
+
+  // ------------------------------------------------------------------
   // Legendas customizadas (HTML) - substituem a legenda nativa do Chart.js
   // ------------------------------------------------------------------
   function renderizarLegenda(containerId, itens) {
@@ -369,14 +545,22 @@
   // Renderizadores - Dashboard "Ergo"
   // ------------------------------------------------------------------
 
-  function renderTilesRiscoGlobal(niveis) {
+  function renderTilesRiscoGlobal(niveis, mapaRiscoF) {
     const cont = document.getElementById("tiles-risco-global");
     cont.innerHTML = "";
     niveis.forEach((n) => {
       const cor = window.BI.Calc.corStatus(n.nivel);
       const tile = document.createElement("div");
-      tile.className = "tile-status";
+      tile.className = "tile-status tile-clicavel";
       tile.style.borderLeftColor = cor;
+      tile.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        abrirDrillDown(
+          `Mapa de Risco Global - ${window.BI.Calc.rotuloNivel(n.nivel)}`,
+          `${n.qtd} posto(s) de trabalho`, "mapaRisco",
+          mapaRiscoF.filter((l) => l["Risco Global"] === n.nivel), ev
+        );
+      });
 
       const rotulo = document.createElement("div");
       rotulo.className = "rotulo";
@@ -401,7 +585,7 @@
     });
   }
 
-  function renderTopSetores(lista) {
+  function renderTopSetores(lista, mapaRiscoF) {
     const mapaCores = window.BI.Calc.construirMapaCores(window.BI.dados.mapaRisco.map((l) => l.Setor));
     const labels = lista.map((s) => s.setor);
     const valores = lista.map((s) => Number(s.pct.toFixed(1)));
@@ -415,34 +599,43 @@
           maxBarThickness: 26, borderRadius: 4, borderSkipped: false,
         }],
       },
-      options: {
+      options: comCliqueDrillDown({
         indexAxis: "y",
         scales: {
           x: { beginAtZero: true, max: 100, grid: { color: corGrid() }, border: { display: false }, ticks: { callback: (v) => v + "%" } },
           y: { grid: { display: false }, border: { display: false } },
         },
-      },
+      }, (el) => {
+        const setor = labels[el.index];
+        return { titulo: `Top Setores criticos - ${setor}`, subtitulo: "Postos deste setor", chave: "mapaRisco", linhas: mapaRiscoF.filter((l) => l.Setor === setor) };
+      }),
     });
   }
 
-  function renderDonutStatus(canvasId, legendaId, dadosStatus) {
+  function renderDonutStatus(canvasId, legendaId, dadosStatus, linhasFonte, hoje) {
     const labels = dadosStatus.map((d) => d.status);
     const valores = dadosStatus.map((d) => d.qtd);
     const cores = labels.map((s) => window.BI.Calc.corStatus(s));
     criarOuAtualizarGrafico(canvasId, {
       type: "doughnut",
       data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
-      options: {
+      options: comCliqueDrillDown({
         cutout: "62%",
         interaction: { mode: "nearest", intersect: true },
         plugins: { tooltip: { enabled: false, external: tooltipExterno } },
-      },
+      }, (el) => {
+        const status = labels[el.index];
+        return {
+          titulo: `Plano de Acao - ${status}`, subtitulo: `${valores[el.index]} acao(oes)`, chave: "planoAcao",
+          linhas: linhasFonte.filter((l) => window.BI.Calc.calcularStatusAcao(l["Dt Programada"], l["Dt Conclusao"], hoje) === status),
+        };
+      }),
     });
     const total = valores.reduce((a, b) => a + b, 0);
     renderizarLegenda(legendaId, labels.map((l, i) => ({ label: `${l} (${valores[i]}${total ? ", " + ((valores[i] / total) * 100).toFixed(0) + "%" : ""})`, cor: cores[i] })));
   }
 
-  function renderLinhaMensal(canvasId, serie, nomeSerie, cor) {
+  function renderLinhaMensal(canvasId, serie, nomeSerie, cor, linhasFonte, campoData) {
     const labels = serie.map((s) => window.BI.Calc.formatarMesLabel(s.mes));
     const valores = serie.map((s) => s.qtd);
     criarOuAtualizarGrafico(canvasId, {
@@ -457,16 +650,22 @@
           pointBackgroundColor: cor, pointBorderColor: corSurfaceCard(), pointBorderWidth: 2,
         }],
       },
-      options: {
+      options: comCliqueDrillDown({
         scales: {
           x: { grid: { display: false }, border: { display: false } },
           y: { beginAtZero: true, grid: { color: corGrid() }, border: { display: false }, ticks: { precision: 0 } },
         },
-      },
+      }, (el) => {
+        const mes = serie[el.index].mes;
+        return {
+          titulo: `${nomeSerie} - ${window.BI.Calc.formatarMesLabel(mes)}`, subtitulo: `${valores[el.index]} registro(s)`, chave: "planoAcao",
+          linhas: linhasFonte.filter((l) => l[campoData] && String(l[campoData]).slice(0, 7) === mes),
+        };
+      }),
     });
   }
 
-  function renderPorResponsavel(linhas) {
+  function renderPorResponsavel(linhas, planoAcaoF, hoje) {
     const labels = linhas.map((l) => l.responsavel);
     const datasets = window.BI.Calc.STATUS_ACAO_ORDEM.map((status) => ({
       label: status,
@@ -476,11 +675,21 @@
       maxBarThickness: 20, borderRadius: 3, borderSkipped: false,
       stack: "st",
     }));
-    criarOuAtualizarGrafico("chart-por-responsavel", { type: "bar", data: { labels, datasets }, options: opcoesBarraHorizontalEmpilhada() });
+    criarOuAtualizarGrafico("chart-por-responsavel", {
+      type: "bar", data: { labels, datasets },
+      options: comCliqueDrillDown(opcoesBarraHorizontalEmpilhada(), (el) => {
+        const responsavel = labels[el.index];
+        const status = window.BI.Calc.STATUS_ACAO_ORDEM[el.datasetIndex];
+        return {
+          titulo: `${responsavel} - ${status}`, subtitulo: "Acoes do Plano de Acao", chave: "planoAcao",
+          linhas: planoAcaoF.filter((l) => l["Responsavel Acao"] === responsavel && window.BI.Calc.calcularStatusAcao(l["Dt Programada"], l["Dt Conclusao"], hoje) === status),
+        };
+      }),
+    });
     renderizarLegenda("legenda-por-responsavel", window.BI.Calc.STATUS_ACAO_ORDEM.map((s) => ({ label: s, cor: window.BI.Calc.corStatus(s) })));
   }
 
-  function renderStatusPorSetor(linhas) {
+  function renderStatusPorSetor(linhas, planoAcaoF, hoje) {
     const labels = linhas.map((l) => l.setor);
     const datasets = window.BI.Calc.STATUS_ACAO_ORDEM.map((status) => ({
       label: status,
@@ -490,11 +699,21 @@
       maxBarThickness: 20, borderRadius: 3, borderSkipped: false,
       stack: "st",
     }));
-    criarOuAtualizarGrafico("chart-status-por-setor", { type: "bar", data: { labels, datasets }, options: opcoesBarraHorizontalEmpilhada() });
+    criarOuAtualizarGrafico("chart-status-por-setor", {
+      type: "bar", data: { labels, datasets },
+      options: comCliqueDrillDown(opcoesBarraHorizontalEmpilhada(), (el) => {
+        const setor = labels[el.index];
+        const status = window.BI.Calc.STATUS_ACAO_ORDEM[el.datasetIndex];
+        return {
+          titulo: `${setor} - ${status}`, subtitulo: "Acoes do Plano de Acao", chave: "planoAcao",
+          linhas: planoAcaoF.filter((l) => l.Setor === setor && window.BI.Calc.calcularStatusAcao(l["Dt Programada"], l["Dt Conclusao"], hoje) === status),
+        };
+      }),
+    });
     renderizarLegenda("legenda-status-por-setor", window.BI.Calc.STATUS_ACAO_ORDEM.map((s) => ({ label: s, cor: window.BI.Calc.corStatus(s) })));
   }
 
-  function renderRiscoPorSetor(linhas) {
+  function renderRiscoPorSetor(linhas, mapaRiscoF) {
     const labels = linhas.map((l) => l.setor);
     const datasets = window.BI.Calc.NIVEIS_RISCO.map((nivel) => ({
       label: window.BI.Calc.rotuloNivel(nivel),
@@ -504,7 +723,17 @@
       maxBarThickness: 22, borderRadius: 3, borderSkipped: false,
       stack: "st",
     }));
-    criarOuAtualizarGrafico("chart-risco-por-setor", { type: "bar", data: { labels, datasets }, options: opcoesBarraHorizontalEmpilhada() });
+    criarOuAtualizarGrafico("chart-risco-por-setor", {
+      type: "bar", data: { labels, datasets },
+      options: comCliqueDrillDown(opcoesBarraHorizontalEmpilhada(), (el) => {
+        const setor = labels[el.index];
+        const nivel = window.BI.Calc.NIVEIS_RISCO[el.datasetIndex];
+        return {
+          titulo: `${setor} - Risco ${window.BI.Calc.rotuloNivel(nivel)}`, subtitulo: "Postos de trabalho", chave: "mapaRisco",
+          linhas: mapaRiscoF.filter((l) => l.Setor === setor && l["Risco Global"] === nivel),
+        };
+      }),
+    });
     renderizarLegenda("legenda-risco-por-setor", window.BI.Calc.NIVEIS_RISCO.map((n) => ({ label: window.BI.Calc.rotuloNivel(n), cor: window.BI.Calc.corStatus(n) })));
   }
 
@@ -544,7 +773,7 @@
   // (eixo proprio, sem exibicao) so para aparecerem no tooltip ao passar o
   // mouse, conforme pedido no RD ("tooltip mostrando Evolucao de Atestados e
   // Evolucao de Dias Perdidos").
-  function renderEvolucaoTaxa(serie) {
+  function renderEvolucaoTaxa(serie, absenteismoF) {
     const labels = serie.map((s) => window.BI.Calc.formatarMesLabel(s.mes));
     const corTaxa = window.BI.Calc.resolverCorCSS("var(--teal)");
     const corAtestados = window.BI.Calc.resolverCorCSS("var(--cat-2)");
@@ -572,17 +801,23 @@
           },
         ],
       },
-      options: {
+      options: comCliqueDrillDown({
         scales: {
           x: { grid: { display: false }, border: { display: false } },
           y: { beginAtZero: true, grid: { color: corGrid() }, border: { display: false } },
           y1: { display: false, beginAtZero: true },
         },
-      },
+      }, (el) => {
+        const mes = serie[el.index].mes;
+        return {
+          titulo: `Absenteismo - ${window.BI.Calc.formatarMesLabel(mes)}`, subtitulo: "Registros de afastamento no mes", chave: "absenteismo",
+          linhas: absenteismoF.filter((l) => l["Dt Afastamento"] && String(l["Dt Afastamento"]).slice(0, 7) === mes),
+        };
+      }),
     });
   }
 
-  function renderTaxaPorSetor(lista) {
+  function renderTaxaPorSetor(lista, absenteismoF) {
     const mapaCores = window.BI.Calc.construirMapaCores(lista.map((s) => s.setor));
     const labels = lista.map((s) => s.setor);
     const valores = lista.map((s) => Number(s.taxaFrequencia.toFixed(2)));
@@ -592,12 +827,15 @@
         labels,
         datasets: [{ data: valores, backgroundColor: labels.map((l) => mapaCores[l]), maxBarThickness: 26, borderRadius: 4, borderSkipped: false }],
       },
-      options: {
+      options: comCliqueDrillDown({
         scales: {
           x: { grid: { display: false }, border: { display: false } },
           y: { beginAtZero: true, grid: { color: corGrid() }, border: { display: false } },
         },
-      },
+      }, (el) => {
+        const setor = labels[el.index];
+        return { titulo: `Absenteismo - ${setor}`, subtitulo: "Registros de afastamento", chave: "absenteismo", linhas: absenteismoF.filter((l) => l.Setor === setor) };
+      }),
     });
   }
 
@@ -613,6 +851,8 @@
       window.BI.Calc.somaDiasPorRegiao(absenteismoF, meta.regioes_tras),
       { formatarValor: (v) => `${v} dia${v === 1 ? "" : "s"}`, titulo: "Dias perdidos por regiao - vista posterior" }
     );
+    ligarCliqueDiagrama("diagrama-medocup-frente", absenteismoF, "Regiao Corporal", "absenteismo");
+    ligarCliqueDiagrama("diagrama-medocup-costas", absenteismoF, "Regiao Corporal", "absenteismo");
   }
 
   // ------------------------------------------------------------------
@@ -677,15 +917,15 @@
   // ------------------------------------------------------------------
   // Renderizadores - Dashboard "Compativeis"
   // ------------------------------------------------------------------
-  function renderDonutGenerico(canvasId, legendaId, labels, valores, cores) {
+  function renderDonutGenerico(canvasId, legendaId, labels, valores, cores, aoClicar) {
     criarOuAtualizarGrafico(canvasId, {
       type: "doughnut",
       data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
-      options: {
+      options: comCliqueDrillDown({
         cutout: "62%",
         interaction: { mode: "nearest", intersect: true },
         plugins: { tooltip: { enabled: false, external: tooltipExterno } },
-      },
+      }, aoClicar ? (el) => aoClicar(labels[el.index], valores[el.index]) : () => null),
     });
     const total = valores.reduce((a, b) => a + b, 0);
     renderizarLegenda(legendaId, labels.map((l, i) => ({ label: `${l} (${valores[i]}${total ? ", " + ((valores[i] / total) * 100).toFixed(0) + "%" : ""})`, cor: cores[i] })));
@@ -696,21 +936,31 @@
     const labels = itens.map((i) => i.chave);
     const valores = itens.map((i) => i.qtd);
     const mapaCores = window.BI.Calc.construirMapaCores(labels);
-    renderDonutGenerico("chart-compat-genero", "legenda-compat-genero", labels, valores, labels.map((l) => mapaCores[l]));
+    renderDonutGenerico("chart-compat-genero", "legenda-compat-genero", labels, valores, labels.map((l) => mapaCores[l]), (genero) => ({
+      titulo: `Genero - ${genero}`, subtitulo: "Colaboradores em restricao/acompanhamento", chave: "compativeis",
+      linhas: compativeisF.filter((l) => l.Genero === genero),
+    }));
   }
 
-  function renderCompatIdade(distribuicao) {
+  function renderCompatIdade(distribuicao, compativeisF) {
     const labels = distribuicao.map((d) => d.label);
     const valores = distribuicao.map((d) => d.qtd);
+    const faixas = window.BI.Calc.FAIXAS_IDADE;
     criarOuAtualizarGrafico("chart-compat-idade", {
       type: "bar",
       data: { labels, datasets: [{ data: valores, backgroundColor: window.BI.Calc.resolverCorCSS("var(--teal)"), maxBarThickness: 40, borderRadius: 4, borderSkipped: false }] },
-      options: {
+      options: comCliqueDrillDown({
         scales: {
           x: { grid: { display: false }, border: { display: false } },
           y: { beginAtZero: true, grid: { color: corGrid() }, border: { display: false }, ticks: { precision: 0 } },
         },
-      },
+      }, (el) => {
+        const faixa = faixas[el.index];
+        return {
+          titulo: `Idade - ${faixa.label}`, subtitulo: "Colaboradores nesta faixa etaria", chave: "compativeis",
+          linhas: compativeisF.filter((l) => { const idade = Number(l.Idade) || 0; return idade >= faixa.min && idade <= faixa.max; }),
+        };
+      }),
     });
   }
 
@@ -719,10 +969,13 @@
     const labels = itens.map((i) => i.chave);
     const valores = itens.map((i) => i.qtd);
     const cores = labels.map((l) => window.BI.Calc.resolverCorCSS(l === "Sim" ? "var(--status-good)" : "var(--status-critical)"));
-    renderDonutGenerico("chart-compat-atividade", "legenda-compat-atividade", labels, valores, cores);
+    renderDonutGenerico("chart-compat-atividade", "legenda-compat-atividade", labels, valores, cores, (valor) => ({
+      titulo: `Em Atividade Compativel - ${valor}`, subtitulo: "Colaboradores em restricao/acompanhamento", chave: "compativeis",
+      linhas: compativeisF.filter((l) => l["Atividade Compativel"] === valor),
+    }));
   }
 
-  function renderCompatStatusPorSetor(linhas) {
+  function renderCompatStatusPorSetor(linhas, compativeisF) {
     const labels = linhas.map((l) => l.setor);
     const datasets = window.BI.Calc.STATUS_RESTRICAO_ORDEM.map((status) => ({
       label: status,
@@ -732,11 +985,21 @@
       maxBarThickness: 20, borderRadius: 3, borderSkipped: false,
       stack: "st",
     }));
-    criarOuAtualizarGrafico("chart-compat-status-setor", { type: "bar", data: { labels, datasets }, options: opcoesBarraHorizontalEmpilhada() });
+    criarOuAtualizarGrafico("chart-compat-status-setor", {
+      type: "bar", data: { labels, datasets },
+      options: comCliqueDrillDown(opcoesBarraHorizontalEmpilhada(), (el) => {
+        const setor = labels[el.index];
+        const status = window.BI.Calc.STATUS_RESTRICAO_ORDEM[el.datasetIndex];
+        return {
+          titulo: `${setor} - ${status}`, subtitulo: "Restricoes medicas", chave: "compativeis",
+          linhas: compativeisF.filter((l) => l.Setor === setor && l["Status Restricao"] === status),
+        };
+      }),
+    });
     renderizarLegenda("legenda-compat-status-setor", window.BI.Calc.STATUS_RESTRICAO_ORDEM.map((s) => ({ label: s, cor: window.BI.Calc.corStatus(s) })));
   }
 
-  function renderCompatRestricaoPorTurno(linhas) {
+  function renderCompatRestricaoPorTurno(linhas, compativeisF) {
     const labels = linhas.map((l) => l.turno);
     const datasets = window.BI.Calc.STATUS_RESTRICAO_ORDEM.map((status) => ({
       label: status,
@@ -746,24 +1009,40 @@
       maxBarThickness: 20, borderRadius: 3, borderSkipped: false,
       stack: "st",
     }));
-    criarOuAtualizarGrafico("chart-compat-restricao-turno", { type: "bar", data: { labels, datasets }, options: opcoesBarraHorizontalEmpilhada() });
+    criarOuAtualizarGrafico("chart-compat-restricao-turno", {
+      type: "bar", data: { labels, datasets },
+      options: comCliqueDrillDown(opcoesBarraHorizontalEmpilhada(), (el) => {
+        const turno = labels[el.index];
+        const status = window.BI.Calc.STATUS_RESTRICAO_ORDEM[el.datasetIndex];
+        return {
+          titulo: `${turno} - ${status}`, subtitulo: "Restricoes medicas", chave: "compativeis",
+          linhas: compativeisF.filter((l) => l["Turno Trabalho"] === turno && l["Status Restricao"] === status),
+        };
+      }),
+    });
     renderizarLegenda("legenda-compat-restricao-turno", window.BI.Calc.STATUS_RESTRICAO_ORDEM.map((s) => ({ label: s, cor: window.BI.Calc.corStatus(s) })));
   }
 
-  function renderCompatCompativelPorSetor(lista) {
+  function renderCompatCompativelPorSetor(lista, compativeisF) {
     const mapaCores = window.BI.Calc.construirMapaCores(lista.map((s) => s.setor));
     const labels = lista.map((s) => s.setor);
     const valores = lista.map((s) => s.qtd);
     criarOuAtualizarGrafico("chart-compat-compativel-setor", {
       type: "bar",
       data: { labels, datasets: [{ data: valores, backgroundColor: labels.map((l) => mapaCores[l]), maxBarThickness: 26, borderRadius: 4, borderSkipped: false }] },
-      options: {
+      options: comCliqueDrillDown({
         indexAxis: "y",
         scales: {
           x: { beginAtZero: true, grid: { color: corGrid() }, border: { display: false }, ticks: { precision: 0 } },
           y: { grid: { display: false }, border: { display: false } },
         },
-      },
+      }, (el) => {
+        const setor = labels[el.index];
+        return {
+          titulo: `Compativel por Setor - ${setor}`, subtitulo: 'Atividade Compativel = "Sim"', chave: "compativeis",
+          linhas: compativeisF.filter((l) => l.Setor === setor && l["Atividade Compativel"] === "Sim"),
+        };
+      }),
     });
   }
 
@@ -779,6 +1058,8 @@
       window.BI.Calc.contagemPorRegiao(compativeisF, meta.regioes_tras),
       { formatarValor: (v) => `${v} restr.`, titulo: "Restricoes por regiao - vista posterior" }
     );
+    ligarCliqueDiagrama("diagrama-compat-frente", compativeisF, "Segmento Corporal", "compativeis");
+    ligarCliqueDiagrama("diagrama-compat-costas", compativeisF, "Segmento Corporal", "compativeis");
   }
 
   // ------------------------------------------------------------------
@@ -1557,32 +1838,34 @@
     const chip = document.getElementById("chip-contagem-postos");
     if (chip) chip.innerHTML = `<strong>${mapaRiscoF.length}</strong> de ${window.BI.dados.mapaRisco.length} postos`;
 
-    renderTilesRiscoGlobal(Calc.mapaRiscoGlobal(mapaRiscoF));
-    renderTopSetores(Calc.topSetores(mapaRiscoF, 3));
-    renderDonutStatus("chart-plano-global", "legenda-plano-global", Calc.statusPlanoAcao(planoAcaoF, hoje));
-    renderDonutStatus("chart-plano-criticos", "legenda-plano-criticos", Calc.planoAcaoPostosCriticos(planoAcaoF, hoje));
-    renderLinhaMensal("chart-acoes-previstas", Calc.serieMensal(planoAcaoFPrevistas, "Dt Programada"), "Acoes previstas", Calc.resolverCorCSS("var(--teal)"));
-    renderLinhaMensal("chart-acoes-concluidas", Calc.serieMensal(planoAcaoFConcluidas, "Dt Conclusao"), "Acoes concluidas", Calc.resolverCorCSS("var(--vinho-medio)"));
-    renderPorResponsavel(Calc.planoAcaoPorResponsavel(planoAcaoF, hoje));
-    renderStatusPorSetor(Calc.statusPlanoAcaoPorSetor(planoAcaoF, hoje));
-    renderRiscoPorSetor(Calc.mapaRiscoPorSetor(mapaRiscoF));
+    const planoAcaoFCriticos = planoAcaoF.filter((a) => a["Risco Global"] === "Alto" || a["Risco Global"] === "Muito Alto");
+
+    renderTilesRiscoGlobal(Calc.mapaRiscoGlobal(mapaRiscoF), mapaRiscoF);
+    renderTopSetores(Calc.topSetores(mapaRiscoF, 3), mapaRiscoF);
+    renderDonutStatus("chart-plano-global", "legenda-plano-global", Calc.statusPlanoAcao(planoAcaoF, hoje), planoAcaoF, hoje);
+    renderDonutStatus("chart-plano-criticos", "legenda-plano-criticos", Calc.planoAcaoPostosCriticos(planoAcaoF, hoje), planoAcaoFCriticos, hoje);
+    renderLinhaMensal("chart-acoes-previstas", Calc.serieMensal(planoAcaoFPrevistas, "Dt Programada"), "Acoes previstas", Calc.resolverCorCSS("var(--teal)"), planoAcaoFPrevistas, "Dt Programada");
+    renderLinhaMensal("chart-acoes-concluidas", Calc.serieMensal(planoAcaoFConcluidas, "Dt Conclusao"), "Acoes concluidas", Calc.resolverCorCSS("var(--vinho-medio)"), planoAcaoFConcluidas, "Dt Conclusao");
+    renderPorResponsavel(Calc.planoAcaoPorResponsavel(planoAcaoF, hoje), planoAcaoF, hoje);
+    renderStatusPorSetor(Calc.statusPlanoAcaoPorSetor(planoAcaoF, hoje), planoAcaoF, hoje);
+    renderRiscoPorSetor(Calc.mapaRiscoPorSetor(mapaRiscoF), mapaRiscoF);
 
     const diasUteisF = Calc.filtrar(window.BI.dados.diasUteis, filtros, ["Ano/Mes Uteis"]);
     const absenteismoF = Calc.filtrar(window.BI.dados.absenteismo, filtros, ["Dt Afastamento"]);
     renderTotaisMedOcup(Calc.totaisMedOcup(absenteismoF, diasUteisF));
-    renderEvolucaoTaxa(Calc.evolucaoTaxaFrequencia(absenteismoF, diasUteisF));
-    renderTaxaPorSetor(Calc.taxaFrequenciaPorSetor(absenteismoF, diasUteisF));
+    renderEvolucaoTaxa(Calc.evolucaoTaxaFrequencia(absenteismoF, diasUteisF), absenteismoF);
+    renderTaxaPorSetor(Calc.taxaFrequenciaPorSetor(absenteismoF, diasUteisF), absenteismoF);
     renderDiagramasMedOcup(absenteismoF);
 
     const compativeisGlobalF = Calc.filtrar(window.BI.dados.compativeis, filtros, []);
     const compativeisF = aplicarFiltrosPagina(compativeisGlobalF);
     renderCompatGenero(compativeisF);
-    renderCompatIdade(Calc.distribuicaoIdade(compativeisF));
-    renderCompatStatusPorSetor(Calc.statusRestricaoPorSetor(compativeisF));
-    renderCompatRestricaoPorTurno(Calc.statusRestricaoPorTurno(compativeisF));
+    renderCompatIdade(Calc.distribuicaoIdade(compativeisF), compativeisF);
+    renderCompatStatusPorSetor(Calc.statusRestricaoPorSetor(compativeisF), compativeisF);
+    renderCompatRestricaoPorTurno(Calc.statusRestricaoPorTurno(compativeisF), compativeisF);
     renderDiagramasCompativeis(compativeisF);
     renderCompatAtividade(compativeisF);
-    renderCompatCompativelPorSetor(Calc.compativelPorSetor(compativeisF));
+    renderCompatCompativelPorSetor(Calc.compativelPorSetor(compativeisF), compativeisF);
 
     renderizarTodosCadastros();
     renderizarAbaReferencia();

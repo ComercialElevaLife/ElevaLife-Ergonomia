@@ -104,16 +104,19 @@
     const destacar = valor > 0;
 
     return `
-      <line x1="${px}" y1="${py}" x2="${pontoLinhaX}" y2="${pontoLinhaY}"
-            stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" opacity="0.6" />
-      <circle cx="${px}" cy="${py}" r="3.5" fill="currentColor" opacity="0.85" stroke="#fff" stroke-width="0.75" />
-      <rect x="${bx}" y="${by}" width="${LARGURA_CAIXA}" height="${ALTURA_CAIXA}" rx="6"
-            fill="var(--card)" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3"
-            opacity="${destacar ? 1 : 0.55}" />
-      <text x="${bx + LARGURA_CAIXA / 2}" y="${by + 13}" text-anchor="middle"
-            font-size="8.5" fill="currentColor" opacity="0.8">${item.regiao}</text>
-      <text x="${bx + LARGURA_CAIXA / 2}" y="${by + 26}" text-anchor="middle"
-            font-size="12.5" font-weight="700" fill="${destacar ? "var(--teal-escuro)" : "currentColor"}">${formatarValor(valor)}</text>
+      <g class="bi-diagrama-regiao" data-regiao="${item.regiao}" tabindex="0" role="button"
+         aria-label="${item.regiao}: ${formatarValor(valor)}">
+        <line x1="${px}" y1="${py}" x2="${pontoLinhaX}" y2="${pontoLinhaY}"
+              stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" opacity="0.6" />
+        <circle cx="${px}" cy="${py}" r="3.5" fill="currentColor" opacity="0.85" stroke="#fff" stroke-width="0.75" />
+        <rect x="${bx}" y="${by}" width="${LARGURA_CAIXA}" height="${ALTURA_CAIXA}" rx="6"
+              fill="var(--card)" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3"
+              opacity="${destacar ? 1 : 0.55}" />
+        <text x="${bx + LARGURA_CAIXA / 2}" y="${by + 13}" text-anchor="middle"
+              font-size="8.5" fill="currentColor" opacity="0.8">${item.regiao}</text>
+        <text x="${bx + LARGURA_CAIXA / 2}" y="${by + 26}" text-anchor="middle"
+              font-size="12.5" font-weight="700" fill="${destacar ? "var(--teal-escuro)" : "currentColor"}">${formatarValor(valor)}</text>
+      </g>
     `;
   }
 
