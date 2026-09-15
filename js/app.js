@@ -1896,6 +1896,70 @@
   }
 
   // ------------------------------------------------------------------
+  // Menu lateral (retratil): no desktop recolhe para so-icones (preferencia
+  // lembrada por viewer via localStorage - conveniencia local, nao afeta
+  // outros usuarios nem e lida de volta pelo Claude); em telas estreitas
+  // vira uma gaveta deslizante com overlay, aberta pelo botao de hamburguer.
+  // ------------------------------------------------------------------
+  function lerPreferenciaSidebarRecolhida() {
+    try {
+      return localStorage.getItem("bi-ergonomia-sidebar-recolhida") === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+  function salvarPreferenciaSidebarRecolhida(recolhida) {
+    try {
+      localStorage.setItem("bi-ergonomia-sidebar-recolhida", recolhida ? "1" : "0");
+    } catch (e) {
+      // localStorage indisponivel nesta visualizacao - segue sem lembrar a preferencia
+    }
+  }
+
+  function fecharSidebarMobile() {
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("sidebar-overlay");
+    if (sidebar) sidebar.classList.remove("aberto-mobile");
+    if (overlay) overlay.hidden = true;
+  }
+
+  function configurarSidebar() {
+    const sidebar = document.getElementById("sidebar");
+    const btnRecolher = document.getElementById("btn-recolher-sidebar");
+    const btnAbrirMobile = document.getElementById("btn-abrir-sidebar-mobile");
+    const btnFecharMobile = document.getElementById("btn-fechar-sidebar-mobile");
+    const overlay = document.getElementById("sidebar-overlay");
+    if (!sidebar) return;
+
+    function aplicarEstadoRecolhido(recolhida) {
+      sidebar.classList.toggle("recolhido", recolhida);
+      if (btnRecolher) {
+        btnRecolher.setAttribute("aria-expanded", String(!recolhida));
+        const rotulo = btnRecolher.querySelector(".rotulo");
+        if (rotulo) rotulo.textContent = recolhida ? "Expandir menu" : "Recolher menu";
+      }
+    }
+
+    aplicarEstadoRecolhido(lerPreferenciaSidebarRecolhida());
+
+    if (btnRecolher) {
+      btnRecolher.addEventListener("click", () => {
+        const agoraRecolhida = !sidebar.classList.contains("recolhido");
+        aplicarEstadoRecolhido(agoraRecolhida);
+        salvarPreferenciaSidebarRecolhida(agoraRecolhida);
+      });
+    }
+    if (btnAbrirMobile) {
+      btnAbrirMobile.addEventListener("click", () => {
+        sidebar.classList.add("aberto-mobile");
+        if (overlay) overlay.hidden = false;
+      });
+    }
+    if (btnFecharMobile) btnFecharMobile.addEventListener("click", fecharSidebarMobile);
+    if (overlay) overlay.addEventListener("click", fecharSidebarMobile);
+  }
+
+  // ------------------------------------------------------------------
   // Navegacao entre abas (Ergo / Cadastros / Med Ocup / Compativeis) e o
   // link do rodape que abre/fecha o painel de Referencia (fora do nav)
   // ------------------------------------------------------------------
@@ -1915,6 +1979,7 @@
         const btnRef = document.getElementById("btn-toggle-referencia");
         if (btnRef) btnRef.textContent = "Ver tabelas de referencia";
         atualizarEstadoExportacao();
+        fecharSidebarMobile();
       });
     });
   }
@@ -2342,6 +2407,7 @@
       montarFiltrosPagina();
       montarAbaReferencia();
       montarCadastros();
+      configurarSidebar();
       configurarAbas();
       configurarToggleReferencia();
       configurarExportacao();
