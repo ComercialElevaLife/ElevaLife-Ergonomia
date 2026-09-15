@@ -18462,524 +18462,1951 @@
       "Atividade Compativel": "Sim"
     }
   ],
-  "hierarquia": [
+  "cliente": [
+    {
+      "Cliente": "AgroCampo Alimentos"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial"
+    },
+    {
+      "Cliente": "TransRoda Logistica"
+    }
+  ],
+  "unidade": [
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste"
+    }
+  ],
+  "setor": [
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Administrativo"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Almoxarifado"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Logistica/Expedicao"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Qualidade"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Administrativo"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Almoxarifado"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Qualidade"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Administrativo"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Almoxarifado"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Manutencao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Producao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Qualidade"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Administrativo"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Almoxarifado"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Manutencao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Producao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Qualidade"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Administrativo"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Almoxarifado"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Manutencao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Producao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Qualidade"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Administrativo"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Logistica/Expedicao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Manutencao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Producao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Qualidade"
+    }
+  ],
+  "cargo": [
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Leste",
       "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Conciliacao de dados em planilhas"
+      "Cargo": "Analista Administrativo"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Leste",
       "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Elaboracao de relatorios"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Leste",
-      "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Atendimento telefonico"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Leste",
-      "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Digitacao e conferencia de documentos"
+      "Cargo": "Assistente Administrativo"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Leste",
       "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
-      "Posto Trabalho": "Deposito de Insumos",
-      "Atividade": "Controle de estoque"
+      "Cargo": "Almoxarife"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Leste",
       "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
-      "Posto Trabalho": "Deposito de Insumos",
-      "Atividade": "Separacao de materiais para producao"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Leste",
-      "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
-      "Posto Trabalho": "Deposito de Insumos",
-      "Atividade": "Armazenagem manual de itens"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Leste",
-      "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
-      "Posto Trabalho": "Deposito de Insumos",
-      "Atividade": "Recebimento e conferencia de materiais"
+      "Cargo": "Auxiliar de Almoxarifado"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Leste",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Patio de Carga",
-      "Atividade": "Conferencia e embalagem para envio"
+      "Cargo": "Auxiliar de Expedicao"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Leste",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Patio de Carga",
-      "Atividade": "Separacao de pedidos"
+      "Cargo": "Conferente"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Leste",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Conferente",
-      "Posto Trabalho": "Corredor de Armazenagem",
-      "Atividade": "Conferencia de carga e descarga"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Leste",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Conferente",
-      "Posto Trabalho": "Corredor de Armazenagem",
-      "Atividade": "Lancamento de notas fiscais"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Leste",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
-      "Posto Trabalho": "Corredor de Armazenagem",
-      "Atividade": "Armazenagem em porta-paletes"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Leste",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
-      "Posto Trabalho": "Corredor de Armazenagem",
-      "Atividade": "Movimentacao de paletes"
+      "Cargo": "Operador de Empilhadeira"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Leste",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
-      "Posto Trabalho": "Bancada de Inspecao",
-      "Atividade": "Analise de indicadores de qualidade"
+      "Cargo": "Analista de Qualidade"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Leste",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
-      "Posto Trabalho": "Bancada de Inspecao",
-      "Atividade": "Auditoria de processo"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Leste",
-      "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
-      "Posto Trabalho": "Laboratorio de Qualidade",
-      "Atividade": "Inspecao dimensional de pecas"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Leste",
-      "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
-      "Posto Trabalho": "Laboratorio de Qualidade",
-      "Atividade": "Registro de nao conformidades"
+      "Cargo": "Inspetor de Qualidade"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Matriz",
       "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Conciliacao de dados em planilhas"
+      "Cargo": "Analista Administrativo"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Matriz",
       "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Elaboracao de relatorios"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Atendimento telefonico"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Digitacao e conferencia de documentos"
+      "Cargo": "Assistente Administrativo"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Matriz",
       "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
-      "Posto Trabalho": "Almoxarifado Central",
-      "Atividade": "Controle de estoque"
+      "Cargo": "Almoxarife"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Matriz",
       "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
-      "Posto Trabalho": "Almoxarifado Central",
-      "Atividade": "Separacao de materiais para producao"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
-      "Posto Trabalho": "Almoxarifado Central",
-      "Atividade": "Armazenagem manual de itens"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
-      "Posto Trabalho": "Almoxarifado Central",
-      "Atividade": "Recebimento e conferencia de materiais"
+      "Cargo": "Auxiliar de Almoxarifado"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Matriz",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Doca de Expedicao",
-      "Atividade": "Conferencia e embalagem para envio"
+      "Cargo": "Auxiliar de Expedicao"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Matriz",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Doca de Expedicao",
-      "Atividade": "Separacao de pedidos"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Conferente",
-      "Posto Trabalho": "Patio de Carga",
-      "Atividade": "Conferencia de carga e descarga"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Conferente",
-      "Posto Trabalho": "Patio de Carga",
-      "Atividade": "Lancamento de notas fiscais"
+      "Cargo": "Conferente"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Matriz",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
-      "Posto Trabalho": "Bancada de Inspecao",
-      "Atividade": "Analise de indicadores de qualidade"
+      "Cargo": "Analista de Qualidade"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Matriz",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
-      "Posto Trabalho": "Bancada de Inspecao",
-      "Atividade": "Auditoria de processo"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
-      "Posto Trabalho": "Laboratorio de Qualidade",
-      "Atividade": "Inspecao dimensional de pecas"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
-      "Posto Trabalho": "Laboratorio de Qualidade",
-      "Atividade": "Registro de nao conformidades"
+      "Cargo": "Inspetor de Qualidade"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Sul",
       "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Conciliacao de dados em planilhas"
+      "Cargo": "Analista Administrativo"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Sul",
       "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Elaboracao de relatorios"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Sul",
-      "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Atendimento telefonico"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Sul",
-      "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Digitacao e conferencia de documentos"
+      "Cargo": "Assistente Administrativo"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Sul",
       "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
-      "Posto Trabalho": "Deposito de Insumos",
-      "Atividade": "Controle de estoque"
+      "Cargo": "Almoxarife"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Sul",
       "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
-      "Posto Trabalho": "Deposito de Insumos",
-      "Atividade": "Separacao de materiais para producao"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Sul",
-      "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
-      "Posto Trabalho": "Deposito de Insumos",
-      "Atividade": "Armazenagem manual de itens"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Sul",
-      "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
-      "Posto Trabalho": "Deposito de Insumos",
-      "Atividade": "Recebimento e conferencia de materiais"
+      "Cargo": "Auxiliar de Almoxarifado"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Sul",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Patio de Carga",
-      "Atividade": "Conferencia e embalagem para envio"
+      "Cargo": "Auxiliar de Expedicao"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Sul",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Patio de Carga",
-      "Atividade": "Separacao de pedidos"
+      "Cargo": "Conferente"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Sul",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Conferente",
-      "Posto Trabalho": "Corredor de Armazenagem",
-      "Atividade": "Conferencia de carga e descarga"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Sul",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Conferente",
-      "Posto Trabalho": "Corredor de Armazenagem",
-      "Atividade": "Lancamento de notas fiscais"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Sul",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
-      "Posto Trabalho": "Doca de Expedicao",
-      "Atividade": "Armazenagem em porta-paletes"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Sul",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
-      "Posto Trabalho": "Doca de Expedicao",
-      "Atividade": "Movimentacao de paletes"
+      "Cargo": "Operador de Empilhadeira"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Sul",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
-      "Posto Trabalho": "Bancada de Inspecao",
-      "Atividade": "Analise de indicadores de qualidade"
+      "Cargo": "Analista de Qualidade"
     },
     {
       "Cliente": "AgroCampo Alimentos",
       "Unidade": "Unidade Sul",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
-      "Posto Trabalho": "Bancada de Inspecao",
-      "Atividade": "Auditoria de processo"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Sul",
-      "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
-      "Posto Trabalho": "Bancada de Inspecao",
-      "Atividade": "Inspecao dimensional de pecas"
-    },
-    {
-      "Cliente": "AgroCampo Alimentos",
-      "Unidade": "Unidade Sul",
-      "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
-      "Posto Trabalho": "Bancada de Inspecao",
-      "Atividade": "Registro de nao conformidades"
+      "Cargo": "Inspetor de Qualidade"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Conciliacao de dados em planilhas"
+      "Cargo": "Analista Administrativo"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Elaboracao de relatorios"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Atendimento telefonico"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Digitacao e conferencia de documentos"
+      "Cargo": "Assistente Administrativo"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
-      "Posto Trabalho": "Almoxarifado Central",
-      "Atividade": "Controle de estoque"
+      "Cargo": "Almoxarife"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
-      "Posto Trabalho": "Almoxarifado Central",
-      "Atividade": "Separacao de materiais para producao"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
-      "Posto Trabalho": "Deposito de Insumos",
-      "Atividade": "Armazenagem manual de itens"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
-      "Posto Trabalho": "Deposito de Insumos",
-      "Atividade": "Recebimento e conferencia de materiais"
+      "Cargo": "Auxiliar de Almoxarifado"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Patio de Carga",
-      "Atividade": "Conferencia e embalagem para envio"
+      "Cargo": "Auxiliar de Expedicao"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Patio de Carga",
-      "Atividade": "Separacao de pedidos"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
-      "Posto Trabalho": "Patio de Carga",
-      "Atividade": "Armazenagem em porta-paletes"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
-      "Posto Trabalho": "Patio de Carga",
-      "Atividade": "Movimentacao de paletes"
+      "Cargo": "Operador de Empilhadeira"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Eletrica",
+      "Cargo": "Tecnico de Manutencao Eletrica"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao",
+      "Cargo": "Tecnico de Manutencao Mecanica"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Cargo": "Auxiliar de Producao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Cargo": "Operador de Producao I"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Cargo": "Analista de Qualidade"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Cargo": "Inspetor de Qualidade"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Administrativo",
+      "Cargo": "Analista Administrativo"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Administrativo",
+      "Cargo": "Assistente Administrativo"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Almoxarifado",
+      "Cargo": "Almoxarife"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Almoxarifado",
+      "Cargo": "Auxiliar de Almoxarifado"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Auxiliar de Expedicao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Conferente"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Operador de Empilhadeira"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Manutencao",
+      "Cargo": "Auxiliar de Manutencao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Manutencao",
+      "Cargo": "Tecnico de Manutencao Eletrica"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Manutencao",
+      "Cargo": "Tecnico de Manutencao Mecanica"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Producao",
+      "Cargo": "Auxiliar de Producao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Producao",
+      "Cargo": "Operador de Producao II"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Qualidade",
+      "Cargo": "Analista de Qualidade"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Qualidade",
+      "Cargo": "Inspetor de Qualidade"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Cargo": "Analista Administrativo"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Cargo": "Assistente Administrativo"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Cargo": "Almoxarife"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Cargo": "Auxiliar de Almoxarifado"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Auxiliar de Expedicao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Operador de Empilhadeira"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao",
+      "Cargo": "Tecnico de Manutencao Eletrica"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao",
+      "Cargo": "Tecnico de Manutencao Mecanica"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Cargo": "Auxiliar de Producao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Cargo": "Operador de Producao I"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Cargo": "Operador de Producao II"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Cargo": "Analista de Qualidade"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Cargo": "Inspetor de Qualidade"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Administrativo",
+      "Cargo": "Analista Administrativo"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Administrativo",
+      "Cargo": "Assistente Administrativo"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Almoxarifado",
+      "Cargo": "Almoxarife"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Almoxarifado",
+      "Cargo": "Auxiliar de Almoxarifado"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Auxiliar de Expedicao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Conferente"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Operador de Empilhadeira"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Manutencao",
+      "Cargo": "Auxiliar de Manutencao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Manutencao",
+      "Cargo": "Tecnico de Manutencao Eletrica"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Manutencao",
+      "Cargo": "Tecnico de Manutencao Mecanica"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Producao",
+      "Cargo": "Auxiliar de Producao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Producao",
+      "Cargo": "Operador de Producao I"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Qualidade",
+      "Cargo": "Analista de Qualidade"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Qualidade",
+      "Cargo": "Inspetor de Qualidade"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Administrativo",
+      "Cargo": "Analista Administrativo"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Administrativo",
+      "Cargo": "Assistente Administrativo"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Almoxarifado",
+      "Cargo": "Almoxarife"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Almoxarifado",
+      "Cargo": "Auxiliar de Almoxarifado"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Auxiliar de Expedicao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Conferente"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Operador de Empilhadeira"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Manutencao",
+      "Cargo": "Auxiliar de Manutencao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Manutencao",
+      "Cargo": "Tecnico de Manutencao Eletrica"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Manutencao",
+      "Cargo": "Tecnico de Manutencao Mecanica"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Producao",
+      "Cargo": "Operador de Producao I"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Producao",
+      "Cargo": "Operador de Producao II"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Qualidade",
+      "Cargo": "Analista de Qualidade"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Qualidade",
+      "Cargo": "Inspetor de Qualidade"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Cargo": "Analista Administrativo"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Cargo": "Assistente Administrativo"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Conferente"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Operador de Empilhadeira"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao",
+      "Cargo": "Tecnico de Manutencao Eletrica"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao",
+      "Cargo": "Tecnico de Manutencao Mecanica"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Cargo": "Auxiliar de Producao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Cargo": "Operador de Producao I"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Cargo": "Operador de Producao II"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Cargo": "Analista de Qualidade"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Cargo": "Inspetor de Qualidade"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Administrativo",
+      "Cargo": "Analista Administrativo"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Administrativo",
+      "Cargo": "Assistente Administrativo"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Auxiliar de Expedicao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Logistica/Expedicao",
+      "Cargo": "Operador de Empilhadeira"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Manutencao",
+      "Cargo": "Auxiliar de Manutencao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Manutencao",
+      "Cargo": "Tecnico de Manutencao Mecanica"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Producao",
+      "Cargo": "Auxiliar de Producao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Producao",
+      "Cargo": "Operador de Producao I"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Qualidade",
+      "Cargo": "Analista de Qualidade"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Qualidade",
+      "Cargo": "Inspetor de Qualidade"
+    }
+  ],
+  "posto": [
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Corredor de Armazenagem"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Doca de Expedicao"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Corredor de Armazenagem"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Doca de Expedicao"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Oficina de Manutencao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Posto de Manutencao Eletrica"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Posto Trabalho": "Celula de Injecao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Doca de Expedicao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Oficina de Manutencao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Producao",
+      "Posto Trabalho": "Celula de Injecao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Corredor de Armazenagem"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Oficina de Manutencao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem A"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Corredor de Armazenagem"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Doca de Expedicao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Oficina de Manutencao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Producao",
+      "Posto Trabalho": "Celula de Injecao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Corredor de Armazenagem"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Doca de Expedicao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Oficina de Manutencao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Posto de Manutencao Eletrica"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem A"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Doca de Expedicao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Oficina de Manutencao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Posto de Manutencao Eletrica"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Posto Trabalho": "Celula de Injecao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Oficina de Manutencao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Posto de Manutencao Eletrica"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Producao",
+      "Posto Trabalho": "Celula de Injecao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade"
+    }
+  ],
+  "atividade": [
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Atendimento telefonico"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Conciliacao de dados em planilhas"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Digitacao e conferencia de documentos"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Elaboracao de relatorios"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos",
+      "Atividade": "Armazenagem manual de itens"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos",
+      "Atividade": "Controle de estoque"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos",
+      "Atividade": "Recebimento e conferencia de materiais"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos",
+      "Atividade": "Separacao de materiais para producao"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Corredor de Armazenagem",
+      "Atividade": "Armazenagem em porta-paletes"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Corredor de Armazenagem",
+      "Atividade": "Conferencia de carga e descarga"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Corredor de Armazenagem",
+      "Atividade": "Lancamento de notas fiscais"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Corredor de Armazenagem",
+      "Atividade": "Movimentacao de paletes"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga",
+      "Atividade": "Conferencia e embalagem para envio"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga",
+      "Atividade": "Separacao de pedidos"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao",
+      "Atividade": "Analise de indicadores de qualidade"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao",
+      "Atividade": "Auditoria de processo"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade",
+      "Atividade": "Inspecao dimensional de pecas"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Leste",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade",
+      "Atividade": "Registro de nao conformidades"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Atendimento telefonico"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Conciliacao de dados em planilhas"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Digitacao e conferencia de documentos"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Elaboracao de relatorios"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central",
+      "Atividade": "Armazenagem manual de itens"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central",
+      "Atividade": "Controle de estoque"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central",
+      "Atividade": "Recebimento e conferencia de materiais"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central",
+      "Atividade": "Separacao de materiais para producao"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Doca de Expedicao",
+      "Atividade": "Conferencia e embalagem para envio"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Doca de Expedicao",
+      "Atividade": "Separacao de pedidos"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga",
+      "Atividade": "Conferencia de carga e descarga"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga",
+      "Atividade": "Lancamento de notas fiscais"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao",
+      "Atividade": "Analise de indicadores de qualidade"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao",
+      "Atividade": "Auditoria de processo"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade",
+      "Atividade": "Inspecao dimensional de pecas"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade",
+      "Atividade": "Registro de nao conformidades"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Atendimento telefonico"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Conciliacao de dados em planilhas"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Digitacao e conferencia de documentos"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Elaboracao de relatorios"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos",
+      "Atividade": "Armazenagem manual de itens"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos",
+      "Atividade": "Controle de estoque"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos",
+      "Atividade": "Recebimento e conferencia de materiais"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos",
+      "Atividade": "Separacao de materiais para producao"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Corredor de Armazenagem",
+      "Atividade": "Conferencia de carga e descarga"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Corredor de Armazenagem",
+      "Atividade": "Lancamento de notas fiscais"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Doca de Expedicao",
+      "Atividade": "Armazenagem em porta-paletes"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Doca de Expedicao",
+      "Atividade": "Movimentacao de paletes"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga",
+      "Atividade": "Conferencia e embalagem para envio"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga",
+      "Atividade": "Separacao de pedidos"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao",
+      "Atividade": "Analise de indicadores de qualidade"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao",
+      "Atividade": "Auditoria de processo"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao",
+      "Atividade": "Inspecao dimensional de pecas"
+    },
+    {
+      "Cliente": "AgroCampo Alimentos",
+      "Unidade": "Unidade Sul",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Bancada de Inspecao",
+      "Atividade": "Registro de nao conformidades"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Atendimento telefonico"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Conciliacao de dados em planilhas"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Digitacao e conferencia de documentos"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Elaboracao de relatorios"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central",
+      "Atividade": "Controle de estoque"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central",
+      "Atividade": "Separacao de materiais para producao"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos",
+      "Atividade": "Armazenagem manual de itens"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos",
+      "Atividade": "Recebimento e conferencia de materiais"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga",
+      "Atividade": "Armazenagem em porta-paletes"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga",
+      "Atividade": "Conferencia e embalagem para envio"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga",
+      "Atividade": "Movimentacao de paletes"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga",
+      "Atividade": "Separacao de pedidos"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Diagnostico de falhas eletricas"
     },
@@ -18987,7 +20414,6 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Eletrica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Manutencao em painéis eletricos"
     },
@@ -18995,7 +20421,6 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Mecanica",
       "Posto Trabalho": "Posto de Manutencao Eletrica",
       "Atividade": "Manutencao preventiva de equipamentos"
     },
@@ -19003,7 +20428,6 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Mecanica",
       "Posto Trabalho": "Posto de Manutencao Eletrica",
       "Atividade": "Troca de componentes mecanicos"
     },
@@ -19011,7 +20435,6 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Producao",
-      "Cargo": "Auxiliar de Producao",
       "Posto Trabalho": "Celula de Injecao",
       "Atividade": "Abastecimento de insumos na linha"
     },
@@ -19019,7 +20442,6 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Producao",
-      "Cargo": "Auxiliar de Producao",
       "Posto Trabalho": "Celula de Injecao",
       "Atividade": "Limpeza e organizacao do posto"
     },
@@ -19027,7 +20449,6 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Producao",
-      "Cargo": "Operador de Producao I",
       "Posto Trabalho": "Linha de Montagem B",
       "Atividade": "Alimentacao de linha de producao"
     },
@@ -19035,7 +20456,6 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Producao",
-      "Cargo": "Operador de Producao I",
       "Posto Trabalho": "Linha de Montagem B",
       "Atividade": "Operacao de maquina injetora"
     },
@@ -19043,23 +20463,6 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
-      "Posto Trabalho": "Laboratorio de Qualidade",
-      "Atividade": "Analise de indicadores de qualidade"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
-      "Posto Trabalho": "Laboratorio de Qualidade",
-      "Atividade": "Auditoria de processo"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
       "Posto Trabalho": "Bancada de Inspecao",
       "Atividade": "Inspecao dimensional de pecas"
     },
@@ -19067,31 +20470,27 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Matriz",
       "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
       "Posto Trabalho": "Bancada de Inspecao",
       "Atividade": "Registro de nao conformidades"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Norte",
-      "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Conciliacao de dados em planilhas"
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade",
+      "Atividade": "Analise de indicadores de qualidade"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade",
+      "Atividade": "Auditoria de processo"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Elaboracao de relatorios"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Norte",
-      "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
       "Posto Trabalho": "Escritorio Administrativo",
       "Atividade": "Atendimento telefonico"
     },
@@ -19099,31 +20498,27 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Conciliacao de dados em planilhas"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Administrativo",
       "Posto Trabalho": "Escritorio Administrativo",
       "Atividade": "Digitacao e conferencia de documentos"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
-      "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
-      "Posto Trabalho": "Almoxarifado Central",
-      "Atividade": "Controle de estoque"
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Elaboracao de relatorios"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
-      "Posto Trabalho": "Almoxarifado Central",
-      "Atividade": "Separacao de materiais para producao"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Norte",
-      "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
       "Posto Trabalho": "Almoxarifado Central",
       "Atividade": "Armazenagem manual de itens"
     },
@@ -19131,31 +20526,27 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central",
+      "Atividade": "Controle de estoque"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Almoxarifado",
       "Posto Trabalho": "Almoxarifado Central",
       "Atividade": "Recebimento e conferencia de materiais"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Doca de Expedicao",
-      "Atividade": "Conferencia e embalagem para envio"
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central",
+      "Atividade": "Separacao de materiais para producao"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Doca de Expedicao",
-      "Atividade": "Separacao de pedidos"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Norte",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Conferente",
       "Posto Trabalho": "Doca de Expedicao",
       "Atividade": "Conferencia de carga e descarga"
     },
@@ -19163,7 +20554,13 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Conferente",
+      "Posto Trabalho": "Doca de Expedicao",
+      "Atividade": "Conferencia e embalagem para envio"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao",
       "Posto Trabalho": "Doca de Expedicao",
       "Atividade": "Lancamento de notas fiscais"
     },
@@ -19171,7 +20568,13 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
+      "Posto Trabalho": "Doca de Expedicao",
+      "Atividade": "Separacao de pedidos"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao",
       "Posto Trabalho": "Patio de Carga",
       "Atividade": "Armazenagem em porta-paletes"
     },
@@ -19179,7 +20582,6 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
       "Posto Trabalho": "Patio de Carga",
       "Atividade": "Movimentacao de paletes"
     },
@@ -19187,7 +20589,6 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Manutencao",
-      "Cargo": "Auxiliar de Manutencao",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Apoio em manutencao corretiva"
     },
@@ -19195,15 +20596,6 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Manutencao",
-      "Cargo": "Auxiliar de Manutencao",
-      "Posto Trabalho": "Oficina de Manutencao",
-      "Atividade": "Organizacao de ferramentas e pecas"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Norte",
-      "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Eletrica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Diagnostico de falhas eletricas"
     },
@@ -19211,7 +20603,6 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Eletrica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Manutencao em painéis eletricos"
     },
@@ -19219,7 +20610,6 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Mecanica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Manutencao preventiva de equipamentos"
     },
@@ -19227,7 +20617,13 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Mecanica",
+      "Posto Trabalho": "Oficina de Manutencao",
+      "Atividade": "Organizacao de ferramentas e pecas"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Manutencao",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Troca de componentes mecanicos"
     },
@@ -19235,23 +20631,6 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Producao",
-      "Cargo": "Auxiliar de Producao",
-      "Posto Trabalho": "Linha de Montagem B",
-      "Atividade": "Abastecimento de insumos na linha"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Norte",
-      "Setor": "Producao",
-      "Cargo": "Auxiliar de Producao",
-      "Posto Trabalho": "Linha de Montagem B",
-      "Atividade": "Limpeza e organizacao do posto"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Norte",
-      "Setor": "Producao",
-      "Cargo": "Operador de Producao II",
       "Posto Trabalho": "Celula de Injecao",
       "Atividade": "Embalagem manual de produto acabado"
     },
@@ -19259,31 +20638,27 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Producao",
-      "Cargo": "Operador de Producao II",
       "Posto Trabalho": "Celula de Injecao",
       "Atividade": "Inspecao visual de pecas"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
-      "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
-      "Posto Trabalho": "Laboratorio de Qualidade",
-      "Atividade": "Analise de indicadores de qualidade"
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B",
+      "Atividade": "Abastecimento de insumos na linha"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B",
+      "Atividade": "Limpeza e organizacao do posto"
     },
     {
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
-      "Posto Trabalho": "Laboratorio de Qualidade",
-      "Atividade": "Auditoria de processo"
-    },
-    {
-      "Cliente": "Metalurgica Vale Forte",
-      "Unidade": "Unidade Norte",
-      "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
       "Posto Trabalho": "Bancada de Inspecao",
       "Atividade": "Inspecao dimensional de pecas"
     },
@@ -19291,31 +20666,27 @@
       "Cliente": "Metalurgica Vale Forte",
       "Unidade": "Unidade Norte",
       "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
       "Posto Trabalho": "Bancada de Inspecao",
       "Atividade": "Registro de nao conformidades"
     },
     {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Conciliacao de dados em planilhas"
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade",
+      "Atividade": "Analise de indicadores de qualidade"
+    },
+    {
+      "Cliente": "Metalurgica Vale Forte",
+      "Unidade": "Unidade Norte",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade",
+      "Atividade": "Auditoria de processo"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Elaboracao de relatorios"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
       "Posto Trabalho": "Escritorio Administrativo",
       "Atividade": "Atendimento telefonico"
     },
@@ -19323,31 +20694,27 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Conciliacao de dados em planilhas"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
       "Posto Trabalho": "Escritorio Administrativo",
       "Atividade": "Digitacao e conferencia de documentos"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
-      "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
-      "Posto Trabalho": "Deposito de Insumos",
-      "Atividade": "Controle de estoque"
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Elaboracao de relatorios"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
-      "Posto Trabalho": "Deposito de Insumos",
-      "Atividade": "Separacao de materiais para producao"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
       "Posto Trabalho": "Almoxarifado Central",
       "Atividade": "Armazenagem manual de itens"
     },
@@ -19355,31 +20722,27 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
       "Posto Trabalho": "Almoxarifado Central",
       "Atividade": "Recebimento e conferencia de materiais"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Patio de Carga",
-      "Atividade": "Conferencia e embalagem para envio"
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos",
+      "Atividade": "Controle de estoque"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Deposito de Insumos",
+      "Atividade": "Separacao de materiais para producao"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Patio de Carga",
-      "Atividade": "Separacao de pedidos"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
       "Posto Trabalho": "Corredor de Armazenagem",
       "Atividade": "Armazenagem em porta-paletes"
     },
@@ -19387,15 +20750,27 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
       "Posto Trabalho": "Corredor de Armazenagem",
       "Atividade": "Movimentacao de paletes"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga",
+      "Atividade": "Conferencia e embalagem para envio"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga",
+      "Atividade": "Separacao de pedidos"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Eletrica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Diagnostico de falhas eletricas"
     },
@@ -19403,7 +20778,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Eletrica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Manutencao em painéis eletricos"
     },
@@ -19411,7 +20785,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Mecanica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Manutencao preventiva de equipamentos"
     },
@@ -19419,7 +20792,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Mecanica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Troca de componentes mecanicos"
     },
@@ -19427,23 +20799,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Producao",
-      "Cargo": "Auxiliar de Producao",
-      "Posto Trabalho": "Linha de Montagem B",
-      "Atividade": "Abastecimento de insumos na linha"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Producao",
-      "Cargo": "Auxiliar de Producao",
-      "Posto Trabalho": "Linha de Montagem B",
-      "Atividade": "Limpeza e organizacao do posto"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Producao",
-      "Cargo": "Operador de Producao I",
       "Posto Trabalho": "Linha de Montagem A",
       "Atividade": "Alimentacao de linha de producao"
     },
@@ -19451,15 +20806,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Producao",
-      "Cargo": "Operador de Producao I",
-      "Posto Trabalho": "Linha de Montagem A",
-      "Atividade": "Operacao de maquina injetora"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Producao",
-      "Cargo": "Operador de Producao II",
       "Posto Trabalho": "Linha de Montagem A",
       "Atividade": "Embalagem manual de produto acabado"
     },
@@ -19467,15 +20813,34 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Producao",
-      "Cargo": "Operador de Producao II",
       "Posto Trabalho": "Linha de Montagem A",
       "Atividade": "Inspecao visual de pecas"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem A",
+      "Atividade": "Operacao de maquina injetora"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B",
+      "Atividade": "Abastecimento de insumos na linha"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B",
+      "Atividade": "Limpeza e organizacao do posto"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Matriz",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
       "Posto Trabalho": "Bancada de Inspecao",
       "Atividade": "Analise de indicadores de qualidade"
     },
@@ -19483,7 +20848,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
       "Posto Trabalho": "Bancada de Inspecao",
       "Atividade": "Auditoria de processo"
     },
@@ -19491,7 +20855,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
       "Posto Trabalho": "Laboratorio de Qualidade",
       "Atividade": "Inspecao dimensional de pecas"
     },
@@ -19499,7 +20862,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Matriz",
       "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
       "Posto Trabalho": "Laboratorio de Qualidade",
       "Atividade": "Registro de nao conformidades"
     },
@@ -19507,23 +20869,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Conciliacao de dados em planilhas"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Norte",
-      "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Elaboracao de relatorios"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Norte",
-      "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
       "Posto Trabalho": "Escritorio Administrativo",
       "Atividade": "Atendimento telefonico"
     },
@@ -19531,31 +20876,27 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Conciliacao de dados em planilhas"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Administrativo",
       "Posto Trabalho": "Escritorio Administrativo",
       "Atividade": "Digitacao e conferencia de documentos"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
-      "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
-      "Posto Trabalho": "Almoxarifado Central",
-      "Atividade": "Controle de estoque"
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Elaboracao de relatorios"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
-      "Posto Trabalho": "Almoxarifado Central",
-      "Atividade": "Separacao de materiais para producao"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Norte",
-      "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
       "Posto Trabalho": "Almoxarifado Central",
       "Atividade": "Armazenagem manual de itens"
     },
@@ -19563,31 +20904,27 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central",
+      "Atividade": "Controle de estoque"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Almoxarifado",
       "Posto Trabalho": "Almoxarifado Central",
       "Atividade": "Recebimento e conferencia de materiais"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Doca de Expedicao",
-      "Atividade": "Conferencia e embalagem para envio"
+      "Setor": "Almoxarifado",
+      "Posto Trabalho": "Almoxarifado Central",
+      "Atividade": "Separacao de materiais para producao"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Doca de Expedicao",
-      "Atividade": "Separacao de pedidos"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Norte",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Conferente",
       "Posto Trabalho": "Corredor de Armazenagem",
       "Atividade": "Conferencia de carga e descarga"
     },
@@ -19595,7 +20932,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Conferente",
       "Posto Trabalho": "Corredor de Armazenagem",
       "Atividade": "Lancamento de notas fiscais"
     },
@@ -19603,7 +20939,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
       "Posto Trabalho": "Doca de Expedicao",
       "Atividade": "Armazenagem em porta-paletes"
     },
@@ -19611,15 +20946,27 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
+      "Posto Trabalho": "Doca de Expedicao",
+      "Atividade": "Conferencia e embalagem para envio"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao",
       "Posto Trabalho": "Doca de Expedicao",
       "Atividade": "Movimentacao de paletes"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Doca de Expedicao",
+      "Atividade": "Separacao de pedidos"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
       "Setor": "Manutencao",
-      "Cargo": "Auxiliar de Manutencao",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Apoio em manutencao corretiva"
     },
@@ -19627,15 +20974,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Manutencao",
-      "Cargo": "Auxiliar de Manutencao",
-      "Posto Trabalho": "Oficina de Manutencao",
-      "Atividade": "Organizacao de ferramentas e pecas"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Norte",
-      "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Eletrica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Diagnostico de falhas eletricas"
     },
@@ -19643,7 +20981,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Eletrica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Manutencao em painéis eletricos"
     },
@@ -19651,7 +20988,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Mecanica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Manutencao preventiva de equipamentos"
     },
@@ -19659,7 +20995,13 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Mecanica",
+      "Posto Trabalho": "Oficina de Manutencao",
+      "Atividade": "Organizacao de ferramentas e pecas"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Manutencao",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Troca de componentes mecanicos"
     },
@@ -19667,23 +21009,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Producao",
-      "Cargo": "Auxiliar de Producao",
-      "Posto Trabalho": "Linha de Montagem B",
-      "Atividade": "Abastecimento de insumos na linha"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Norte",
-      "Setor": "Producao",
-      "Cargo": "Auxiliar de Producao",
-      "Posto Trabalho": "Linha de Montagem B",
-      "Atividade": "Limpeza e organizacao do posto"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Norte",
-      "Setor": "Producao",
-      "Cargo": "Operador de Producao I",
       "Posto Trabalho": "Celula de Injecao",
       "Atividade": "Alimentacao de linha de producao"
     },
@@ -19691,15 +21016,27 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Producao",
-      "Cargo": "Operador de Producao I",
       "Posto Trabalho": "Celula de Injecao",
       "Atividade": "Operacao de maquina injetora"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B",
+      "Atividade": "Abastecimento de insumos na linha"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B",
+      "Atividade": "Limpeza e organizacao do posto"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Norte",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
       "Posto Trabalho": "Laboratorio de Qualidade",
       "Atividade": "Analise de indicadores de qualidade"
     },
@@ -19707,7 +21044,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
       "Posto Trabalho": "Laboratorio de Qualidade",
       "Atividade": "Auditoria de processo"
     },
@@ -19715,7 +21051,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
       "Posto Trabalho": "Laboratorio de Qualidade",
       "Atividade": "Inspecao dimensional de pecas"
     },
@@ -19723,7 +21058,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Norte",
       "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
       "Posto Trabalho": "Laboratorio de Qualidade",
       "Atividade": "Registro de nao conformidades"
     },
@@ -19731,23 +21065,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Conciliacao de dados em planilhas"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Sul",
-      "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Elaboracao de relatorios"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Sul",
-      "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
       "Posto Trabalho": "Escritorio Administrativo",
       "Atividade": "Atendimento telefonico"
     },
@@ -19755,15 +21072,27 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Conciliacao de dados em planilhas"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Administrativo",
       "Posto Trabalho": "Escritorio Administrativo",
       "Atividade": "Digitacao e conferencia de documentos"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Elaboracao de relatorios"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
       "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
       "Posto Trabalho": "Almoxarifado Central",
       "Atividade": "Controle de estoque"
     },
@@ -19771,7 +21100,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Almoxarifado",
-      "Cargo": "Almoxarife",
       "Posto Trabalho": "Almoxarifado Central",
       "Atividade": "Separacao de materiais para producao"
     },
@@ -19779,7 +21107,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
       "Posto Trabalho": "Deposito de Insumos",
       "Atividade": "Armazenagem manual de itens"
     },
@@ -19787,7 +21114,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Almoxarifado",
-      "Cargo": "Auxiliar de Almoxarifado",
       "Posto Trabalho": "Deposito de Insumos",
       "Atividade": "Recebimento e conferencia de materiais"
     },
@@ -19795,23 +21121,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Corredor de Armazenagem",
-      "Atividade": "Conferencia e embalagem para envio"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Sul",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Corredor de Armazenagem",
-      "Atividade": "Separacao de pedidos"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Sul",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Conferente",
       "Posto Trabalho": "Corredor de Armazenagem",
       "Atividade": "Conferencia de carga e descarga"
     },
@@ -19819,7 +21128,13 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Conferente",
+      "Posto Trabalho": "Corredor de Armazenagem",
+      "Atividade": "Conferencia e embalagem para envio"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
       "Posto Trabalho": "Corredor de Armazenagem",
       "Atividade": "Lancamento de notas fiscais"
     },
@@ -19827,7 +21142,13 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
+      "Posto Trabalho": "Corredor de Armazenagem",
+      "Atividade": "Separacao de pedidos"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Logistica/Expedicao",
       "Posto Trabalho": "Doca de Expedicao",
       "Atividade": "Armazenagem em porta-paletes"
     },
@@ -19835,7 +21156,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
       "Posto Trabalho": "Doca de Expedicao",
       "Atividade": "Movimentacao de paletes"
     },
@@ -19843,39 +21163,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Manutencao",
-      "Cargo": "Auxiliar de Manutencao",
-      "Posto Trabalho": "Posto de Manutencao Eletrica",
-      "Atividade": "Apoio em manutencao corretiva"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Sul",
-      "Setor": "Manutencao",
-      "Cargo": "Auxiliar de Manutencao",
-      "Posto Trabalho": "Posto de Manutencao Eletrica",
-      "Atividade": "Organizacao de ferramentas e pecas"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Sul",
-      "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Eletrica",
-      "Posto Trabalho": "Posto de Manutencao Eletrica",
-      "Atividade": "Diagnostico de falhas eletricas"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Sul",
-      "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Eletrica",
-      "Posto Trabalho": "Posto de Manutencao Eletrica",
-      "Atividade": "Manutencao em painéis eletricos"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Sul",
-      "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Mecanica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Manutencao preventiva de equipamentos"
     },
@@ -19883,15 +21170,41 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Mecanica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Troca de componentes mecanicos"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Posto de Manutencao Eletrica",
+      "Atividade": "Apoio em manutencao corretiva"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Posto de Manutencao Eletrica",
+      "Atividade": "Diagnostico de falhas eletricas"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Posto de Manutencao Eletrica",
+      "Atividade": "Manutencao em painéis eletricos"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Posto de Manutencao Eletrica",
+      "Atividade": "Organizacao de ferramentas e pecas"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
       "Setor": "Producao",
-      "Cargo": "Operador de Producao I",
       "Posto Trabalho": "Linha de Montagem A",
       "Atividade": "Alimentacao de linha de producao"
     },
@@ -19899,15 +21212,6 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Producao",
-      "Cargo": "Operador de Producao I",
-      "Posto Trabalho": "Linha de Montagem A",
-      "Atividade": "Operacao de maquina injetora"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Sul",
-      "Setor": "Producao",
-      "Cargo": "Operador de Producao II",
       "Posto Trabalho": "Linha de Montagem A",
       "Atividade": "Embalagem manual de produto acabado"
     },
@@ -19915,31 +21219,20 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Producao",
-      "Cargo": "Operador de Producao II",
       "Posto Trabalho": "Linha de Montagem A",
       "Atividade": "Inspecao visual de pecas"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
-      "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
-      "Posto Trabalho": "Laboratorio de Qualidade",
-      "Atividade": "Analise de indicadores de qualidade"
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem A",
+      "Atividade": "Operacao de maquina injetora"
     },
     {
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
-      "Posto Trabalho": "Laboratorio de Qualidade",
-      "Atividade": "Auditoria de processo"
-    },
-    {
-      "Cliente": "Quimica Cerrado Industrial",
-      "Unidade": "Unidade Sul",
-      "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
       "Posto Trabalho": "Bancada de Inspecao",
       "Atividade": "Inspecao dimensional de pecas"
     },
@@ -19947,31 +21240,27 @@
       "Cliente": "Quimica Cerrado Industrial",
       "Unidade": "Unidade Sul",
       "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
       "Posto Trabalho": "Bancada de Inspecao",
       "Atividade": "Registro de nao conformidades"
     },
     {
-      "Cliente": "TransRoda Logistica",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Conciliacao de dados em planilhas"
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade",
+      "Atividade": "Analise de indicadores de qualidade"
+    },
+    {
+      "Cliente": "Quimica Cerrado Industrial",
+      "Unidade": "Unidade Sul",
+      "Setor": "Qualidade",
+      "Posto Trabalho": "Laboratorio de Qualidade",
+      "Atividade": "Auditoria de processo"
     },
     {
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Matriz",
       "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Elaboracao de relatorios"
-    },
-    {
-      "Cliente": "TransRoda Logistica",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
       "Posto Trabalho": "Escritorio Administrativo",
       "Atividade": "Atendimento telefonico"
     },
@@ -19979,15 +21268,41 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Matriz",
       "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Conciliacao de dados em planilhas"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
       "Posto Trabalho": "Escritorio Administrativo",
       "Atividade": "Digitacao e conferencia de documentos"
     },
     {
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Matriz",
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Elaboracao de relatorios"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Conferente",
+      "Posto Trabalho": "Doca de Expedicao",
+      "Atividade": "Armazenagem em porta-paletes"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Doca de Expedicao",
+      "Atividade": "Movimentacao de paletes"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Logistica/Expedicao",
       "Posto Trabalho": "Patio de Carga",
       "Atividade": "Conferencia de carga e descarga"
     },
@@ -19995,31 +21310,27 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Matriz",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Conferente",
       "Posto Trabalho": "Patio de Carga",
       "Atividade": "Lancamento de notas fiscais"
     },
     {
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Matriz",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
-      "Posto Trabalho": "Doca de Expedicao",
-      "Atividade": "Armazenagem em porta-paletes"
-    },
-    {
-      "Cliente": "TransRoda Logistica",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
-      "Posto Trabalho": "Doca de Expedicao",
-      "Atividade": "Movimentacao de paletes"
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Oficina de Manutencao",
+      "Atividade": "Manutencao preventiva de equipamentos"
     },
     {
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Matriz",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Eletrica",
+      "Posto Trabalho": "Oficina de Manutencao",
+      "Atividade": "Troca de componentes mecanicos"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Manutencao",
       "Posto Trabalho": "Posto de Manutencao Eletrica",
       "Atividade": "Diagnostico de falhas eletricas"
     },
@@ -20027,31 +21338,13 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Matriz",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Eletrica",
       "Posto Trabalho": "Posto de Manutencao Eletrica",
       "Atividade": "Manutencao em painéis eletricos"
     },
     {
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Matriz",
-      "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Mecanica",
-      "Posto Trabalho": "Oficina de Manutencao",
-      "Atividade": "Manutencao preventiva de equipamentos"
-    },
-    {
-      "Cliente": "TransRoda Logistica",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Mecanica",
-      "Posto Trabalho": "Oficina de Manutencao",
-      "Atividade": "Troca de componentes mecanicos"
-    },
-    {
-      "Cliente": "TransRoda Logistica",
-      "Unidade": "Unidade Matriz",
       "Setor": "Producao",
-      "Cargo": "Auxiliar de Producao",
       "Posto Trabalho": "Celula de Injecao",
       "Atividade": "Abastecimento de insumos na linha"
     },
@@ -20059,31 +21352,6 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Matriz",
       "Setor": "Producao",
-      "Cargo": "Auxiliar de Producao",
-      "Posto Trabalho": "Celula de Injecao",
-      "Atividade": "Limpeza e organizacao do posto"
-    },
-    {
-      "Cliente": "TransRoda Logistica",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Producao",
-      "Cargo": "Operador de Producao I",
-      "Posto Trabalho": "Linha de Montagem B",
-      "Atividade": "Alimentacao de linha de producao"
-    },
-    {
-      "Cliente": "TransRoda Logistica",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Producao",
-      "Cargo": "Operador de Producao I",
-      "Posto Trabalho": "Linha de Montagem B",
-      "Atividade": "Operacao de maquina injetora"
-    },
-    {
-      "Cliente": "TransRoda Logistica",
-      "Unidade": "Unidade Matriz",
-      "Setor": "Producao",
-      "Cargo": "Operador de Producao II",
       "Posto Trabalho": "Celula de Injecao",
       "Atividade": "Embalagem manual de produto acabado"
     },
@@ -20091,15 +21359,34 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Matriz",
       "Setor": "Producao",
-      "Cargo": "Operador de Producao II",
       "Posto Trabalho": "Celula de Injecao",
       "Atividade": "Inspecao visual de pecas"
     },
     {
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Posto Trabalho": "Celula de Injecao",
+      "Atividade": "Limpeza e organizacao do posto"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B",
+      "Atividade": "Alimentacao de linha de producao"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B",
+      "Atividade": "Operacao de maquina injetora"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Matriz",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
       "Posto Trabalho": "Bancada de Inspecao",
       "Atividade": "Analise de indicadores de qualidade"
     },
@@ -20107,7 +21394,6 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Matriz",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
       "Posto Trabalho": "Bancada de Inspecao",
       "Atividade": "Auditoria de processo"
     },
@@ -20115,7 +21401,6 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Matriz",
       "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
       "Posto Trabalho": "Bancada de Inspecao",
       "Atividade": "Inspecao dimensional de pecas"
     },
@@ -20123,7 +21408,6 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Matriz",
       "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
       "Posto Trabalho": "Bancada de Inspecao",
       "Atividade": "Registro de nao conformidades"
     },
@@ -20131,23 +21415,6 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
       "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Conciliacao de dados em planilhas"
-    },
-    {
-      "Cliente": "TransRoda Logistica",
-      "Unidade": "Unidade Oeste",
-      "Setor": "Administrativo",
-      "Cargo": "Analista Administrativo",
-      "Posto Trabalho": "Escritorio Administrativo",
-      "Atividade": "Elaboracao de relatorios"
-    },
-    {
-      "Cliente": "TransRoda Logistica",
-      "Unidade": "Unidade Oeste",
-      "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
       "Posto Trabalho": "Escritorio Administrativo",
       "Atividade": "Atendimento telefonico"
     },
@@ -20155,31 +21422,27 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
       "Setor": "Administrativo",
-      "Cargo": "Assistente Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Conciliacao de dados em planilhas"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Administrativo",
       "Posto Trabalho": "Escritorio Administrativo",
       "Atividade": "Digitacao e conferencia de documentos"
     },
     {
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Patio de Carga",
-      "Atividade": "Conferencia e embalagem para envio"
+      "Setor": "Administrativo",
+      "Posto Trabalho": "Escritorio Administrativo",
+      "Atividade": "Elaboracao de relatorios"
     },
     {
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Auxiliar de Expedicao",
-      "Posto Trabalho": "Patio de Carga",
-      "Atividade": "Separacao de pedidos"
-    },
-    {
-      "Cliente": "TransRoda Logistica",
-      "Unidade": "Unidade Oeste",
-      "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
       "Posto Trabalho": "Patio de Carga",
       "Atividade": "Armazenagem em porta-paletes"
     },
@@ -20187,31 +21450,27 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
       "Setor": "Logistica/Expedicao",
-      "Cargo": "Operador de Empilhadeira",
+      "Posto Trabalho": "Patio de Carga",
+      "Atividade": "Conferencia e embalagem para envio"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Logistica/Expedicao",
       "Posto Trabalho": "Patio de Carga",
       "Atividade": "Movimentacao de paletes"
     },
     {
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
-      "Setor": "Manutencao",
-      "Cargo": "Auxiliar de Manutencao",
-      "Posto Trabalho": "Posto de Manutencao Eletrica",
-      "Atividade": "Apoio em manutencao corretiva"
+      "Setor": "Logistica/Expedicao",
+      "Posto Trabalho": "Patio de Carga",
+      "Atividade": "Separacao de pedidos"
     },
     {
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
       "Setor": "Manutencao",
-      "Cargo": "Auxiliar de Manutencao",
-      "Posto Trabalho": "Posto de Manutencao Eletrica",
-      "Atividade": "Organizacao de ferramentas e pecas"
-    },
-    {
-      "Cliente": "TransRoda Logistica",
-      "Unidade": "Unidade Oeste",
-      "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Mecanica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Manutencao preventiva de equipamentos"
     },
@@ -20219,31 +21478,27 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
       "Setor": "Manutencao",
-      "Cargo": "Tecnico de Manutencao Mecanica",
       "Posto Trabalho": "Oficina de Manutencao",
       "Atividade": "Troca de componentes mecanicos"
     },
     {
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
-      "Setor": "Producao",
-      "Cargo": "Auxiliar de Producao",
-      "Posto Trabalho": "Linha de Montagem B",
-      "Atividade": "Abastecimento de insumos na linha"
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Posto de Manutencao Eletrica",
+      "Atividade": "Apoio em manutencao corretiva"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Manutencao",
+      "Posto Trabalho": "Posto de Manutencao Eletrica",
+      "Atividade": "Organizacao de ferramentas e pecas"
     },
     {
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
       "Setor": "Producao",
-      "Cargo": "Auxiliar de Producao",
-      "Posto Trabalho": "Linha de Montagem B",
-      "Atividade": "Limpeza e organizacao do posto"
-    },
-    {
-      "Cliente": "TransRoda Logistica",
-      "Unidade": "Unidade Oeste",
-      "Setor": "Producao",
-      "Cargo": "Operador de Producao I",
       "Posto Trabalho": "Celula de Injecao",
       "Atividade": "Alimentacao de linha de producao"
     },
@@ -20251,15 +21506,27 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
       "Setor": "Producao",
-      "Cargo": "Operador de Producao I",
       "Posto Trabalho": "Celula de Injecao",
       "Atividade": "Operacao de maquina injetora"
     },
     {
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B",
+      "Atividade": "Abastecimento de insumos na linha"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
+      "Setor": "Producao",
+      "Posto Trabalho": "Linha de Montagem B",
+      "Atividade": "Limpeza e organizacao do posto"
+    },
+    {
+      "Cliente": "TransRoda Logistica",
+      "Unidade": "Unidade Oeste",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
       "Posto Trabalho": "Bancada de Inspecao",
       "Atividade": "Analise de indicadores de qualidade"
     },
@@ -20267,7 +21534,6 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
       "Setor": "Qualidade",
-      "Cargo": "Analista de Qualidade",
       "Posto Trabalho": "Bancada de Inspecao",
       "Atividade": "Auditoria de processo"
     },
@@ -20275,7 +21541,6 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
       "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
       "Posto Trabalho": "Laboratorio de Qualidade",
       "Atividade": "Inspecao dimensional de pecas"
     },
@@ -20283,7 +21548,6 @@
       "Cliente": "TransRoda Logistica",
       "Unidade": "Unidade Oeste",
       "Setor": "Qualidade",
-      "Cargo": "Inspetor de Qualidade",
       "Posto Trabalho": "Laboratorio de Qualidade",
       "Atividade": "Registro de nao conformidades"
     }

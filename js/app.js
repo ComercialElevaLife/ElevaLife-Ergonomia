@@ -1222,13 +1222,14 @@
   }
 
   // ------------------------------------------------------------------
-  // Aba "Cadastros" - CRUD real (grava no banco do artifact via js/db.js)
+  // Abas "Cadastro" (setup) e "Registro" (input) - CRUD real (grava no
+  // banco do artifact via js/db.js)
   // ------------------------------------------------------------------
   // Campos-chave (hierarquia Cliente > Unidade > Setor > Cargo > Posto de
-  // Trabalho > Atividade) usados nos 4 cadastros operacionais. Sao SEMPRE
-  // selects em cascata (tipo "cascata"), validados contra o Cadastro de
-  // Hierarquia (CADASTROS_CONFIG.hierarquia / colecao "hierarquia") - nunca
-  // texto livre. Ver ligarCascataHierarquia() mais abaixo.
+  // Trabalho > Atividade) usados nos 4 registros operacionais. Sao SEMPRE
+  // selects em cascata (tipo "cascata"), validados contra as 6 tabelas do
+  // cadastro-mestre (aba Cadastro) - nunca texto livre. Ver
+  // ligarCascataHierarquia() mais abaixo.
   function camposChave() {
     return [
       { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
@@ -1240,17 +1241,51 @@
     ];
   }
 
-  // Campos do proprio Cadastro de Hierarquia (fonte unica de verdade): aqui
-  // sim se digitam/cadastram novas combinacoes - texto livre com sugestoes
-  // (exceto Setor, que continua sendo o pool fixo da empresa).
-  function camposHierarquia() {
+  // Campos proprios de cada tela do cadastro-mestre (fonte unica de
+  // verdade): aqui sim se cadastra um valor NOVO para aquele nivel - o
+  // proprio nivel e sempre texto livre (ou o pool fixo, no caso de Setor);
+  // os niveis ANCESTRAIS sao sempre selects em cascata (tipo "cascata"),
+  // apontando para um registro ja cadastrado na tela do nivel anterior -
+  // nunca texto livre, para nao criar uma Unidade "orfa" sem Cliente, etc.
+  function camposCadastroCliente() {
+    return [{ campo: "Cliente", rotulo: "Nome do Cliente (Empresa)", tipo: "texto", obrigatorio: true }];
+  }
+  function camposCadastroUnidade() {
     return [
-      { campo: "Cliente", rotulo: "Cliente", tipo: "texto", obrigatorio: true, sugestoesFn: () => sugestoesHierarquia("Cliente") },
-      { campo: "Unidade", rotulo: "Unidade", tipo: "texto", obrigatorio: true, sugestoesFn: () => sugestoesHierarquia("Unidade") },
-      { campo: "Setor", rotulo: "Setor", tipo: "select", obrigatorio: true, opcoes: SETORES_POOL },
-      { campo: "Cargo", rotulo: "Cargo", tipo: "texto", obrigatorio: true, sugestoesFn: () => sugestoesHierarquia("Cargo") },
-      { campo: "Posto Trabalho", rotulo: "Posto de Trabalho", tipo: "texto", obrigatorio: true, sugestoesFn: () => sugestoesHierarquia("Posto Trabalho") },
-      { campo: "Atividade", rotulo: "Atividade", tipo: "texto", obrigatorio: true, sugestoesFn: () => sugestoesHierarquia("Atividade") },
+      { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
+      { campo: "Unidade", rotulo: "Nome da Unidade", tipo: "texto", obrigatorio: true },
+    ];
+  }
+  function camposCadastroSetor() {
+    return [
+      { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
+      { campo: "Unidade", rotulo: "Unidade", tipo: "cascata", obrigatorio: true },
+      { campo: "Setor", rotulo: "Nome do Setor", tipo: "select", obrigatorio: true, opcoes: SETORES_POOL },
+    ];
+  }
+  function camposCadastroCargo() {
+    return [
+      { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
+      { campo: "Unidade", rotulo: "Unidade", tipo: "cascata", obrigatorio: true },
+      { campo: "Setor", rotulo: "Setor", tipo: "cascata", obrigatorio: true },
+      { campo: "Cargo", rotulo: "Nome do Cargo", tipo: "texto", obrigatorio: true },
+    ];
+  }
+  function camposCadastroPosto() {
+    return [
+      { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
+      { campo: "Unidade", rotulo: "Unidade", tipo: "cascata", obrigatorio: true },
+      { campo: "Setor", rotulo: "Setor", tipo: "cascata", obrigatorio: true },
+      { campo: "Posto Trabalho", rotulo: "Nome do Posto de Trabalho", tipo: "texto", obrigatorio: true },
+    ];
+  }
+  function camposCadastroAtividade() {
+    return [
+      { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
+      { campo: "Unidade", rotulo: "Unidade", tipo: "cascata", obrigatorio: true },
+      { campo: "Setor", rotulo: "Setor", tipo: "cascata", obrigatorio: true },
+      { campo: "Posto Trabalho", rotulo: "Posto de Trabalho", tipo: "cascata", obrigatorio: true },
+      { campo: "Atividade", rotulo: "Nome da Atividade", tipo: "texto", obrigatorio: true },
     ];
   }
 
@@ -1262,40 +1297,43 @@
   }
 
   // ------------------------------------------------------------------
-  // Cadastro de Hierarquia - fonte unica de verdade de Cliente > Unidade >
-  // Setor > Cargo > Posto de Trabalho > Atividade. Os 4 cadastros
+  // Cadastro-mestre - fonte unica de verdade de Cliente > Unidade > Setor >
+  // {Cargo, Posto de Trabalho > Atividade}, normalizada em 6 tabelas (uma
+  // tela de cadastro por entidade - ver aba "Cadastro"). Os 4 cadastros
   // operacionais (Mapa Risco, Plano Acao, Absenteismo, Compativeis) usam
-  // selects em cascata validados contra esta lista - nunca texto livre.
+  // selects em cascata validados contra elas - nunca texto livre.
+  // Cargo e Posto de Trabalho sao IRMAOS dentro do Setor (nao se
+  // referenciam entre si - um cargo pode ocupar mais de um posto e
+  // vice-versa; essa combinacao so existe de fato numa linha operacional).
+  // Atividade e filha do Posto de Trabalho.
   // ------------------------------------------------------------------
   const NIVEIS_HIERARQUIA = ["Cliente", "Unidade", "Setor", "Cargo", "Posto Trabalho", "Atividade"];
 
-  function hierarquiaLinhas() {
-    return window.BI.dados.hierarquia || [];
-  }
+  // Colecao do cadastro-mestre que guarda cada nivel, e os campos
+  // ancestrais que identificam um registro daquele nivel (usados para
+  // filtrar em cascata). Cargo e Posto Trabalho tem os MESMOS ancestrais
+  // (Cliente/Unidade/Setor) e nao aparecem um na lista do outro.
+  const COLECAO_DO_NIVEL = { Cliente: "cliente", Unidade: "unidade", Setor: "setor", Cargo: "cargo", "Posto Trabalho": "posto", Atividade: "atividade" };
+  const ANCESTRAIS_DO_NIVEL = {
+    Cliente: [],
+    Unidade: ["Cliente"],
+    Setor: ["Cliente", "Unidade"],
+    Cargo: ["Cliente", "Unidade", "Setor"],
+    "Posto Trabalho": ["Cliente", "Unidade", "Setor"],
+    Atividade: ["Cliente", "Unidade", "Setor", "Posto Trabalho"],
+  };
 
-  function sugestoesHierarquia(campo) {
-    const set = new Set();
-    hierarquiaLinhas().forEach((l) => { if (l[campo]) set.add(l[campo]); });
-    return Array.from(set).sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+  function linhasCadastroMestre(nivel) {
+    return (window.BI.dados[COLECAO_DO_NIVEL[nivel]] || []);
   }
 
   // Opcoes validas para `nivel`, dado o que ja foi escolhido nos niveis
-  // ANTERIORES da hierarquia (valoresAtuais). Cargo e Posto de Trabalho nao
-  // formam uma arvore estrita entre si (um cargo pode ocupar mais de um
-  // posto e vice-versa dentro do mesmo Setor) - por isso, alem do filtro
-  // hierarquico normal, cada um tambem filtra pelo outro quando ja
-  // selecionado (filtro mutuo).
+  // ANCESTRAIS (valoresAtuais) - lidas diretamente da tabela do
+  // cadastro-mestre daquele nivel (nao mais de uma unica tabela plana).
   function opcoesHierarquia(nivel, valoresAtuais) {
-    const linhas = hierarquiaLinhas();
-    const idx = NIVEIS_HIERARQUIA.indexOf(nivel);
-    const anteriores = NIVEIS_HIERARQUIA.slice(0, idx);
-    let filtradas = linhas.filter((l) => anteriores.every((c) => !valoresAtuais[c] || l[c] === valoresAtuais[c]));
-    if (nivel === "Cargo" && valoresAtuais["Posto Trabalho"]) {
-      filtradas = filtradas.filter((l) => l["Posto Trabalho"] === valoresAtuais["Posto Trabalho"]);
-    }
-    if (nivel === "Posto Trabalho" && valoresAtuais["Cargo"]) {
-      filtradas = filtradas.filter((l) => l["Cargo"] === valoresAtuais["Cargo"]);
-    }
+    const ancestrais = ANCESTRAIS_DO_NIVEL[nivel] || [];
+    const linhas = linhasCadastroMestre(nivel);
+    const filtradas = linhas.filter((l) => ancestrais.every((c) => !valoresAtuais[c] || l[c] === valoresAtuais[c]));
     const set = new Set(filtradas.map((l) => l[nivel]).filter(Boolean));
     return Array.from(set).sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
   }
@@ -1322,19 +1360,20 @@
     return v;
   }
 
-  // Recalcula as opcoes de todos os niveis afetados pela mudanca em
-  // `nivelAlterado`: todo nivel estritamente posterior na hierarquia, mais
-  // o parceiro mutuo Cargo<->Posto de Trabalho.
+  // Recalcula as opcoes de todo nivel estritamente posterior a
+  // `nivelAlterado` (na ordem de NIVEIS_HIERARQUIA). Cargo e Posto de
+  // Trabalho tem o mesmo indice "logico" (ambos so dependem de Setor), mas
+  // como Posto de Trabalho vem depois de Cargo em NIVEIS_HIERARQUIA, mudar
+  // Cargo tambem recalcula Posto de Trabalho (e Atividade, em cascata) -
+  // inofensivo, porque opcoesHierarquia("Posto Trabalho", ...) nao depende
+  // de Cargo, entao o resultado e o mesmo; so evita duplicar a lista aqui.
   function atualizarCascataDeNivel(form, nivelAlterado) {
     const idxAlterado = NIVEIS_HIERARQUIA.indexOf(nivelAlterado);
     const v = valoresAtuaisHierarquia(form);
     NIVEIS_HIERARQUIA.forEach((nivel, idx) => {
-      if (nivel === nivelAlterado) return;
+      if (idx <= idxAlterado) return;
       const el = form._campos[nivel];
       if (!el) return;
-      const ehDepoisEstrito = idx > idxAlterado;
-      const ehParceiroMutuo = (nivelAlterado === "Cargo" && nivel === "Posto Trabalho") || (nivelAlterado === "Posto Trabalho" && nivel === "Cargo");
-      if (!ehDepoisEstrito && !ehParceiroMutuo) return;
       const opcoes = opcoesHierarquia(nivel, v);
       repopularSelectCascata(el, opcoes, el.value);
       v[nivel] = el.value;
@@ -1425,15 +1464,58 @@
     });
   }
 
+  // grupo "mestre" = aba Cadastro (setup: estrutura organizacional valida);
+  // grupo "registro" = aba Registro (input operacional do dia a dia).
   const CADASTROS_CONFIG = {
-    hierarquia: {
-      titulo: "Cadastro de Hierarquia (Cliente > Unidade > Setor > Cargo > Posto de Trabalho > Atividade)",
-      colunasTabela: ["Cliente", "Unidade", "Setor", "Cargo", "Posto Trabalho", "Atividade"],
-      colunasData: [],
-      camposData: [],
-      campos: camposHierarquia(),
+    cliente: {
+      grupo: "mestre", icone: "🏢", tituloMenu: "Cliente",
+      titulo: "Cadastro de Cliente (Empresa)",
+      colunasTabela: ["Cliente"],
+      colunasData: [], camposData: [],
+      campos: camposCadastroCliente(),
+    },
+    unidade: {
+      grupo: "mestre", icone: "🏭", tituloMenu: "Unidade",
+      titulo: "Cadastro de Unidade",
+      colunasTabela: ["Cliente", "Unidade"],
+      colunasData: [], camposData: [],
+      campos: camposCadastroUnidade(),
+      aoConstruir: comCascata(null),
+    },
+    setor: {
+      grupo: "mestre", icone: "🗂️", tituloMenu: "Setor",
+      titulo: "Cadastro de Setor",
+      colunasTabela: ["Cliente", "Unidade", "Setor"],
+      colunasData: [], camposData: [],
+      campos: camposCadastroSetor(),
+      aoConstruir: comCascata(null),
+    },
+    cargo: {
+      grupo: "mestre", icone: "💼", tituloMenu: "Cargo",
+      titulo: "Cadastro de Cargo",
+      colunasTabela: ["Cliente", "Unidade", "Setor", "Cargo"],
+      colunasData: [], camposData: [],
+      campos: camposCadastroCargo(),
+      aoConstruir: comCascata(null),
+    },
+    posto: {
+      grupo: "mestre", icone: "📍", tituloMenu: "Posto de Trabalho",
+      titulo: "Cadastro de Posto de Trabalho",
+      colunasTabela: ["Cliente", "Unidade", "Setor", "Posto Trabalho"],
+      colunasData: [], camposData: [],
+      campos: camposCadastroPosto(),
+      aoConstruir: comCascata(null),
+    },
+    atividade: {
+      grupo: "mestre", icone: "🏷️", tituloMenu: "Atividade",
+      titulo: "Cadastro de Atividade",
+      colunasTabela: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Atividade"],
+      colunasData: [], camposData: [],
+      campos: camposCadastroAtividade(),
+      aoConstruir: comCascata(null),
     },
     mapaRisco: {
+      grupo: "registro", icone: "⚠️", tituloMenu: "Mapa de Risco",
       titulo: "Mapa de Risco (1 registro por posto de trabalho)",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Risco Global"],
       colunasData: [],
@@ -1445,6 +1527,7 @@
       aoConstruir: comCascata(ligarCalculoRiscoGlobal),
     },
     planoAcao: {
+      grupo: "registro", icone: "🛠️", tituloMenu: "Plano de Ação",
       titulo: "Plano de Acao",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Acao Recomendada", "Responsavel Acao", "Dt Programada", "Dt Conclusao"],
       colunasData: ["Dt Programada", "Dt Conclusao"],
@@ -1467,6 +1550,7 @@
       aoConstruir: comCascata(ligarPlanoAcao),
     },
     absenteismo: {
+      grupo: "registro", icone: "🩺", tituloMenu: "Absenteísmo",
       titulo: "Absenteismo",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cod CID", "Dt Afastamento", "Qtd Dias", "Regiao Corporal"],
       colunasData: ["Dt Afastamento"],
@@ -1481,6 +1565,7 @@
       aoConstruir: comCascata(null),
     },
     compativeis: {
+      grupo: "registro", icone: "🔄", tituloMenu: "Compatíveis",
       titulo: "Compativeis (restricoes medicas)",
       colunasTabela: ["Cliente", "Setor", "Funcionario", "Status Restricao", "Turno Trabalho", "Segmento Corporal", "Inicio Restricao"],
       colunasData: ["Inicio Restricao"],
@@ -1647,15 +1732,73 @@
     return { dados, erro };
   }
 
+  // Dois grupos de cadastro, cada um com sua propria grade e sub-menu de
+  // abas (mesmo padrao da aba Cadastro do Cockpit Comercial: um sub-item
+  // por entidade, so um bloco visivel por vez):
+  //  - "mestre"   -> aba Cadastro (setup): Cliente/Unidade/Setor/Cargo/
+  //                  Posto de Trabalho/Atividade
+  //  - "registro" -> aba Registro (input do dia a dia): Mapa Risco/Plano
+  //                  Acao/Absenteismo/Compativeis
+  const GRUPOS_CADASTRO = {
+    mestre: { grade: "grade-cadastro-mestre", subnav: "subnav-cadastro-mestre" },
+    registro: { grade: "grade-registro", subnav: "subnav-registro" },
+  };
+  const estadoSubAbaCadastro = {};
+
+  function chavesDoGrupo(grupo) {
+    return Object.keys(CADASTROS_CONFIG).filter((c) => CADASTROS_CONFIG[c].grupo === grupo);
+  }
+
+  function selecionarSubAbaCadastro(grupo, chave) {
+    estadoSubAbaCadastro[grupo] = chave;
+    const nav = document.getElementById(GRUPOS_CADASTRO[grupo].subnav);
+    if (nav) {
+      Array.from(nav.children).forEach((btn) => btn.classList.toggle("ativa", btn.dataset.chave === chave));
+    }
+    chavesDoGrupo(grupo).forEach((c) => {
+      const bloco = document.getElementById("bloco-cadastro-" + c);
+      if (bloco) bloco.hidden = c !== chave;
+    });
+  }
+
+  function montarSubNavCadastro(grupo) {
+    const nav = document.getElementById(GRUPOS_CADASTRO[grupo].subnav);
+    if (!nav) return;
+    nav.innerHTML = "";
+    chavesDoGrupo(grupo).forEach((chave) => {
+      const cfg = CADASTROS_CONFIG[chave];
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "subnav-cadastro-item";
+      btn.dataset.chave = chave;
+      const icone = document.createElement("span");
+      icone.className = "icone";
+      icone.textContent = cfg.icone || "";
+      const rotulo = document.createElement("span");
+      rotulo.className = "rotulo";
+      rotulo.textContent = cfg.tituloMenu || cfg.titulo;
+      btn.appendChild(icone);
+      btn.appendChild(rotulo);
+      btn.addEventListener("click", () => selecionarSubAbaCadastro(grupo, chave));
+      nav.appendChild(btn);
+    });
+  }
+
   function montarCadastros() {
-    const grade = document.getElementById("grade-cadastros");
-    grade.innerHTML = "";
+    Object.keys(GRUPOS_CADASTRO).forEach((grupo) => {
+      const grade = document.getElementById(GRUPOS_CADASTRO[grupo].grade);
+      if (grade) grade.innerHTML = "";
+    });
+
     Object.keys(CADASTROS_CONFIG).forEach((chave) => {
       estadoCadastro[chave] = estadoCadastro[chave] || { formAberto: false, editandoId: null, busca: "", pagina: 1, valoresForm: null };
       const cfg = CADASTROS_CONFIG[chave];
+      const grade = document.getElementById(GRUPOS_CADASTRO[cfg.grupo].grade);
+      if (!grade) return;
 
       const cartao = document.createElement("div");
       cartao.className = "cartao col-12 bloco-cadastro";
+      cartao.id = "bloco-cadastro-" + chave;
 
       const cab = document.createElement("div");
       cab.className = "cadastro-cabecalho";
@@ -1708,13 +1851,22 @@
       cartao.appendChild(paginacao);
       grade.appendChild(cartao);
     });
+
+    Object.keys(GRUPOS_CADASTRO).forEach((grupo) => {
+      montarSubNavCadastro(grupo);
+      const primeira = estadoSubAbaCadastro[grupo] || chavesDoGrupo(grupo)[0];
+      if (primeira) selecionarSubAbaCadastro(grupo, primeira);
+    });
+
     atualizarBotoesSomenteLeitura();
   }
 
   function atualizarBotoesSomenteLeitura() {
     const disponivel = window.BI.DB.estado.disponivel;
-    const aviso = document.getElementById("aviso-somente-leitura");
-    if (aviso) aviso.hidden = disponivel;
+    ["aviso-somente-leitura-cadastro", "aviso-somente-leitura-registro"].forEach((id) => {
+      const aviso = document.getElementById(id);
+      if (aviso) aviso.hidden = disponivel;
+    });
     Object.keys(CADASTROS_CONFIG).forEach((chave) => {
       const btn = document.getElementById("btn-novo-" + chave);
       if (btn) btn.disabled = !disponivel;
@@ -1772,8 +1924,14 @@
       }
       try {
         const idAtual = estado.editandoId;
-        if (chave === "mapaRisco" || chave === "hierarquia") {
-          const novoId = window.BI.DB.idMapaRisco(dados);
+        // mapaRisco e as 6 tabelas do cadastro-mestre tem id derivado dos
+        // proprios campos (chave composta) - editar um campo-chave "renomeia"
+        // o registro (salva no novo id, exclui o antigo). Os demais
+        // cadastros (planoAcao/absenteismo/compativeis) mantem o id gerado
+        // automaticamente na criacao.
+        const geradorId = chave === "mapaRisco" ? window.BI.DB.idMapaRisco : window.BI.DB.idCadastroMestre[chave];
+        if (geradorId) {
+          const novoId = geradorId(dados);
           await window.BI.DB.salvar(chave, novoId, dados);
           if (idAtual && idAtual !== novoId) await window.BI.DB.excluir(chave, idAtual);
         } else {

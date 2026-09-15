@@ -867,6 +867,38 @@ canvas.grafico-interativo { cursor: default; }
 .tabela-paginacao button:disabled { opacity: 0.35; cursor: not-allowed; }
 .tabela-paginacao button:not(:disabled):hover { background: var(--vinho-suave-2); color: #fff; }
 
+/* ---------------------------- Sub-menu Cadastro/Registro (pills) ---------------------------- */
+/* Uma aba por entidade dentro de "Cadastro" (Cliente/Unidade/Setor/Cargo/
+   Posto de Trabalho/Atividade) e dentro de "Registro" (Mapa Risco/Plano
+   Acao/Absenteismo/Compativeis) - so um bloco fica visivel por vez, no
+   mesmo padrao da aba Cadastro do Cockpit Comercial. */
+.subnav-cadastro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.subnav-cadastro-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  appearance: none;
+  border: 1px solid var(--linha);
+  background: var(--card);
+  color: var(--texto-secundario);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+  white-space: nowrap;
+}
+.subnav-cadastro-item .icone { font-size: 13px; line-height: 1; }
+.subnav-cadastro-item:hover { border-color: var(--teal-escuro); color: var(--teal-escuro); }
+.subnav-cadastro-item.ativa { background: var(--vinho); border-color: var(--vinho); color: #fff; }
+
 /* ---------------------------- Cadastros (CRUD real) ---------------------------- */
 
 .aviso-somente-leitura {

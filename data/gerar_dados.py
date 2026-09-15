@@ -451,22 +451,39 @@ print(f"Total Compativeis: {len(COMPATIVEIS)}")
 for row in MAPA_RISCO:
     row.pop("_pid", None)
 
-# Cadastro de Hierarquia (Cliente > Unidade > Setor > Cargo > Posto de
-# Trabalho > Atividade) - fonte unica de verdade usada pelos selects em
-# cascata dos 4 cadastros operacionais. O Mapa de Risco ja tem 1 linha por
-# posto de trabalho fisico (chave completa), entao a hierarquia e apenas a
-# projecao dos 6 campos-chave dessas linhas.
-_CAMPOS_HIERARQUIA = ["Cliente", "Unidade", "Setor", "Cargo", "Posto Trabalho", "Atividade"]
-_vistos_hierarquia = set()
-HIERARQUIA = []
-for row in MAPA_RISCO:
-    chave = tuple(row[c] for c in _CAMPOS_HIERARQUIA)
-    if chave in _vistos_hierarquia:
-        continue
-    _vistos_hierarquia.add(chave)
-    HIERARQUIA.append({c: row[c] for c in _CAMPOS_HIERARQUIA})
-HIERARQUIA.sort(key=lambda r: tuple(r[c] for c in _CAMPOS_HIERARQUIA))
-print(f"Total Hierarquia (combinacoes unicas): {len(HIERARQUIA)}")
+# Cadastro-mestre (Cliente > Unidade > Setor > {Cargo, Posto de Trabalho >
+# Atividade}) - fonte unica de verdade usada pelos selects em cascata dos 4
+# cadastros operacionais, agora normalizada em 6 tabelas (uma tela de
+# cadastro por entidade, como na aba Cadastro do Cockpit Comercial) em vez
+# de uma unica tabela "Hierarquia" com 6 colunas. Cargo e Posto de Trabalho
+# sao irmaos dentro do Setor (nao se referenciam entre si - a combinacao dos
+# dois so existe de fato nas linhas operacionais); Atividade e filha do
+# Posto de Trabalho. O Mapa de Risco ja tem 1 linha por posto de trabalho
+# fisico (chave completa), entao cada tabela-mestre e so a projecao unica
+# dos campos daquele nivel (mais os campos dos niveis ancestrais).
+def _projecao_unica(linhas, campos):
+    vistos = set()
+    out = []
+    for row in linhas:
+        chave = tuple(row[c] for c in campos)
+        if chave in vistos:
+            continue
+        vistos.add(chave)
+        out.append({c: row[c] for c in campos})
+    out.sort(key=lambda r: tuple(r[c] for c in campos))
+    return out
+
+CLIENTE_CAD = _projecao_unica(MAPA_RISCO, ["Cliente"])
+UNIDADE_CAD = _projecao_unica(MAPA_RISCO, ["Cliente", "Unidade"])
+SETOR_CAD = _projecao_unica(MAPA_RISCO, ["Cliente", "Unidade", "Setor"])
+CARGO_CAD = _projecao_unica(MAPA_RISCO, ["Cliente", "Unidade", "Setor", "Cargo"])
+POSTO_CAD = _projecao_unica(MAPA_RISCO, ["Cliente", "Unidade", "Setor", "Posto Trabalho"])
+ATIVIDADE_CAD = _projecao_unica(MAPA_RISCO, ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Atividade"])
+print(
+    f"Cadastro-mestre: {len(CLIENTE_CAD)} clientes, {len(UNIDADE_CAD)} unidades, "
+    f"{len(SETOR_CAD)} setores, {len(CARGO_CAD)} cargos, {len(POSTO_CAD)} postos, "
+    f"{len(ATIVIDADE_CAD)} atividades"
+)
 
 OUT = {
     "_meta": {
@@ -483,7 +500,12 @@ OUT = {
     "planoAcao": PLANO_ACAO,
     "absenteismo": ABSENTEISMO,
     "compativeis": COMPATIVEIS,
-    "hierarquia": HIERARQUIA,
+    "cliente": CLIENTE_CAD,
+    "unidade": UNIDADE_CAD,
+    "setor": SETOR_CAD,
+    "cargo": CARGO_CAD,
+    "posto": POSTO_CAD,
+    "atividade": ATIVIDADE_CAD,
 }
 
 with open("data/mock_data.json", "w", encoding="utf-8") as f:

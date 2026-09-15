@@ -34,9 +34,13 @@
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h11"/><path d="M12 4l3 3-3 3"/><path d="M16 13H5"/><path d="M8 16l-3-3 3-3"/></svg></span>
         <span class="rotulo">Compativeis</span>
       </button>
-      <button type="button" data-aba="cadastros" title="Cadastros">
+      <button type="button" data-aba="cadastro" title="Cadastro">
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M10 6.5v7M6.5 10h7"/></svg></span>
+        <span class="rotulo">Cadastro</span>
+      </button>
+      <button type="button" data-aba="registro" title="Registro">
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="10" cy="4.5" rx="6" ry="2"/><path d="M4 4.5v11c0 1.1 2.7 2 6 2s6-.9 6-2v-11"/><path d="M4 10c0 1.1 2.7 2 6 2s6-.9 6-2"/></svg></span>
-        <span class="rotulo">Cadastros</span>
+        <span class="rotulo">Registro</span>
       </button>
     </nav>
 
@@ -256,17 +260,33 @@
     </div>
   </section>
 
-  <section id="aba-cadastros" hidden>
+  <section id="aba-cadastro" hidden>
     <p class="dados-intro">
-      Cadastro real das 4 tabelas operacionais do BI Ergonomia. O que voce salvar aqui fica gravado de verdade
-      neste BI - qualquer pessoa que abrir este link ve os mesmos dados. Lista CID e Dias Uteis sao tabelas de
-      referencia (fixas) e ficam disponiveis so para consulta no rodape da pagina.
+      Cadastro-mestre (setup): a estrutura organizacional valida do cliente - Cliente (Empresa) > Unidade > Setor >
+      Cargo / Posto de Trabalho > Atividade. E a partir daqui que os 4 formularios da aba Registro validam suas
+      opcoes em cascata - nunca texto livre. Faca esse cadastro antes de lancar registros na aba Registro.
     </p>
-    <div class="aviso-somente-leitura" id="aviso-somente-leitura" hidden>
-      Banco de dados indisponivel nesta visualizacao (modo somente leitura) - os cadastros abaixo mostram os
+    <div class="aviso-somente-leitura" id="aviso-somente-leitura-cadastro" hidden>
+      Banco de dados indisponivel nesta visualizacao (modo somente leitura) - o cadastro abaixo mostra a
+      estrutura ficticia de exemplo, mas novos lancamentos nao podem ser salvos por aqui agora.
+    </div>
+    <nav class="subnav-cadastro" id="subnav-cadastro-mestre"></nav>
+    <div class="grade" id="grade-cadastro-mestre"></div>
+  </section>
+
+  <section id="aba-registro" hidden>
+    <p class="dados-intro">
+      Registro (input do dia a dia): lancamento real nas 4 tabelas operacionais do BI Ergonomia - Mapa de Risco,
+      Plano de Acao, Absenteismo e Compativeis. O que voce salvar aqui fica gravado de verdade neste BI - qualquer
+      pessoa que abrir este link ve os mesmos dados. Lista CID e Dias Uteis sao tabelas de referencia (fixas) e
+      ficam disponiveis so para consulta no rodape da pagina.
+    </p>
+    <div class="aviso-somente-leitura" id="aviso-somente-leitura-registro" hidden>
+      Banco de dados indisponivel nesta visualizacao (modo somente leitura) - os registros abaixo mostram os
       dados ficticios de exemplo, mas novos lancamentos nao podem ser salvos por aqui agora.
     </div>
-    <div class="grade" id="grade-cadastros"></div>
+    <nav class="subnav-cadastro" id="subnav-registro"></nav>
+    <div class="grade" id="grade-registro"></div>
   </section>
 
   <section id="aba-referencia" hidden>
