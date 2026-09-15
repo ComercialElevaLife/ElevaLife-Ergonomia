@@ -21,6 +21,7 @@
   --cinza-quente: #8A7A78;
   --teal: #3E7B7E;
   --teal-escuro: #2E5F62;
+  --teal-claro: #6FA8AA;
   --linha: #E7DED9;
 
   /* ---- Paleta de dados (validada - skill dataviz) ----
@@ -53,14 +54,16 @@
   --acao-atraso: #e2751a;
   --acao-atrasada: #d93636;
 
-  /* Categorica (identidade: Setor, Responsavel, Categoria Acao) - primeiros
-     6 tons da paleta validada, ordem fixa (max. 6 setores no modelo) */
-  --cat-1: #2a78d6; /* azul */
-  --cat-2: #eb6834; /* laranja */
-  --cat-3: #1baf7a; /* agua */
-  --cat-4: #eda100; /* amarelo */
-  --cat-5: #e87ba4; /* magenta */
-  --cat-6: #4a3aa7; /* violeta */
+  /* Categorica (identidade: Setor, Responsavel, Categoria Acao) - tons
+     derivados exclusivamente da marca ElevaLife (vinho + teal), alternando
+     as duas familias para maximizar distincao entre categorias vizinhas;
+     sem cores fora da marca (nunca rosa/magenta, azul ou amarelo genericos). */
+  --cat-1: #2E5F62; /* teal escuro */
+  --cat-2: #8B3A42; /* vinho */
+  --cat-3: #3E7B7E; /* teal */
+  --cat-4: #A34E56; /* vinho medio */
+  --cat-5: #6FA8AA; /* teal claro */
+  --cat-6: #5E2A30; /* vinho escuro */
 
   --surface: #fcfcfb;
   --grid: #e7e2dc;
@@ -85,6 +88,7 @@
     --cinza-quente: #a08f8c;
     --teal: #4f9497;
     --teal-escuro: #3a7376;
+    --teal-claro: #7dbdbf;
     --linha: #3c3230;
 
     --status-good: #0ca30c;
@@ -104,12 +108,12 @@
     --acao-atraso: #f0883f;
     --acao-atrasada: #e35d5d;
 
-    --cat-1: #3987e5;
-    --cat-2: #d95926;
-    --cat-3: #199e70;
-    --cat-4: #c98500;
-    --cat-5: #d55181;
-    --cat-6: #9085e9;
+    --cat-1: #3a7376;
+    --cat-2: #a3505a;
+    --cat-3: #4f9497;
+    --cat-4: #c97a82;
+    --cat-5: #7dbdbf;
+    --cat-6: #6b323a;
 
     --surface: #1a1a19;
     --grid: #3c3230;
@@ -129,6 +133,7 @@
   --cinza-quente: #a08f8c;
   --teal: #4f9497;
   --teal-escuro: #3a7376;
+  --teal-claro: #7dbdbf;
   --linha: #3c3230;
 
   --status-good: #0ca30c;
@@ -148,12 +153,12 @@
   --acao-atraso: #f0883f;
   --acao-atrasada: #e35d5d;
 
-  --cat-1: #3987e5;
-  --cat-2: #d95926;
-  --cat-3: #199e70;
-  --cat-4: #c98500;
-  --cat-5: #d55181;
-  --cat-6: #9085e9;
+  --cat-1: #3a7376;
+  --cat-2: #a3505a;
+  --cat-3: #4f9497;
+  --cat-4: #c97a82;
+  --cat-5: #7dbdbf;
+  --cat-6: #6b323a;
 
   --surface: #1a1a19;
   --grid: #3c3230;
