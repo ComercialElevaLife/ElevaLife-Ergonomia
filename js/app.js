@@ -38,10 +38,6 @@
     "Aquisicao de equipamento auxiliar de movimentacao": "Engenharia",
     "Revisao de metas de producao/ritmo de trabalho": "Administrativa",
   };
-  const CORES_NIVEL_INLINE = {
-    "Baixo": "var(--status-good)", "Medio": "var(--status-warning)",
-    "Alto": "var(--status-serious)", "Muito Alto": "var(--status-critical)",
-  };
 
   // Tabelas de referencia (estaticas, so consulta) - Lista CID e Dias Uteis
   const TABELAS_REFERENCIA = [
@@ -268,7 +264,7 @@
       ponto.className = "ponto";
       ponto.style.background = cor;
       rotulo.appendChild(ponto);
-      rotulo.appendChild(document.createTextNode(n.nivel));
+      rotulo.appendChild(document.createTextNode(window.BI.Calc.rotuloNivel(n.nivel)));
 
       const valor = document.createElement("div");
       valor.className = "valor";
@@ -381,7 +377,7 @@
   function renderRiscoPorSetor(linhas) {
     const labels = linhas.map((l) => l.setor);
     const datasets = window.BI.Calc.NIVEIS_RISCO.map((nivel) => ({
-      label: nivel,
+      label: window.BI.Calc.rotuloNivel(nivel),
       data: linhas.map((l) => l[nivel] || 0),
       backgroundColor: window.BI.Calc.corStatus(nivel),
       borderColor: corSurfaceCard(), borderWidth: 2,
@@ -389,7 +385,7 @@
       stack: "st",
     }));
     criarOuAtualizarGrafico("chart-risco-por-setor", { type: "bar", data: { labels, datasets }, options: opcoesBarraHorizontalEmpilhada() });
-    renderizarLegenda("legenda-risco-por-setor", window.BI.Calc.NIVEIS_RISCO.map((n) => ({ label: n, cor: window.BI.Calc.corStatus(n) })));
+    renderizarLegenda("legenda-risco-por-setor", window.BI.Calc.NIVEIS_RISCO.map((n) => ({ label: window.BI.Calc.rotuloNivel(n), cor: window.BI.Calc.corStatus(n) })));
   }
 
   // ------------------------------------------------------------------
@@ -879,8 +875,9 @@
       Calc.DIMENSOES_RISCO.forEach((d) => { scores[d] = form._campos[d].value; });
       const nivel = Calc.calcularRiscoGlobal(scores);
       const el = form._campos["Risco Global"];
-      el.textContent = nivel;
-      el.style.color = CORES_NIVEL_INLINE[nivel] || "";
+      el.textContent = Calc.rotuloNivel(nivel);
+      el.dataset.valorReal = nivel;
+      el.style.color = Calc.corStatus(nivel) || "";
       el.style.fontWeight = "700";
     }
     Calc.DIMENSOES_RISCO.forEach((d) => { form._campos[d].addEventListener("input", recalcular); });
@@ -1018,7 +1015,8 @@
       if (def.tipo === "calculado") {
         el = document.createElement("div");
         el.className = "valor-calculado";
-        el.textContent = valorInicial || "-";
+        el.textContent = valorInicial ? window.BI.Calc.rotuloNivel(valorInicial) : "-";
+        if (valorInicial) el.dataset.valorReal = valorInicial;
       } else if (def.tipo === "select") {
         el = document.createElement("select");
         const opcoes = typeof def.opcoes === "function" ? def.opcoes() : (def.opcoes || []);
@@ -1028,7 +1026,7 @@
         opcoes.forEach((op) => {
           const opt = document.createElement("option");
           if (op && typeof op === "object") { opt.value = op.valor; opt.textContent = op.label; }
-          else { opt.value = op; opt.textContent = op; }
+          else { opt.value = op; opt.textContent = window.BI.Calc.rotuloNivel(op); }
           el.appendChild(opt);
         });
         el.value = valorInicial != null ? valorInicial : "";
@@ -1102,7 +1100,7 @@
       const el = form._campos[def.campo];
       let valor;
       if (def.tipo === "calculado") {
-        valor = el.textContent && el.textContent !== "-" ? el.textContent.trim() : null;
+        valor = el.dataset.valorReal || null;
       } else if (def.tipo === "numero") {
         valor = el.value === "" ? null : Number(el.value);
       } else {
@@ -1314,6 +1312,7 @@
           const td = document.createElement("td");
           let v = linha[c];
           if (cfg.colunasData && cfg.colunasData.includes(c)) v = formatarDataBR(v);
+          else if (c === "Risco Global" && v) v = window.BI.Calc.rotuloNivel(v);
           td.textContent = v === null || v === undefined || v === "" ? "-" : String(v);
           tr.appendChild(td);
         });

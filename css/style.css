@@ -28,11 +28,30 @@
      No claro, "warning" usa um passo mais escuro que o documentado (#c98500
      em vez de #fab219) porque o passo padrao fica abaixo de 3:1 no fundo claro;
      no escuro volta ao passo original (ja valida >=3:1 la). */
-  --status-good: #0ca30c;      /* Baixo risco / Concluida */
-  --status-warning: #c98500;   /* Medio risco / Em Andamento */
-  --status-serious: #ec835a;   /* Alto risco / Concluida com atraso */
-  --status-critical: #d03b3b;  /* Muito Alto risco / Atrasada */
-  --status-neutral: #8A7A78;   /* Nao Iniciado */
+  --status-good: #0ca30c;      /* (legado, mantido por compat.) */
+  --status-warning: #c98500;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+  --status-neutral: #8A7A78;
+
+  /* Mapa de Risco (paleta fixa, nunca tematizada por marca - convencao de
+     semaforo de risco ocupacional, obrigatoria por definicao de produto):
+     Baixo=verde, Moderado=amarelo, Alto=vermelho, Muito Alto=roxo. */
+  --risco-baixo: #1a9c4b;
+  --risco-moderado: #c9960c;
+  --risco-alto: #d93636;
+  --risco-muitoalto: #7c3aed;
+
+  /* Plano de Acao / Status (paleta fixa, distinta da paleta de risco mesmo
+     onde o "verde" se repete - tom deliberadamente diferente do
+     --risco-baixo para nao confundir "sem risco" com "acao concluida"):
+     Nao iniciado=cinza, Em andamento=azul, Concluida=verde-agua,
+     Concluida com atraso=laranja, Atrasada=vermelho. */
+  --acao-nao-iniciado: #8A7A78;
+  --acao-andamento: #2f6fed;
+  --acao-concluida: #0f9d78;
+  --acao-atraso: #e2751a;
+  --acao-atrasada: #d93636;
 
   /* Categorica (identidade: Setor, Responsavel, Categoria Acao) - primeiros
      6 tons da paleta validada, ordem fixa (max. 6 setores no modelo) */
@@ -74,6 +93,17 @@
     --status-critical: #e66767;
     --status-neutral: #a08f8c;
 
+    --risco-baixo: #2fb865;
+    --risco-moderado: #f0b429;
+    --risco-alto: #e35d5d;
+    --risco-muitoalto: #9b71f5;
+
+    --acao-nao-iniciado: #a08f8c;
+    --acao-andamento: #5b91ff;
+    --acao-concluida: #1fbf95;
+    --acao-atraso: #f0883f;
+    --acao-atrasada: #e35d5d;
+
     --cat-1: #3987e5;
     --cat-2: #d95926;
     --cat-3: #199e70;
@@ -106,6 +136,17 @@
   --status-serious: #ec835a;
   --status-critical: #e66767;
   --status-neutral: #a08f8c;
+
+  --risco-baixo: #2fb865;
+  --risco-moderado: #f0b429;
+  --risco-alto: #e35d5d;
+  --risco-muitoalto: #9b71f5;
+
+  --acao-nao-iniciado: #a08f8c;
+  --acao-andamento: #5b91ff;
+  --acao-concluida: #1fbf95;
+  --acao-atraso: #f0883f;
+  --acao-atrasada: #e35d5d;
 
   --cat-1: #3987e5;
   --cat-2: #d95926;

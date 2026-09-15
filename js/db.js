@@ -26,7 +26,7 @@
 
   function slugify(partes) {
     let s = partes.join("|").toLowerCase();
-    s = s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+    s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     s = s.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
     return s.slice(0, 180) || "registro";
   }

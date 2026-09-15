@@ -24,20 +24,33 @@
 
   const STATUS_RESTRICAO_ORDEM = ["Ativa", "Em Avaliacao", "Encerrada"];
 
+  // Duas paletas fixas e distintas (nunca misturadas): Mapa de Risco
+  // (Baixo=verde, Moderado=amarelo, Alto=vermelho, Muito Alto=roxo) e
+  // Plano de Acao / Status (Nao Iniciado=cinza, Em Andamento=azul,
+  // Concluida=verde-agua, Concluida com atraso=laranja, Atrasada=vermelho).
+  // Status Restricao (aba Compativeis) reaproveita semanticamente a
+  // paleta de acao: Ativa~andamento, Em Avaliacao~nao iniciado,
+  // Encerrada~concluida.
   const COR_STATUS = {
-    "Baixo": "var(--status-good)",
-    "Medio": "var(--status-warning)",
-    "Alto": "var(--status-serious)",
-    "Muito Alto": "var(--status-critical)",
-    "Nao Iniciado": "var(--status-neutral)",
-    "Em Andamento": "var(--status-warning)",
-    "Atrasada": "var(--status-critical)",
-    "Concluida com atraso": "var(--status-serious)",
-    "Concluida": "var(--status-good)",
-    "Ativa": "var(--status-warning)",
-    "Em Avaliacao": "var(--status-neutral)",
-    "Encerrada": "var(--status-good)",
+    "Baixo": "var(--risco-baixo)",
+    "Medio": "var(--risco-moderado)",
+    "Alto": "var(--risco-alto)",
+    "Muito Alto": "var(--risco-muitoalto)",
+    "Nao Iniciado": "var(--acao-nao-iniciado)",
+    "Em Andamento": "var(--acao-andamento)",
+    "Atrasada": "var(--acao-atrasada)",
+    "Concluida com atraso": "var(--acao-atraso)",
+    "Concluida": "var(--acao-concluida)",
+    "Ativa": "var(--acao-andamento)",
+    "Em Avaliacao": "var(--acao-nao-iniciado)",
+    "Encerrada": "var(--acao-concluida)",
   };
+
+  // Rotulo de exibicao por nivel de risco - "Medio" (chave interna, usada
+  // nos dados e nas comparacoes) e mostrado ao usuario como "Moderado".
+  // Nunca trocar a chave interna: so o texto exibido muda.
+  const ROTULO_NIVEL = { "Medio": "Moderado" };
+  function rotuloNivel(chave) { return ROTULO_NIVEL[chave] || chave; }
 
   // Resolve uma custom property CSS para hex/rgb utilizavel pelo Chart.js
   function resolverCorCSS(tokenCSS) {
@@ -381,6 +394,7 @@
     STATUS_RESTRICAO_ORDEM,
     resolverCorCSS,
     corStatus,
+    rotuloNivel,
     construirMapaCores,
     calcularStatusAcao,
     calcularRiscoGlobal,

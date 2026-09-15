@@ -117,8 +117,12 @@
     `;
   }
 
-  function construirSvg(config, ehCostas, valoresPorRegiao, formatarValor, tituloAria) {
-    const id = ehCostas ? "costas" : "frente";
+  function construirSvg(config, ehCostas, valoresPorRegiao, formatarValor, tituloAria, idUnico) {
+    // Id unico por instancia (nao so "frente"/"costas") - varios diagramas
+    // (Med Ocup + Compativeis) coexistem no mesmo documento (abas ocultas
+    // com [hidden], nao removidas do DOM); ids <filter>/<defs> duplicados
+    // quebram a resolucao de url(#...) em alguns motores de renderizacao.
+    const id = idUnico || (ehCostas ? "costas" : "frente");
     const corpo = imagemBase(id, ehCostas);
     const caixas = config.map((item) => caixaRotulo(item, valoresPorRegiao[item.regiao] || 0, formatarValor)).join("");
     return `
@@ -136,7 +140,7 @@
     const config = tipo === "frente" ? CONFIG_FRENTE : CONFIG_COSTAS;
     const formatarValor = (opts && opts.formatarValor) || ((v) => String(v));
     const titulo = (opts && opts.titulo) || (tipo === "frente" ? "Diagrama corporal - vista frontal" : "Diagrama corporal - vista posterior");
-    el.innerHTML = construirSvg(config, tipo === "costas", valoresPorRegiao, formatarValor, titulo);
+    el.innerHTML = construirSvg(config, tipo === "costas", valoresPorRegiao, formatarValor, titulo, containerId);
   }
 
   global.BI = global.BI || {};
