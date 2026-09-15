@@ -1224,14 +1224,33 @@
   // ------------------------------------------------------------------
   // Aba "Cadastros" - CRUD real (grava no banco do artifact via js/db.js)
   // ------------------------------------------------------------------
+  // Campos-chave (hierarquia Cliente > Unidade > Setor > Cargo > Posto de
+  // Trabalho > Atividade) usados nos 4 cadastros operacionais. Sao SEMPRE
+  // selects em cascata (tipo "cascata"), validados contra o Cadastro de
+  // Hierarquia (CADASTROS_CONFIG.hierarquia / colecao "hierarquia") - nunca
+  // texto livre. Ver ligarCascataHierarquia() mais abaixo.
   function camposChave() {
     return [
-      { campo: "Cliente", rotulo: "Cliente", tipo: "texto", obrigatorio: true, sugestoesDe: "Cliente" },
-      { campo: "Unidade", rotulo: "Unidade", tipo: "texto", obrigatorio: true, sugestoesDe: "Unidade" },
+      { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
+      { campo: "Unidade", rotulo: "Unidade", tipo: "cascata", obrigatorio: true },
+      { campo: "Setor", rotulo: "Setor", tipo: "cascata", obrigatorio: true },
+      { campo: "Cargo", rotulo: "Cargo", tipo: "cascata", obrigatorio: true },
+      { campo: "Posto Trabalho", rotulo: "Posto de Trabalho", tipo: "cascata", obrigatorio: true },
+      { campo: "Atividade", rotulo: "Atividade", tipo: "cascata", obrigatorio: true },
+    ];
+  }
+
+  // Campos do proprio Cadastro de Hierarquia (fonte unica de verdade): aqui
+  // sim se digitam/cadastram novas combinacoes - texto livre com sugestoes
+  // (exceto Setor, que continua sendo o pool fixo da empresa).
+  function camposHierarquia() {
+    return [
+      { campo: "Cliente", rotulo: "Cliente", tipo: "texto", obrigatorio: true, sugestoesFn: () => sugestoesHierarquia("Cliente") },
+      { campo: "Unidade", rotulo: "Unidade", tipo: "texto", obrigatorio: true, sugestoesFn: () => sugestoesHierarquia("Unidade") },
       { campo: "Setor", rotulo: "Setor", tipo: "select", obrigatorio: true, opcoes: SETORES_POOL },
-      { campo: "Posto Trabalho", rotulo: "Posto de Trabalho", tipo: "texto", obrigatorio: true, sugestoesDe: "Posto Trabalho" },
-      { campo: "Cargo", rotulo: "Cargo", tipo: "texto", obrigatorio: true, sugestoesDe: "Cargo" },
-      { campo: "Atividade", rotulo: "Atividade", tipo: "texto", obrigatorio: true, sugestoesDe: "Atividade" },
+      { campo: "Cargo", rotulo: "Cargo", tipo: "texto", obrigatorio: true, sugestoesFn: () => sugestoesHierarquia("Cargo") },
+      { campo: "Posto Trabalho", rotulo: "Posto de Trabalho", tipo: "texto", obrigatorio: true, sugestoesFn: () => sugestoesHierarquia("Posto Trabalho") },
+      { campo: "Atividade", rotulo: "Atividade", tipo: "texto", obrigatorio: true, sugestoesFn: () => sugestoesHierarquia("Atividade") },
     ];
   }
 
@@ -1240,6 +1259,118 @@
     const set = new Set();
     chaves.forEach((c) => (window.BI.dados[c] || []).forEach((l) => { if (l[campo]) set.add(l[campo]); }));
     return Array.from(set).sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+  }
+
+  // ------------------------------------------------------------------
+  // Cadastro de Hierarquia - fonte unica de verdade de Cliente > Unidade >
+  // Setor > Cargo > Posto de Trabalho > Atividade. Os 4 cadastros
+  // operacionais (Mapa Risco, Plano Acao, Absenteismo, Compativeis) usam
+  // selects em cascata validados contra esta lista - nunca texto livre.
+  // ------------------------------------------------------------------
+  const NIVEIS_HIERARQUIA = ["Cliente", "Unidade", "Setor", "Cargo", "Posto Trabalho", "Atividade"];
+
+  function hierarquiaLinhas() {
+    return window.BI.dados.hierarquia || [];
+  }
+
+  function sugestoesHierarquia(campo) {
+    const set = new Set();
+    hierarquiaLinhas().forEach((l) => { if (l[campo]) set.add(l[campo]); });
+    return Array.from(set).sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+  }
+
+  // Opcoes validas para `nivel`, dado o que ja foi escolhido nos niveis
+  // ANTERIORES da hierarquia (valoresAtuais). Cargo e Posto de Trabalho nao
+  // formam uma arvore estrita entre si (um cargo pode ocupar mais de um
+  // posto e vice-versa dentro do mesmo Setor) - por isso, alem do filtro
+  // hierarquico normal, cada um tambem filtra pelo outro quando ja
+  // selecionado (filtro mutuo).
+  function opcoesHierarquia(nivel, valoresAtuais) {
+    const linhas = hierarquiaLinhas();
+    const idx = NIVEIS_HIERARQUIA.indexOf(nivel);
+    const anteriores = NIVEIS_HIERARQUIA.slice(0, idx);
+    let filtradas = linhas.filter((l) => anteriores.every((c) => !valoresAtuais[c] || l[c] === valoresAtuais[c]));
+    if (nivel === "Cargo" && valoresAtuais["Posto Trabalho"]) {
+      filtradas = filtradas.filter((l) => l["Posto Trabalho"] === valoresAtuais["Posto Trabalho"]);
+    }
+    if (nivel === "Posto Trabalho" && valoresAtuais["Cargo"]) {
+      filtradas = filtradas.filter((l) => l["Cargo"] === valoresAtuais["Cargo"]);
+    }
+    const set = new Set(filtradas.map((l) => l[nivel]).filter(Boolean));
+    return Array.from(set).sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+  }
+
+  function repopularSelectCascata(el, opcoes, valorDesejado) {
+    const atual = valorDesejado != null ? valorDesejado : el.value;
+    el.innerHTML = "";
+    const optBranco = document.createElement("option");
+    optBranco.value = "";
+    optBranco.textContent = opcoes.length ? "-" : "(selecione o nivel anterior)";
+    el.appendChild(optBranco);
+    opcoes.forEach((v) => {
+      const opt = document.createElement("option");
+      opt.value = v;
+      opt.textContent = v;
+      el.appendChild(opt);
+    });
+    el.value = opcoes.includes(atual) ? atual : "";
+  }
+
+  function valoresAtuaisHierarquia(form) {
+    const v = {};
+    NIVEIS_HIERARQUIA.forEach((n) => { if (form._campos[n]) v[n] = form._campos[n].value; });
+    return v;
+  }
+
+  // Recalcula as opcoes de todos os niveis afetados pela mudanca em
+  // `nivelAlterado`: todo nivel estritamente posterior na hierarquia, mais
+  // o parceiro mutuo Cargo<->Posto de Trabalho.
+  function atualizarCascataDeNivel(form, nivelAlterado) {
+    const idxAlterado = NIVEIS_HIERARQUIA.indexOf(nivelAlterado);
+    const v = valoresAtuaisHierarquia(form);
+    NIVEIS_HIERARQUIA.forEach((nivel, idx) => {
+      if (nivel === nivelAlterado) return;
+      const el = form._campos[nivel];
+      if (!el) return;
+      const ehDepoisEstrito = idx > idxAlterado;
+      const ehParceiroMutuo = (nivelAlterado === "Cargo" && nivel === "Posto Trabalho") || (nivelAlterado === "Posto Trabalho" && nivel === "Cargo");
+      if (!ehDepoisEstrito && !ehParceiroMutuo) return;
+      const opcoes = opcoesHierarquia(nivel, v);
+      repopularSelectCascata(el, opcoes, el.value);
+      v[nivel] = el.value;
+    });
+  }
+
+  // Popula os 6 selects em cascata na abertura do formulario, respeitando
+  // valoresIniciais (edicao de um registro existente). Se um registro
+  // legado tiver uma combinacao que nao existe mais no Cadastro de
+  // Hierarquia, o valor original ainda aparece (para nao "sumir" o dado),
+  // mas o proximo nivel so mostra o que realmente casa com a hierarquia.
+  function ligarCascataHierarquia(form, valoresIniciais) {
+    const v = {};
+    NIVEIS_HIERARQUIA.forEach((nivel) => {
+      const el = form._campos[nivel];
+      if (!el) return;
+      const opcoes = opcoesHierarquia(nivel, v);
+      const desejado = valoresIniciais && valoresIniciais[nivel] != null ? valoresIniciais[nivel] : "";
+      const opcoesComInicial = desejado && !opcoes.includes(desejado) ? opcoes.concat([desejado]) : opcoes;
+      repopularSelectCascata(el, opcoesComInicial, desejado);
+      v[nivel] = el.value;
+    });
+    NIVEIS_HIERARQUIA.forEach((nivel) => {
+      const el = form._campos[nivel];
+      if (!el) return;
+      el.addEventListener("change", () => atualizarCascataDeNivel(form, nivel));
+    });
+  }
+
+  // Combina a ligacao da cascata de hierarquia (sempre) com a logica
+  // especifica de cada cadastro operacional (ex.: calculo de Risco Global).
+  function comCascata(extra) {
+    return function (form, valoresIniciais) {
+      ligarCascataHierarquia(form, valoresIniciais);
+      if (extra) extra(form, valoresIniciais);
+    };
   }
 
   function regioesCorporais() {
@@ -1295,6 +1426,13 @@
   }
 
   const CADASTROS_CONFIG = {
+    hierarquia: {
+      titulo: "Cadastro de Hierarquia (Cliente > Unidade > Setor > Cargo > Posto de Trabalho > Atividade)",
+      colunasTabela: ["Cliente", "Unidade", "Setor", "Cargo", "Posto Trabalho", "Atividade"],
+      colunasData: [],
+      camposData: [],
+      campos: camposHierarquia(),
+    },
     mapaRisco: {
       titulo: "Mapa de Risco (1 registro por posto de trabalho)",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Risco Global"],
@@ -1304,7 +1442,7 @@
         window.BI.Calc ? window.BI.Calc.DIMENSOES_RISCO.map((d) => ({ campo: d, rotulo: d, tipo: "numero", obrigatorio: true, min: 1, max: 4 })) : [],
         [{ campo: "Risco Global", rotulo: "Risco Global (calculado)", tipo: "calculado" }]
       ),
-      aoConstruir: ligarCalculoRiscoGlobal,
+      aoConstruir: comCascata(ligarCalculoRiscoGlobal),
     },
     planoAcao: {
       titulo: "Plano de Acao",
@@ -1326,7 +1464,7 @@
         { campo: "Risco Global", rotulo: "Risco Global (do posto)", tipo: "select", opcoes: window.BI.Calc ? window.BI.Calc.NIVEIS_RISCO : [] },
         { campo: "Fator Risco pos Acao", rotulo: "Fator Risco pos Acao", tipo: "select", opcoes: window.BI.Calc ? window.BI.Calc.NIVEIS_RISCO : [] },
       ]),
-      aoConstruir: ligarPlanoAcao,
+      aoConstruir: comCascata(ligarPlanoAcao),
     },
     absenteismo: {
       titulo: "Absenteismo",
@@ -1340,6 +1478,7 @@
         { campo: "Regiao Corporal", rotulo: "Regiao Corporal", tipo: "select", obrigatorio: true, opcoes: () => regioesCorporais() },
         { campo: "Dt Retorno", rotulo: "Dt Retorno", tipo: "data" },
       ]),
+      aoConstruir: comCascata(null),
     },
     compativeis: {
       titulo: "Compativeis (restricoes medicas)",
@@ -1367,6 +1506,7 @@
         { campo: "Atividade Compativel (recomendada)", rotulo: "Atividade Compativel (recomendada)", tipo: "texto" },
         { campo: "Atividade Compativel", rotulo: "Atividade Compativel", tipo: "select", opcoes: SIM_NAO },
       ]),
+      aoConstruir: comCascata(null),
     },
   };
 
@@ -1413,6 +1553,16 @@
           el.appendChild(opt);
         });
         el.value = valorInicial != null ? valorInicial : "";
+      } else if (def.tipo === "cascata") {
+        // Select em cascata da hierarquia Cliente>Unidade>Setor>Cargo>Posto>
+        // Atividade - as opcoes sao preenchidas depois por
+        // ligarCascataHierarquia() (chamada em cfg.aoConstruir), que tambem
+        // conhece os valores ja escolhidos nos niveis anteriores.
+        el = document.createElement("select");
+        const optBranco = document.createElement("option");
+        optBranco.value = ""; optBranco.textContent = "-";
+        el.appendChild(optBranco);
+        el.className = "select-cascata";
       } else if (def.tipo === "data") {
         el = document.createElement("input");
         el.type = "date";
@@ -1427,7 +1577,7 @@
         el = document.createElement("input");
         el.type = "text";
         el.value = valorInicial != null ? valorInicial : "";
-        const listaSugestoes = def.sugestoesDe ? sugestoes(def.sugestoesDe) : def.sugestoesLista;
+        const listaSugestoes = def.sugestoesFn ? def.sugestoesFn() : (def.sugestoesDe ? sugestoes(def.sugestoesDe) : def.sugestoesLista);
         if (listaSugestoes && listaSugestoes.length) {
           const listId = "dl-" + slug(chave + "-" + def.campo);
           el.setAttribute("list", listId);
@@ -1622,10 +1772,10 @@
       }
       try {
         const idAtual = estado.editandoId;
-        if (chave === "mapaRisco") {
+        if (chave === "mapaRisco" || chave === "hierarquia") {
           const novoId = window.BI.DB.idMapaRisco(dados);
-          await window.BI.DB.salvar("mapaRisco", novoId, dados);
-          if (idAtual && idAtual !== novoId) await window.BI.DB.excluir("mapaRisco", idAtual);
+          await window.BI.DB.salvar(chave, novoId, dados);
+          if (idAtual && idAtual !== novoId) await window.BI.DB.excluir(chave, idAtual);
         } else {
           await window.BI.DB.salvar(chave, idAtual, dados);
         }

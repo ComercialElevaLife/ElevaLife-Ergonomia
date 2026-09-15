@@ -451,6 +451,23 @@ print(f"Total Compativeis: {len(COMPATIVEIS)}")
 for row in MAPA_RISCO:
     row.pop("_pid", None)
 
+# Cadastro de Hierarquia (Cliente > Unidade > Setor > Cargo > Posto de
+# Trabalho > Atividade) - fonte unica de verdade usada pelos selects em
+# cascata dos 4 cadastros operacionais. O Mapa de Risco ja tem 1 linha por
+# posto de trabalho fisico (chave completa), entao a hierarquia e apenas a
+# projecao dos 6 campos-chave dessas linhas.
+_CAMPOS_HIERARQUIA = ["Cliente", "Unidade", "Setor", "Cargo", "Posto Trabalho", "Atividade"]
+_vistos_hierarquia = set()
+HIERARQUIA = []
+for row in MAPA_RISCO:
+    chave = tuple(row[c] for c in _CAMPOS_HIERARQUIA)
+    if chave in _vistos_hierarquia:
+        continue
+    _vistos_hierarquia.add(chave)
+    HIERARQUIA.append({c: row[c] for c in _CAMPOS_HIERARQUIA})
+HIERARQUIA.sort(key=lambda r: tuple(r[c] for c in _CAMPOS_HIERARQUIA))
+print(f"Total Hierarquia (combinacoes unicas): {len(HIERARQUIA)}")
+
 OUT = {
     "_meta": {
         "gerado_em": HOJE.isoformat(),
@@ -466,6 +483,7 @@ OUT = {
     "planoAcao": PLANO_ACAO,
     "absenteismo": ABSENTEISMO,
     "compativeis": COMPATIVEIS,
+    "hierarquia": HIERARQUIA,
 }
 
 with open("data/mock_data.json", "w", encoding="utf-8") as f:

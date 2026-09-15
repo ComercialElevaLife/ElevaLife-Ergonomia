@@ -14,13 +14,13 @@
 (function (global) {
   "use strict";
 
-  const COLECOES = ["mapaRisco", "planoAcao", "absenteismo", "compativeis"];
+  const COLECOES = ["mapaRisco", "planoAcao", "absenteismo", "compativeis", "hierarquia"];
 
   const estado = {
     disponivel: false,
     somenteLeitura: true,
     db: null,
-    colecoes: { mapaRisco: [], planoAcao: [], absenteismo: [], compativeis: [] },
+    colecoes: { mapaRisco: [], planoAcao: [], absenteismo: [], compativeis: [], hierarquia: [] },
     inscricoes: [],
   };
 
@@ -34,6 +34,12 @@
   function idMapaRisco(dados) {
     return slugify([dados.Cliente, dados.Unidade, dados.Setor, dados["Posto Trabalho"], dados.Cargo, dados.Atividade]);
   }
+
+  // Cadastro de Hierarquia (Cliente > Unidade > Setor > Cargo > Posto de
+  // Trabalho > Atividade) usa exatamente a mesma chave composta do Mapa de
+  // Risco (mesmos 6 campos) - e por isso a mesma funcao de slug serve para
+  // as duas colecoes.
+  const idHierarquia = idMapaRisco;
 
   function docParaLinha(doc) {
     const dados = doc.data() || {};
@@ -99,6 +105,7 @@
     COLECOES,
     slugify,
     idMapaRisco,
+    idHierarquia,
     iniciar,
     salvar,
     excluir,
