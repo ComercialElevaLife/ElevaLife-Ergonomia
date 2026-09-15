@@ -1,0 +1,118 @@
+<title>BI Ergonomia - ElevaLife</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Montserrat+Alternates:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+<div class="cabecalho">
+  <div class="marca">
+    <div class="logo-mark">EL</div>
+    <div class="titulos">
+      <div class="produto">BI Ergonomia</div>
+      <div class="tagline">ElevaLife · 15 anos elevando pessoas e resultados</div>
+    </div>
+  </div>
+  <nav class="abas" id="nav-abas">
+    <button type="button" data-aba="ergo" class="ativa">Ergo</button>
+    <button type="button" data-aba="medocup" disabled title="Fase 3 - em construcao">Med Ocup</button>
+    <button type="button" data-aba="compativeis" disabled title="Fase 4 - em construcao">Compativeis</button>
+    <button type="button" data-aba="dados">Dados (input)</button>
+  </nav>
+</div>
+
+<div class="barra-filtros" id="barra-filtros">
+  <!-- campos de filtro inseridos via JS -->
+</div>
+
+<main>
+  <section id="aba-ergo">
+    <div class="grade">
+
+      <!-- 1. Mapa Risco Global -->
+      <div class="cartao col-4">
+        <div class="cartao-titulo">Mapa de Risco Global</div>
+        <div class="cartao-sub">Postos avaliados por nivel de risco</div>
+        <div class="grade-status" id="tiles-risco-global"></div>
+      </div>
+
+      <!-- 2. Top 3 Setores -->
+      <div class="cartao col-4">
+        <div class="cartao-titulo">Top 3 Setores criticos</div>
+        <div class="cartao-sub">% de postos em risco Alto/Muito Alto</div>
+        <div class="altura-chart"><canvas id="chart-top-setores"></canvas></div>
+      </div>
+
+      <!-- 3. Plano Acao Global -->
+      <div class="cartao col-4">
+        <div class="cartao-titulo">Plano de Acao - Global</div>
+        <div class="cartao-sub">Distribuicao por status</div>
+        <div class="altura-chart"><canvas id="chart-plano-global"></canvas></div>
+        <div class="legenda" id="legenda-plano-global"></div>
+      </div>
+
+      <!-- 4. Plano Acao Postos Criticos -->
+      <div class="cartao col-4">
+        <div class="cartao-titulo">Plano de Acao - Postos Criticos</div>
+        <div class="cartao-sub">Risco = Alto ou Muito Alto</div>
+        <div class="altura-chart"><canvas id="chart-plano-criticos"></canvas></div>
+        <div class="legenda" id="legenda-plano-criticos"></div>
+      </div>
+
+      <!-- 6. Acoes previstas -->
+      <div class="cartao col-4">
+        <div class="cartao-titulo">Acoes previstas no periodo</div>
+        <div class="cartao-sub">Por Ano/Mes Programado</div>
+        <div class="altura-chart"><canvas id="chart-acoes-previstas"></canvas></div>
+      </div>
+
+      <!-- 7. Acoes concluidas -->
+      <div class="cartao col-4">
+        <div class="cartao-titulo">Acoes concluidas no periodo</div>
+        <div class="cartao-sub">Por Ano/Mes Concluida</div>
+        <div class="altura-chart"><canvas id="chart-acoes-concluidas"></canvas></div>
+      </div>
+
+      <!-- 5. Plano de Acao por Responsavel -->
+      <div class="cartao col-6">
+        <div class="cartao-titulo">Plano de Acao por Responsavel</div>
+        <div class="cartao-sub">Contagem de acoes por status</div>
+        <div class="altura-chart alta"><canvas id="chart-por-responsavel"></canvas></div>
+        <div class="legenda" id="legenda-por-responsavel"></div>
+      </div>
+
+      <!-- 9. Status Plano Acao por Setor -->
+      <div class="cartao col-6">
+        <div class="cartao-titulo">Status do Plano de Acao por Setor</div>
+        <div class="cartao-sub">Contagem de acoes por status</div>
+        <div class="altura-chart alta"><canvas id="chart-status-por-setor"></canvas></div>
+        <div class="legenda" id="legenda-status-por-setor"></div>
+      </div>
+
+      <!-- 8. Mapa Risco por Setor -->
+      <div class="cartao col-12">
+        <div class="cartao-titulo">Mapa de Risco por Setor</div>
+        <div class="cartao-sub">Contagem de postos por nivel de risco</div>
+        <div class="altura-chart alta"><canvas id="chart-risco-por-setor"></canvas></div>
+        <div class="legenda" id="legenda-risco-por-setor"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="aba-dados" hidden>
+    <p class="dados-intro">
+      Estas sao as 6 tabelas que alimentam o BI (a "camada de input") - os mesmos filtros globais acima se aplicam
+      aqui, para voce conferir que os numeros dos graficos batem com as linhas de origem. Dados ficticios, produto
+      ElevaLife sem integracao com sistemas externos nesta fase.
+    </p>
+    <div class="grade" id="grade-dados"></div>
+  </section>
+</main>
+
+<footer class="rodape">BI Ergonomia · ElevaLife · Dados ficticios para validacao (Fase 2 de 5) · Gerado em <span id="data-geracao"></span></footer>
+
+<div class="tooltip-chart" id="tooltip-flutuante" style="display:none;"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="js/calc.js"></script>
+<script src="js/app.js"></script>
