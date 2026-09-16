@@ -2,10 +2,10 @@
   "name": "bi-ergonomia-api",
   "version": "1.0.0",
   "description": "API multi-tenant do BI Ergonomia (ElevaLife) - Azure Functions gerenciadas pelo Static Web App.",
-  "main": "src/functions/*.js",
+  "main": "src/index.js",
   "scripts": {
     "start": "func start",
-    "test": "node --check src/shared/*.js && node --check src/functions/*.js && echo OK"
+    "test": "node --check src/index.js && node --check src/shared/*.js && node --check src/functions/*.js && echo OK"
   },
   "dependencies": {
     "@azure/cosmos": "^4.1.1",
