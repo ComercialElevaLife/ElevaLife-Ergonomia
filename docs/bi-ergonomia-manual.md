@@ -588,6 +588,16 @@ frontend, a cada push):
   `api/src/shared/cosmos.js`.
 - `staticwebapp.config.json` (raiz do repo) já exige login (`authenticated`)
   em `/api/*` e redireciona para `/.auth/login/aad` quando não autenticado.
+- **Importante (descoberto em produção em 16/09/2026)**: `/api/me` e
+  `/api/usuarios` não podem ter seu próprio `app.http()` separado — no
+  plano Free do Static Web Apps, o proxy nunca reconheceu essas rotas
+  (sempre caíam na rota genérica `{colecao}/{id?}`, com "Colecao
+  desconhecida"), mesmo com as 3 functions carregadas corretamente. A
+  correção foi unificar tudo numa única function (`entidades.js`), que
+  despacha internamente para `me`/`usuarios` antes de tratar como uma das
+  10 coleções de negócio. Se um dia for criada uma nova rota "especial"
+  (fora do padrão `{colecao}/{id?}`), seguir esse mesmo padrão — não criar
+  outro `app.http()` separado.
 
 O frontend (`js/db.js`) foi adaptado para detectar em qual ambiente está
 rodando e escolher a camada de dados automaticamente, sem precisar tocar em
