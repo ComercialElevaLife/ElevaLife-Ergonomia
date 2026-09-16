@@ -131,7 +131,13 @@
         console.error("BI Ergonomia - erro ao carregar " + chave + " da API:", resp.status);
         return;
       }
-      estado.colecoes[chave] = await resp.json();
+      const documentos = await resp.json();
+      // app.js identifica cada linha pelo campo "_id" (convencao herdada do
+      // modo Cowork/db, onde docParaLinha() o preenche a partir do doc.id).
+      // Os documentos que voltam da API usam "id" (minusculo, nativo do
+      // Cosmos DB) - sem normalizar aqui, linha._id fica undefined e os
+      // botoes Editar/Excluir ficam sempre desabilitados em producao.
+      estado.colecoes[chave] = documentos.map((doc) => Object.assign({ _id: doc.id }, doc));
       if (callbackAtualizacao) callbackAtualizacao(chave);
     } catch (erro) {
       console.error("BI Ergonomia - falha de rede ao carregar " + chave + ":", erro);
