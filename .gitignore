@@ -2,3 +2,7 @@ node_modules/
 package.json
 package-lock.json
 *.log
+
+# script local de publicacao (git push com credenciais salvas do Windows) - nao faz parte do site
+publicar.bat
+_to_delete/
