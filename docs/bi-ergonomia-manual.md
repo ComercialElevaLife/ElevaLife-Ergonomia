@@ -610,51 +610,58 @@ rodando e escolher a camada de dados automaticamente, sem precisar tocar em
    ao computador de Léo, commitar por ali, e publicar com `git push`
    usando as credenciais do Windows já salvas (script `publicar.bat`) —
    documentado na skill `publicar-elevai-cockpit`.
-2. **Registrar a aplicação no Azure AD/Entra ID** da ElevaLife (App
-   Registration), habilitando login single-tenant (só usuários/domínios da
-   ElevaLife e das empresas-cliente autorizadas). *Pendente* — precisa do
-   Portal do Azure ou do Azure CLI autenticado na conta real da ElevaLife;
-   nem o Azure MCP Server nem o `az` CLI estão autenticados no computador
-   de Léo nesta sessão (`az account show` não retorna nenhuma assinatura),
-   então este passo (e os dois seguintes) não puderam ser executados por
-   aqui — ver checklist detalhado logo abaixo.
-3. **Provisionar o banco de dados** (Cosmos DB, contêiner por coleção,
-   chave de partição `/EmpresaId` — exceto `usuarios` e `Lista CID`, que
-   usam `/id`). *Pendente*, mesmo motivo do passo 2.
-4. **Configurar a Application Setting** `COSMOS_CONNECTION_STRING` (e
-   opcionalmente `COSMOS_DATABASE_ID`) no Static Web App, para a API achar o
-   banco. *Pendente*, mesmo motivo do passo 2.
+2. **Login/autenticação**: ✅ feito, usando o provedor **multi-tenant
+   padrão** do próprio Static Web App (`/.auth/login/aad`, sem precisar
+   registrar um App Registration próprio da ElevaLife). O controle de quem
+   entra não é feito pelo Azure AD, e sim pela camada de RBAC da API (ver
+   passo 8): só quem estiver cadastrado no contêiner `usuarios` do Cosmos
+   DB tem `acessoLiberado = true`; os demais logam mas caem em modo
+   "acesso não liberado". Registrar um App Registration próprio (para
+   restringir o login em si a domínios específicos, antes mesmo de checar
+   o RBAC) fica como melhoria futura opcional, não bloqueia o uso real.
+3. **Provisionar o banco de dados**: ✅ feito — Cosmos DB Serverless
+   (`cosmos-bi-ergonomia`, grupo de recursos `rg-elevalife-ergonomia`,
+   banco `bi-ergonomia`), com os 12 contêineres (10 coleções de negócio
+   com chave de partição `/EmpresaId`, mais `usuarios` e `listaCID` com
+   `/id`).
+4. **Configurar a Application Setting**: ✅ feito —
+   `COSMOS_CONNECTION_STRING` e `COSMOS_DATABASE_ID` já configurados no
+   Static Web App via `az staticwebapp appsettings set`.
 5. **Publicar o frontend + API** como Azure Static Web App, conectado ao
-   repositório do GitHub. ✅ feito — `bi-ergonomia-elevalife`
-   (`https://witty-sea-0b1e5c110.azurestaticapps.net`), plano Gratuito,
-   deploy automático via GitHub Actions a cada push (confirmado com sucesso
-   em 16/09/2026 para o commit que trouxe o menu em árvore). *Atenção:* o
-   404 genérico relatado antes nesta seção **persiste mesmo com o deploy
-   dando certo no GitHub Actions** — ou seja, não é o código: é o recurso
-   Static Web App em si no Portal do Azure que precisa ser conferido
-   (existe? está no plano certo? domínio customizado apontando certo?).
-   Continua pendente de uma checagem de Léo no Portal.
+   repositório do GitHub. ✅ feito e funcionando —
+   `bi-ergonomia-elevalife` (grupo de recursos `rg-elevalife-ergonomia`,
+   região Central US), plano Gratuito, deploy automático via GitHub Actions
+   a cada push. **URL correta:**
+   `https://witty-sea-0b1e5c110.6.azurestaticapps.net` (repare no `.6.` —
+   esse é o `DefaultHostname` real do recurso, confirmado via
+   `az staticwebapp list`). O 404 genérico relatado antes nesta seção era
+   porque `https://witty-sea-0b1e5c110.azurestaticapps.net` (sem o `.6.`),
+   o endereço que vínhamos testando, resolve via DNS para uma fatia/região
+   diferente (East US 2) da onde o recurso realmente está (Central US) —
+   não era o código nem um recurso quebrado, era o endereço errado.
+   Resolvido em 16/09/2026.
 6. **Embutir no SharePoint**: no site do SharePoint da ElevaLife, adicionar
    a página como conteúdo embutido (webpart "Embed" apontando para a URL
    do Static Web App, ou um App Part registrado no catálogo de Apps do
    SharePoint) — com o mesmo tenant Azure AD, o SSO é automático. *Pendente*.
-7. **Migrar os dados fictícios atuais** (ou os primeiros dados reais) para
-   o Cosmos DB, associando cada linha ao `EmpresaId` correto — dá para
-   adaptar o script `data/gerar_dados.py` para isso quando o banco existir.
-   *Pendente*.
-8. **Cadastrar os primeiros usuários e papéis** via `POST /api/usuarios`
-   (ou direto no Cosmos DB, no bootstrap: o primeiro Administrador precisa
-   ser inserido manualmente, já que a própria rota de usuários exige um
-   Administrador logado) e testar o isolamento entre pelo menos 2 empresas
-   fictícias antes de liberar para uso real. *Pendente*.
+7. **Migrar os dados fictícios atuais** para o Cosmos DB: ✅ feito — todas
+   as 10 coleções de negócio migradas de `data/mock_data.json`, com
+   `EmpresaId`/`id` calculados, contagens conferidas 1 a 1 com a fonte
+   (`cliente:4, unidade:10, setor:52, cargo:114, posto:81, atividade:228,
+   mapaRisco:228, planoAcao:97, absenteismo:184, compativeis:60`).
+8. **Cadastrar os primeiros usuários e papéis**: ✅ feito o bootstrap — o
+   e-mail `leonardo@elevalife.com.br` já está cadastrado no contêiner
+   `usuarios` como **Administrador** (sem restrição de empresa, vê tudo).
+   Cadastrar os próximos usuários (Consultor/UsuarioCliente de cada
+   empresa-cliente) pode ser feito por ele mesmo depois de logado, via
+   `POST /api/usuarios` (só Administrador tem acesso a essa rota) — não é
+   mais um bloqueio técnico, é operação normal do dia a dia.
 
-**Resumo do que falta para a fase virar realidade**: os passos 1 e 5
-(GitHub + Static Web App) e todo o código da API/RBAC/multi-tenant (schema,
-rotas, frontend adaptado) já estão prontos e publicados; os passos 2, 3, 4,
-6, 7 e 8 exigem acesso real à assinatura Azure da ElevaLife — ou Léo
-autentica o Azure CLI (`az login`) no computador conectado a esta sessão
-para o Claude terminar de provisionar, ou Léo mesmo faz esses passos no
-Portal do Azure seguindo esta lista.
+**Resumo**: passos 1, 2, 3, 4, 5, 7 e 8 estão feitos — a API, o RBAC, o
+banco de dados real e os dados já estão publicados e funcionando em
+produção (`https://witty-sea-0b1e5c110.6.azurestaticapps.net`). Só o
+passo 6 (embutir no SharePoint) segue pendente, e é opcional para o uso
+direto pela URL.
 
 ## Integração com sistemas externos (SOC, LG/FAP e outros)
 

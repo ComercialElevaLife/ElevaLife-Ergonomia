@@ -85,10 +85,21 @@
   // Modo 2: API multi-tenant (Azure Static Web App + Functions em /api)
   // --------------------------------------------------------------------
 
+  // redirect:"manual" evita que o fetch siga sozinho o 302 configurado em
+  // staticwebapp.config.json (401 em /api/* -> /.auth/login/aad) e caia
+  // sem querer na pagina de login como se fosse uma resposta normal - assim
+  // conseguimos distinguir "API nao existe aqui" (Cowork/preview) de
+  // "API existe mas precisa logar" (producao, usuario ainda nao autenticado).
   async function detectarApi() {
     try {
-      const resp = await fetch("/api/me", { credentials: "same-origin", headers: { Accept: "application/json" } });
-      if (resp.status === 401) return { existe: true, identidade: null };
+      const resp = await fetch("/api/me", {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+        redirect: "manual",
+      });
+      if (resp.type === "opaqueredirect" || resp.status === 0 || resp.status === 401) {
+        return { existe: true, identidade: null, precisaLogin: true };
+      }
       if (!resp.ok) return { existe: false, identidade: null };
       const tipo = resp.headers.get("content-type") || "";
       if (tipo.indexOf("application/json") === -1) return { existe: false, identidade: null };
@@ -97,6 +108,20 @@
     } catch (e) {
       return { existe: false, identidade: null };
     }
+  }
+
+  // So redireciona uma vez por sessao de aba - evita loop se o login falhar,
+  // for cancelado, ou o usuario nao tiver conta autorizada.
+  function tentarRedirecionarParaLogin() {
+    try {
+      if (global.sessionStorage.getItem("bi-ergonomia-tentou-login")) return false;
+      global.sessionStorage.setItem("bi-ergonomia-tentou-login", "1");
+    } catch (e) {
+      // sessionStorage indisponivel (raro) - segue sem travar, so nao evita loop.
+    }
+    const destino = global.location.pathname + global.location.search;
+    global.location.href = "/.auth/login/aad?post_login_redirect_uri=" + encodeURIComponent(destino);
+    return true;
   }
 
   async function recarregarColecaoApi(chave) {
@@ -176,6 +201,13 @@
       estado.identidade = deteccao.identidade;
       estado.mensagemAcesso = "Seu acesso ainda nao foi liberado. Peca a um Administrador para te vincular a uma empresa.";
       console.warn("BI Ergonomia - " + estado.mensagemAcesso);
+    }
+
+    // API existe mas o usuario ainda nao esta autenticado (401/redirect) -
+    // manda ele para o login do Azure AD em vez de mostrar o mock estatico
+    // silenciosamente. So dispara uma vez por aba (ver tentarRedirecionarParaLogin).
+    if (deteccao.existe && deteccao.precisaLogin) {
+      tentarRedirecionarParaLogin();
     }
 
     estado.disponivel = false;
