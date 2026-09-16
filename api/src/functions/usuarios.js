@@ -13,7 +13,6 @@
 "use strict";
 
 const crypto = require("crypto");
-const { app } = require("@azure/functions");
 const { obterContainer } = require("../shared/cosmos");
 const { resolverIdentidade, PAPEIS } = require("../shared/tenant");
 
@@ -87,9 +86,6 @@ async function tratar(request, context) {
   }
 }
 
-app.http("usuarios", {
-  route: "usuarios/{id?}",
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  authLevel: "anonymous",
-  handler: tratar,
-});
+// Exportado (nao registrado com app.http aqui) - ver comentario em me.js:
+// o dispatcher unico em entidades.js chama isso diretamente pra /api/usuarios.
+module.exports = { tratar };

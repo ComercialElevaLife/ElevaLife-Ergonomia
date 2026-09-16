@@ -9,9 +9,16 @@
 
 "use strict";
 
-const { app } = require("@azure/functions");
 const { resolverIdentidade } = require("../shared/tenant");
 
+// Exportado (nao registrado com app.http aqui) - o dispatcher unico em
+// entidades.js chama isso diretamente pra /api/me. Motivo: em producao
+// (Azure Static Web Apps - Managed Functions) registrar "me" e "usuarios"
+// como functions HTTP separadas nunca teve suas rotas reconhecidas (toda
+// chamada caia na rota generica "{colecao}/{id?}" com "Colecao
+// desconhecida") - suspeita de uma limitacao/bug da camada de proxy do
+// SWA com multiplas functions/rotas no plano Free. Um unico app.http()
+// que despacha internamente elimina essa ambiguidade.
 async function tratar(request, context) {
   let identidade;
   try {
@@ -33,9 +40,4 @@ async function tratar(request, context) {
   };
 }
 
-app.http("me", {
-  route: "me",
-  methods: ["GET"],
-  authLevel: "anonymous",
-  handler: tratar,
-});
+module.exports = { tratar };

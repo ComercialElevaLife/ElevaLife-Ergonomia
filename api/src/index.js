@@ -1,18 +1,15 @@
 /* ==========================================================================
    BI Ergonomia - ElevaLife
-   Ponto de entrada unico da API (aponte "main" do package.json pra ca, em vez
-   de um glob "src/functions/*.js") - forca o carregamento explicito de TODAS
-   as functions, garantindo que app.http() rode pra cada uma delas.
+   Ponto de entrada unico da API (aponte "main" do package.json pra ca).
 
-   Motivo: em producao (Azure Static Web Apps - Managed Functions), o glob no
-   "main" so registrou "entidades" (rota generica "{colecao}/{id?}"); "me" e
-   "usuarios" nunca foram carregadas, entao toda chamada pra /api/me e
-   /api/usuarios caia na rota generica e devolvia "Colecao desconhecida".
-   Exigir cada arquivo aqui elimina essa ambiguidade de descoberta.
+   So existe UM app.http() registrado (em entidades.js, route "{colecao}/{id?}"),
+   que despacha internamente pra "me" e "usuarios" tambem (ver comentario em
+   src/functions/me.js) - em producao (Azure Static Web Apps - Managed
+   Functions, plano Free), registrar "me"/"usuarios" como functions HTTP
+   separadas nunca teve suas rotas reconhecidas pelo proxy do SWA, entao
+   um unico entry point evita esse problema por completo.
    ========================================================================== */
 
 "use strict";
 
-require("./functions/me");
-require("./functions/usuarios");
 require("./functions/entidades");
