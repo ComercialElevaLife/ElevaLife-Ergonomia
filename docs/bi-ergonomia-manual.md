@@ -25,6 +25,7 @@ o Sistema de Gestão Integrada da ElevaLife nesta fase.
 14. [Cobertura dos indicadores do RD](#cobertura-dos-indicadores-do-rd)
 15. [Escopo, limitações e próximos passos](#escopo-limitações-e-próximos-passos)
 16. [Próxima fase: multi-tenant, RBAC e hospedagem Azure/SharePoint](#próxima-fase-multi-tenant-rbac-e-hospedagem-azuresharepoint)
+17. [Integração com sistemas externos (SOC, LG/FAP e outros)](#integração-com-sistemas-externos-soc-lgfap-e-outros)
 
 ---
 
@@ -68,10 +69,26 @@ O menu tem 5 itens:
 | **Cadastro** | Setup dos dados mestre: Cliente, Unidade, Setor, Cargo, Posto de Trabalho, Atividade |
 | **Registro** | Lançamento operacional: Mapa Risco, Plano Ação, Absenteísmo, Compatíveis |
 
-No topo da área de conteúdo ficam os botões de exportação **PDF** e
-**Excel** (ver abaixo), e o rodapé traz um link **"Ver tabelas de
-referência"** que abre, por cima da tela atual, a consulta somente-leitura
-de Lista CID e Dias Úteis (ver
+**Cadastro** e **Registro** são itens em **árvore retrátil** (mesmo padrão
+do menu do Cockpit Comercial): um clique abre, dentro do próprio menu
+lateral, a lista das 6 entidades (Cadastro) ou das 4 tabelas (Registro) por
+baixo deles; clicar direto num sub-item já leva para aquela entidade/tabela
+específica. Só uma árvore fica aberta por vez, e clicar de novo no item já
+ativo apenas recolhe/expande a árvore, sem trocar de tela. Em telas
+estreitas essa árvore não é necessária — a mesma navegação já existe como
+pílulas fixas dentro da própria página de Cadastro/Registro.
+
+No topo da área de conteúdo fica a barra de ações, no mesmo padrão de ícones
+do Cockpit Comercial:
+
+- **Filtros** (ícone de funil): recolhe/expande a barra de filtros globais,
+  liberando espaço de tela sem perder a seleção feita.
+- **Atualizar** (ícone circular): re-renderiza os KPIs, gráficos e tabelas
+  com os dados e filtros atuais, sem recarregar a página.
+- **PDF** / **Excel** (ver abaixo).
+
+O rodapé traz um link **"Ver tabelas de referência"** que abre, por cima da
+tela atual, a consulta somente-leitura de Lista CID e Dias Úteis (ver
 [Tabelas de referência](#tabelas-de-referência)).
 
 ### Exportar relatório (PDF/Excel)
@@ -530,13 +547,13 @@ Pontos-chave do desenho:
 
 ### Passo a passo para publicar (GitHub + Azure + SharePoint)
 
-1. **GitHub**: criar o repositório `ComercialElevaLife/elevalife-ergonomia`
-   (ou nome equivalente) e enviar o código atual deste repositório local
-   (`/home/claude/bi-ergonomia`) como commit inicial. *Nota:* uma tentativa
-   anterior de publicar direto pelo Cowork foi bloqueada pela política de
-   rede do sandbox; o código foi então entregue a Léo como arquivo `.tar.gz`
-   para ele subir manualmente — esse é o caminho a repetir aqui, ou repetir
-   a tentativa de push direto quando a rede permitir.
+1. **GitHub**: ✅ feito em 15/09/2026 —
+   `ComercialElevaLife/ElevaLife-Ergonomia` (repositório próprio da
+   ElevaLife, não mais deste sandbox). *Nota:* o push direto pelo Cowork
+   foi bloqueado pela política de rede do sandbox; o código foi entregue a
+   Léo como `.tar.gz` (com histórico git completo) para ele subir
+   manualmente do próprio computador — esse é o caminho a repetir a cada
+   atualização, até que o push direto do Cowork seja liberado.
 2. **Registrar a aplicação no Azure AD/Entra ID** da ElevaLife (App
    Registration), habilitando login single-tenant (só usuários/domínios da
    ElevaLife e das empresas-cliente autorizadas).
@@ -549,6 +566,18 @@ Pontos-chave do desenho:
 5. **Publicar o frontend** como Azure Static Web App, conectado ao
    repositório do GitHub (deploy automático a cada push na branch
    principal) — o Static Web Apps já integra com Azure AD nativamente.
+   ✅ feito em 15/09/2026 — `bi-ergonomia-elevalife`
+   (`https://witty-sea-0b1e5c110.azurestaticapps.net`), plano Gratuito,
+   deploy automático via GitHub Actions a cada push. *Atenção:* essa
+   instância publica hoje a versão **estática** (sem `db`, só leitura,
+   dados fictícios de exemplo) — é a mesma base de código, mas sem a
+   camada de API/multi-tenant descrita nesta seção; quando as etapas 2-4
+   forem implementadas, o frontend deste mesmo Static Web App passa a
+   consumir a API em vez do banco do artefato. Em 16/09/2026 o site parou
+   de responder (404 genérico do Static Web Apps) sem nenhuma mudança de
+   código da nossa parte — vale conferir no Portal do Azure se o recurso
+   ainda existe e se o último deploy do GitHub Actions terminou com
+   sucesso antes de investigar mais a fundo.
 6. **Embutir no SharePoint**: no site do SharePoint da ElevaLife, adicionar
    a página como conteúdo embutido (webpart "Embed" apontando para a URL
    do Static Web App, ou um App Part registrado no catálogo de Apps do
@@ -561,3 +590,135 @@ Pontos-chave do desenho:
 
 Este plano ainda não foi executado — fica registrado aqui para a próxima
 fase, conforme combinado com Léo.
+
+## Integração com sistemas externos (SOC, LG/FAP e outros)
+
+Combinado com Léo em 16/09/2026: ainda não se sabe qual sistema um cliente
+específico vai usar ("teremos sim um cliente que utiliza do SOC ou
+FAP-LG, não tenho certeza") — então a integração precisa ser **genérica**,
+não presa a um sistema só. As três peças abaixo foram aprovadas e ficam
+registradas aqui como desenho; a implementação depende da fase de
+API/multi-tenant (seção anterior) já existir, porque um conector roda no
+backend, nunca direto do navegador.
+
+**Pesquisa feita sem acesso oficial** (Léo não tem documentação nem
+credenciais de nenhum dos dois sistemas hoje):
+
+- **SOC** (sistema da Qualitá Ocupacional, soc.com.br): web service próprio
+  com serviços por entidade — `Empresa` (`add`/`update`), `Unidade`
+  (`get`/`add`/`update`), `Funcionário` (`import_employee`) e um serviço
+  genérico de `Exporta Dados` (configurável por "tipo de exporta dados",
+  retorno em JSON ou XML). Autenticação por usuário/senha + IDs de empresa
+  e responsável. A hierarquia do SOC (Empresa → Unidade → Funcionário) é
+  muito parecida com a nossa (Cliente → Unidade).
+- **"FAP-LG"** não é um sistema só: **FAP** (Fator Acidentário de
+  Prevenção) é o índice de risco do INSS calculado a partir de CATs; **LG**
+  é o ERP de RH "Suíte Gen.te" (LG lugar de gente), que tem API própria e
+  um módulo especifico de integração de FAP — e cujo módulo de eSocial já
+  sincroniza nativamente com o SOC, um precedente real de integração entre
+  os dois.
+
+Como ainda não há acesso oficial a nenhum dos dois, nenhuma credencial ou
+endpoint real deve ser codificado agora — o desenho abaixo é para o dia em
+que Léo conseguir acesso/documentação de um cliente real.
+
+### 1. Schema núcleo neutro
+
+O núcleo continua sendo exatamente o modelo já documentado em
+[Modelo de dados](#modelo-de-dados) — `cliente` / `unidade` / `setor` /
+`cargo` / `posto` / `atividade` + as 4 tabelas operacionais — com o
+**vocabulário da ElevaLife**, nunca o de um sistema externo. Isso é
+proposital: nenhum conector deve forçar o núcleo a adotar os nomes de campo
+do SOC, do LG ou de qualquer outro sistema. É o conector que traduz; o
+núcleo não sabe que integrações existem.
+
+### 2. Tabela de mapeamento de ID externo
+
+Uma tabela nova, separada do núcleo, liga cada registro local a IDs de
+quantos sistemas externos forem necessários — sem o núcleo precisar de
+uma coluna por sistema:
+
+| Campo | Descrição |
+| --- | --- |
+| `sistema` | Identifica o sistema externo (`"SOC"`, `"LG"`, etc.) |
+| `tipo_entidade` | Qual entidade do núcleo (`"cliente"`, `"unidade"`, `"posto"`...) |
+| `id_local` | `_id` do registro correspondente numa das 6 coleções mestre |
+| `id_externo` | Código/ID desse mesmo registro no sistema externo |
+| `atualizado_em` | Data/hora da última sincronização |
+
+Exemplo (dados fictícios, só para ilustrar o formato):
+
+```json
+[
+  { "sistema": "SOC", "tipo_entidade": "cliente", "id_local": "cli_0001", "id_externo": "EMP-48213", "atualizado_em": "2026-09-16T10:00:00Z" },
+  { "sistema": "LG",  "tipo_entidade": "cliente", "id_local": "cli_0001", "id_externo": "40912",     "atualizado_em": "2026-09-16T10:00:00Z" }
+]
+```
+
+O mesmo `cli_0001` (nosso `AgroCampo Alimentos`, por exemplo) pode estar
+mapeado ao mesmo tempo no SOC e no LG, sem qualquer coluna extra nas
+tabelas mestre — e um cliente que não usa nenhum sistema externo
+simplesmente não tem linhas aqui.
+
+### 3. Camada de conectores plugável
+
+Uma interface comum que qualquer conector implementa; o núcleo e a API só
+enxergam essa interface, nunca o sistema por trás dela:
+
+```ts
+interface ConectorExterno {
+  nome: string; // "SOC", "LG", ...
+
+  autenticar(credenciais: Record<string, string>): Promise<void>;
+
+  buscarEmpresa(idExterno: string): Promise<{ nome: string; unidades: string[] }>;
+
+  importarFuncionario(dados: {
+    idExternoEmpresa: string;
+    matricula: string;
+    nome: string;
+    setor?: string;
+    cargo?: string;
+  }): Promise<{ idExterno: string }>;
+
+  exportarMapaRisco(filtro: { idExternoEmpresa: string }): Promise<Array<Record<string, unknown>>>;
+}
+```
+
+```mermaid
+flowchart LR
+    API["API (backend, fase multi-tenant)"] --> Registro["Camada de registro\nConectorExterno[]"]
+    Registro --> SOC["Conector SOC\n(referencia - socws)"]
+    Registro --> LG["Conector LG/FAP\n(a implementar)"]
+    Registro --> Outro["Conector futuro\n(qualquer sistema similar)"]
+    SOC -.-> Mapa[("integracao_id_externo")]
+    LG -.-> Mapa
+    Outro -.-> Mapa
+    Mapa -.-> Nucleo[("Schema núcleo\ncliente/unidade/.../mapaRisco...")]
+```
+
+- **`ConectorSOC`** é o primeiro de referência, porque é o único com
+  documentação pública encontrada (biblioteca `socws`): `buscarEmpresa`
+  chama o serviço `Company.get`, `importarFuncionario` chama
+  `Employee.import_employee`, `exportarMapaRisco` chama o serviço genérico
+  `DataExport.request` configurado com o "tipo de exporta dados" que o
+  cliente tiver cadastrado no SOC.
+- **`ConectorLG`** fica só como interface por enquanto — sem documentação
+  oficial em mãos, não há como implementar de verdade sem risco de
+  adivinhar o contrato errado.
+- Qual conector(es) cada empresa-cliente usa fica configurado por
+  `EmpresaId` (uma tabela `empresa_conector: {EmpresaId, sistema,
+  credenciais_ref}`, com as credenciais guardadas no Azure Key Vault — nunca
+  em texto puro no banco), na mesma camada de API/multi-tenant desenhada na
+  seção anterior.
+
+### Status
+
+Só desenho — nada disto está implementado. Falta, para poder implementar
+de verdade:
+
+1. A fase de API/multi-tenant existir (seção anterior), já que um conector
+   roda no backend.
+2. Acesso oficial (credenciais + documentação) a pelo menos um sistema real
+   de um cliente, para validar o `ConectorSOC` de referência e desenhar o
+   `ConectorLG` com contrato real em vez de pesquisa pública.

@@ -1755,9 +1755,80 @@
     if (nav) {
       Array.from(nav.children).forEach((btn) => btn.classList.toggle("ativa", btn.dataset.chave === chave));
     }
+    // Mantem a arvore do menu lateral (Cadastro/Registro) em sincronia com
+    // a sub-aba escolhida, tanto por um clique la dentro quanto por um
+    // clique direto no item da arvore do menu.
+    const navLateral = document.getElementById("sidebar-sub-" + ABA_DO_GRUPO[grupo]);
+    if (navLateral) {
+      Array.from(navLateral.children).forEach((btn) => btn.classList.toggle("ativa", btn.dataset.chave === chave));
+    }
     chavesDoGrupo(grupo).forEach((c) => {
       const bloco = document.getElementById("bloco-cadastro-" + c);
       if (bloco) bloco.hidden = c !== chave;
+    });
+  }
+
+  // Mapeamento entre o "grupo" usado no CADASTROS_CONFIG (mestre/registro)
+  // e a aba correspondente no nav principal (cadastro/registro) - os nomes
+  // divergem porque a aba "Cadastro" contem os dados MESTRE.
+  const ABA_DO_GRUPO = { mestre: "cadastro", registro: "registro" };
+  const GRUPO_DA_ABA = { cadastro: "mestre", registro: "registro" };
+
+  // Constroi, dentro do proprio menu lateral, a arvore retratil de
+  // sub-itens de "Cadastro" (6 entidades) e "Registro" (4 tabelas) - mesmo
+  // padrao de menu em arvore do Cockpit Comercial (ex.: "Comercial" abre e
+  // revela "Cadastro", que abre e revela "Empresa/Contato/Oportunidade").
+  // Sem caixa de selecao aqui: e so navegacao, um bloco visivel por vez -
+  // a multi-selecao ja existe nos dropdowns de filtro.
+  function montarSidebarSubnav() {
+    Object.keys(ABA_DO_GRUPO).forEach((grupo) => {
+      const aba = ABA_DO_GRUPO[grupo];
+      const nav = document.getElementById("sidebar-sub-" + aba);
+      if (!nav) return;
+      nav.innerHTML = "";
+      chavesDoGrupo(grupo).forEach((chave) => {
+        const cfg = CADASTROS_CONFIG[chave];
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.dataset.chave = chave;
+        const icone = document.createElement("span");
+        icone.className = "icone";
+        icone.textContent = cfg.icone || "";
+        const rotulo = document.createElement("span");
+        rotulo.className = "rotulo";
+        rotulo.textContent = cfg.tituloMenu || cfg.titulo;
+        btn.appendChild(icone);
+        btn.appendChild(rotulo);
+        btn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          ativarAba(aba);
+          selecionarSubAbaCadastro(grupo, chave);
+          fecharSidebarMobile();
+        });
+        nav.appendChild(btn);
+      });
+      // montarCadastros() ja rodou e escolheu a 1a sub-aba de cada grupo
+      // antes deste menu lateral existir - sincroniza o estado "ativa" aqui.
+      const chaveAtual = estadoSubAbaCadastro[grupo];
+      if (chaveAtual) {
+        Array.from(nav.children).forEach((btn) => btn.classList.toggle("ativa", btn.dataset.chave === chaveAtual));
+      }
+    });
+  }
+
+  // Expande/recolhe a arvore de um grupo (cadastro/registro) no menu
+  // lateral. So um grupo fica aberto por vez (accordion), como no Cockpit.
+  function expandirGrupoSidebar(aba, forcarAberto) {
+    document.querySelectorAll(".sidebar-nav-grupo").forEach((grupoEl) => {
+      const ehEsteGrupo = grupoEl.dataset.grupoNav === aba;
+      const abrir = ehEsteGrupo && (forcarAberto !== false);
+      grupoEl.classList.toggle("expandido", ehEsteGrupo ? abrir : false);
+      // O atributo "hidden" (usado no HTML para nao piscar a lista antes do
+      // JS carregar) tem prioridade sobre display:flex por classe no CSS
+      // padrao do navegador - por isso precisa ser removido/reposto aqui
+      // tambem, em vez de confiar so na classe "expandido".
+      const sub = grupoEl.querySelector(".sidebar-subnav-lateral");
+      if (sub) sub.hidden = !abrir;
     });
   }
 
@@ -2123,20 +2194,46 @@
   // ------------------------------------------------------------------
   let abaVisivelAntesDeReferencia = "aba-ergo";
 
+  // Ativa uma aba principal (ergo/medocup/compativeis/cadastro/registro) -
+  // extraido do handler de clique do nav para poder ser chamado tambem
+  // pelos itens da arvore do menu lateral (Cadastro > Setor, por ex.),
+  // que precisam trocar de aba e escolher a sub-aba num so passo. Ao
+  // trocar de fato de aba, a arvore retratil correspondente (Cadastro/
+  // Registro) abre sozinha e a outra recolhe - navegar para Ergo/Med
+  // Ocup/Compativeis recolhe as duas.
+  function ativarAba(aba) {
+    const nav = document.getElementById("nav-abas");
+    const botoes = Array.from(nav.querySelectorAll("button[data-aba]"));
+    const btn = botoes.find((b) => b.dataset.aba === aba);
+    if (!btn || btn.disabled) return;
+    botoes.forEach((b) => b.classList.toggle("ativa", b === btn));
+    const alvo = "aba-" + aba;
+    document.querySelectorAll('main > section[id^="aba-"]').forEach((sec) => {
+      sec.hidden = sec.id !== alvo;
+    });
+    const btnRef = document.getElementById("btn-toggle-referencia");
+    if (btnRef) btnRef.textContent = "Ver tabelas de referencia";
+    atualizarEstadoExportacao();
+    expandirGrupoSidebar(GRUPO_DA_ABA[aba] ? aba : null);
+  }
+
   function configurarAbas() {
     const nav = document.getElementById("nav-abas");
     const botoes = Array.from(nav.querySelectorAll("button[data-aba]"));
     botoes.forEach((btn) => {
       btn.addEventListener("click", () => {
         if (btn.disabled) return;
-        botoes.forEach((b) => b.classList.toggle("ativa", b === btn));
-        const alvo = "aba-" + btn.dataset.aba;
-        document.querySelectorAll('main > section[id^="aba-"]').forEach((sec) => {
-          sec.hidden = sec.id !== alvo;
-        });
-        const btnRef = document.getElementById("btn-toggle-referencia");
-        if (btnRef) btnRef.textContent = "Ver tabelas de referencia";
-        atualizarEstadoExportacao();
+        const aba = btn.dataset.aba;
+        const jaAtiva = btn.classList.contains("ativa");
+        const grupoNav = btn.closest(".sidebar-nav-grupo");
+        if (grupoNav && jaAtiva) {
+          // Clicar de novo no mesmo item que ja tem arvore (Cadastro/
+          // Registro) so alterna abrir/fechar a arvore - o gesto
+          // "reclinavel" do Cockpit - sem mexer na aba, que ja esta ativa.
+          expandirGrupoSidebar(aba, !grupoNav.classList.contains("expandido"));
+        } else {
+          ativarAba(aba);
+        }
         fecharSidebarMobile();
       });
     });
@@ -2444,6 +2541,26 @@
     atualizarEstadoExportacao();
   }
 
+  // Botao funil "Filtros" (recolhe/expande a barra de filtros, igual ao
+  // botao "Filtros" do menu do Cockpit Comercial) e botao "Atualizar"
+  // (re-renderiza tudo com os dados/filtros atuais) na barra superior.
+  function configurarBarraSuperior() {
+    const btnFiltros = document.getElementById("btn-toggle-filtros");
+    const barraFiltros = document.getElementById("barra-filtros");
+    if (btnFiltros && barraFiltros) {
+      btnFiltros.addEventListener("click", () => {
+        const agoraAberta = barraFiltros.classList.toggle("recolhida") === false;
+        btnFiltros.setAttribute("aria-expanded", String(agoraAberta));
+      });
+    }
+    const btnAtualizar = document.getElementById("btn-atualizar");
+    if (btnAtualizar) {
+      btnAtualizar.addEventListener("click", () => {
+        try { renderizarTudo(); } catch (e) { mostrarErro("Erro ao atualizar: " + (e && e.message ? e.message : String(e))); }
+      });
+    }
+  }
+
   // ------------------------------------------------------------------
   // Erros visiveis (em vez de pagina em branco silenciosa)
   // ------------------------------------------------------------------
@@ -2565,10 +2682,12 @@
       montarFiltrosPagina();
       montarAbaReferencia();
       montarCadastros();
+      montarSidebarSubnav();
       configurarSidebar();
       configurarAbas();
       configurarToggleReferencia();
       configurarExportacao();
+      configurarBarraSuperior();
       renderizarTudo();
 
       const disponivel = await window.BI.DB.iniciar(aoAtualizarColecaoDB);

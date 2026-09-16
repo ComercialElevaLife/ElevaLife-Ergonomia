@@ -310,6 +310,53 @@ h1, h2, h3, .titulo-marca {
 .sidebar.recolhido .sidebar-nav .rotulo,
 .sidebar.recolhido .btn-recolher .rotulo { display: none; }
 
+/* Menu lateral reclinavel: "Cadastro" e "Registro" abrem, dentro do
+   proprio menu, a lista das entidades/tabelas que tem por baixo -
+   mesmo padrao de arvore em cascata do menu do Cockpit Comercial
+   (ex.: "Comercial" abre e revela "Cadastro", que abre e revela
+   "Empresa/Contato/Oportunidade"). So um bloco por vez fica visivel
+   dentro de Cadastro/Registro (accordion), sem caixas de selecao aqui -
+   isso ja existe nos filtros. */
+.sidebar-nav-grupo { display: flex; flex-direction: column; }
+.sidebar-nav-pai { position: relative; width: 100%; }
+.sidebar-nav-pai .seta-sub { flex-shrink: 0; margin-left: auto; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; opacity: 0.75; }
+.sidebar-nav-pai .seta-sub svg { width: 14px; height: 14px; display: block; transition: transform .15s ease; }
+.sidebar-nav-grupo.expandido .sidebar-nav-pai .seta-sub svg { transform: rotate(90deg); }
+
+.sidebar-subnav-lateral {
+  display: none;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 14px;
+}
+.sidebar-nav-grupo.expandido .sidebar-subnav-lateral { display: flex; }
+.sidebar-subnav-lateral button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.65);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  border-left: 2px solid rgba(255,255,255,0.18);
+  margin: 1px 0 1px 4px;
+}
+.sidebar-subnav-lateral button .icone { flex-shrink: 0; font-size: 12px; }
+.sidebar-subnav-lateral button .rotulo { overflow: hidden; text-overflow: ellipsis; }
+.sidebar-subnav-lateral button:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.sidebar-subnav-lateral button.ativa { color: #fff; background: rgba(255,255,255,0.16); border-left-color: #fff; }
+.sidebar.recolhido .sidebar-subnav-lateral,
+.sidebar.recolhido .sidebar-nav-pai .seta-sub { display: none; }
+
 .sidebar-overlay { display: none; }
 
 .area-principal {
@@ -342,6 +389,29 @@ h1, h2, h3, .titulo-marca {
   flex-shrink: 0;
 }
 .btn-hamburguer svg { width: 20px; height: 20px; display: block; }
+
+.btn-icone-topo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  appearance: none;
+  border: 1px solid var(--linha);
+  background: var(--card);
+  color: var(--texto-secundario);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+  white-space: nowrap;
+}
+.btn-icone-topo .icone { width: 15px; height: 15px; display: flex; flex-shrink: 0; }
+.btn-icone-topo .icone svg { width: 15px; height: 15px; display: block; }
+.btn-icone-topo:hover { border-color: var(--teal-escuro); color: var(--teal-escuro); background: var(--creme); }
+.btn-icone-topo[aria-expanded="false"] { background: var(--creme); border-color: var(--cinza-quente); }
+#btn-toggle-filtros { margin-left: 4px; }
 
 .barra-export {
   display: flex;
@@ -406,6 +476,15 @@ h1, h2, h3, .titulo-marca {
   position: sticky;
   top: env(safe-area-inset-top, 0px);
   z-index: 20;
+}
+/* Botao funil "Filtros" na barra superior recolhe esta barra inteira -
+   mesmo padrao do botao "Filtros" do menu do Cockpit Comercial, que
+   abre/fecha uma gaveta de filtros em vez de deixa-la sempre fixa. */
+.barra-filtros.recolhida { display: none; }
+
+@media (max-width: 900px) {
+  .btn-icone-topo .rotulo-topo { display: none; }
+  .btn-icone-topo { padding: 8px; }
 }
 
 .campo-filtro {
