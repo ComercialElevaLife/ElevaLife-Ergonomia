@@ -223,14 +223,28 @@
     return false;
   }
 
+  // A API exige "EmpresaId" em toda colecao, exceto "cliente" (a propria
+  // empresa - o servidor gera o EmpresaId dela sozinho). O formulario so
+  // pede o NOME do cliente (campo "Cliente", igual nas 9 outras colecoes);
+  // aqui resolvemos esse nome pro id do cadastro de Cliente correspondente
+  // (ja carregado em estado.colecoes.cliente), do mesmo jeito que a
+  // migracao inicial dos dados fez.
+  function anexarEmpresaId(colecaoChave, dados) {
+    if (colecaoChave === "cliente" || dados.EmpresaId) return dados;
+    const clienteDoc = (estado.colecoes.cliente || []).find((c) => c.Cliente === dados.Cliente);
+    if (!clienteDoc) return dados;
+    return Object.assign({}, dados, { EmpresaId: clienteDoc.id || clienteDoc._id });
+  }
+
   async function salvar(colecaoChave, id, dados) {
     if (estado.modoApi) {
+      const corpo = anexarEmpresaId(colecaoChave, dados);
       const rota = "/api/" + encodeURIComponent(colecaoChave) + (id ? "/" + encodeURIComponent(id) : "");
       const resp = await fetch(rota, {
         method: id ? "PUT" : "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(id ? dados : Object.assign({ id }, dados)),
+        body: JSON.stringify(id ? corpo : Object.assign({ id }, corpo)),
       });
       if (!resp.ok) throw new Error(await corpoDeErro(resp));
       const salvo = await resp.json();
