@@ -545,51 +545,116 @@ Pontos-chave do desenho:
   banco de dados, Azure AD App Registration) diretamente por ali quando
   esta fase começar.
 
+### Schema multi-tenant (código já implementado em 16/09/2026)
+
+Cada uma das 10 coleções de negócio ganhou o campo `EmpresaId` (GUID,
+estável — diferente de `Cliente`, que é só o nome de exibição e pode mudar).
+Na coleção `cliente`, o próprio documento representa a empresa-tenant: seu
+`id` e seu `EmpresaId` são o mesmo valor. Nas outras 9, `EmpresaId` aponta
+para o `cliente` dono da linha. `Lista CID` continua sem `EmpresaId` — é
+referência global, igual para todos os tenants.
+
+Nova coleção `usuarios` (sem `EmpresaId` — não pertence a nenhum tenant):
+
+| Campo | Descrição |
+| --- | --- |
+| `Email` | E-mail do usuário (chave de busca, vem do Azure AD) |
+| `Papel` | `Administrador`, `Consultor` ou `UsuarioCliente` |
+| `EmpresasVinculadas` | Lista de `EmpresaId` — vazia para Administrador (não se aplica, ele vê tudo), 1 item para UsuarioCliente, 1+ para Consultor |
+
+Um usuário autenticado pelo Azure AD mas ainda sem documento em `usuarios`
+(ou sem `Papel` reconhecido) recebe `403` em toda rota — precisa ser
+cadastrado por um Administrador primeiro (ver passo 8 abaixo).
+
+### API (código já implementado em 16/09/2026)
+
+Pasta `api/` no repositório — Azure Functions (Node.js, modelo v4),
+publicada como **Functions gerenciadas** do próprio Static Web App (não é
+um Function App separado; o workflow do GitHub Actions já foi atualizado
+para `api_location: "api"`, então o deploy da API acontece junto do
+frontend, a cada push):
+
+- `GET/POST/PUT/DELETE /api/{colecao}/{id?}` — CRUD genérico para as 10
+  coleções de negócio, sempre filtrando por `EmpresaId` antes de qualquer
+  outro critério (`api/src/functions/entidades.js`).
+- `GET /api/me` — devolve e-mail, papel e empresas vinculadas do usuário
+  logado, para o frontend adaptar a UI (travar seletor de empresa para
+  UsuarioCliente, esconder "nova empresa" para quem não é Administrador).
+- `GET/POST/PUT/DELETE /api/usuarios/{id?}` — gestão de usuários/papéis,
+  restrita a Administrador.
+- Identidade e RBAC ficam em `api/src/shared/tenant.js` (lê o cabeçalho
+  `x-ms-client-principal` que o Static Web Apps injeta automaticamente em
+  toda chamada autenticada) e o acesso ao banco em
+  `api/src/shared/cosmos.js`.
+- `staticwebapp.config.json` (raiz do repo) já exige login (`authenticated`)
+  em `/api/*` e redireciona para `/.auth/login/aad` quando não autenticado.
+
+O frontend (`js/db.js`) foi adaptado para detectar em qual ambiente está
+rodando e escolher a camada de dados automaticamente, sem precisar tocar em
+`app.js`, `calc.js` nem `diagramas.js`:
+
+1. Dentro do Cowork (Artifact) → continua usando a capacidade `db` do
+   artefato, como hoje.
+2. Publicado no Azure (Static Web App com a API) → passa a consumir
+   `/api/*` — sem tempo real (sem `onSnapshot`), recarrega a coleção
+   depois de cada gravação/exclusão.
+3. Sem `db` do Cowork e sem `/api` respondendo (ex.: abrir o `index.html`
+   direto, sem hospedagem nenhuma) → cai no modo somente-leitura com o mock
+   estático, como já era o comportamento de fallback.
+
 ### Passo a passo para publicar (GitHub + Azure + SharePoint)
 
-1. **GitHub**: ✅ feito em 15/09/2026 —
-   `ComercialElevaLife/ElevaLife-Ergonomia` (repositório próprio da
-   ElevaLife, não mais deste sandbox). *Nota:* o push direto pelo Cowork
-   foi bloqueado pela política de rede do sandbox; o código foi entregue a
-   Léo como `.tar.gz` (com histórico git completo) para ele subir
-   manualmente do próprio computador — esse é o caminho a repetir a cada
-   atualização, até que o push direto do Cowork seja liberado.
+1. **GitHub**: ✅ feito — `ComercialElevaLife/ElevaLife-Ergonomia`. O push
+   direto pelo Cowork estava bloqueado; o caminho que ficou valendo (igual
+   ao Cockpit Comercial) é: editar direto na pasta do repositório conectada
+   ao computador de Léo, commitar por ali, e publicar com `git push`
+   usando as credenciais do Windows já salvas (script `publicar.bat`) —
+   documentado na skill `publicar-elevai-cockpit`.
 2. **Registrar a aplicação no Azure AD/Entra ID** da ElevaLife (App
    Registration), habilitando login single-tenant (só usuários/domínios da
-   ElevaLife e das empresas-cliente autorizadas).
-3. **Provisionar o banco de dados** (Azure SQL Database ou Cosmos DB) com
-   as 10 tabelas/coleções atuais, cada uma com a coluna `EmpresaId`
-   adicionada, e uma tabela adicional de associação Consultor↔Empresa.
-4. **Provisionar a API** (Azure Functions, plano de consumo para começar)
-   com uma rota por entidade, validando o token do Azure AD e aplicando o
-   filtro de `EmpresaId`/papel em toda consulta.
-5. **Publicar o frontend** como Azure Static Web App, conectado ao
-   repositório do GitHub (deploy automático a cada push na branch
-   principal) — o Static Web Apps já integra com Azure AD nativamente.
-   ✅ feito em 15/09/2026 — `bi-ergonomia-elevalife`
+   ElevaLife e das empresas-cliente autorizadas). *Pendente* — precisa do
+   Portal do Azure ou do Azure CLI autenticado na conta real da ElevaLife;
+   nem o Azure MCP Server nem o `az` CLI estão autenticados no computador
+   de Léo nesta sessão (`az account show` não retorna nenhuma assinatura),
+   então este passo (e os dois seguintes) não puderam ser executados por
+   aqui — ver checklist detalhado logo abaixo.
+3. **Provisionar o banco de dados** (Cosmos DB, contêiner por coleção,
+   chave de partição `/EmpresaId` — exceto `usuarios` e `Lista CID`, que
+   usam `/id`). *Pendente*, mesmo motivo do passo 2.
+4. **Configurar a Application Setting** `COSMOS_CONNECTION_STRING` (e
+   opcionalmente `COSMOS_DATABASE_ID`) no Static Web App, para a API achar o
+   banco. *Pendente*, mesmo motivo do passo 2.
+5. **Publicar o frontend + API** como Azure Static Web App, conectado ao
+   repositório do GitHub. ✅ feito — `bi-ergonomia-elevalife`
    (`https://witty-sea-0b1e5c110.azurestaticapps.net`), plano Gratuito,
-   deploy automático via GitHub Actions a cada push. *Atenção:* essa
-   instância publica hoje a versão **estática** (sem `db`, só leitura,
-   dados fictícios de exemplo) — é a mesma base de código, mas sem a
-   camada de API/multi-tenant descrita nesta seção; quando as etapas 2-4
-   forem implementadas, o frontend deste mesmo Static Web App passa a
-   consumir a API em vez do banco do artefato. Em 16/09/2026 o site parou
-   de responder (404 genérico do Static Web Apps) sem nenhuma mudança de
-   código da nossa parte — vale conferir no Portal do Azure se o recurso
-   ainda existe e se o último deploy do GitHub Actions terminou com
-   sucesso antes de investigar mais a fundo.
+   deploy automático via GitHub Actions a cada push (confirmado com sucesso
+   em 16/09/2026 para o commit que trouxe o menu em árvore). *Atenção:* o
+   404 genérico relatado antes nesta seção **persiste mesmo com o deploy
+   dando certo no GitHub Actions** — ou seja, não é o código: é o recurso
+   Static Web App em si no Portal do Azure que precisa ser conferido
+   (existe? está no plano certo? domínio customizado apontando certo?).
+   Continua pendente de uma checagem de Léo no Portal.
 6. **Embutir no SharePoint**: no site do SharePoint da ElevaLife, adicionar
    a página como conteúdo embutido (webpart "Embed" apontando para a URL
    do Static Web App, ou um App Part registrado no catálogo de Apps do
-   SharePoint) — com o mesmo tenant Azure AD, o SSO é automático.
+   SharePoint) — com o mesmo tenant Azure AD, o SSO é automático. *Pendente*.
 7. **Migrar os dados fictícios atuais** (ou os primeiros dados reais) para
-   o novo banco, associando cada linha ao `EmpresaId` correto.
-8. **Cadastrar os primeiros usuários e papéis** (Administrador, Consultor,
-   Usuário do cliente) e testar o isolamento entre pelo menos 2 empresas
-   fictícias antes de liberar para uso real.
+   o Cosmos DB, associando cada linha ao `EmpresaId` correto — dá para
+   adaptar o script `data/gerar_dados.py` para isso quando o banco existir.
+   *Pendente*.
+8. **Cadastrar os primeiros usuários e papéis** via `POST /api/usuarios`
+   (ou direto no Cosmos DB, no bootstrap: o primeiro Administrador precisa
+   ser inserido manualmente, já que a própria rota de usuários exige um
+   Administrador logado) e testar o isolamento entre pelo menos 2 empresas
+   fictícias antes de liberar para uso real. *Pendente*.
 
-Este plano ainda não foi executado — fica registrado aqui para a próxima
-fase, conforme combinado com Léo.
+**Resumo do que falta para a fase virar realidade**: os passos 1 e 5
+(GitHub + Static Web App) e todo o código da API/RBAC/multi-tenant (schema,
+rotas, frontend adaptado) já estão prontos e publicados; os passos 2, 3, 4,
+6, 7 e 8 exigem acesso real à assinatura Azure da ElevaLife — ou Léo
+autentica o Azure CLI (`az login`) no computador conectado a esta sessão
+para o Claude terminar de provisionar, ou Léo mesmo faz esses passos no
+Portal do Azure seguindo esta lista.
 
 ## Integração com sistemas externos (SOC, LG/FAP e outros)
 

@@ -3,6 +3,10 @@ package.json
 package-lock.json
 *.log
 
+# a API (api/) e um projeto Node de verdade - precisa do package.json dela
+!/api/package.json
+!/api/package-lock.json
+
 # script local de publicacao (git push com credenciais salvas do Windows) - nao faz parte do site
 publicar.bat
 _to_delete/
