@@ -24,8 +24,9 @@ o Sistema de Gestão Integrada da ElevaLife nesta fase.
 13. [BPMN — processo de gestão de ergonomia](#bpmn--processo-de-gestão-de-ergonomia)
 14. [Cobertura dos indicadores do RD](#cobertura-dos-indicadores-do-rd)
 15. [Escopo, limitações e próximos passos](#escopo-limitações-e-próximos-passos)
-16. [Próxima fase: multi-tenant, RBAC e hospedagem Azure/SharePoint](#próxima-fase-multi-tenant-rbac-e-hospedagem-azuresharepoint)
-17. [Integração com sistemas externos (SOC, LG/FAP e outros)](#integração-com-sistemas-externos-soc-lgfap-e-outros)
+16. [Backlog combinado com Léo (ainda não implementado)](#backlog-combinado-com-léo-ainda-não-implementado)
+17. [Próxima fase: multi-tenant, RBAC e hospedagem Azure/SharePoint](#próxima-fase-multi-tenant-rbac-e-hospedagem-azuresharepoint)
+18. [Integração com sistemas externos (SOC, LG/FAP e outros)](#integração-com-sistemas-externos-soc-lgfap-e-outros)
 
 ---
 
@@ -465,6 +466,57 @@ função-a-função — exatamente como orientado.
   multi-tenant, hierarquia de acesso (RBAC) e hospedagem nativa no
   SharePoint da ElevaLife via Azure — ver
   [Próxima fase: multi-tenant, RBAC e hospedagem Azure/SharePoint](#próxima-fase-multi-tenant-rbac-e-hospedagem-azuresharepoint).
+
+## Backlog combinado com Léo (ainda não implementado)
+
+Itens combinados com Léo em 24/09/2026 para uma fase futura — registrados
+aqui só para documentar o combinado (conforme pedido: "escrever no manual,
+não implementar agora"). **Nenhum dos dois itens abaixo está implementado
+nesta build.**
+
+### Refinamento do RBAC — papéis e permissões
+
+A hierarquia de acesso esboçada na seção seguinte
+([Próxima fase](#próxima-fase-multi-tenant-rbac-e-hospedagem-azuresharepoint))
+evolui para 3 papéis com escopos de permissão mais específicos do que o
+desenho inicial de "Administrador / Consultor / Usuário do cliente":
+
+- **Administrador**: vê e edita todos os dados de todas as
+  empresas-cliente, sem restrição nenhuma.
+- **Ergonomista** (substitui o nome "Consultor" do desenho inicial — fica
+  alinhado ao campo `Auditoria Ergonomista` que já existe no Plano Ação):
+  vê e edita normalmente, mas só das empresas-cliente às quais está
+  vinculado (mesma lógica já prevista: tabela de associação
+  Ergonomista↔Empresa).
+- **Usuário Cliente**: acesso restrito à própria empresa-cliente
+  habilitada, só com permissão de **visualização e download do relatório**
+  (PDF/Excel) — sem editar cadastro nem registro. **Exceção única**: pode
+  atualizar o campo `Status Ação` de um registro do Plano de Ação (por
+  exemplo, marcar uma ação como concluída), sem poder alterar nenhum outro
+  campo desse registro nem de qualquer outra tabela.
+
+Essa regra do Usuário Cliente (visualização + download, com uma única
+exceção de escrita bem pontual) é mais granular do que um simples "pode
+editar x não pode" por papel — precisa ser aplicada na camada de
+autorização da API (filtro por `EmpresaId` **e** validação de qual campo
+está sendo alterado, por rota), não bastando esconder botões no frontend.
+
+### Evolução do Plano de Ação — foto e risco antes/depois
+
+O Plano de Ação evolui de um registro de acompanhamento simples para uma
+ferramenta mais orientada à gestão, com dois acréscimos combinados com
+Léo:
+
+1. **Evidência fotográfica**: permitir anexar uma ou mais fotos a cada
+   ação do Plano de Ação (por exemplo, foto do posto de trabalho antes e
+   depois da melhoria implementada), como evidência visual de que a ação
+   foi de fato executada.
+2. **Risco antes/depois**: dois campos novos no registro do Plano de
+   Ação — `Risco Ergonômico Atual` (nível de risco no momento em que a
+   ação é aberta) e `Risco Ergonômico Esperado Pós Melhoria` (nível de
+   risco esperado depois que a ação for implementada) — para medir o
+   impacto esperado/realizado de cada ação, e não só o status de
+   execução (Não Iniciado/Em Andamento/Concluído/Atrasada).
 
 ## Próxima fase: multi-tenant, RBAC e hospedagem Azure/SharePoint
 
