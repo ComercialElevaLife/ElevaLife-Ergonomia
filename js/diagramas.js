@@ -20,8 +20,11 @@
   // ------------------------------------------------------------------
   // Layout: imagem central (380x869) + duas colunas de rotulo (esq/dir).
   // ------------------------------------------------------------------
-  const LARGURA_CAIXA = 96;
-  const ALTURA_CAIXA = 32;
+  // Caixa da legenda aumentada (era 96x32) - pedido do Leo pra deixar a
+  // fonte da legenda (nome da regiao + valor) maior e mais legivel dentro
+  // da caixa pontilhada.
+  const LARGURA_CAIXA = 112;
+  const ALTURA_CAIXA = 38;
   const GAP = 14;
   const X_COLUNA_ESQ = 6;
 
@@ -112,10 +115,10 @@
         <rect x="${bx}" y="${by}" width="${LARGURA_CAIXA}" height="${ALTURA_CAIXA}" rx="6"
               fill="var(--card)" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3"
               opacity="${destacar ? 1 : 0.55}" />
-        <text x="${bx + LARGURA_CAIXA / 2}" y="${by + 13}" text-anchor="middle"
-              font-size="9.5" fill="currentColor" opacity="0.85">${item.regiao}</text>
-        <text x="${bx + LARGURA_CAIXA / 2}" y="${by + 27}" text-anchor="middle"
-              font-size="14" font-weight="700" fill="${destacar ? "var(--teal-escuro)" : "currentColor"}">${formatarValor(valor)}</text>
+        <text x="${bx + LARGURA_CAIXA / 2}" y="${by + 15}" text-anchor="middle"
+              font-size="11" fill="currentColor" opacity="0.85">${item.regiao}</text>
+        <text x="${bx + LARGURA_CAIXA / 2}" y="${by + 32}" text-anchor="middle"
+              font-size="16" font-weight="700" fill="${destacar ? "var(--teal-escuro)" : "currentColor"}">${formatarValor(valor)}</text>
       </g>
     `;
   }
