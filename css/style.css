@@ -191,7 +191,7 @@ h1, h2, h3, .titulo-marca {
 }
 
 .sidebar {
-  width: 232px;
+  width: 254px;
   height: 100vh;
   flex-shrink: 0;
   display: flex;
@@ -266,7 +266,7 @@ h1, h2, h3, .titulo-marca {
   background: transparent;
   color: rgba(255,255,255,0.78);
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   padding: 10px 12px;
   border-radius: 8px;
@@ -286,29 +286,25 @@ h1, h2, h3, .titulo-marca {
 .btn-recolher {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 8px;
-  padding: 10px 12px;
-  border: none;
-  background: rgba(0,0,0,0.14);
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin: 8px auto;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: transparent;
   color: rgba(255,255,255,0.75);
-  border-radius: 8px;
+  border-radius: 50%;
   cursor: pointer;
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
+  flex-shrink: 0;
 }
-.btn-recolher:hover { background: rgba(0,0,0,0.24); color: #fff; }
-.btn-recolher .icone svg { transition: transform .18s ease; display: block; }
+.btn-recolher .icone svg { width: 14px; height: 14px; transition: transform .18s ease; display: block; }
+.btn-recolher:hover { background: rgba(255,255,255,0.10); color: #fff; border-color: rgba(255,255,255,0.4); }
 .sidebar.recolhido .btn-recolher .icone svg { transform: rotate(180deg); }
 .sidebar.recolhido .sidebar-topo,
-.sidebar.recolhido .sidebar-nav button,
-.sidebar.recolhido .btn-recolher { justify-content: center; }
+.sidebar.recolhido .sidebar-nav button { justify-content: center; }
 .sidebar.recolhido .titulos,
-.sidebar.recolhido .sidebar-nav .rotulo,
-.sidebar.recolhido .btn-recolher .rotulo { display: none; }
+.sidebar.recolhido .sidebar-nav .rotulo { display: none; }
 
 /* Menu lateral reclinavel: "Cadastro" e "Registro" abrem, dentro do
    proprio menu, a lista das entidades/tabelas que tem por baixo -
@@ -720,6 +716,16 @@ main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1400px; margin: 0 a
 .tile-status .valor { font-size: 24px; font-weight: 700; color: var(--texto); }
 .tile-status .pct { font-size: 12px; color: var(--cinza-quente); }
 
+/* Versao "destaque" - usada quando o card ocupa a largura toda (ex.: Mapa
+   de Risco Global), pra tile parar de ficar achatado/apertado. */
+.grade-status--destaque { gap: 16px; }
+.grade-status--destaque .tile-status { padding: 18px 20px; border-radius: 12px; gap: 6px; }
+.grade-status--destaque .tile-status .rotulo { font-size: 13.5px; }
+.grade-status--destaque .tile-status .rotulo .ponto { width: 11px; height: 11px; }
+.grade-status--destaque .tile-status .valor { font-size: 34px; }
+.grade-status--destaque .tile-status .pct { font-size: 13px; }
+@media (max-width: 700px) { .grade-status--destaque { grid-template-columns: repeat(2, 1fr); } }
+
 /* ---------------------------- Stat tiles (totais Med Ocup) ---------------------------- */
 
 .grade-totais {
@@ -799,6 +805,7 @@ main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1400px; margin: 0 a
 .tooltip-chart .tt-linha { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .tooltip-chart .tt-chave { width: 9px; height: 3px; border-radius: 2px; flex: none; }
 .tooltip-chart .tt-valor { font-weight: 700; margin-left: auto; padding-left: 10px; }
+.tooltip-chart .tt-linha-total { margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.25); font-weight: 700; }
 
 /* ---------------------------- Estados vazios / carregando ---------------------------- */
 

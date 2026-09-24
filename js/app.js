@@ -88,7 +88,17 @@
       t.textContent = tooltip.title.join(" ");
       el.appendChild(t);
     }
-    (tooltip.dataPoints || []).forEach((dp) => {
+    const dataPoints = tooltip.dataPoints || [];
+    // Detalhamento maior no hover: numa pizza/rosca (um unico valor por
+    // fatia), mostra % do total da rosca; num grafico com varias series na
+    // mesma categoria (barra empilhada, por ex.), soma e mostra o Total.
+    const ehFatiaUnica = dataPoints.length === 1 && ["pie", "doughnut"].includes(dataPoints[0].chart.config.type);
+    const totalFatias = ehFatiaUnica
+      ? (dataPoints[0].dataset.data || []).reduce((soma, v) => soma + (Number(v) || 0), 0)
+      : 0;
+    const totalSerie = dataPoints.reduce((soma, dp) => soma + (Number(dp.raw) || 0), 0);
+
+    dataPoints.forEach((dp) => {
       const linha = document.createElement("div");
       linha.className = "tt-linha";
 
@@ -105,12 +115,28 @@
       const valor = document.createElement("span");
       valor.className = "tt-valor";
       valor.textContent = dp.formattedValue;
+      if (ehFatiaUnica && totalFatias > 0) {
+        valor.textContent += ` (${((Number(dp.raw) / totalFatias) * 100).toFixed(1)}%)`;
+      }
 
       linha.appendChild(chave);
       linha.appendChild(rotulo);
       linha.appendChild(valor);
       el.appendChild(linha);
     });
+
+    if (dataPoints.length > 1) {
+      const linhaTotal = document.createElement("div");
+      linhaTotal.className = "tt-linha tt-linha-total";
+      const rotuloTotal = document.createElement("span");
+      rotuloTotal.textContent = "Total";
+      const valorTotal = document.createElement("span");
+      valorTotal.className = "tt-valor";
+      valorTotal.textContent = totalSerie.toLocaleString("pt-BR");
+      linhaTotal.appendChild(rotuloTotal);
+      linhaTotal.appendChild(valorTotal);
+      el.appendChild(linhaTotal);
+    }
 
     const rect = chart.canvas.getBoundingClientRect();
     el.style.display = "block";
@@ -131,6 +157,56 @@
     Chart.defaults.plugins.tooltip.external = tooltipExterno;
     Chart.defaults.interaction.mode = "index";
     Chart.defaults.interaction.intersect = false;
+
+    // Rotulos de dados sempre visiveis nos graficos (pedido do Leo: nao so
+    // no hover). Registrado globalmente e ligado por padrao so em barra e
+    // pizza/rosca - grafico de linha (serie temporal com muitos pontos)
+    // continua so no hover pelo tooltip customizado, senao vira poluicao
+    // visual (numero em cima de numero).
+    if (window.ChartDataLabels) {
+      Chart.register(window.ChartDataLabels);
+      Chart.defaults.plugins.datalabels = { display: false };
+
+      Chart.overrides.bar.plugins.datalabels = {
+        display: true,
+        clip: false,
+        font: { size: 11, weight: "600" },
+        // Barra simples (1 serie): rotulo fora, no fim da barra.
+        // Barra empilhada (stack definido): rotulo dentro de cada segmento.
+        anchor: (ctx) => (ctx.dataset.stack ? "center" : "end"),
+        align: (ctx) => (ctx.dataset.stack ? "center" : "end"),
+        color: (ctx) => (ctx.dataset.stack ? "#fff" : corTextoSecundario()),
+        formatter: (valor, ctx) => {
+          const n = Number(valor);
+          if (!n) return "";
+          if (ctx.dataset.stack) {
+            // Esconde rotulo de segmento minusculo (nao caberia legivel de
+            // qualquer forma e so poluiria a barra empilhada).
+            const total = (ctx.chart.data.datasets || []).reduce((soma, ds) => soma + (Number(ds.data[ctx.dataIndex]) || 0), 0);
+            if (total > 0 && n / total < 0.08) return "";
+          }
+          return n.toLocaleString("pt-BR");
+        },
+      };
+
+      const rotuloFatia = {
+        display: true,
+        color: "#fff",
+        anchor: "center",
+        align: "center",
+        font: { size: 11, weight: "600" },
+        formatter: (valor, ctx) => {
+          const n = Number(valor);
+          const total = (ctx.dataset.data || []).reduce((soma, v) => soma + (Number(v) || 0), 0);
+          if (!n || !total) return "";
+          const pct = (n / total) * 100;
+          return pct < 6 ? "" : `${pct.toFixed(0)}%`;
+        },
+      };
+      Chart.overrides.doughnut.plugins.datalabels = rotuloFatia;
+      Chart.overrides.pie.plugins.datalabels = rotuloFatia;
+      Chart.overrides.line.plugins.datalabels = { display: false };
+    }
   }
 
   function criarOuAtualizarGrafico(id, config) {
@@ -2164,8 +2240,11 @@
       sidebar.classList.toggle("recolhido", recolhida);
       if (btnRecolher) {
         btnRecolher.setAttribute("aria-expanded", String(!recolhida));
-        const rotulo = btnRecolher.querySelector(".rotulo");
-        if (rotulo) rotulo.textContent = recolhida ? "Expandir menu" : "Recolher menu";
+        // So um icone (setinha) - sem texto visivel (pedido do Leo), mas
+        // aria-label/title continuam descritivos pra acessibilidade/tooltip.
+        const texto = recolhida ? "Expandir menu" : "Recolher menu";
+        btnRecolher.setAttribute("aria-label", texto);
+        btnRecolher.setAttribute("title", texto);
       }
     }
 
