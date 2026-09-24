@@ -251,19 +251,31 @@
 
   // ------------------------------------------------------------------
   // Drill-down: clicar em qualquer grafico (fatia, barra, ponto) abre um
-  // painel flutuante com o detalhamento das linhas brutas por tras
-  // daquele numero - reaproveita as MESMAS colunas ja definidas em
-  // CADASTROS_CONFIG (chave "mapaRisco"/"planoAcao"/"absenteismo"/
-  // "compativeis") para nao duplicar a forma de exibir cada tabela.
+  // painel com o detalhamento das linhas brutas por tras daquele numero -
+  // reaproveita as MESMAS colunas ja definidas em CADASTROS_CONFIG (chave
+  // "mapaRisco"/"planoAcao"/"absenteismo"/"compativeis") para nao duplicar
+  // a forma de exibir cada tabela. Pedido do Leo: em vez do popover pequeno
+  // que abria colado no clique, um painel maior deslizando da direita pra
+  // esquerda (mesmo padrao visual/interacao do painel de Filtros - overlay
+  // escurecido atras, ESC ou clique fora fecha).
   // ------------------------------------------------------------------
   let elDrillDown = null;
+  let elOverlayDrillDown = null;
 
   function obterPainelDrillDown() {
     if (elDrillDown) return elDrillDown;
-    const painel = document.createElement("div");
+
+    const overlay = document.createElement("div");
+    overlay.className = "overlay-drilldown";
+    overlay.id = "overlay-drilldown";
+    overlay.hidden = true;
+    document.body.appendChild(overlay);
+    elOverlayDrillDown = overlay;
+
+    const painel = document.createElement("aside");
     painel.className = "drilldown-painel";
     painel.id = "drilldown-painel";
-    painel.hidden = true;
+    painel.setAttribute("aria-hidden", "true");
     const cab = document.createElement("div");
     cab.className = "drilldown-cabecalho";
     const titulos = document.createElement("div");
@@ -294,12 +306,17 @@
     return painel;
   }
 
+  function drillDownAberto() {
+    return !!elDrillDown && elDrillDown.classList.contains("aberto");
+  }
+
   function fecharDrillDown() {
-    if (elDrillDown) elDrillDown.hidden = true;
+    if (elDrillDown) { elDrillDown.classList.remove("aberto"); elDrillDown.setAttribute("aria-hidden", "true"); }
+    if (elOverlayDrillDown) elOverlayDrillDown.hidden = true;
   }
 
   document.addEventListener("click", (ev) => {
-    if (!elDrillDown || elDrillDown.hidden) return;
+    if (!drillDownAberto()) return;
     if (ev.target.closest(".drilldown-painel") || ev.target.closest("canvas") || ev.target.closest(".figura-diagrama")) return;
     fecharDrillDown();
   });
@@ -320,9 +337,9 @@
     return v === null || v === undefined || v === "" ? "-" : String(v);
   }
 
-  const LIMITE_LINHAS_DRILLDOWN = 30;
+  const LIMITE_LINHAS_DRILLDOWN = 50;
 
-  function abrirDrillDown(campoOuTitulo, subtitulo, chave, linhas, evt) {
+  function abrirDrillDown(campoOuTitulo, subtitulo, chave, linhas) {
     const painel = obterPainelDrillDown();
     document.getElementById("drilldown-titulo").textContent = campoOuTitulo;
     document.getElementById("drilldown-sub").textContent = subtitulo;
@@ -369,17 +386,10 @@
       }
     }
 
-    painel.hidden = false;
-    // Posiciona proximo ao clique, sem sair da tela.
-    const W = 460, margem = 12;
-    let x = (evt && evt.clientX != null ? evt.clientX : window.innerWidth / 2) + 14;
-    let y = evt && evt.clientY != null ? evt.clientY : window.innerHeight / 2;
-    if (x + W + margem > window.innerWidth) x = window.innerWidth - W - margem;
-    if (x < margem) x = margem;
-    const alturaEstimada = Math.min(400, window.innerHeight * 0.7);
-    if (y + alturaEstimada + margem > window.innerHeight) y = Math.max(margem, window.innerHeight - alturaEstimada - margem);
-    painel.style.left = x + "px";
-    painel.style.top = y + "px";
+    painel.classList.add("aberto");
+    painel.setAttribute("aria-hidden", "false");
+    if (elOverlayDrillDown) elOverlayDrillDown.hidden = false;
+    corpo.scrollTop = 0;
   }
 
   // Resolve o elemento REALMENTE sob o cursor (independente do modo de
