@@ -1529,25 +1529,31 @@
   }
 
   // Seletor hierarquico de CID (Capitulo > Grupo > Categoria), restrito aos
-  // 3 capitulos que respondem pela quase totalidade do absenteismo
-  // ergonomico - M (osteomuscular), S (lesoes/traumatismos) e F (transtornos
+  // capitulos que respondem pela quase totalidade do absenteismo ergonomico
+  // - M (osteomuscular), S (lesoes/traumatismos), F (transtornos
   // mentais/stress) - pedido do Leo pra facilitar achar o codigo certo em
-  // vez de rolar uma lista unica e desordenada. Cada "listaCID[i].Grupo" ja
-  // vem pronto (ex.: "M50-M54 - Outras dorsopatias") direto da tabela de
+  // vez de rolar uma lista unica e desordenada. G (nervos/raizes/plexos)
+  // entrou depois, como excecao: restrito ao bloco G50-G59 (mononeuropatias
+  // do membro superior - tunel do carpo, nervo ulnar/radial etc.), que sao
+  // as doencas neurologicas mais associadas a ergonomia/LER-DORT - pedido
+  // do Leo em 24/09/2026 ("abra excecao para as doencas mais relacionadas a
+  // Ergonomia e deixe-as disponiveis"). Cada "listaCID[i].Grupo" ja vem
+  // pronto (ex.: "M50-M54 - Outras dorsopatias") direto da tabela de
   // referencia, entao a arvore e so um agrupamento em cima dela - nenhuma
   // duplicacao de dado.
   const CAPITULOS_CID = {
     M: "M - Doencas do sistema osteomuscular e do tecido conjuntivo",
     S: "S - Lesoes, envenenamentos e outras consequencias de causas externas",
     F: "F - Transtornos mentais e comportamentais",
+    G: "G - Doencas do sistema nervoso",
   };
-  const ORDEM_CAPITULOS_CID = ["M", "S", "F"];
+  const ORDEM_CAPITULOS_CID = ["M", "S", "F", "G"];
 
   function hierarquiaCID() {
     const arvore = {};
     (window.BI.dados.listaCID || []).forEach((l) => {
       const cap = l.Capitulo;
-      if (!CAPITULOS_CID[cap]) return; // fora do escopo M/S/F (ex.: G56.0 legado)
+      if (!CAPITULOS_CID[cap]) return; // fora do escopo M/S/F/G
       arvore[cap] = arvore[cap] || {};
       const grupo = l.Grupo || "Outros";
       arvore[cap][grupo] = arvore[cap][grupo] || [];
@@ -1561,10 +1567,10 @@
   function localizarCID(codigo) {
     if (!codigo) return null;
     const linha = (window.BI.dados.listaCID || []).find((l) => l["Cod CID"] === codigo);
-    // So retorna se o capitulo cair dentro de M/S/F (a arvore nova nao tem
-    // ramo pra nenhum outro capitulo) - um codigo legado tipo G56.0 cai no
-    // fallback "Outro (codigo legado)" em vez de tentar (e falhar) achar
-    // um grupo que nao existe na arvore.
+    // So retorna se o capitulo cair dentro de M/S/F/G (a arvore nova nao tem
+    // ramo pra nenhum outro capitulo) - um codigo legado fora desse escopo
+    // cai no fallback "Outro (codigo legado)" em vez de tentar (e falhar)
+    // achar um grupo que nao existe na arvore.
     if (!linha || !CAPITULOS_CID[linha.Capitulo]) return null;
     return { capitulo: linha.Capitulo, grupo: linha.Grupo };
   }
@@ -1863,9 +1869,10 @@
           popularGrupos(localizacao.capitulo, localizacao.grupo);
           popularCategorias(localizacao.capitulo, localizacao.grupo, valorInicial);
         } else if (valorInicial) {
-          // Codigo legado fora de M/S/F (ex.: G56.0) - mantem visivel num
-          // "Outro" pra nao sumir/quebrar ao abrir um registro antigo pra
-          // editar, mesmo sem aparecer na arvore nova.
+          // Codigo legado fora de M/S/F/G (ex.: um antigo codigo de outro
+          // capitulo que tenha ficado gravado num registro) - mantem
+          // visivel num "Outro" pra nao sumir/quebrar ao abrir um registro
+          // antigo pra editar, mesmo sem aparecer na arvore nova.
           const optOutroCap = document.createElement("option");
           optOutroCap.value = "_legado"; optOutroCap.textContent = "Outro (codigo legado)";
           selCapitulo.appendChild(optOutroCap);

@@ -736,7 +736,49 @@
       "CID": "Sindrome do tunel do carpo",
       "CID Abrev": "Tunel do Carpo",
       "Capitulo": "G",
-      "Grupo": "G50-G64 - Transtornos dos nervos, das raizes e dos plexos nervosos"
+      "Grupo": "G50-G59 - Transtornos dos nervos, das raizes e dos plexos nervosos"
+    },
+    {
+      "Cod CID": "G56.1",
+      "CID": "Outras lesoes do nervo mediano",
+      "CID Abrev": "Nervo Mediano",
+      "Capitulo": "G",
+      "Grupo": "G50-G59 - Transtornos dos nervos, das raizes e dos plexos nervosos"
+    },
+    {
+      "Cod CID": "G56.2",
+      "CID": "Lesao do nervo ulnar",
+      "CID Abrev": "Nervo Ulnar",
+      "Capitulo": "G",
+      "Grupo": "G50-G59 - Transtornos dos nervos, das raizes e dos plexos nervosos"
+    },
+    {
+      "Cod CID": "G56.3",
+      "CID": "Lesao do nervo radial",
+      "CID Abrev": "Nervo Radial",
+      "Capitulo": "G",
+      "Grupo": "G50-G59 - Transtornos dos nervos, das raizes e dos plexos nervosos"
+    },
+    {
+      "Cod CID": "G56.4",
+      "CID": "Causalgia do membro superior",
+      "CID Abrev": "Causalgia MS",
+      "Capitulo": "G",
+      "Grupo": "G50-G59 - Transtornos dos nervos, das raizes e dos plexos nervosos"
+    },
+    {
+      "Cod CID": "G56.8",
+      "CID": "Outras mononeuropatias do membro superior",
+      "CID Abrev": "Mononeuropatia MS",
+      "Capitulo": "G",
+      "Grupo": "G50-G59 - Transtornos dos nervos, das raizes e dos plexos nervosos"
+    },
+    {
+      "Cod CID": "G56.9",
+      "CID": "Mononeuropatia do membro superior nao especificada",
+      "CID Abrev": "Mononeuropatia NE",
+      "Capitulo": "G",
+      "Grupo": "G50-G59 - Transtornos dos nervos, das raizes e dos plexos nervosos"
     }
   ],
   "diasUteis": [
