@@ -720,7 +720,9 @@ h1, h2, h3, .titulo-marca {
 
 /* ---------------------------- Layout de conteudo ---------------------------- */
 
-main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1400px; margin: 0 auto; }
+/* 1600px (era 1400px) - pedido do Leo pra dar mais largura pras tabelas
+   de Registro/Cadastro, que tem bastante coluna. */
+main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1600px; margin: 0 auto; }
 
 .grade {
   display: grid;
@@ -960,8 +962,24 @@ table.tabela-dados thead th {
   user-select: none;
 }
 table.tabela-dados thead th .seta { opacity: 0.5; margin-left: 3px; }
+table.tabela-dados thead th.ordenada-por { color: var(--teal-escuro); }
+table.tabela-dados thead th.ordenada-por .seta { opacity: 1; }
 table.tabela-dados tbody tr:hover { background: var(--creme); }
 table.tabela-dados tbody td { color: var(--texto); font-variant-numeric: tabular-nums; }
+
+/* Coluna Acoes (Editar/Excluir) fixa na borda direita da area com scroll -
+   antes ficava "escondida" la no fim de uma tabela larga, so aparecendo
+   depois de rolar horizontalmente ate o fim. Pedido do Leo pra dar mais
+   visibilidade/espaco pros botoes. */
+table.tabela-dados th.col-acoes, table.tabela-dados td.col-acoes {
+  position: sticky;
+  right: 0;
+  background: var(--card);
+  box-shadow: -8px 0 8px -8px rgba(0,0,0,0.25);
+  white-space: nowrap;
+}
+table.tabela-dados thead th.col-acoes { background: var(--creme); z-index: 2; cursor: default; }
+table.tabela-dados tbody tr:hover td.col-acoes { background: var(--creme); }
 
 /* ---------------------------- Drill-down (clique nos graficos) ---------------------------- */
 
@@ -1115,21 +1133,25 @@ canvas.grafico-interativo { cursor: default; }
   opacity: 0.45; cursor: not-allowed; background: var(--cinza-quente);
 }
 
+/* Botoes maiores e com contorno visivel (pedido do Leo - antes eram so
+   texto sem fundo/borda, quase invisiveis, principalmente numa tabela
+   larga com muita coluna). */
 .btn-acao-linha {
   font-family: inherit;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
-  border: none;
-  border-radius: 5px;
-  padding: 4px 9px;
-  margin-right: 4px;
+  border: 1px solid var(--linha);
+  border-radius: 6px;
+  padding: 5px 12px;
+  margin-right: 6px;
   cursor: pointer;
-  background: transparent;
+  background: var(--card);
   color: var(--teal-escuro);
 }
-.btn-acao-linha:hover { background: var(--creme); }
-.btn-acao-linha.excluir { color: var(--status-critical); }
-.btn-acao-linha:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-acao-linha:hover { background: var(--teal); border-color: var(--teal); color: #fff; }
+.btn-acao-linha.excluir { color: var(--status-critical); border-color: var(--status-critical); }
+.btn-acao-linha.excluir:hover { background: var(--status-critical); color: #fff; }
+.btn-acao-linha:disabled { opacity: 0.35; cursor: not-allowed; background: var(--card); color: var(--texto-secundario); border-color: var(--linha); }
 
 .form-cadastro {
   border: 1px solid var(--teal);

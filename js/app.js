@@ -54,6 +54,21 @@
     return d;
   }
 
+  // Comparador usado na ordenacao das tabelas de Registro (clicar no
+  // cabecalho da coluna) - datas em formato ISO (yyyy-mm-dd) comparam
+  // certinho so com < / > (texto), numeros comparam como numero, e o
+  // resto cai pro alfabetico (pt-BR, sem diferenciar maiusc./minusc.).
+  function compararValoresTabela(a, b, ehData) {
+    if (ehData) {
+      const av = a || "", bv = b || "";
+      return av < bv ? -1 : av > bv ? 1 : 0;
+    }
+    const an = Number(a), bn = Number(b);
+    const ambosNumericos = a !== "" && a !== null && a !== undefined && b !== "" && b !== null && b !== undefined && !Number.isNaN(an) && !Number.isNaN(bn);
+    if (ambosNumericos) return an - bn;
+    return String(a === null || a === undefined ? "" : a).localeCompare(String(b === null || b === undefined ? "" : b), "pt-BR", { sensitivity: "base" });
+  }
+
   function formatarDataBR(iso) {
     if (!iso) return "-";
     const [y, m, d] = iso.split("-");
@@ -1948,7 +1963,7 @@
     });
 
     Object.keys(CADASTROS_CONFIG).forEach((chave) => {
-      estadoCadastro[chave] = estadoCadastro[chave] || { formAberto: false, editandoId: null, busca: "", pagina: 1, valoresForm: null };
+      estadoCadastro[chave] = estadoCadastro[chave] || { formAberto: false, editandoId: null, busca: "", pagina: 1, valoresForm: null, ordenarCampo: null, ordenarAsc: true };
       const cfg = CADASTROS_CONFIG[chave];
       const grade = document.getElementById(GRUPOS_CADASTRO[cfg.grupo].grade);
       if (!grade) return;
@@ -2124,6 +2139,23 @@
       linhas = linhas.filter((l) => cfg.colunasTabela.some((c) => String(l[c] || "").toLowerCase().includes(termo)));
     }
 
+    // Ordenacao por coluna (clicar no cabecalho) - pedido do Leo: A-Z/Z-A
+    // pra texto, mais antigo->mais novo pra data. "Status Acao" e coluna
+    // calculada (nao existe direto na linha), entao calcula na hora de
+    // comparar.
+    if (estado.ordenarCampo) {
+      const campoOrdenar = estado.ordenarCampo;
+      const ehData = !!(cfg.colunasData && cfg.colunasData.includes(campoOrdenar));
+      const ehStatusAcao = campoOrdenar === "Status Acao";
+      const valorOrdenavel = (linha) => ehStatusAcao
+        ? Calc.calcularStatusAcao(linha["Dt Programada"], linha["Dt Conclusao"], hoje)
+        : linha[campoOrdenar];
+      linhas = linhas.slice().sort((a, b) => {
+        const r = compararValoresTabela(valorOrdenavel(a), valorOrdenavel(b), ehData);
+        return estado.ordenarAsc ? r : -r;
+      });
+    }
+
     const porPagina = 10;
     const totalPaginas = Math.max(1, Math.ceil(linhas.length / porPagina));
     if (estado.pagina > totalPaginas) estado.pagina = totalPaginas;
@@ -2139,8 +2171,28 @@
     const thead = tabela.querySelector("thead");
     thead.innerHTML = "";
     const trHead = document.createElement("tr");
-    colunas.forEach((c) => { const th = document.createElement("th"); th.textContent = c; trHead.appendChild(th); });
-    const thAcoes = document.createElement("th"); thAcoes.textContent = "Acoes"; trHead.appendChild(thAcoes);
+    colunas.forEach((c) => {
+      const th = document.createElement("th");
+      th.textContent = c;
+      th.title = "Clique para ordenar";
+      if (estado.ordenarCampo === c) {
+        th.classList.add("ordenada-por");
+        const seta = document.createElement("span");
+        seta.className = "seta";
+        seta.textContent = estado.ordenarAsc ? "▲" : "▼";
+        th.appendChild(seta);
+      }
+      th.addEventListener("click", () => {
+        if (estado.ordenarCampo === c) estado.ordenarAsc = !estado.ordenarAsc;
+        else { estado.ordenarCampo = c; estado.ordenarAsc = true; }
+        renderizarListaCadastro(chave);
+      });
+      trHead.appendChild(th);
+    });
+    const thAcoes = document.createElement("th");
+    thAcoes.textContent = "Acoes";
+    thAcoes.className = "col-acoes";
+    trHead.appendChild(thAcoes);
     thead.appendChild(trHead);
 
     const tbody = tabela.querySelector("tbody");
@@ -2170,6 +2222,7 @@
           tr.appendChild(td);
         }
         const tdAcoes = document.createElement("td");
+        tdAcoes.className = "col-acoes";
         const podeEditar = window.BI.DB.estado.disponivel && !!linha._id;
         const btnEditar = document.createElement("button");
         btnEditar.type = "button"; btnEditar.className = "btn-acao-linha"; btnEditar.textContent = "Editar";
