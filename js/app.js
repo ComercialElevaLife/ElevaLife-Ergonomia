@@ -167,6 +167,15 @@
       Chart.register(window.ChartDataLabels);
       Chart.defaults.plugins.datalabels = { display: false };
 
+      // Chart.overrides["bar"]/["doughnut"]/etc so ganham a chave "plugins"
+      // se algum plugin/config ja tiver mexido nelas antes - por padrao nao
+      // existe, entao criamos aqui pra nao quebrar com "Cannot set
+      // properties of undefined (setting 'datalabels')".
+      ["bar", "doughnut", "pie", "line"].forEach((tipo) => {
+        if (!Chart.overrides[tipo]) Chart.overrides[tipo] = {};
+        if (!Chart.overrides[tipo].plugins) Chart.overrides[tipo].plugins = {};
+      });
+
       Chart.overrides.bar.plugins.datalabels = {
         display: true,
         clip: false,
