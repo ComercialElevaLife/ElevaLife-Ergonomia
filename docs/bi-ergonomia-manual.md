@@ -27,6 +27,7 @@ o Sistema de Gestão Integrada da ElevaLife nesta fase.
 16. [Backlog combinado com Léo (ainda não implementado)](#backlog-combinado-com-léo-ainda-não-implementado)
 17. [Próxima fase: multi-tenant, RBAC e hospedagem Azure/SharePoint](#próxima-fase-multi-tenant-rbac-e-hospedagem-azuresharepoint)
 18. [Integração com sistemas externos (SOC, LG/FAP e outros)](#integração-com-sistemas-externos-soc-lgfap-e-outros)
+19. [Reprodução do Sistema de Gestão Integrada como módulos do BI Ergonomia](#reprodução-do-sistema-de-gestão-integrada-como-módulos-do-bi-ergonomia)
 
 ---
 
@@ -856,3 +857,220 @@ de verdade:
 2. Acesso oficial (credenciais + documentação) a pelo menos um sistema real
    de um cliente, para validar o `ConectorSOC` de referência e desenhar o
    `ConectorLG` com contrato real em vez de pesquisa pública.
+
+## Reprodução do Sistema de Gestão Integrada como módulos do BI Ergonomia
+
+Combinado com Léo em 24/09/2026: a ElevaLife tem hoje um sistema legado
+próprio, o **"Sistema de Gestão Integrada"**
+(`elevalife-digital.com.br/sistema-gestao-integrada`), que roda separado do
+BI Ergonomia. O pedido é **aprender o funcionamento desse sistema legado e
+reconstruí-lo com tecnologia mais moderna, como novos módulos dentro do
+próprio BI Ergonomia** (`https://witty-sea-0b1e5c110.6.azurestaticapps.net`),
+já incluindo uma **API pública** para conectar com outros sistemas — o
+próprio Léo confirmou que essa API pública serve aos três usos ao mesmo
+tempo: (1) empresa-cliente consultando os próprios dados, (2) integração com
+sistemas de terceiros no estilo SOC/LG (ver seção anterior) e (3) uso interno
+da ElevaLife.
+
+Esta seção registra o que já foi mapeado do sistema legado (navegação real,
+autenticada, só leitura) e o desenho de como estender o BI Ergonomia para
+reproduzir esse escopo. **É só levantamento e arquitetura — nada aqui foi
+implementado ainda.**
+
+### O que já foi mapeado no sistema legado
+
+O legado é uma aplicação PHP tradicional (renderização no servidor, sessão
+por cookie, sem API própria), com dois módulos principais no menu:
+
+**Módulo Ergonomia** (o que se sobrepõe ao BI Ergonomia atual):
+
+- **Dashboard** — filtro por Empresa/Setor/Posto/Cargo + período, com a
+  mesma ideia de indicadores agregados que o BI Ergonomia já tem.
+- **Avaliações** — filtro por Empresa/Setor/Posto/Cargo/Responsável; cada
+  avaliação encontrada tem 3 ações: **Inventário de riscos**, **Plano de
+  ação** e **Cadastro de avaliações** (edição). Schema do formulário de
+  cadastro de uma avaliação (`cadastro-de-avaliacoes/{id}`), campo a campo:
+
+  | Campo | Observação |
+  | --- | --- |
+  | `Empresa` * | seleção obrigatória |
+  | `Setores` * | seleção obrigatória |
+  | `Posto de Trabalho` * | seleção obrigatória |
+  | `Cargo` * | multi-seleção (tags) |
+  | `Jornada de Trabalho` * | texto rico, com limite de caracteres |
+  | `Pausas` * | texto rico, com limite de caracteres |
+  | `Rodízio` * | texto rico, com limite de caracteres |
+  | `Descrição do setor` | opcional |
+  | `Descrição da Atividade (Tarefa real Observada)` | opcional |
+  | `Características dos trabalhadores` | opcional |
+  | `Histórico de acidentes` | opcional |
+  | `Fotos` | upload JPG/PNG, até 5 fotos por vez, 5 MB por arquivo |
+
+- **Inventário de riscos / Plano de Ação** (`inventario-de-riscos.php?id=`,
+  também acessível pelo menu como "Plano de Ação") — na prática é um
+  **registro granular de fatores de risco**, bem mais detalhado que o
+  `Mapa Risco`/`Plano Ação` atuais do BI Ergonomia. Colunas confirmadas:
+  `Empresa, Unidade, Setor, Posto de trabalho, Cargo, Grupo, Fator, Existe
+  Fator de Risco?, Circunstância Geradora, Consequência, Medida de controle
+  existente, Criticidade, Probabilidade, Pontuação de Risco, Graduação do
+  Risco, Matriz, Propor ação?, Ação para eliminação, Controles
+  administrativos e organizacionais, Status, SLA, Observação, Válido até`.
+  A escala de risco do legado tem **5 níveis** (Muito Baixo, Baixo,
+  Moderado, Alto, Altíssimo), diferente dos **4 níveis** do BI Ergonomia
+  (Baixo, Moderado, Alto, Muito Alto) — precisa de mapeamento na migração.
+  Cada linha tem exportação individual por empresa em Excel
+  (`relatorio-excel?id=-1&id_empresa={N}`) — hoje esse é o único mecanismo
+  de exportação de dados do legado (não há API/JSON, só esse link).
+- **Laudos** — submenu com "Emissor", "Editor do texto" e "Certificado de
+  calibração"; não foi possível abrir o Emissor (a página ficou carregando
+  indefinidamente na navegação de teste) — fica como pendência de
+  levantamento.
+
+**Módulo Fisioterapia** (Dashboard, Acompanhamento de Pacientes, Taxa
+Efetiva de Atendimentos, Pacientes, Agendamentos, Fichas de Evolução,
+Avaliações Cinesiológicas, Avaliações Posturais) — **ainda não explorado**:
+essas telas guardam dados de saúde de pacientes reais, então o levantamento
+detalhado delas fica deliberadamente pausado (ver "O que ficou de fora" mais
+abaixo) até o escopo do módulo ser confirmado com Léo.
+
+O admin do legado (menu "Sistema" → Empresas/Usuários) também não foi
+aberto — mesmo motivo de cautela com dados reais em massa, explicado abaixo.
+
+### O que ficou de fora, de propósito
+
+O levantamento foi feito navegando ao vivo, autenticado, no sistema real —
+sem exportar nem baixar nada. Duas vezes essa navegação foi bloqueada por
+uma camada de segurança automática da sessão (não é uma falha, é
+intencional): uma ao reabrir o Dashboard (lista ~70 empresas-cliente reais)
+e outra ao abrir a tela "Empresas" do admin. Essa camada existe
+independente da autorização que Léo já deu para o acesso ao sistema — ela
+não é liberada por uma instrução de dentro da conversa, só por quem opera a
+sessão de fora dela. Por isso o levantamento parou nesse ponto: o restante
+das telas com **muitos registros reais de empresas-cliente** (Dashboard,
+Empresas, Usuários) e as telas de **Fisioterapia com dados de pacientes**
+não foram abertas.
+
+Isso não trava o trabalho de arquitetura: o schema de cada tela (os campos,
+não os dados) já foi capturado com o tenant interno de teste da própria
+ElevaLife ("Ecinco Tecnologia", `id_empresa=3`, dados fictícios/placeholder
+tipo "teste"), que é suficiente para desenhar o modelo de dados e a API.
+Para a etapa seguinte — trazer os **dados reais** das empresas-cliente para
+dentro do BI Ergonomia — o caminho mais seguro é Léo baixar a exportação
+Excel por empresa (o link `relatorio-excel` já mapeado acima) e me passar o
+arquivo, em vez de eu navegar tela a tela nos registros reais. Arquivo
+recebido diretamente do Léo é dado de trabalho normal; navegação ao vivo
+em telas com centenas de registros de terceiros é o que a camada de
+segurança automática está sinalizando para evitar.
+
+### Extensão do modelo de dados (Cosmos DB)
+
+O BI Ergonomia já tem base pronta para isso — 10 coleções de negócio
+particionadas por `EmpresaId`, RBAC por `usuarios` e API genérica em
+`api/src/functions/entidades.js` (ver [Próxima fase](#próxima-fase-multi-tenant-rbac-e-hospedagem-azuresharepoint)).
+A reprodução do legado não troca essa base, só **acrescenta** três coleções
+novas, seguindo o mesmo padrão (`EmpresaId` como chave de partição, mesmo
+RBAC, mesma rota genérica `entidades.js`):
+
+| Coleção nova | Para quê | Campos principais |
+| --- | --- | --- |
+| `avaliacaoErgonomica` | Substitui/estende o cadastro de avaliação hoje espalhado em `atividade` | `EmpresaId`, `Setor`, `Posto`, `Cargo[]`, `JornadaTrabalho`, `Pausas`, `Rodizio`, `DescricaoSetor`, `DescricaoAtividade`, `CaracteristicasTrabalhadores`, `HistoricoAcidentes`, `Fotos[]` (URLs) |
+| `fatorRisco` | Substitui/estende `mapaRisco`/`planoAcao` com o nível de detalhe do legado | `EmpresaId`, `AvaliacaoId`, `Grupo`, `Fator`, `ExisteFatorDeRisco`, `CircunstanciaGeradora`, `Consequencia`, `MedidaControleExistente`, `Criticidade`, `Probabilidade`, `PontuacaoRisco`, `GraduacaoRisco` (mapeado para a escala de 4 níveis do BI Ergonomia — ver tabela de conversão abaixo), `ProporAcao`, `AcaoParaEliminacao`, `ControlesAdministrativos`, `Status`, `SLA`, `Observacao`, `ValidoAte` |
+| `laudo` | Emissão/registro de laudos e certificados | `EmpresaId`, `Tipo` (laudo/certificado de calibração), `Texto`, `EmitidoEm`, `EmitidoPor`, `ArquivoUrl` |
+
+Tabela de conversão de escala de risco (legado → BI Ergonomia), a decidir
+com Léo antes de qualquer migração de dado real:
+
+| Legado (5 níveis) | BI Ergonomia (4 níveis) |
+| --- | --- |
+| Muito Baixo | Baixo |
+| Baixo | Baixo |
+| Moderado | Moderado |
+| Alto | Alto |
+| Altíssimo | Muito Alto |
+
+(proposta inicial — precisa validação de Léo/time técnico antes de virar
+regra de migração, porque colapsar dois níveis do legado em "Baixo" pode
+distorcer indicadores históricos.)
+
+Upload de fotos (avaliação) e arquivos de laudo usam o mesmo Azure Blob
+Storage que já seria natural provisionar junto do Cosmos DB (não há Blob
+Storage configurado hoje no projeto — é recurso novo a criar).
+
+### API pública (novo, além da API interna já existente)
+
+A API interna de hoje (`/api/{colecao}`) exige login Azure AD/Entra ID via
+Static Web Apps — serve bem o frontend do próprio BI Ergonomia, mas não
+serve um sistema externo (SOC, LG, ERP de um cliente) nem uma integração
+feita por outra equipe sem login interativo. Para isso, uma **segunda
+camada de API**, pensada desde já para os três usos que Léo confirmou:
+
+```mermaid
+flowchart TB
+    subgraph Interno["API interna (já existe)"]
+        UIBI["Frontend do BI Ergonomia"] -->|login Azure AD| APIInterna["/api/{colecao}\n(RBAC por sessão)"]
+    end
+    subgraph Publica["API pública (novo)"]
+        Cliente["Empresa-cliente\n(consulta os próprios dados)"]
+        Externo["Sistema externo\n(SOC, LG, ERP do cliente)"]
+        InternoUso["Uso interno ElevaLife\n(script, relatório, outra ferramenta)"]
+        Cliente -->|API key escopada por EmpresaId| APIPublica["/api/public/v1/...\n(auth por API key, não por login)"]
+        Externo -->|API key escopada por EmpresaId| APIPublica
+        InternoUso -->|API key admin| APIPublica
+    end
+    APIInterna --> DB[("Cosmos DB\n(mesmo banco, EmpresaId em toda linha)")]
+    APIPublica --> DB
+```
+
+Pontos-chave do desenho:
+
+- **Autenticação por API key, não por login interativo** — cada
+  empresa-cliente (ou sistema integrador agindo por ela) recebe uma chave
+  vinculada ao próprio `EmpresaId`; uma chave nunca enxerga dado de outra
+  empresa. Chaves de uso interno da ElevaLife podem ter escopo "todas as
+  empresas", igual ao papel Administrador de hoje.
+- **Nova coleção `apiKeys`** (sem dado sensível em texto puro — só o hash
+  da chave, igual senha): `EmpresaId` (ou `null` para chave admin), `HashChave`,
+  `Escopos` (leitura/escrita, quais coleções), `CriadoPor`, `CriadoEm`,
+  `RevogadoEm`.
+- **Versionamento desde o início** (`/api/public/v1/...`) para poder evoluir
+  o contrato sem quebrar quem já integrou.
+- **Limite de requisições (rate limit)** por chave, para uma integração mal
+  configurada de um cliente não afetar os demais tenants no mesmo banco.
+- **Documentação OpenAPI/Swagger publicada** junto da API pública — é o que
+  faz ela ser utilizável por um cliente ou por um sistema como o SOC sem
+  depender da ElevaLife explicar cada endpoint manualmente.
+- Reaproveita a **camada de conectores plugável** já desenhada na seção
+  anterior para o sentido contrário: os mesmos conectores (`ConectorSOC`,
+  `ConectorLG`) que hoje puxam dado de um sistema externo *para dentro* do
+  BI Ergonomia podem, no futuro, também *publicar* dado do BI Ergonomia
+  para o sistema externo, usando a mesma tabela `integracao_id_externo` para
+  saber qual registro de lá corresponde a qual registro daqui.
+
+### Roteiro faseado
+
+1. **Confirmar com Léo o escopo definitivo** — só módulo Ergonomia
+   (Avaliações + Inventário de Riscos + Laudos), ou também Fisioterapia.
+   Enquanto isso não for confirmado, o desenho acima cobre só Ergonomia.
+2. **Criar as 3 coleções novas** (`avaliacaoErgonomica`, `fatorRisco`,
+   `laudo`) seguindo o padrão já existente (`EmpresaId`, RBAC, rota genérica).
+3. **Adaptar o frontend** do BI Ergonomia para os novos formulários
+   (Cadastro de Avaliação com upload de foto, tela de Inventário de Riscos
+   com as colunas do legado) — reaproveitando os componentes de
+   Cadastro/Registro que já existem.
+4. **Provisionar Azure Blob Storage** para fotos de avaliação e arquivos de
+   laudo.
+5. **Construir a API pública** (`apiKeys`, `/api/public/v1`, rate limit,
+   OpenAPI) — só depois dos passos 2–4, porque ela expõe os dados que
+   precisam existir primeiro no formato certo.
+6. **Migrar os dados reais**, empresa por empresa, a partir da exportação
+   Excel que Léo baixar do legado (não por navegação ao vivo) — com a
+   tabela de conversão de escala de risco validada antes de rodar em
+   qualquer cliente real.
+7. **Desligar o sistema legado** para o(s) cliente(s) já migrado(s), depois
+   de confirmar com Léo que os dados batem.
+
+### Status
+
+Só levantamento e desenho — nada desta seção está implementado. Falta:
+confirmar escopo (Ergonomia vs. +Fisioterapia) com Léo, e então seguir o
+roteiro acima a partir do passo 2.
