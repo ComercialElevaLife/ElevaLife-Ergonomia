@@ -1518,8 +1518,45 @@
     return [].concat(m.regioes_frente || [], m.regioes_tras || []);
   }
 
-  function opcoesCID() {
-    return (window.BI.dados.listaCID || []).map((l) => ({ valor: l["Cod CID"], label: `${l["Cod CID"]} - ${l["CID Abrev"]}` }));
+  // Seletor hierarquico de CID (Capitulo > Grupo > Categoria), restrito aos
+  // 3 capitulos que respondem pela quase totalidade do absenteismo
+  // ergonomico - M (osteomuscular), S (lesoes/traumatismos) e F (transtornos
+  // mentais/stress) - pedido do Leo pra facilitar achar o codigo certo em
+  // vez de rolar uma lista unica e desordenada. Cada "listaCID[i].Grupo" ja
+  // vem pronto (ex.: "M50-M54 - Outras dorsopatias") direto da tabela de
+  // referencia, entao a arvore e so um agrupamento em cima dela - nenhuma
+  // duplicacao de dado.
+  const CAPITULOS_CID = {
+    M: "M - Doencas do sistema osteomuscular e do tecido conjuntivo",
+    S: "S - Lesoes, envenenamentos e outras consequencias de causas externas",
+    F: "F - Transtornos mentais e comportamentais",
+  };
+  const ORDEM_CAPITULOS_CID = ["M", "S", "F"];
+
+  function hierarquiaCID() {
+    const arvore = {};
+    (window.BI.dados.listaCID || []).forEach((l) => {
+      const cap = l.Capitulo;
+      if (!CAPITULOS_CID[cap]) return; // fora do escopo M/S/F (ex.: G56.0 legado)
+      arvore[cap] = arvore[cap] || {};
+      const grupo = l.Grupo || "Outros";
+      arvore[cap][grupo] = arvore[cap][grupo] || [];
+      arvore[cap][grupo].push({ codigo: l["Cod CID"], cid: l["CID"], abrev: l["CID Abrev"] });
+    });
+    return arvore;
+  }
+
+  // Acha em qual Capitulo/Grupo um codigo ja salvo se encaixa (usado ao
+  // editar um registro existente, pra pre-selecionar os 3 niveis certos).
+  function localizarCID(codigo) {
+    if (!codigo) return null;
+    const linha = (window.BI.dados.listaCID || []).find((l) => l["Cod CID"] === codigo);
+    // So retorna se o capitulo cair dentro de M/S/F (a arvore nova nao tem
+    // ramo pra nenhum outro capitulo) - um codigo legado tipo G56.0 cai no
+    // fallback "Outro (codigo legado)" em vez de tentar (e falhar) achar
+    // um grupo que nao existe na arvore.
+    if (!linha || !CAPITULOS_CID[linha.Capitulo]) return null;
+    return { capitulo: linha.Capitulo, grupo: linha.Grupo };
   }
 
   function ligarCalculoRiscoGlobal(form) {
@@ -1657,7 +1694,7 @@
       colunasData: ["Dt Afastamento"],
       camposData: ["Dt Afastamento"],
       campos: camposChave().concat([
-        { campo: "Cod CID", rotulo: "Cod CID", tipo: "select", obrigatorio: true, opcoes: () => opcoesCID() },
+        { campo: "Cod CID", rotulo: "Cod CID", tipo: "cid-hierarquico", obrigatorio: true },
         { campo: "Dt Afastamento", rotulo: "Dt Afastamento", tipo: "data", obrigatorio: true },
         { campo: "Qtd Dias", rotulo: "Qtd Dias", tipo: "numero", obrigatorio: true, min: 1 },
         { campo: "Regiao Corporal", rotulo: "Regiao Corporal", tipo: "select", obrigatorio: true, opcoes: () => regioesCorporais() },
@@ -1749,6 +1786,106 @@
         optBranco.value = ""; optBranco.textContent = "-";
         el.appendChild(optBranco);
         el.className = "select-cascata";
+      } else if (def.tipo === "cid-hierarquico") {
+        // 3 selects em cascata (Capitulo > Grupo > Categoria) que, juntos,
+        // escolhem UM codigo CID de 4 caracteres - so a 3a select (Categoria)
+        // e "oficial" pro formulario (form._campos[def.campo]), as outras 2
+        // sao so navegacao visual. Autocontido: ao contrario do "cascata" de
+        // Cliente/Unidade/Setor, nao depende de outros campos do form nem de
+        // aoConstruir, entao ja monta e popula tudo aqui mesmo.
+        const wrap = document.createElement("div");
+        wrap.className = "campo-cid-cascata";
+        const selCapitulo = document.createElement("select");
+        const selGrupo = document.createElement("select");
+        const selCategoria = document.createElement("select");
+        selCategoria.dataset.campo = def.campo;
+
+        const arvore = hierarquiaCID();
+        function popularCapitulos() {
+          selCapitulo.innerHTML = "";
+          const optBranco2 = document.createElement("option");
+          optBranco2.value = ""; optBranco2.textContent = "Capitulo...";
+          selCapitulo.appendChild(optBranco2);
+          ORDEM_CAPITULOS_CID.forEach((cap) => {
+            if (!arvore[cap]) return;
+            const opt = document.createElement("option");
+            opt.value = cap; opt.textContent = CAPITULOS_CID[cap];
+            selCapitulo.appendChild(opt);
+          });
+        }
+        function popularGrupos(cap, grupoDesejado) {
+          selGrupo.innerHTML = "";
+          const optBranco2 = document.createElement("option");
+          optBranco2.value = ""; optBranco2.textContent = "Grupo...";
+          selGrupo.appendChild(optBranco2);
+          selGrupo.disabled = !cap;
+          if (!cap) return;
+          Object.keys(arvore[cap]).sort().forEach((grupo) => {
+            const opt = document.createElement("option");
+            opt.value = grupo; opt.textContent = grupo;
+            selGrupo.appendChild(opt);
+          });
+          if (grupoDesejado) selGrupo.value = grupoDesejado;
+        }
+        function popularCategorias(cap, grupo, codigoDesejado) {
+          selCategoria.innerHTML = "";
+          const optBranco2 = document.createElement("option");
+          optBranco2.value = ""; optBranco2.textContent = "Codigo CID...";
+          selCategoria.appendChild(optBranco2);
+          selCategoria.disabled = !cap || !grupo;
+          if (!cap || !grupo || !arvore[cap][grupo]) return;
+          arvore[cap][grupo].forEach((c) => {
+            const opt = document.createElement("option");
+            opt.value = c.codigo; opt.textContent = `${c.codigo} - ${c.cid}`;
+            selCategoria.appendChild(opt);
+          });
+          if (codigoDesejado) selCategoria.value = codigoDesejado;
+        }
+
+        popularCapitulos();
+        popularGrupos(null);
+        popularCategorias(null, null);
+
+        // Pre-seleciona os 3 niveis se ja existe um codigo salvo (edicao).
+        const localizacao = localizarCID(valorInicial);
+        if (localizacao) {
+          selCapitulo.value = localizacao.capitulo;
+          popularGrupos(localizacao.capitulo, localizacao.grupo);
+          popularCategorias(localizacao.capitulo, localizacao.grupo, valorInicial);
+        } else if (valorInicial) {
+          // Codigo legado fora de M/S/F (ex.: G56.0) - mantem visivel num
+          // "Outro" pra nao sumir/quebrar ao abrir um registro antigo pra
+          // editar, mesmo sem aparecer na arvore nova.
+          const optOutroCap = document.createElement("option");
+          optOutroCap.value = "_legado"; optOutroCap.textContent = "Outro (codigo legado)";
+          selCapitulo.appendChild(optOutroCap);
+          selCapitulo.value = "_legado";
+          selGrupo.innerHTML = "";
+          selGrupo.disabled = true;
+          const optOutroCod = document.createElement("option");
+          optOutroCod.value = valorInicial; optOutroCod.textContent = valorInicial;
+          selCategoria.innerHTML = "";
+          selCategoria.appendChild(optOutroCod);
+          selCategoria.value = valorInicial;
+        }
+
+        selCapitulo.addEventListener("change", () => {
+          popularGrupos(selCapitulo.value || null);
+          popularCategorias(null, null);
+        });
+        selGrupo.addEventListener("change", () => {
+          popularCategorias(selCapitulo.value || null, selGrupo.value || null);
+        });
+
+        wrap.appendChild(selCapitulo);
+        wrap.appendChild(selGrupo);
+        wrap.appendChild(selCategoria);
+        el = wrap;
+        form._campos[def.campo] = selCategoria;
+        if (def.obrigatorio) selCategoria.required = true;
+        campoDiv.appendChild(el);
+        grade.appendChild(campoDiv);
+        return; // ja registrou form._campos, anexou o campo e o campoDiv na grade - pula o trecho comum abaixo
       } else if (def.tipo === "data") {
         el = document.createElement("input");
         el.type = "date";

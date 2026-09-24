@@ -1188,6 +1188,12 @@ canvas.grafico-interativo { cursor: default; }
 }
 .campo-form input:focus, .campo-form select:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
 .campo-form input:disabled, .campo-form select:disabled { opacity: 0.6; background: var(--creme); }
+
+/* Seletor hierarquico de CID (Capitulo > Grupo > Categoria) - pedido do
+   Leo pra achar o codigo certo sem rolar uma lista unica desordenada de
+   CIDs. As 3 selects empilhadas herdam o estilo padrao de .campo-form
+   select acima; so precisam do espacamento vertical entre elas. */
+.campo-cid-cascata { display: flex; flex-direction: column; gap: 5px; }
 .campo-form .valor-calculado {
   font-size: 13.5px;
   font-weight: 700;

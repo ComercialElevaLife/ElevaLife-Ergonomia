@@ -67,64 +67,676 @@
   },
   "listaCID": [
     {
-      "Cod CID": "M54.5",
-      "CID": "Dor lombar baixa",
-      "CID Abrev": "Lombalgia"
+      "Cod CID": "M02.9",
+      "CID": "Artropatia reacional nao especificada",
+      "CID Abrev": "Artropatia Reacional",
+      "Capitulo": "M",
+      "Grupo": "M00-M03 - Artropatias infecciosas"
     },
     {
-      "Cod CID": "M54.2",
-      "CID": "Cervicalgia",
-      "CID Abrev": "Cervicalgia"
+      "Cod CID": "M06.9",
+      "CID": "Artrite reumatoide nao especificada",
+      "CID Abrev": "Artrite Reumatoide",
+      "Capitulo": "M",
+      "Grupo": "M05-M14 - Poliartropatias inflamatorias"
     },
     {
-      "Cod CID": "M75.1",
-      "CID": "Sindrome do manguito rotador",
-      "CID Abrev": "Manguito Rotador"
+      "Cod CID": "M10.9",
+      "CID": "Gota nao especificada",
+      "CID Abrev": "Gota",
+      "Capitulo": "M",
+      "Grupo": "M05-M14 - Poliartropatias inflamatorias"
     },
     {
-      "Cod CID": "M77.1",
-      "CID": "Epicondilite lateral",
-      "CID Abrev": "Epicondilite"
+      "Cod CID": "M15.9",
+      "CID": "Poliartrose nao especificada",
+      "CID Abrev": "Poliartrose",
+      "Capitulo": "M",
+      "Grupo": "M15-M19 - Artrose"
     },
     {
-      "Cod CID": "M65.3",
-      "CID": "Tenossinovite de De Quervain",
-      "CID Abrev": "Tenossinovite"
-    },
-    {
-      "Cod CID": "G56.0",
-      "CID": "Sindrome do tunel do carpo",
-      "CID Abrev": "Tunel do Carpo"
+      "Cod CID": "M16.9",
+      "CID": "Coxartrose (artrose do quadril) nao especificada",
+      "CID Abrev": "Coxartrose",
+      "Capitulo": "M",
+      "Grupo": "M15-M19 - Artrose"
     },
     {
       "Cod CID": "M17.9",
       "CID": "Gonartrose nao especificada",
-      "CID Abrev": "Gonartrose"
+      "CID Abrev": "Gonartrose",
+      "Capitulo": "M",
+      "Grupo": "M15-M19 - Artrose"
     },
     {
-      "Cod CID": "S93.4",
-      "CID": "Entorse de tornozelo",
-      "CID Abrev": "Entorse Tornozelo"
+      "Cod CID": "M23.9",
+      "CID": "Transtorno interno do joelho nao especificado",
+      "CID Abrev": "Transtorno Interno Joelho",
+      "Capitulo": "M",
+      "Grupo": "M20-M25 - Outros transtornos articulares"
+    },
+    {
+      "Cod CID": "M24.9",
+      "CID": "Transtorno articular nao especificado",
+      "CID Abrev": "Transtorno Articular",
+      "Capitulo": "M",
+      "Grupo": "M20-M25 - Outros transtornos articulares"
     },
     {
       "Cod CID": "M25.5",
       "CID": "Dor articular",
-      "CID Abrev": "Dor Articular"
+      "CID Abrev": "Dor Articular",
+      "Capitulo": "M",
+      "Grupo": "M20-M25 - Outros transtornos articulares"
+    },
+    {
+      "Cod CID": "M35.9",
+      "CID": "Transtorno sistemico do tecido conjuntivo nao especificado",
+      "CID Abrev": "Transtorno Tecido Conjuntivo",
+      "Capitulo": "M",
+      "Grupo": "M30-M36 - Doencas sistemicas do tecido conjuntivo"
+    },
+    {
+      "Cod CID": "M40.9",
+      "CID": "Cifose e lordose nao especificadas",
+      "CID Abrev": "Cifose/Lordose",
+      "Capitulo": "M",
+      "Grupo": "M40-M43 - Deformidades dorsopaticas"
+    },
+    {
+      "Cod CID": "M43.6",
+      "CID": "Torcicolo",
+      "CID Abrev": "Torcicolo",
+      "Capitulo": "M",
+      "Grupo": "M40-M43 - Deformidades dorsopaticas"
+    },
+    {
+      "Cod CID": "M47.2",
+      "CID": "Outras espondiloses com radiculopatia",
+      "CID Abrev": "Espondilose c/ Radiculopatia",
+      "Capitulo": "M",
+      "Grupo": "M45-M49 - Espondilopatias"
+    },
+    {
+      "Cod CID": "M47.9",
+      "CID": "Espondilose nao especificada",
+      "CID Abrev": "Espondilose",
+      "Capitulo": "M",
+      "Grupo": "M45-M49 - Espondilopatias"
+    },
+    {
+      "Cod CID": "M50.1",
+      "CID": "Transtorno de disco cervical com radiculopatia",
+      "CID Abrev": "Disco Cervical c/ Radiculopatia",
+      "Capitulo": "M",
+      "Grupo": "M50-M54 - Outras dorsopatias"
+    },
+    {
+      "Cod CID": "M51.1",
+      "CID": "Transtornos de discos lombares e de outros discos intervertebrais com radiculopatia",
+      "CID Abrev": "Disco Lombar c/ Radiculopatia",
+      "Capitulo": "M",
+      "Grupo": "M50-M54 - Outras dorsopatias"
     },
     {
       "Cod CID": "M51.2",
-      "CID": "Deslocamento de disco intervertebral lombar",
-      "CID Abrev": "Hernia Discal"
+      "CID": "Outro deslocamento de disco intervertebral especificado (lombar)",
+      "CID Abrev": "Deslocamento Disco Lombar",
+      "Capitulo": "M",
+      "Grupo": "M50-M54 - Outras dorsopatias"
     },
     {
-      "Cod CID": "F43.2",
-      "CID": "Reacao ao estresse grave",
-      "CID Abrev": "Reacao a Estresse"
+      "Cod CID": "M53.1",
+      "CID": "Sindrome cervicobraquial",
+      "CID Abrev": "Sindrome Cervicobraquial",
+      "Capitulo": "M",
+      "Grupo": "M50-M54 - Outras dorsopatias"
+    },
+    {
+      "Cod CID": "M54.2",
+      "CID": "Cervicalgia",
+      "CID Abrev": "Cervicalgia",
+      "Capitulo": "M",
+      "Grupo": "M50-M54 - Outras dorsopatias"
+    },
+    {
+      "Cod CID": "M54.3",
+      "CID": "Ciatica",
+      "CID Abrev": "Ciatica",
+      "Capitulo": "M",
+      "Grupo": "M50-M54 - Outras dorsopatias"
+    },
+    {
+      "Cod CID": "M54.4",
+      "CID": "Lumbago com ciatica",
+      "CID Abrev": "Lumbago c/ Ciatica",
+      "Capitulo": "M",
+      "Grupo": "M50-M54 - Outras dorsopatias"
+    },
+    {
+      "Cod CID": "M54.5",
+      "CID": "Dor lombar baixa (lombalgia)",
+      "CID Abrev": "Lombalgia",
+      "Capitulo": "M",
+      "Grupo": "M50-M54 - Outras dorsopatias"
+    },
+    {
+      "Cod CID": "M54.6",
+      "CID": "Dor na coluna toracica",
+      "CID Abrev": "Dor Coluna Toracica",
+      "Capitulo": "M",
+      "Grupo": "M50-M54 - Outras dorsopatias"
+    },
+    {
+      "Cod CID": "M54.9",
+      "CID": "Dorsalgia nao especificada",
+      "CID Abrev": "Dorsalgia",
+      "Capitulo": "M",
+      "Grupo": "M50-M54 - Outras dorsopatias"
+    },
+    {
+      "Cod CID": "M60.9",
+      "CID": "Miosite nao especificada",
+      "CID Abrev": "Miosite",
+      "Capitulo": "M",
+      "Grupo": "M60-M63 - Transtornos dos musculos"
+    },
+    {
+      "Cod CID": "M62.6",
+      "CID": "Distensao muscular",
+      "CID Abrev": "Distensao Muscular",
+      "Capitulo": "M",
+      "Grupo": "M60-M63 - Transtornos dos musculos"
+    },
+    {
+      "Cod CID": "M65.3",
+      "CID": "Dedo em gatilho",
+      "CID Abrev": "Dedo em Gatilho",
+      "Capitulo": "M",
+      "Grupo": "M65-M68 - Transtornos dos sinovios e dos tendoes"
+    },
+    {
+      "Cod CID": "M65.4",
+      "CID": "Tenossinovite estiloide radial [de Quervain]",
+      "CID Abrev": "Tenossinovite De Quervain",
+      "Capitulo": "M",
+      "Grupo": "M65-M68 - Transtornos dos sinovios e dos tendoes"
+    },
+    {
+      "Cod CID": "M65.9",
+      "CID": "Sinovite e tenossinovite nao especificadas",
+      "CID Abrev": "Sinovite/Tenossinovite",
+      "Capitulo": "M",
+      "Grupo": "M65-M68 - Transtornos dos sinovios e dos tendoes"
+    },
+    {
+      "Cod CID": "M66.9",
+      "CID": "Ruptura espontanea de sinovio e tendao nao especificada",
+      "CID Abrev": "Ruptura Sinovio/Tendao",
+      "Capitulo": "M",
+      "Grupo": "M65-M68 - Transtornos dos sinovios e dos tendoes"
+    },
+    {
+      "Cod CID": "M67.4",
+      "CID": "Gânglio (cisto sinovial)",
+      "CID Abrev": "Cisto Sinovial",
+      "Capitulo": "M",
+      "Grupo": "M65-M68 - Transtornos dos sinovios e dos tendoes"
+    },
+    {
+      "Cod CID": "M70.0",
+      "CID": "Sinovite crepitante cronica da mao e do punho",
+      "CID Abrev": "Sinovite Crepitante",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M70.1",
+      "CID": "Bursite da mao",
+      "CID Abrev": "Bursite da Mao",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M70.2",
+      "CID": "Bursite do olecrano",
+      "CID Abrev": "Bursite do Olecrano",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M70.4",
+      "CID": "Bursite pre-patelar",
+      "CID Abrev": "Bursite Pre-Patelar",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M75.0",
+      "CID": "Capsulite adesiva do ombro (ombro congelado)",
+      "CID Abrev": "Ombro Congelado",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M75.1",
+      "CID": "Sindrome do manguito rotador",
+      "CID Abrev": "Manguito Rotador",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M75.2",
+      "CID": "Tendinite do biceps",
+      "CID Abrev": "Tendinite do Biceps",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M75.3",
+      "CID": "Tendinite calcificante do ombro",
+      "CID Abrev": "Tendinite Calcificante Ombro",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M76.5",
+      "CID": "Tendinite patelar",
+      "CID Abrev": "Tendinite Patelar",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M76.6",
+      "CID": "Tendinite do calcaneo [Aquiles]",
+      "CID Abrev": "Tendinite de Aquiles",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M77.0",
+      "CID": "Epicondilite medial",
+      "CID Abrev": "Epicondilite Medial",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M77.1",
+      "CID": "Epicondilite lateral",
+      "CID Abrev": "Epicondilite Lateral",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M77.9",
+      "CID": "Entesopatia nao especificada",
+      "CID Abrev": "Entesopatia",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M79.1",
+      "CID": "Mialgia",
+      "CID Abrev": "Mialgia",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
     },
     {
       "Cod CID": "M79.6",
       "CID": "Dor em membro",
-      "CID Abrev": "Dor em Membro"
+      "CID Abrev": "Dor em Membro",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M79.7",
+      "CID": "Fibromialgia",
+      "CID Abrev": "Fibromialgia",
+      "Capitulo": "M",
+      "Grupo": "M70-M79 - Outros transtornos dos tecidos moles"
+    },
+    {
+      "Cod CID": "M81.9",
+      "CID": "Osteoporose nao especificada",
+      "CID Abrev": "Osteoporose",
+      "Capitulo": "M",
+      "Grupo": "M80-M85 - Transtornos da densidade e da estrutura osseas"
+    },
+    {
+      "Cod CID": "M86.9",
+      "CID": "Osteomielite nao especificada",
+      "CID Abrev": "Osteomielite",
+      "Capitulo": "M",
+      "Grupo": "M86-M90 - Outras osteopatias"
+    },
+    {
+      "Cod CID": "M94.9",
+      "CID": "Transtorno de cartilagem nao especificado",
+      "CID Abrev": "Transtorno de Cartilagem",
+      "Capitulo": "M",
+      "Grupo": "M91-M94 - Condropatias"
+    },
+    {
+      "Cod CID": "M95.9",
+      "CID": "Transtorno nao especificado do sistema osteomuscular",
+      "CID Abrev": "Transtorno Osteomuscular NE",
+      "Capitulo": "M",
+      "Grupo": "M95 - Outros transtornos do sistema osteomuscular e do tecido conjuntivo"
+    },
+    {
+      "Cod CID": "S00.9",
+      "CID": "Traumatismo superficial da cabeca nao especificado",
+      "CID Abrev": "Traumatismo Cabeca",
+      "Capitulo": "S",
+      "Grupo": "S00-S09 - Traumatismos da cabeca"
+    },
+    {
+      "Cod CID": "S06.0",
+      "CID": "Concussao cerebral",
+      "CID Abrev": "Concussao Cerebral",
+      "Capitulo": "S",
+      "Grupo": "S00-S09 - Traumatismos da cabeca"
+    },
+    {
+      "Cod CID": "S13.4",
+      "CID": "Entorse e distensao ao nivel do pescoco",
+      "CID Abrev": "Entorse do Pescoco",
+      "Capitulo": "S",
+      "Grupo": "S10-S19 - Traumatismos do pescoco"
+    },
+    {
+      "Cod CID": "S20.2",
+      "CID": "Contusao do torax",
+      "CID Abrev": "Contusao do Torax",
+      "Capitulo": "S",
+      "Grupo": "S20-S29 - Traumatismos do torax"
+    },
+    {
+      "Cod CID": "S33.5",
+      "CID": "Entorse e distensao da coluna lombar",
+      "CID Abrev": "Entorse Coluna Lombar",
+      "Capitulo": "S",
+      "Grupo": "S30-S39 - Traumatismos do abdome, do dorso, da coluna lombar e da pelve"
+    },
+    {
+      "Cod CID": "S39.0",
+      "CID": "Traumatismo muscular e do tendao do abdome, do dorso e da pelve",
+      "CID Abrev": "Traumatismo Muscular Dorso",
+      "Capitulo": "S",
+      "Grupo": "S30-S39 - Traumatismos do abdome, do dorso, da coluna lombar e da pelve"
+    },
+    {
+      "Cod CID": "S43.4",
+      "CID": "Entorse e distensao da articulacao do ombro",
+      "CID Abrev": "Entorse do Ombro",
+      "Capitulo": "S",
+      "Grupo": "S40-S49 - Traumatismos do ombro e do braco"
+    },
+    {
+      "Cod CID": "S46.9",
+      "CID": "Traumatismo nao especificado do musculo e do tendao ao nivel do ombro e do braco",
+      "CID Abrev": "Traumatismo Musc/Tendao Ombro",
+      "Capitulo": "S",
+      "Grupo": "S40-S49 - Traumatismos do ombro e do braco"
+    },
+    {
+      "Cod CID": "S50.0",
+      "CID": "Contusao do cotovelo",
+      "CID Abrev": "Contusao do Cotovelo",
+      "Capitulo": "S",
+      "Grupo": "S50-S59 - Traumatismos do cotovelo e do antebraco"
+    },
+    {
+      "Cod CID": "S53.4",
+      "CID": "Entorse e distensao do cotovelo",
+      "CID Abrev": "Entorse do Cotovelo",
+      "Capitulo": "S",
+      "Grupo": "S50-S59 - Traumatismos do cotovelo e do antebraco"
+    },
+    {
+      "Cod CID": "S60.2",
+      "CID": "Contusao de outras partes do punho e da mao",
+      "CID Abrev": "Contusao Punho/Mao",
+      "Capitulo": "S",
+      "Grupo": "S60-S69 - Traumatismos do punho e da mao"
+    },
+    {
+      "Cod CID": "S62.6",
+      "CID": "Fratura de outro dedo da mao",
+      "CID Abrev": "Fratura de Dedo da Mao",
+      "Capitulo": "S",
+      "Grupo": "S60-S69 - Traumatismos do punho e da mao"
+    },
+    {
+      "Cod CID": "S63.5",
+      "CID": "Entorse e distensao do punho",
+      "CID Abrev": "Entorse do Punho",
+      "Capitulo": "S",
+      "Grupo": "S60-S69 - Traumatismos do punho e da mao"
+    },
+    {
+      "Cod CID": "S63.6",
+      "CID": "Entorse e distensao de dedo(s) da mao",
+      "CID Abrev": "Entorse de Dedo da Mao",
+      "Capitulo": "S",
+      "Grupo": "S60-S69 - Traumatismos do punho e da mao"
+    },
+    {
+      "Cod CID": "S66.0",
+      "CID": "Traumatismo do tendao flexor de dedo ao nivel do punho e da mao",
+      "CID Abrev": "Traumatismo Tendao Flexor",
+      "Capitulo": "S",
+      "Grupo": "S60-S69 - Traumatismos do punho e da mao"
+    },
+    {
+      "Cod CID": "S73.1",
+      "CID": "Entorse e distensao do quadril",
+      "CID Abrev": "Entorse do Quadril",
+      "Capitulo": "S",
+      "Grupo": "S70-S79 - Traumatismos do quadril e da coxa"
+    },
+    {
+      "Cod CID": "S83.4",
+      "CID": "Entorse e distensao do joelho envolvendo ligamento colateral",
+      "CID Abrev": "Entorse Joelho (colateral)",
+      "Capitulo": "S",
+      "Grupo": "S80-S89 - Traumatismos do joelho e da perna"
+    },
+    {
+      "Cod CID": "S83.6",
+      "CID": "Entorse e distensao de outras partes e de partes nao especificadas do joelho",
+      "CID Abrev": "Entorse do Joelho",
+      "Capitulo": "S",
+      "Grupo": "S80-S89 - Traumatismos do joelho e da perna"
+    },
+    {
+      "Cod CID": "S86.0",
+      "CID": "Traumatismo do tendao de Aquiles",
+      "CID Abrev": "Traumatismo Tendao Aquiles",
+      "Capitulo": "S",
+      "Grupo": "S80-S89 - Traumatismos do joelho e da perna"
+    },
+    {
+      "Cod CID": "S93.4",
+      "CID": "Entorse e distensao do tornozelo",
+      "CID Abrev": "Entorse do Tornozelo",
+      "Capitulo": "S",
+      "Grupo": "S90-S99 - Traumatismos do tornozelo e do pe"
+    },
+    {
+      "Cod CID": "S93.6",
+      "CID": "Entorse e distensao de outras partes e de partes nao especificadas do pe",
+      "CID Abrev": "Entorse do Pe",
+      "Capitulo": "S",
+      "Grupo": "S90-S99 - Traumatismos do tornozelo e do pe"
+    },
+    {
+      "Cod CID": "S96.1",
+      "CID": "Traumatismo do tendao extensor de artelho ao nivel do tornozelo e do pe",
+      "CID Abrev": "Traumatismo Tendao Extensor",
+      "Capitulo": "S",
+      "Grupo": "S90-S99 - Traumatismos do tornozelo e do pe"
+    },
+    {
+      "Cod CID": "F06.9",
+      "CID": "Transtorno mental nao especificado devido a lesao ou disfuncao cerebral ou a doenca fisica",
+      "CID Abrev": "Transtorno Mental Organico NE",
+      "Capitulo": "F",
+      "Grupo": "F00-F09 - Transtornos mentais organicos, inclusive os sintomaticos"
+    },
+    {
+      "Cod CID": "F10.9",
+      "CID": "Transtornos mentais e comportamentais devidos ao uso de alcool, nao especificado",
+      "CID Abrev": "Transtorno por Alcool",
+      "Capitulo": "F",
+      "Grupo": "F10-F19 - Transtornos mentais e comportamentais devidos ao uso de substancia psicoativa"
+    },
+    {
+      "Cod CID": "F20.9",
+      "CID": "Esquizofrenia nao especificada",
+      "CID Abrev": "Esquizofrenia",
+      "Capitulo": "F",
+      "Grupo": "F20-F29 - Esquizofrenia, transtornos esquizotipicos e transtornos delirantes"
+    },
+    {
+      "Cod CID": "F32.1",
+      "CID": "Episodio depressivo moderado",
+      "CID Abrev": "Depressao Moderada",
+      "Capitulo": "F",
+      "Grupo": "F30-F39 - Transtornos do humor [afetivos]"
+    },
+    {
+      "Cod CID": "F32.9",
+      "CID": "Episodio depressivo nao especificado",
+      "CID Abrev": "Episodio Depressivo NE",
+      "Capitulo": "F",
+      "Grupo": "F30-F39 - Transtornos do humor [afetivos]"
+    },
+    {
+      "Cod CID": "F33.1",
+      "CID": "Transtorno depressivo recorrente, episodio atual moderado",
+      "CID Abrev": "Depressao Recorrente",
+      "Capitulo": "F",
+      "Grupo": "F30-F39 - Transtornos do humor [afetivos]"
+    },
+    {
+      "Cod CID": "F40.9",
+      "CID": "Transtorno fobico-ansioso nao especificado",
+      "CID Abrev": "Transtorno Fobico-Ansioso",
+      "Capitulo": "F",
+      "Grupo": "F40-F48 - Transtornos neuroticos, transtornos relacionados com o stress e transtornos somatoformes"
+    },
+    {
+      "Cod CID": "F41.1",
+      "CID": "Ansiedade generalizada",
+      "CID Abrev": "Ansiedade Generalizada",
+      "Capitulo": "F",
+      "Grupo": "F40-F48 - Transtornos neuroticos, transtornos relacionados com o stress e transtornos somatoformes"
+    },
+    {
+      "Cod CID": "F41.9",
+      "CID": "Transtorno ansioso nao especificado",
+      "CID Abrev": "Transtorno Ansioso NE",
+      "Capitulo": "F",
+      "Grupo": "F40-F48 - Transtornos neuroticos, transtornos relacionados com o stress e transtornos somatoformes"
+    },
+    {
+      "Cod CID": "F43.0",
+      "CID": "Reacao aguda ao stress",
+      "CID Abrev": "Reacao Aguda ao Stress",
+      "Capitulo": "F",
+      "Grupo": "F40-F48 - Transtornos neuroticos, transtornos relacionados com o stress e transtornos somatoformes"
+    },
+    {
+      "Cod CID": "F43.1",
+      "CID": "Estado de stress pos-traumatico",
+      "CID Abrev": "Stress Pos-Traumatico",
+      "Capitulo": "F",
+      "Grupo": "F40-F48 - Transtornos neuroticos, transtornos relacionados com o stress e transtornos somatoformes"
+    },
+    {
+      "Cod CID": "F43.2",
+      "CID": "Transtornos de adaptacao",
+      "CID Abrev": "Transtorno de Adaptacao",
+      "Capitulo": "F",
+      "Grupo": "F40-F48 - Transtornos neuroticos, transtornos relacionados com o stress e transtornos somatoformes"
+    },
+    {
+      "Cod CID": "F43.9",
+      "CID": "Reacao nao especificada a um stress grave",
+      "CID Abrev": "Reacao a Stress Grave NE",
+      "Capitulo": "F",
+      "Grupo": "F40-F48 - Transtornos neuroticos, transtornos relacionados com o stress e transtornos somatoformes"
+    },
+    {
+      "Cod CID": "F45.9",
+      "CID": "Transtorno somatoforme nao especificado",
+      "CID Abrev": "Transtorno Somatoforme",
+      "Capitulo": "F",
+      "Grupo": "F40-F48 - Transtornos neuroticos, transtornos relacionados com o stress e transtornos somatoformes"
+    },
+    {
+      "Cod CID": "F48.0",
+      "CID": "Neurastenia",
+      "CID Abrev": "Neurastenia",
+      "Capitulo": "F",
+      "Grupo": "F40-F48 - Transtornos neuroticos, transtornos relacionados com o stress e transtornos somatoformes"
+    },
+    {
+      "Cod CID": "F51.0",
+      "CID": "Insonia nao organica",
+      "CID Abrev": "Insonia",
+      "Capitulo": "F",
+      "Grupo": "F50-F59 - Sindromes comportamentais associadas a transtornos fisiologicos e a fatores fisicos"
+    },
+    {
+      "Cod CID": "F51.9",
+      "CID": "Transtorno nao organico do sono nao especificado",
+      "CID Abrev": "Transtorno do Sono NE",
+      "Capitulo": "F",
+      "Grupo": "F50-F59 - Sindromes comportamentais associadas a transtornos fisiologicos e a fatores fisicos"
+    },
+    {
+      "Cod CID": "F60.9",
+      "CID": "Transtorno de personalidade nao especificado",
+      "CID Abrev": "Transtorno de Personalidade",
+      "Capitulo": "F",
+      "Grupo": "F60-F69 - Transtornos da personalidade e do comportamento do adulto"
+    },
+    {
+      "Cod CID": "F79.9",
+      "CID": "Retardo mental nao especificado",
+      "CID Abrev": "Retardo Mental NE",
+      "Capitulo": "F",
+      "Grupo": "F70-F79 - Retardo mental"
+    },
+    {
+      "Cod CID": "F84.0",
+      "CID": "Autismo infantil",
+      "CID Abrev": "Autismo Infantil",
+      "Capitulo": "F",
+      "Grupo": "F80-F89 - Transtornos do desenvolvimento psicologico"
+    },
+    {
+      "Cod CID": "F90.0",
+      "CID": "Disturbios da atividade e da atencao",
+      "CID Abrev": "TDAH",
+      "Capitulo": "F",
+      "Grupo": "F90-F98 - Transtornos comportamentais e emocionais com inicio habitual na infancia ou adolescencia"
+    },
+    {
+      "Cod CID": "F99",
+      "CID": "Transtorno mental nao especificado",
+      "CID Abrev": "Transtorno Mental NE",
+      "Capitulo": "F",
+      "Grupo": "F99 - Transtorno mental nao especificado"
+    },
+    {
+      "Cod CID": "G56.0",
+      "CID": "Sindrome do tunel do carpo",
+      "CID Abrev": "Tunel do Carpo",
+      "Capitulo": "G",
+      "Grupo": "G50-G64 - Transtornos dos nervos, das raizes e dos plexos nervosos"
     }
   ],
   "diasUteis": [
