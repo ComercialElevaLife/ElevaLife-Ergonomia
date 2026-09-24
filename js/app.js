@@ -618,6 +618,7 @@
         atualizarMultiSelect(div, window.BI.filtros, campo, opcoes[campo]);
       }
     });
+    atualizarBadgeFiltros();
   }
 
   function limparFiltros() {
@@ -2629,24 +2630,61 @@
     atualizarEstadoExportacao();
   }
 
-  // Botao funil "Filtros" (recolhe/expande a barra de filtros, igual ao
-  // botao "Filtros" do menu do Cockpit Comercial) e botao "Atualizar"
-  // (re-renderiza tudo com os dados/filtros atuais) na barra superior.
+  // Botao "Atualizar" (re-renderiza tudo com os dados/filtros atuais) na
+  // barra superior. O botao "Filtros" saiu daqui - agora mora no menu
+  // lateral e abre o painel de filtros (ver configurarPainelFiltros).
   function configurarBarraSuperior() {
-    const btnFiltros = document.getElementById("btn-toggle-filtros");
-    const barraFiltros = document.getElementById("barra-filtros");
-    if (btnFiltros && barraFiltros) {
-      btnFiltros.addEventListener("click", () => {
-        const agoraAberta = barraFiltros.classList.toggle("recolhida") === false;
-        btnFiltros.setAttribute("aria-expanded", String(agoraAberta));
-      });
-    }
     const btnAtualizar = document.getElementById("btn-atualizar");
     if (btnAtualizar) {
       btnAtualizar.addEventListener("click", () => {
         try { renderizarTudo(); } catch (e) { mostrarErro("Erro ao atualizar: " + (e && e.message ? e.message : String(e))); }
       });
     }
+  }
+
+  // Painel de Filtros: aberto pelo botao "Filtros" do menu lateral (pedido
+  // do Leo, igual ao padrao mais novo do menu do Cockpit Comercial) - um
+  // overlay escurece o resto da tela pra focar a atencao no painel, em vez
+  // da barra fixa/recolhivel de antes.
+  function configurarPainelFiltros() {
+    const btnAbrir = document.getElementById("btn-abrir-filtros");
+    const btnFechar = document.getElementById("btn-fechar-filtros");
+    const overlay = document.getElementById("overlay-filtros");
+    const painel = document.getElementById("painel-filtros");
+    if (!painel) return;
+
+    function abrirPainelFiltros() {
+      painel.classList.add("aberto");
+      painel.setAttribute("aria-hidden", "false");
+      if (overlay) overlay.hidden = false;
+      if (btnAbrir) btnAbrir.setAttribute("aria-expanded", "true");
+    }
+    function fecharPainelFiltros() {
+      painel.classList.remove("aberto");
+      painel.setAttribute("aria-hidden", "true");
+      if (overlay) overlay.hidden = true;
+      if (btnAbrir) btnAbrir.setAttribute("aria-expanded", "false");
+    }
+    if (btnAbrir) btnAbrir.addEventListener("click", abrirPainelFiltros);
+    if (btnFechar) btnFechar.addEventListener("click", fecharPainelFiltros);
+    if (overlay) overlay.addEventListener("click", fecharPainelFiltros);
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && painel.classList.contains("aberto")) fecharPainelFiltros();
+    });
+  }
+
+  // Numero de filtros globais com alguma selecao ativa (!= "Todos") -
+  // mostrado como badge no botao "Filtros" do menu, ja que os campos
+  // ficam escondidos dentro do painel agora.
+  function contarFiltrosAtivos() {
+    return ORDEM_FILTROS.filter((campo) => (window.BI.filtros[campo] || []).length > 0).length;
+  }
+  function atualizarBadgeFiltros() {
+    const badge = document.getElementById("badge-filtros");
+    if (!badge) return;
+    const n = contarFiltrosAtivos();
+    badge.textContent = String(n);
+    badge.hidden = n === 0;
   }
 
   // ------------------------------------------------------------------
@@ -2776,6 +2814,7 @@
       configurarToggleReferencia();
       configurarExportacao();
       configurarBarraSuperior();
+      configurarPainelFiltros();
       renderizarTudo();
 
       const disponivel = await window.BI.DB.iniciar(aoAtualizarColecaoDB);

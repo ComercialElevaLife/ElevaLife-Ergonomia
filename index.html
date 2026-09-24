@@ -22,6 +22,15 @@
     </div>
 
     <nav class="sidebar-nav" id="nav-abas">
+      <!-- Botao Filtros: fica no menu (pedido do Leo, igual ao padrao mais
+           novo do Cockpit Comercial) - abre um painel com overlay
+           escurecendo o resto da tela, em vez da barra fixa de antes. -->
+      <button type="button" id="btn-abrir-filtros" title="Filtros">
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h14M6 10h8M8.5 16h3"/></svg></span>
+        <span class="rotulo">Filtros</span>
+        <span class="badge-filtros" id="badge-filtros" hidden>0</span>
+      </button>
+      <div class="sidebar-nav-divisor" aria-hidden="true"></div>
       <button type="button" data-aba="ergo" class="ativa" title="Gestao de Risco">
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17V10"/><path d="M9.5 17V6"/><path d="M16 17V13"/><path d="M2.5 17h15"/></svg></span>
         <span class="rotulo">Gestao de Risco</span>
@@ -59,14 +68,26 @@
 
   <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
 
+  <!-- Painel de Filtros: escondido por padrao, aberto pelo botao "Filtros"
+       do menu lateral. O overlay escurece o resto da tela (inclusive o
+       menu) pra focar a atencao no painel, igual ao padrao pedido. -->
+  <div class="overlay-filtros" id="overlay-filtros" hidden></div>
+  <aside class="painel-filtros" id="painel-filtros" aria-hidden="true">
+    <div class="painel-filtros-topo">
+      <span class="painel-filtros-titulo">Filtros</span>
+      <button type="button" id="btn-fechar-filtros" class="btn-fechar-painel" aria-label="Fechar filtros">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15"/></svg>
+      </button>
+    </div>
+    <div class="barra-filtros" id="barra-filtros">
+      <!-- campos de filtro inseridos via JS -->
+    </div>
+  </aside>
+
   <div class="area-principal">
     <div class="barra-superior">
       <button type="button" id="btn-abrir-sidebar-mobile" class="btn-hamburguer" aria-label="Abrir menu">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"/></svg>
-      </button>
-      <button type="button" id="btn-toggle-filtros" class="btn-icone-topo" aria-expanded="true" title="Mostrar/ocultar filtros">
-        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h14M6 10h8M8.5 16h3"/></svg></span>
-        <span class="rotulo-topo">Filtros</span>
       </button>
       <div class="barra-export" id="barra-export">
         <button type="button" id="btn-atualizar" class="btn-icone-topo" title="Re-renderizar com os dados e filtros atuais">
@@ -76,10 +97,6 @@
         <button type="button" id="btn-exportar-pdf" class="btn-exportar" title="Exportar a tela atual (KPIs e graficos) em PDF, respeitando os filtros ativos">⬇ PDF</button>
         <button type="button" id="btn-exportar-excel" class="btn-exportar" title="Exportar os dados brutos filtrados da tela atual em Excel">⬇ Excel</button>
       </div>
-    </div>
-
-    <div class="barra-filtros" id="barra-filtros">
-      <!-- campos de filtro inseridos via JS -->
     </div>
 
     <main>

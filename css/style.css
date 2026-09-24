@@ -283,6 +283,38 @@ h1, h2, h3, .titulo-marca {
 .sidebar-nav button.ativa { background: #fff; color: var(--vinho-escuro); }
 .sidebar-nav button[disabled] { opacity: 0.45; cursor: not-allowed; }
 
+/* Botao "Filtros" no topo do menu - mesma pinta dos outros itens, so com
+   um badge de contagem de filtros ativos e uma linha separando ele das
+   abas (Gestao de Risco/Absenteismo/Restritos etc.). */
+#btn-abrir-filtros { position: relative; }
+#btn-abrir-filtros .badge-filtros {
+  margin-left: auto;
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--vinho);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sidebar.recolhido #btn-abrir-filtros .badge-filtros {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  margin-left: 0;
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  font-size: 0;
+}
+.sidebar-nav-divisor { height: 1px; background: rgba(255,255,255,0.14); margin: 6px 10px 8px; flex-shrink: 0; }
+
 .btn-recolher {
   display: flex;
   align-items: center;
@@ -407,7 +439,6 @@ h1, h2, h3, .titulo-marca {
 .btn-icone-topo .icone svg { width: 15px; height: 15px; display: block; }
 .btn-icone-topo:hover { border-color: var(--teal-escuro); color: var(--teal-escuro); background: var(--creme); }
 .btn-icone-topo[aria-expanded="false"] { background: var(--creme); border-color: var(--cinza-quente); }
-#btn-toggle-filtros { margin-left: 4px; }
 
 .barra-export {
   display: flex;
@@ -457,30 +488,79 @@ h1, h2, h3, .titulo-marca {
     z-index: 90;
   }
   .btn-hamburguer { display: inline-flex; }
+  .btn-icone-topo .rotulo-topo { display: none; }
+  .btn-icone-topo { padding: 8px; }
 }
 
 /* ---------------------------- Filtros ---------------------------- */
 
-.barra-filtros {
-  background: var(--card);
-  border-bottom: 1px solid var(--linha);
-  padding: 10px clamp(14px, 3vw, 32px);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 10px;
-  align-items: flex-end;
-  position: sticky;
-  top: env(safe-area-inset-top, 0px);
-  z-index: 20;
+/* Painel de Filtros: aberto pelo botao "Filtros" do menu lateral, com um
+   overlay escurecendo o resto da tela pra focar (pedido do Leo, mesmo
+   padrao mais novo do menu do Cockpit Comercial). Antes disso era uma
+   barra fixa no topo que so recolhia/expandia no lugar. */
+.overlay-filtros {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(20,10,10,0.45);
+  z-index: 190;
 }
-/* Botao funil "Filtros" na barra superior recolhe esta barra inteira -
-   mesmo padrao do botao "Filtros" do menu do Cockpit Comercial, que
-   abre/fecha uma gaveta de filtros em vez de deixa-la sempre fixa. */
-.barra-filtros.recolhida { display: none; }
+.overlay-filtros:not([hidden]) { display: block; }
 
-@media (max-width: 900px) {
-  .btn-icone-topo .rotulo-topo { display: none; }
-  .btn-icone-topo { padding: 8px; }
+.painel-filtros {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 360px;
+  max-width: 88vw;
+  background: var(--card);
+  box-shadow: 6px 0 28px rgba(0,0,0,0.22);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform .22s ease;
+  overflow-y: auto;
+}
+.painel-filtros.aberto { transform: translateX(0); }
+
+.painel-filtros-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px clamp(14px, 3vw, 24px);
+  border-bottom: 1px solid var(--linha);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: var(--card);
+}
+.painel-filtros-titulo { font-weight: 700; font-size: 16px; color: var(--texto); }
+.btn-fechar-painel {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--texto-secundario);
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+}
+.btn-fechar-painel svg { width: 18px; height: 18px; display: block; }
+.btn-fechar-painel:hover { background: var(--creme); color: var(--texto); }
+
+.barra-filtros {
+  padding: 16px clamp(14px, 3vw, 24px) 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.painel-filtros .campo-filtro { min-width: 0; flex: none; max-width: none; width: 100%; }
+
+@media (max-width: 480px) {
+  .painel-filtros { width: 100vw; max-width: 100vw; }
 }
 
 .campo-filtro {
@@ -610,6 +690,8 @@ h1, h2, h3, .titulo-marca {
   white-space: nowrap;
 }
 .btn-limpar-filtros:hover { background: var(--vinho-suave-2); color: #fff; }
+.painel-filtros .btn-limpar-filtros { width: 100%; text-align: center; margin-top: 6px; }
+.painel-filtros .chip-contagem { padding-bottom: 0; text-align: center; }
 
 /* Filtros de pagina (so na aba Compativeis - Status Restricao, Turno) -
    mesmo visual dos filtros globais, mas nao fixos (nao sticky) e dentro
