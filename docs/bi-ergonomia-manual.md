@@ -1051,8 +1051,13 @@ Pontos-chave do desenho:
 1. ~~Confirmar com Léo o escopo definitivo~~ — **confirmado em 24/09/2026**:
    só o módulo Ergonomia (Avaliações + Inventário de Riscos + Laudos).
    Fisioterapia fica de fora por ora, sem data definida para retomar.
-2. **Criar as 3 coleções novas** (`avaliacaoErgonomica`, `fatorRisco`,
-   `laudo`) seguindo o padrão já existente (`EmpresaId`, RBAC, rota genérica).
+2. ~~Criar as 3 coleções novas~~ — **feito em 24/09/2026**: os 3 novos
+   contêineres (`avaliacaoErgonomica`, `fatorRisco`, `laudo`) foram criados
+   no Cosmos DB (`cosmos-bi-ergonomia`), mesma chave de partição `/EmpresaId`
+   dos demais, e adicionados à lista `COLECOES` de
+   `api/src/functions/entidades.js` — a rota genérica `/api/{colecao}` já
+   responde para eles com o mesmo RBAC das outras 10 coleções. Ainda não há
+   tela nenhuma que grave nada aqui (isso é o passo 3).
 3. **Adaptar o frontend** do BI Ergonomia para os novos formulários
    (Cadastro de Avaliação com upload de foto, tela de Inventário de Riscos
    com as colunas do legado) — reaproveitando os componentes de
@@ -1071,6 +1076,6 @@ Pontos-chave do desenho:
 
 ### Status
 
-Só levantamento e desenho — nada desta seção está implementado. Escopo já
-confirmado com Léo (24/09/2026): só módulo Ergonomia, Fisioterapia fora por
-ora. Próximo passo é começar o roteiro acima a partir do passo 2.
+Escopo confirmado (24/09/2026): só módulo Ergonomia. Passo 2 do roteiro já
+feito (contêineres criados + rota da API atualizada). Próximo passo é o 3
+(telas novas no frontend).

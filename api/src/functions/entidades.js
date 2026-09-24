@@ -1,9 +1,11 @@
 /* ==========================================================================
    BI Ergonomia - ElevaLife
-   Rotas REST genericas para as 10 colecoes de negocio (6 do cadastro-mestre +
-   4 operacionais). Uma unica function cobre todas porque o CRUD e identico -
-   so muda o nome da colecao e, no caso de "cliente", duas regras extras
-   (so Administrador cria/exclui uma empresa-cliente nova).
+   Rotas REST genericas para as 13 colecoes de negocio (6 do cadastro-mestre +
+   4 operacionais + 3 do pacote "Sistema de Gestao Integrada" - avaliacoes,
+   fatores de risco e laudos, ver docs/bi-ergonomia-manual.md). Uma unica
+   function cobre todas porque o CRUD e identico - so muda o nome da colecao
+   e, no caso de "cliente", duas regras extras (so Administrador cria/exclui
+   uma empresa-cliente nova).
 
    GET    /api/{colecao}          -> lista, ja filtrada por EmpresaId/papel
    GET    /api/{colecao}/{id}     -> um registro (404 se fora do escopo)
@@ -25,6 +27,7 @@ const rotaUsuarios = require("./usuarios");
 const COLECOES = [
   "cliente", "unidade", "setor", "cargo", "posto", "atividade",
   "mapaRisco", "planoAcao", "absenteismo", "compativeis",
+  "avaliacaoErgonomica", "fatorRisco", "laudo",
 ];
 
 // "me" e "usuarios" sao despachadas aqui dentro (em vez de cada uma ter seu
