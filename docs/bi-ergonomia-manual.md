@@ -928,10 +928,10 @@ por cookie, sem API própria), com dois módulos principais no menu:
 
 **Módulo Fisioterapia** (Dashboard, Acompanhamento de Pacientes, Taxa
 Efetiva de Atendimentos, Pacientes, Agendamentos, Fichas de Evolução,
-Avaliações Cinesiológicas, Avaliações Posturais) — **ainda não explorado**:
-essas telas guardam dados de saúde de pacientes reais, então o levantamento
-detalhado delas fica deliberadamente pausado (ver "O que ficou de fora" mais
-abaixo) até o escopo do módulo ser confirmado com Léo.
+Avaliações Cinesiológicas, Avaliações Posturais) — **fora do escopo por
+ora** (confirmado com Léo em 24/09/2026, sem data para retomar). Não foi
+explorado além do nome das telas no menu: são telas com dado de saúde de
+pacientes reais, e o escopo desta fase é só o módulo Ergonomia.
 
 O admin do legado (menu "Sistema" → Empresas/Usuários) também não foi
 aberto — mesmo motivo de cautela com dados reais em massa, explicado abaixo.
@@ -1048,9 +1048,9 @@ Pontos-chave do desenho:
 
 ### Roteiro faseado
 
-1. **Confirmar com Léo o escopo definitivo** — só módulo Ergonomia
-   (Avaliações + Inventário de Riscos + Laudos), ou também Fisioterapia.
-   Enquanto isso não for confirmado, o desenho acima cobre só Ergonomia.
+1. ~~Confirmar com Léo o escopo definitivo~~ — **confirmado em 24/09/2026**:
+   só o módulo Ergonomia (Avaliações + Inventário de Riscos + Laudos).
+   Fisioterapia fica de fora por ora, sem data definida para retomar.
 2. **Criar as 3 coleções novas** (`avaliacaoErgonomica`, `fatorRisco`,
    `laudo`) seguindo o padrão já existente (`EmpresaId`, RBAC, rota genérica).
 3. **Adaptar o frontend** do BI Ergonomia para os novos formulários
@@ -1071,6 +1071,6 @@ Pontos-chave do desenho:
 
 ### Status
 
-Só levantamento e desenho — nada desta seção está implementado. Falta:
-confirmar escopo (Ergonomia vs. +Fisioterapia) com Léo, e então seguir o
-roteiro acima a partir do passo 2.
+Só levantamento e desenho — nada desta seção está implementado. Escopo já
+confirmado com Léo (24/09/2026): só módulo Ergonomia, Fisioterapia fora por
+ora. Próximo passo é começar o roteiro acima a partir do passo 2.
