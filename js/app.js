@@ -342,6 +342,42 @@
     return v === null || v === undefined || v === "" ? "-" : String(v);
   }
 
+  // Mesma celula de cima, mas devolvendo um NO pronto pra por na tabela: se o
+  // valor bruto da coluna tem cor definida em Calc.COR_STATUS (Risco Global,
+  // Graduacao Risco, Status do Inventario de Riscos, Status Restricao etc.),
+  // desenha uma "pill" com pontinho colorido - a MESMA cor usada nos graficos
+  // do dashboard, pra classificacao ficar visualmente conectada em qualquer
+  // tela (pedido do Leo). Sem lista de nomes de coluna aqui: quem decide e
+  // Calc.temCorStatus, olhando o valor bruto.
+  function noCelula(col, linha, colunasData) {
+    const bruto = linha[col];
+    const texto = celulaFormatada(col, linha, colunasData);
+    if (texto !== "-" && bruto && window.BI.Calc.temCorStatus(bruto)) {
+      const span = document.createElement("span");
+      span.className = "celula-status";
+      const ponto = document.createElement("span");
+      ponto.className = "ponto";
+      ponto.style.background = window.BI.Calc.corStatus(bruto);
+      span.appendChild(ponto);
+      span.appendChild(document.createTextNode(texto));
+      return span;
+    }
+    return document.createTextNode(texto);
+  }
+
+  // Idem, mas pro valor de "Status Acao" (Plano de Acao) - calculado em
+  // runtime, nao existe direto na linha (por isso nao passa por noCelula).
+  function noCelulaStatusAcao(statusCalculado) {
+    const span = document.createElement("span");
+    span.className = "celula-status";
+    const ponto = document.createElement("span");
+    ponto.className = "ponto";
+    ponto.style.background = window.BI.Calc.corStatus(statusCalculado);
+    span.appendChild(ponto);
+    span.appendChild(document.createTextNode(statusCalculado));
+    return span;
+  }
+
   const LIMITE_LINHAS_DRILLDOWN = 50;
 
   function abrirDrillDown(campoOuTitulo, subtitulo, chave, linhas) {
@@ -373,8 +409,8 @@
         const tr = document.createElement("tr");
         colunas.forEach((c) => {
           const td = document.createElement("td");
-          if (c === "Status Acao") td.textContent = window.BI.Calc.calcularStatusAcao(linha["Dt Programada"], linha["Dt Conclusao"], hoje);
-          else td.textContent = celulaFormatada(c, linha, colunasData);
+          if (c === "Status Acao") td.appendChild(noCelulaStatusAcao(window.BI.Calc.calcularStatusAcao(linha["Dt Programada"], linha["Dt Conclusao"], hoje)));
+          else td.appendChild(noCelula(c, linha, colunasData));
           tr.appendChild(td);
         });
         tbody.appendChild(tr);
@@ -851,6 +887,190 @@
       }),
     });
     renderizarLegenda("legenda-risco-por-setor", window.BI.Calc.NIVEIS_RISCO.map((n) => ({ label: window.BI.Calc.rotuloNivel(n), cor: window.BI.Calc.corStatus(n) })));
+  }
+
+  // ------------------------------------------------------------------
+  // Renderizadores - Inventario de Riscos / Avaliacao Ergonomica / Laudos
+  // (pacote "Sistema de Gestao Integrada") - mesmos filtros globais e mesmo
+  // padrao visual/de drill-down do Mapa de Risco acima.
+  // ------------------------------------------------------------------
+
+  function renderTilesFatorRiscoGraduacao(niveis, fatorRiscoF) {
+    const cont = document.getElementById("tiles-fatorrisco-graduacao");
+    if (!cont) return;
+    cont.innerHTML = "";
+    niveis.forEach((n) => {
+      const cor = window.BI.Calc.corStatus(n.nivel);
+      const tile = document.createElement("div");
+      tile.className = "tile-status tile-clicavel";
+      tile.style.borderLeftColor = cor;
+      tile.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        abrirDrillDown(
+          `Inventário de Riscos - ${window.BI.Calc.rotuloNivel(n.nivel)}`,
+          `${n.qtd} fator(es) de risco`, "fatorRisco",
+          fatorRiscoF.filter((l) => l["Graduacao Risco"] === n.nivel), ev
+        );
+      });
+      const rotulo = document.createElement("div");
+      rotulo.className = "rotulo";
+      const ponto = document.createElement("span");
+      ponto.className = "ponto";
+      ponto.style.background = cor;
+      rotulo.appendChild(ponto);
+      rotulo.appendChild(document.createTextNode(window.BI.Calc.rotuloNivel(n.nivel)));
+      const valor = document.createElement("div");
+      valor.className = "valor";
+      valor.textContent = String(n.qtd);
+      const pct = document.createElement("div");
+      pct.className = "pct";
+      pct.textContent = n.pct.toFixed(1) + "% dos fatores";
+      tile.appendChild(rotulo);
+      tile.appendChild(valor);
+      tile.appendChild(pct);
+      cont.appendChild(tile);
+    });
+  }
+
+  function renderDonutFatorRiscoStatus(dadosStatus, fatorRiscoF) {
+    const labels = dadosStatus.map((d) => d.status);
+    const valores = dadosStatus.map((d) => d.qtd);
+    const cores = labels.map((s) => window.BI.Calc.corStatus(s));
+    criarOuAtualizarGrafico("chart-fatorrisco-status", {
+      type: "doughnut",
+      data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
+      options: comCliqueDrillDown({
+        cutout: "62%",
+        interaction: { mode: "nearest", intersect: true },
+        plugins: { tooltip: { enabled: false, external: tooltipExterno } },
+      }, (el) => {
+        const status = labels[el.index];
+        return {
+          titulo: `Inventário de Riscos - ${status}`, subtitulo: `${valores[el.index]} fator(es)`, chave: "fatorRisco",
+          linhas: fatorRiscoF.filter((l) => l.Status === status),
+        };
+      }),
+    });
+    const total = valores.reduce((a, b) => a + b, 0);
+    renderizarLegenda("legenda-fatorrisco-status", labels.map((l, i) => ({ label: `${l} (${valores[i]}${total ? ", " + ((valores[i] / total) * 100).toFixed(0) + "%" : ""})`, cor: cores[i] })));
+  }
+
+  function renderTilesFatorRiscoPrazos(dist, fatorRiscoF, hoje, diasAlerta) {
+    const cont = document.getElementById("tiles-fatorrisco-prazos");
+    if (!cont) return;
+    cont.innerHTML = "";
+    const grupos = [
+      { chave: "vencido", rotulo: "Vencidos", cor: "var(--acao-atrasada)" },
+      { chave: "vencendo", rotulo: `Vencendo em ${diasAlerta} dias`, cor: "var(--acao-atraso)" },
+      { chave: "em-dia", rotulo: "Em dia", cor: "var(--acao-concluida)" },
+    ];
+    grupos.forEach((g) => {
+      const cor = window.BI.Calc.resolverCorCSS(g.cor);
+      const tile = document.createElement("div");
+      tile.className = "tile-status tile-clicavel";
+      tile.style.borderLeftColor = cor;
+      tile.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        abrirDrillDown(
+          `Inventário de Riscos - ${g.rotulo}`, `${dist[g.chave]} fator(es) de risco`, "fatorRisco",
+          fatorRiscoF.filter((l) => window.BI.Calc.statusVencimento(l["Valido Ate"], hoje, diasAlerta) === g.chave), ev
+        );
+      });
+      const rotulo = document.createElement("div");
+      rotulo.className = "rotulo";
+      const ponto = document.createElement("span");
+      ponto.className = "ponto";
+      ponto.style.background = cor;
+      rotulo.appendChild(ponto);
+      rotulo.appendChild(document.createTextNode(g.rotulo));
+      const valor = document.createElement("div");
+      valor.className = "valor";
+      valor.textContent = String(dist[g.chave] || 0);
+      tile.appendChild(rotulo);
+      tile.appendChild(valor);
+      cont.appendChild(tile);
+    });
+  }
+
+  function renderTopSetoresFatorRisco(lista, fatorRiscoF) {
+    const mapaCores = window.BI.Calc.construirMapaCores(fatorRiscoF.map((l) => l.Setor));
+    const labels = lista.map((s) => s.setor);
+    const valores = lista.map((s) => Number(s.pct.toFixed(1)));
+    criarOuAtualizarGrafico("chart-fatorrisco-top-setores", {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          data: valores,
+          backgroundColor: labels.map((l) => mapaCores[l]),
+          maxBarThickness: 26, borderRadius: 4, borderSkipped: false,
+        }],
+      },
+      options: comCliqueDrillDown({
+        indexAxis: "y",
+        scales: {
+          x: { beginAtZero: true, max: 100, grid: { color: corGrid() }, border: { display: false }, ticks: { callback: (v) => v + "%" } },
+          y: { grid: { display: false }, border: { display: false } },
+        },
+      }, (el) => {
+        const setor = labels[el.index];
+        return {
+          titulo: `Riscos em Aberto - ${setor}`, subtitulo: "Fatores de risco deste setor", chave: "fatorRisco",
+          linhas: fatorRiscoF.filter((l) => l.Setor === setor && ["A validar", "Em andamento"].includes(l.Status)),
+        };
+      }),
+    });
+  }
+
+  function renderTilesAvaliacaoCobertura(cob) {
+    const cont = document.getElementById("tiles-avaliacao-cobertura");
+    if (!cont) return;
+    cont.innerHTML = "";
+    const itens = [
+      { rotulo: "Avaliações registradas", valor: cob.total, sub: "Total de registros" },
+      { rotulo: "Postos cobertos", valor: cob.postosCobertos, sub: `de ${cob.universoPostos} no Mapa de Risco` },
+      { rotulo: "Cobertura", valor: cob.pct.toFixed(1) + "%", sub: "dos postos avaliados" },
+    ];
+    itens.forEach((it) => {
+      const tile = document.createElement("div");
+      tile.className = "tile-total";
+      const rotulo = document.createElement("div");
+      rotulo.className = "rotulo"; rotulo.textContent = it.rotulo;
+      const valor = document.createElement("div");
+      valor.className = "valor"; valor.textContent = String(it.valor);
+      const sub = document.createElement("div");
+      sub.className = "sub"; sub.textContent = it.sub;
+      tile.appendChild(rotulo); tile.appendChild(valor); tile.appendChild(sub);
+      cont.appendChild(tile);
+    });
+  }
+
+  function renderDonutLaudosTipo(laudoF) {
+    const tipos = TIPOS_LAUDO_POOL;
+    const mapaCores = window.BI.Calc.construirMapaCores(tipos);
+    const contagem = {};
+    tipos.forEach((t) => (contagem[t] = 0));
+    laudoF.forEach((l) => { if (l.Tipo in contagem) contagem[l.Tipo] += 1; });
+    const labels = tipos;
+    const valores = tipos.map((t) => contagem[t]);
+    const cores = tipos.map((t) => mapaCores[t]);
+    criarOuAtualizarGrafico("chart-laudos-tipo", {
+      type: "doughnut",
+      data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
+      options: comCliqueDrillDown({
+        cutout: "62%",
+        interaction: { mode: "nearest", intersect: true },
+        plugins: { tooltip: { enabled: false, external: tooltipExterno } },
+      }, (el) => {
+        const tipo = labels[el.index];
+        return {
+          titulo: `Laudos - ${tipo}`, subtitulo: `${valores[el.index]} emitido(s)`, chave: "laudo",
+          linhas: laudoF.filter((l) => l.Tipo === tipo),
+        };
+      }),
+    });
+    const total = valores.reduce((a, b) => a + b, 0);
+    renderizarLegenda("legenda-laudos-tipo", labels.map((l, i) => ({ label: `${l} (${valores[i]}${total ? ", " + ((valores[i] / total) * 100).toFixed(0) + "%" : ""})`, cor: cores[i] })));
   }
 
   // ------------------------------------------------------------------
@@ -1412,26 +1632,42 @@
   // composta (camposChave) dos demais registros operacionais - cada um
   // descreve uma Atividade especifica do cadastro-mestre. Laudo e mais
   // simples: so precisa saber de qual Cliente (empresa) e o laudo.
+  // Marca um grupo de campos com uma "secao" (icone + titulo) pro
+  // montarFormulario() organizar o formulario em blocos, em vez de uma unica
+  // grade longa - so usado nos 3 cadastros do pacote "Sistema de Gestao
+  // Integrada" abaixo (pedido do Leo: telas mais modernas/organizadas). Os
+  // outros cadastros (Cliente/Unidade/.../Mapa de Risco/Plano de Acao/...)
+  // nao usam "secao" e continuam exatamente como antes.
+  function comSecao(campos, secao) {
+    return campos.map((c) => Object.assign({}, c, { secao }));
+  }
+
   function camposAvaliacaoErgonomica() {
-    return camposChave().concat([
-      { campo: "Jornada de Trabalho", rotulo: "Jornada de Trabalho", tipo: "textarea", obrigatorio: true },
-      { campo: "Pausas", rotulo: "Pausas", tipo: "textarea", obrigatorio: true },
-      { campo: "Rodizio", rotulo: "Rodízio", tipo: "textarea", obrigatorio: true },
-      { campo: "Descricao Setor", rotulo: "Descrição do Setor", tipo: "textarea" },
-      { campo: "Descricao Atividade Observada", rotulo: "Descrição da Atividade (Tarefa Real Observada)", tipo: "textarea" },
-      { campo: "Caracteristicas Trabalhadores", rotulo: "Características dos Trabalhadores", tipo: "textarea" },
-      { campo: "Historico Acidentes", rotulo: "Histórico de Acidentes", tipo: "textarea" },
-    ]);
+    return comSecao(camposChave(), "🧭 Identificação do Posto").concat(
+      comSecao([
+        { campo: "Jornada de Trabalho", rotulo: "Jornada de Trabalho", tipo: "textarea", obrigatorio: true },
+        { campo: "Pausas", rotulo: "Pausas", tipo: "textarea", obrigatorio: true },
+        { campo: "Rodizio", rotulo: "Rodízio", tipo: "textarea", obrigatorio: true },
+      ], "🗓️ Rotina de Trabalho"),
+      comSecao([
+        { campo: "Descricao Setor", rotulo: "Descrição do Setor", tipo: "textarea" },
+        { campo: "Descricao Atividade Observada", rotulo: "Descrição da Atividade (Tarefa Real Observada)", tipo: "textarea" },
+        { campo: "Caracteristicas Trabalhadores", rotulo: "Características dos Trabalhadores", tipo: "textarea" },
+        { campo: "Historico Acidentes", rotulo: "Histórico de Acidentes", tipo: "textarea" },
+      ], "📝 Observações da Avaliação")
+    );
   }
 
   function camposFatorRisco() {
-    return camposChave().concat([
-      { campo: "Grupo", rotulo: "Grupo", tipo: "texto", obrigatorio: true },
-      { campo: "Fator", rotulo: "Fator de Risco", tipo: "texto", obrigatorio: true },
-      { campo: "Existe Fator Risco", rotulo: "Existe Fator de Risco?", tipo: "select", obrigatorio: true, opcoes: SIM_NAO },
-      { campo: "Circunstancia Geradora", rotulo: "Circunstância Geradora", tipo: "textarea" },
-      { campo: "Consequencia", rotulo: "Consequência", tipo: "textarea" },
-      { campo: "Medida Controle Existente", rotulo: "Medida de Controle Existente", tipo: "textarea" },
+    return comSecao(camposChave(), "🧭 Identificação do Posto").concat(
+      comSecao([
+        { campo: "Grupo", rotulo: "Grupo", tipo: "texto", obrigatorio: true },
+        { campo: "Fator", rotulo: "Fator de Risco", tipo: "texto", obrigatorio: true },
+        { campo: "Existe Fator Risco", rotulo: "Existe Fator de Risco?", tipo: "select", obrigatorio: true, opcoes: SIM_NAO },
+        { campo: "Circunstancia Geradora", rotulo: "Circunstância Geradora", tipo: "textarea" },
+        { campo: "Consequencia", rotulo: "Consequência", tipo: "textarea" },
+        { campo: "Medida Controle Existente", rotulo: "Medida de Controle Existente", tipo: "textarea" },
+      ], "⚠️ Descrição do Risco"),
       // Criticidade/Probabilidade ficam texto livre por enquanto - o
       // sistema legado nao documenta uma escala fixa pra elas (so vimos um
       // registro de exemplo, com "Leve"/"Leve"); enrijecer isso depende de
@@ -1439,30 +1675,37 @@
       // niveis do resto do BI Ergonomia (Baixo/Medio/Alto/Muito Alto) - e
       // onde a conversao da escala de 5 niveis do legado acontece, na
       // entrada do dado (ver tabela de conversao no manual).
-      { campo: "Criticidade", rotulo: "Criticidade", tipo: "texto" },
-      { campo: "Probabilidade", rotulo: "Probabilidade", tipo: "texto" },
-      { campo: "Pontuacao Risco", rotulo: "Pontuação de Risco", tipo: "numero", min: 0 },
-      { campo: "Graduacao Risco", rotulo: "Graduação do Risco", tipo: "select", obrigatorio: true, opcoes: window.BI.Calc ? window.BI.Calc.NIVEIS_RISCO : [] },
-      { campo: "Matriz", rotulo: "Matriz", tipo: "texto" },
-      { campo: "Propor Acao", rotulo: "Propor ação?", tipo: "select", opcoes: SIM_NAO },
-      { campo: "Acao Eliminacao", rotulo: "Ação para Eliminação", tipo: "textarea" },
-      { campo: "Controles Administrativos", rotulo: "Controles Administrativos e Organizacionais", tipo: "textarea" },
-      { campo: "Status", rotulo: "Status", tipo: "select", obrigatorio: true, opcoes: STATUS_FATOR_RISCO_POOL },
-      { campo: "SLA", rotulo: "SLA", tipo: "texto" },
-      { campo: "Observacao", rotulo: "Observação", tipo: "textarea" },
-      { campo: "Valido Ate", rotulo: "Válido até", tipo: "data" },
-    ]);
+      comSecao([
+        { campo: "Criticidade", rotulo: "Criticidade", tipo: "texto" },
+        { campo: "Probabilidade", rotulo: "Probabilidade", tipo: "texto" },
+        { campo: "Pontuacao Risco", rotulo: "Pontuação de Risco", tipo: "numero", min: 0 },
+        { campo: "Graduacao Risco", rotulo: "Graduação do Risco", tipo: "select", obrigatorio: true, opcoes: window.BI.Calc ? window.BI.Calc.NIVEIS_RISCO : [] },
+        { campo: "Matriz", rotulo: "Matriz", tipo: "texto" },
+        { campo: "Propor Acao", rotulo: "Propor ação?", tipo: "select", opcoes: SIM_NAO },
+        { campo: "Acao Eliminacao", rotulo: "Ação para Eliminação", tipo: "textarea" },
+        { campo: "Controles Administrativos", rotulo: "Controles Administrativos e Organizacionais", tipo: "textarea" },
+      ], "🎯 Classificação e Ação"),
+      comSecao([
+        { campo: "Status", rotulo: "Status", tipo: "select", obrigatorio: true, opcoes: STATUS_FATOR_RISCO_POOL },
+        { campo: "SLA", rotulo: "SLA", tipo: "texto" },
+        { campo: "Observacao", rotulo: "Observação", tipo: "textarea" },
+        { campo: "Valido Ate", rotulo: "Válido até", tipo: "data" },
+      ], "📌 Status e Acompanhamento")
+    );
   }
 
   function camposLaudo() {
-    return [
+    return comSecao([
       { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
       { campo: "Tipo", rotulo: "Tipo", tipo: "select", obrigatorio: true, opcoes: TIPOS_LAUDO_POOL },
-      { campo: "Texto", rotulo: "Texto do Laudo", tipo: "textarea", obrigatorio: true },
-      { campo: "Emitido Em", rotulo: "Emitido em", tipo: "data" },
-      { campo: "Emitido Por", rotulo: "Emitido por", tipo: "texto" },
-      { campo: "Arquivo Url", rotulo: "Link do arquivo (opcional - upload direto entra numa fase futura, com Azure Blob Storage)", tipo: "texto" },
-    ];
+    ], "🏢 Identificação").concat(
+      comSecao([
+        { campo: "Texto", rotulo: "Texto do Laudo", tipo: "textarea", obrigatorio: true },
+        { campo: "Emitido Em", rotulo: "Emitido em", tipo: "data" },
+        { campo: "Emitido Por", rotulo: "Emitido por", tipo: "texto" },
+        { campo: "Arquivo Url", rotulo: "Link do arquivo (opcional - upload direto entra numa fase futura, com Azure Blob Storage)", tipo: "texto" },
+      ], "📄 Conteúdo do Laudo")
+    );
   }
 
   function sugestoes(campo) {
@@ -1854,10 +2097,38 @@
     titulo.textContent = valoresIniciais && valoresIniciais._id ? "Editar registro" : "Novo registro";
     form.appendChild(titulo);
 
-    const grade = document.createElement("div");
-    grade.className = "form-cadastro-grade";
+    // Corpo do formulario: por padrao uma unica grade de campos (comportamento
+    // historico, inalterado). Quando ALGUM campo declara "secao" (string com
+    // icone+titulo, ex.: "Descricao do Risco"), o corpo vira uma serie de
+    // blocos - um titulo de secao + sua propria grade - toda vez que o texto
+    // da secao muda de um campo pro proximo (pedido do Leo: telas do pacote
+    // "Sistema de Gestao Integrada" mais organizadas/modernas). Cadastros que
+    // nao usam "secao" continuam com a grade unica de sempre.
+    const corpo = document.createElement("div");
+    corpo.className = "form-cadastro-corpo";
+    const usandoSecoes = cfg.campos.some((d) => d.secao);
+    let grade = null;
+    let secaoAtual;
+    function novaGrade() {
+      const g = document.createElement("div");
+      g.className = "form-cadastro-grade";
+      corpo.appendChild(g);
+      return g;
+    }
+    if (!usandoSecoes) grade = novaGrade();
 
     cfg.campos.forEach((def) => {
+      if (usandoSecoes && def.secao !== secaoAtual) {
+        secaoAtual = def.secao;
+        if (secaoAtual) {
+          const tituloSecao = document.createElement("div");
+          tituloSecao.className = "form-cadastro-secao-titulo";
+          tituloSecao.textContent = secaoAtual;
+          corpo.appendChild(tituloSecao);
+        }
+        grade = novaGrade();
+      }
+
       const campoDiv = document.createElement("div");
       campoDiv.className = "campo-form";
       const label = document.createElement("label");
@@ -2044,7 +2315,7 @@
       grade.appendChild(campoDiv);
     });
 
-    form.appendChild(grade);
+    form.appendChild(corpo);
 
     const erro = document.createElement("div");
     erro.className = "form-cadastro-erro";
@@ -2466,15 +2737,12 @@
         const tr = document.createElement("tr");
         cfg.colunasTabela.forEach((c) => {
           const td = document.createElement("td");
-          let v = linha[c];
-          if (cfg.colunasData && cfg.colunasData.includes(c)) v = formatarDataBR(v);
-          else if ((c === "Risco Global" || c === "Graduacao Risco") && v) v = window.BI.Calc.rotuloNivel(v);
-          td.textContent = v === null || v === undefined || v === "" ? "-" : String(v);
+          td.appendChild(noCelula(c, linha, cfg.colunasData || []));
           tr.appendChild(td);
         });
         if (chave === "planoAcao") {
           const td = document.createElement("td");
-          td.textContent = Calc.calcularStatusAcao(linha["Dt Programada"], linha["Dt Conclusao"], hoje);
+          td.appendChild(noCelulaStatusAcao(Calc.calcularStatusAcao(linha["Dt Programada"], linha["Dt Conclusao"], hoje)));
           tr.appendChild(td);
         }
         const tdAcoes = document.createElement("td");
@@ -3053,6 +3321,20 @@
     renderPorResponsavel(Calc.planoAcaoPorResponsavel(planoAcaoF, hoje), planoAcaoF, hoje);
     renderStatusPorSetor(Calc.statusPlanoAcaoPorSetor(planoAcaoF, hoje), planoAcaoF, hoje);
     renderRiscoPorSetor(Calc.mapaRiscoPorSetor(mapaRiscoF), mapaRiscoF);
+
+    // Sistema de Gestao Integrada: mesmos filtros globais (camposData vazio -
+    // nenhum dos 3 cadastros tem campo de Ano/Mes por enquanto).
+    const avaliacaoF = Calc.filtrar(window.BI.dados.avaliacaoErgonomica || [], filtros, []);
+    const fatorRiscoF = Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, []);
+    const laudoF = Calc.filtrar(window.BI.dados.laudo || [], filtros, []);
+    const DIAS_ALERTA_PRAZO = 30;
+
+    renderTilesFatorRiscoGraduacao(Calc.distribuicaoPorNivelRisco(fatorRiscoF, "Graduacao Risco"), fatorRiscoF);
+    renderDonutFatorRiscoStatus(Calc.distribuicaoPorStatus(fatorRiscoF, "Status", STATUS_FATOR_RISCO_POOL), fatorRiscoF);
+    renderTilesFatorRiscoPrazos(Calc.distribuicaoVencimento(fatorRiscoF, "Valido Ate", hoje, DIAS_ALERTA_PRAZO), fatorRiscoF, hoje, DIAS_ALERTA_PRAZO);
+    renderTopSetoresFatorRisco(Calc.topSetoresPorCampo(fatorRiscoF, "Status", ["A validar", "Em andamento"], 5), fatorRiscoF);
+    renderTilesAvaliacaoCobertura(Calc.coberturaAvaliacao(avaliacaoF, mapaRiscoF));
+    renderDonutLaudosTipo(laudoF);
 
     const diasUteisF = Calc.filtrar(window.BI.dados.diasUteis, filtros, ["Ano/Mes Uteis"]);
     const absenteismoF = Calc.filtrar(window.BI.dados.absenteismo, filtros, ["Dt Afastamento"]);

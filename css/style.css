@@ -771,6 +771,22 @@ main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1600px; margin: 0 a
   .btn-exportar { padding: 6px 10px; font-size: 11px; }
 }
 
+/* Titulo separando um grupo de cartoes dentro da mesma grade (ex.: os novos
+   indicadores do pacote "Sistema de Gestao Integrada" dentro da aba Gestao
+   de Risco) - so texto, sem cartao/fundo proprio, pra marcar o inicio de um
+   bloco sem pesar visualmente. */
+.titulo-secao-grade {
+  margin: 6px 2px -2px;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--texto);
+  padding-top: 14px;
+  border-top: 1px dashed var(--linha);
+}
+.titulo-secao-grade span { font-weight: 500; text-transform: none; color: var(--cinza-quente); letter-spacing: 0; }
+
 .altura-chart { position: relative; height: 230px; }
 .altura-chart.alta { height: 300px; }
 .altura-chart.baixa { height: 150px; }
@@ -966,6 +982,13 @@ table.tabela-dados thead th.ordenada-por { color: var(--teal-escuro); }
 table.tabela-dados thead th.ordenada-por .seta { opacity: 1; }
 table.tabela-dados tbody tr:hover { background: var(--creme); }
 table.tabela-dados tbody td { color: var(--texto); font-variant-numeric: tabular-nums; }
+
+/* "Pill" de classificacao/status nas tabelas (Cadastro/Registro e
+   detalhamento) - mesma cor ja usada nos graficos do dashboard para aquele
+   valor (Calc.corStatus), pra classificacao ficar visualmente conectada em
+   qualquer tela onde aparece (pedido do Leo). */
+.celula-status { display: inline-flex; align-items: center; gap: 6px; }
+.celula-status .ponto { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 
 /* Coluna Acoes (Editar/Excluir) fixa na borda direita da area com scroll -
    antes ficava "escondida" la no fim de uma tabela larga, so aparecendo
@@ -1182,10 +1205,31 @@ canvas.grafico-interativo { cursor: default; }
 }
 .form-cadastro .form-titulo { font-size: 13.5px; font-weight: 700; margin-bottom: 10px; color: var(--teal-escuro); }
 
+.form-cadastro-corpo { display: flex; flex-direction: column; }
+
 .form-cadastro-grade {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 10px 12px;
+}
+
+/* Titulo de secao dentro do formulario (pedido do Leo: telas do pacote
+   "Sistema de Gestao Integrada" organizadas em blocos, em vez de uma unica
+   grade longa de campos) - so aparece quando o cadastro usa "secao" nos
+   campos (ver montarFormulario). Sem borda/fundo proprios: so um titulo +
+   um traco separando do bloco anterior, pra nao pesar visualmente. */
+.form-cadastro-secao-titulo {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--teal-escuro);
+  margin: 0 0 10px;
+}
+.form-cadastro-grade + .form-cadastro-secao-titulo {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--linha);
 }
 
 .campo-form { display: flex; flex-direction: column; gap: 3px; min-width: 0; }

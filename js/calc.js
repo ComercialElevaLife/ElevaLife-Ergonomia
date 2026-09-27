@@ -44,7 +44,23 @@
     "Ativa": "var(--acao-andamento)",
     "Em Avaliacao": "var(--acao-nao-iniciado)",
     "Encerrada": "var(--acao-concluida)",
+
+    // Status do Inventario de Riscos (fatorRisco, pacote "Sistema de Gestao
+    // Integrada") - reaproveita semanticamente a paleta de acao, mesmo
+    // padrao de Status Restricao acima (nunca uma paleta nova).
+    "A validar": "var(--acao-nao-iniciado)",
+    "Em andamento": "var(--acao-andamento)",
+    "Concluido": "var(--acao-concluida)",
+    "Cancelado": "var(--acao-atrasada)",
   };
+
+  // Uma chave "tem cor definida" quando existe de verdade em COR_STATUS -
+  // usado pela UI (tabelas de Cadastro/Registro e detalhamento) pra saber
+  // se deve desenhar uma "pill" colorida ou so o texto puro, sem precisar
+  // listar os nomes das colunas de classificacao/status em nenhum lugar.
+  function temCorStatus(chave) {
+    return Object.prototype.hasOwnProperty.call(COR_STATUS, chave);
+  }
 
   // Rotulo de exibicao por nivel de risco - "Medio" (chave interna, usada
   // nos dados e nas comparacoes) e mostrado ao usuario como "Moderado".
@@ -285,6 +301,94 @@
   }
 
   // ------------------------------------------------------------------
+  // Indicadores - Inventario de Riscos / Avaliacao Ergonomica / Laudos
+  // (pacote "Sistema de Gestao Integrada", ver docs/bi-ergonomia-manual.md).
+  // Generalizacoes das mesmas funcoes do Mapa de Risco acima, parametrizadas
+  // por nome de campo - nunca uma funcao nova por colecao.
+  // ------------------------------------------------------------------
+
+  // Generaliza mapaRiscoGlobal() para qualquer campo de nivel de risco (usa
+  // sempre os mesmos 4 NIVEIS_RISCO/cores). mapaRiscoGlobal continua existindo
+  // como um atalho pro caso historico (campo fixo "Risco Global").
+  function distribuicaoPorNivelRisco(linhas, campo) {
+    const total = linhas.length;
+    const porNivel = {};
+    NIVEIS_RISCO.forEach((n) => (porNivel[n] = 0));
+    linhas.forEach((l) => { if (l[campo] in porNivel) porNivel[l[campo]] += 1; });
+    return NIVEIS_RISCO.map((n) => ({
+      nivel: n,
+      qtd: porNivel[n],
+      pct: total ? (porNivel[n] / total) * 100 : 0,
+    }));
+  }
+
+  // Contagem por um campo de status livre (ja gravado na linha, ao contrario
+  // de Status Acao que e sempre calculado), na ordem informada.
+  function distribuicaoPorStatus(linhas, campo, ordem) {
+    const mapa = contagemPorCampoRaw(linhas, campo);
+    return ordem.map((s) => ({ status: s, qtd: mapa[s] || 0 }));
+  }
+
+  // (definida aqui em cima de contagemPorCampo, que so aparece mais abaixo -
+  // ver nota la: mesma logica, sem "Nao informado" pra nao poluir a ordem).
+  function contagemPorCampoRaw(linhas, campo) {
+    const mapa = {};
+    linhas.forEach((l) => { const v = l[campo]; if (v) mapa[v] = (mapa[v] || 0) + 1; });
+    return mapa;
+  }
+
+  // Prazos (campo tipo "Valido Ate"): classifica cada linha em vencido /
+  // vencendo (dentro de diasAlerta) / em-dia / sem-prazo (campo vazio).
+  function statusVencimento(dataStr, hoje, diasAlerta) {
+    if (!dataStr) return "sem-prazo";
+    const d = paraData(dataStr);
+    if (!d) return "sem-prazo";
+    const diffDias = Math.round((d - hoje) / 86400000);
+    if (diffDias < 0) return "vencido";
+    if (diffDias <= (diasAlerta || 30)) return "vencendo";
+    return "em-dia";
+  }
+
+  function distribuicaoVencimento(linhas, campoData, hoje, diasAlerta) {
+    const cont = { vencido: 0, vencendo: 0, "em-dia": 0, "sem-prazo": 0 };
+    linhas.forEach((l) => { cont[statusVencimento(l[campoData], hoje, diasAlerta)] += 1; });
+    return cont;
+  }
+
+  // Generaliza topSetores() (Mapa de Risco) para qualquer colecao/campo -
+  // "criticos" = linhas cujo valor do campo esta na lista fornecida (ex.:
+  // Graduacao Risco em ["Alto", "Muito Alto"], ou Status fora de
+  // ["Concluido", "Cancelado"]).
+  function topSetoresPorCampo(linhas, campo, valoresCriticos, n) {
+    const porSetor = {};
+    linhas.forEach((l) => {
+      porSetor[l.Setor] = porSetor[l.Setor] || { setor: l.Setor, total: 0, criticos: 0 };
+      porSetor[l.Setor].total += 1;
+      if (valoresCriticos.includes(l[campo])) porSetor[l.Setor].criticos += 1;
+    });
+    return Object.values(porSetor)
+      .map((s) => ({ ...s, pct: s.total ? (s.criticos / s.total) * 100 : 0 }))
+      .sort((a, b) => b.criticos - a.criticos || b.pct - a.pct)
+      .slice(0, n || 3);
+  }
+
+  // Cobertura de Avaliacao Ergonomica: quantos postos (chave composta das 6
+  // dimensoes) do universo do Mapa de Risco ja tem pelo menos 1 avaliacao
+  // registrada.
+  function coberturaAvaliacao(avaliacoesF, mapaRiscoF) {
+    const chaveDe = (l) => DIMENSOES.map((d) => l[d]).join("||");
+    const postosComAvaliacao = new Set(avaliacoesF.map(chaveDe));
+    const universo = new Set(mapaRiscoF.map(chaveDe));
+    const cobertos = Array.from(universo).filter((k) => postosComAvaliacao.has(k)).length;
+    return {
+      total: avaliacoesF.length,
+      postosCobertos: cobertos,
+      universoPostos: universo.size,
+      pct: universo.size ? (cobertos / universo.size) * 100 : 0,
+    };
+  }
+
+  // ------------------------------------------------------------------
   // Indicadores - Dashboard "Med Ocup"
   // Taxa de Frequencia = (nr de casos de afastamento / HHT) x 1.000.000,
   // onde HHT (Homens-Hora Trabalhados) = Qtd Colaboradores x Qtd Dias Uteis x 8h,
@@ -424,6 +528,7 @@
     STATUS_RESTRICAO_ORDEM,
     resolverCorCSS,
     corStatus,
+    temCorStatus,
     rotuloNivel,
     construirMapaCores,
     calcularStatusAcao,
@@ -438,6 +543,12 @@
     FAIXAS_IDADE,
     mapaRiscoGlobal,
     topSetores,
+    distribuicaoPorNivelRisco,
+    distribuicaoPorStatus,
+    statusVencimento,
+    distribuicaoVencimento,
+    topSetoresPorCampo,
+    coberturaAvaliacao,
     statusPlanoAcao,
     planoAcaoPostosCriticos,
     planoAcaoPorResponsavel,
