@@ -23,6 +23,7 @@ const { obterContainer } = require("../shared/cosmos");
 const { resolverIdentidade, empresasVisiveis, podeVerEmpresa, podeVerDocumento, empresaIdDoDocumento } = require("../shared/tenant");
 const rotaMe = require("./me");
 const rotaUsuarios = require("./usuarios");
+const rotaArquivos = require("./arquivos");
 
 const COLECOES = [
   "cliente", "unidade", "setor", "cargo", "posto", "atividade",
@@ -33,7 +34,7 @@ const COLECOES = [
 // "me" e "usuarios" sao despachadas aqui dentro (em vez de cada uma ter seu
 // proprio app.http()) porque em producao a rota generica "{colecao}/{id?}"
 // sempre "ganhava" delas - ver comentario em src/functions/me.js.
-const ROTAS_ESPECIAIS = { me: rotaMe.tratar, usuarios: rotaUsuarios.tratar };
+const ROTAS_ESPECIAIS = { me: rotaMe.tratar, usuarios: rotaUsuarios.tratar, arquivos: rotaArquivos.tratar };
 
 async function lerPorId(container, id) {
   const consulta = {

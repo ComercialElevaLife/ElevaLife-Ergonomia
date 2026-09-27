@@ -1654,6 +1654,11 @@
         { campo: "Descricao Atividade Observada", rotulo: "Descrição da Atividade (Tarefa Real Observada)", tipo: "textarea" },
         { campo: "Caracteristicas Trabalhadores", rotulo: "Características dos Trabalhadores", tipo: "textarea" },
         { campo: "Historico Acidentes", rotulo: "Histórico de Acidentes", tipo: "textarea" },
+        {
+          campo: "Fotos", rotulo: "Fotos (JPG/PNG, até 5MB cada)", tipo: "arquivo", multiplo: true,
+          colecaoArquivo: "avaliacaoErgonomica", aceitaTipos: "image/jpeg,image/png",
+          tamanhoMaximoBytes: 5 * 1024 * 1024,
+        },
       ], "📝 Observações da Avaliação")
     );
   }
@@ -1703,7 +1708,11 @@
         { campo: "Texto", rotulo: "Texto do Laudo", tipo: "textarea", obrigatorio: true },
         { campo: "Emitido Em", rotulo: "Emitido em", tipo: "data" },
         { campo: "Emitido Por", rotulo: "Emitido por", tipo: "texto" },
-        { campo: "Arquivo Url", rotulo: "Link do arquivo (opcional - upload direto entra numa fase futura, com Azure Blob Storage)", tipo: "texto" },
+        {
+          campo: "Arquivo Url", rotulo: "Arquivo do Laudo (PDF ou imagem, até 15MB)", tipo: "arquivo", multiplo: false,
+          colecaoArquivo: "laudo", aceitaTipos: "application/pdf,image/jpeg,image/png",
+          tamanhoMaximoBytes: 15 * 1024 * 1024,
+        },
       ], "📄 Conteúdo do Laudo")
     );
   }
@@ -2087,6 +2096,149 @@
 
   const estadoCadastro = {};
 
+  // Resolve o EmpresaId do Cliente ja escolhido no proprio formulario (campo
+  // "Cliente", select em cascata - ver ligarCascataHierarquia) - usado pelo
+  // campo de upload de arquivo pra saber em qual empresa gravar, do mesmo
+  // jeito que db.js/anexarEmpresaId() resolve na hora de salvar o registro.
+  function resolverEmpresaIdDoForm(form) {
+    const elCliente = form._campos["Cliente"];
+    const nomeCliente = elCliente ? elCliente.value : null;
+    if (!nomeCliente) return null;
+    const doc = (window.BI.DB.estado.colecoes.cliente || []).find((c) => c.Cliente === nomeCliente);
+    return doc ? doc.id || doc._id : null;
+  }
+
+  // Campo de upload de arquivo (Fotos da Avaliacao Ergonomica, Arquivo do
+  // Laudo - ver docs/bi-ergonomia-manual.md e js/db.js/enviarArquivo). So
+  // funciona de verdade na versao publicada em producao (BI.DB.estado.
+  // modoApi) - e onde existe um Blob Storage de verdade pra guardar o
+  // arquivo; nas demais visualizacoes (Cowork, preview local, somente
+  // leitura) mostra so um aviso, sem tentar enviar nada.
+  function construirCampoArquivo(def, campoFake, form) {
+    const wrap = document.createElement("div");
+    wrap.className = "campo-arquivo";
+
+    const listaEl = document.createElement("div");
+    listaEl.className = "campo-arquivo-lista";
+    wrap.appendChild(listaEl);
+
+    const avisoEl = document.createElement("div");
+    avisoEl.className = "campo-arquivo-aviso";
+    avisoEl.hidden = true;
+    wrap.appendChild(avisoEl);
+
+    function mostrarAviso(msg) {
+      avisoEl.textContent = msg || "";
+      avisoEl.hidden = !msg;
+    }
+
+    // Normaliza pra sempre trabalhar com uma lista, mesmo no campo unico
+    // (Laudo) - onde so o 1o (e unico) item importa.
+    function itensAtuais() {
+      if (def.multiplo) return Array.isArray(campoFake.value) ? campoFake.value : [];
+      return campoFake.value ? [campoFake.value] : [];
+    }
+
+    function renderizarLista() {
+      listaEl.innerHTML = "";
+      itensAtuais().forEach((item, idx) => {
+        const chip = document.createElement("div");
+        chip.className = "campo-arquivo-chip";
+
+        const ehImagem = /^image\//.test(item.tipoConteudo || "") || /\.(jpe?g|png)$/i.test(item.nomeArquivo || "");
+        if (ehImagem) {
+          const img = document.createElement("img");
+          img.src = window.BI.DB.urlArquivo(item.chave);
+          img.alt = item.nomeArquivo || "";
+          chip.appendChild(img);
+        } else {
+          const link = document.createElement("a");
+          link.href = window.BI.DB.urlArquivo(item.chave);
+          link.target = "_blank";
+          link.rel = "noopener";
+          link.textContent = "📎 " + (item.nomeArquivo || "arquivo");
+          chip.appendChild(link);
+        }
+
+        const btnRemover = document.createElement("button");
+        btnRemover.type = "button";
+        btnRemover.className = "campo-arquivo-remover";
+        btnRemover.textContent = "×";
+        btnRemover.title = "Remover";
+        // So tira a referencia do registro - o arquivo em si fica no Blob
+        // Storage (orfao). Suficiente pro volume desta fase; uma limpeza
+        // periodica de orfaos fica pro backlog (ver docs/bi-ergonomia-manual.md).
+        btnRemover.addEventListener("click", () => {
+          if (def.multiplo) {
+            const atual = itensAtuais().slice();
+            atual.splice(idx, 1);
+            campoFake.value = atual;
+          } else {
+            campoFake.value = null;
+          }
+          renderizarLista();
+        });
+        chip.appendChild(btnRemover);
+
+        listaEl.appendChild(chip);
+      });
+    }
+    renderizarLista();
+
+    if (!window.BI.DB.estado.modoApi) {
+      mostrarAviso("Upload de arquivo disponivel so na versao publicada (producao).");
+      return wrap;
+    }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    if (def.aceitaTipos) input.accept = def.aceitaTipos;
+    if (def.multiplo) input.multiple = true;
+
+    input.addEventListener("change", async () => {
+      const arquivos = Array.from(input.files || []);
+      input.value = "";
+      if (!arquivos.length) return;
+
+      const empresaId = resolverEmpresaIdDoForm(form);
+      if (!empresaId) {
+        mostrarAviso("Selecione o Cliente antes de anexar arquivo.");
+        return;
+      }
+      if (!def.multiplo && arquivos.length > 1) {
+        mostrarAviso("So e permitido 1 arquivo aqui.");
+        return;
+      }
+
+      mostrarAviso("Enviando...");
+      input.disabled = true;
+      try {
+        for (const arquivo of arquivos) {
+          if (def.tamanhoMaximoBytes && arquivo.size > def.tamanhoMaximoBytes) {
+            throw new Error(`"${arquivo.name}" e maior que o limite de ${(def.tamanhoMaximoBytes / (1024 * 1024)).toFixed(0)} MB.`);
+          }
+          const resultado = await window.BI.DB.enviarArquivo(def.colecaoArquivo, empresaId, arquivo);
+          const item = {
+            chave: resultado.chave,
+            nomeArquivo: resultado.nomeArquivo,
+            tamanho: resultado.tamanho,
+            tipoConteudo: arquivo.type,
+          };
+          campoFake.value = def.multiplo ? itensAtuais().concat([item]) : item;
+        }
+        mostrarAviso(null);
+      } catch (erro) {
+        mostrarAviso(erro.message || "Falha ao enviar arquivo.");
+      } finally {
+        input.disabled = false;
+        renderizarLista();
+      }
+    });
+
+    wrap.appendChild(input);
+    return wrap;
+  }
+
   function montarFormulario(cfg, chave, valoresIniciais) {
     const form = document.createElement("form");
     form.className = "form-cadastro";
@@ -2265,6 +2417,19 @@
         form._campos[def.campo] = selCategoria;
         if (def.obrigatorio) selCategoria.required = true;
         campoDiv.appendChild(el);
+        grade.appendChild(campoDiv);
+        return; // ja registrou form._campos, anexou o campo e o campoDiv na grade - pula o trecho comum abaixo
+      } else if (def.tipo === "arquivo") {
+        // Upload de arquivo (Fotos da Avaliacao Ergonomica, Arquivo do
+        // Laudo - ver construirCampoArquivo acima). Guarda o(s) "chave(s)"
+        // do Blob Storage num objeto "fake" (nao e um elemento do DOM) so
+        // pra reaproveitar o mesmo mecanismo generico de leitura de
+        // lerValoresFormulario(), que le "el.value" de cada campo.
+        const campoFake = {
+          value: def.multiplo ? (Array.isArray(valorInicial) ? valorInicial.slice() : []) : valorInicial || null,
+        };
+        form._campos[def.campo] = campoFake;
+        campoDiv.appendChild(construirCampoArquivo(def, campoFake, form));
         grade.appendChild(campoDiv);
         return; // ja registrou form._campos, anexou o campo e o campoDiv na grade - pula o trecho comum abaixo
       } else if (def.tipo === "textarea") {

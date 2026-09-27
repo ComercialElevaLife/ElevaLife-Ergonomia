@@ -265,6 +265,59 @@
     return ref.id;
   }
 
+  // --------------------------------------------------------------------
+  // Upload de arquivo (Fotos da Avaliacao Ergonomica, Arquivo do Laudo -
+  // ver docs/bi-ergonomia-manual.md). So existe no modo 2 (API + Azure Blob
+  // Storage) - nos outros modos nao ha onde guardar o arquivo de verdade,
+  // entao o campo correspondente no formulario fica desabilitado (ver
+  // construirCampoArquivo() em app.js).
+  // --------------------------------------------------------------------
+
+  function lerArquivoComoBase64(arquivo) {
+    return new Promise((resolve, reject) => {
+      const leitor = new global.FileReader();
+      leitor.onload = () => {
+        const resultado = String(leitor.result || "");
+        const virgula = resultado.indexOf(",");
+        resolve(virgula >= 0 ? resultado.slice(virgula + 1) : resultado);
+      };
+      leitor.onerror = () => reject(leitor.error || new Error("Falha ao ler o arquivo."));
+      leitor.readAsDataURL(arquivo);
+    });
+  }
+
+  async function enviarArquivo(colecaoChave, empresaId, arquivo) {
+    if (!estado.modoApi) {
+      throw new Error("Upload de arquivo so esta disponivel na versao publicada (producao).");
+    }
+    if (!empresaId) {
+      throw new Error("Selecione o Cliente antes de anexar um arquivo.");
+    }
+    const conteudoBase64 = await lerArquivoComoBase64(arquivo);
+    const resp = await fetch("/api/arquivos", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        EmpresaId: empresaId,
+        Colecao: colecaoChave,
+        NomeArquivo: arquivo.name,
+        TipoConteudo: arquivo.type,
+        ConteudoBase64: conteudoBase64,
+      }),
+    });
+    if (!resp.ok) throw new Error(await corpoDeErro(resp));
+    return resp.json(); // { chave, nomeArquivo, tamanho }
+  }
+
+  // Monta a URL de leitura de um arquivo ja enviado (ver GET /api/arquivos
+  // em api/src/functions/arquivos.js) - o navegador manda sozinho o cookie
+  // de autenticacao do Static Web Apps num <img src>/<a href> normal, sem
+  // precisar buscar o arquivo manualmente por fetch.
+  function urlArquivo(chave) {
+    return "/api/arquivos?chave=" + encodeURIComponent(chave);
+  }
+
   async function excluir(colecaoChave, id) {
     if (estado.modoApi) {
       const resp = await fetch("/api/" + encodeURIComponent(colecaoChave) + "/" + encodeURIComponent(id), {
@@ -296,5 +349,7 @@
     iniciar,
     salvar,
     excluir,
+    enviarArquivo,
+    urlArquivo,
   };
 })(window);

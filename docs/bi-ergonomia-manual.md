@@ -973,9 +973,9 @@ RBAC, mesma rota genérica `entidades.js`):
 
 | Coleção nova | Para quê | Campos principais |
 | --- | --- | --- |
-| `avaliacaoErgonomica` | Substitui/estende o cadastro de avaliação hoje espalhado em `atividade` | `EmpresaId`, `Setor`, `Posto`, `Cargo[]`, `JornadaTrabalho`, `Pausas`, `Rodizio`, `DescricaoSetor`, `DescricaoAtividade`, `CaracteristicasTrabalhadores`, `HistoricoAcidentes`, `Fotos[]` (URLs) |
+| `avaliacaoErgonomica` | Substitui/estende o cadastro de avaliação hoje espalhado em `atividade` | `EmpresaId`, `Setor`, `Posto`, `Cargo[]`, `JornadaTrabalho`, `Pausas`, `Rodizio`, `DescricaoSetor`, `DescricaoAtividade`, `CaracteristicasTrabalhadores`, `HistoricoAcidentes`, `Fotos[]` (cada item é `{chave, nomeArquivo, tamanho}` — `chave` aponta pro Blob Storage, nunca uma URL pública, ver seção "Upload de arquivo" abaixo) |
 | `fatorRisco` | Substitui/estende `mapaRisco`/`planoAcao` com o nível de detalhe do legado | `EmpresaId`, `AvaliacaoId`, `Grupo`, `Fator`, `ExisteFatorDeRisco`, `CircunstanciaGeradora`, `Consequencia`, `MedidaControleExistente`, `Criticidade`, `Probabilidade`, `PontuacaoRisco`, `GraduacaoRisco` (mapeado para a escala de 4 níveis do BI Ergonomia — ver tabela de conversão abaixo), `ProporAcao`, `AcaoParaEliminacao`, `ControlesAdministrativos`, `Status`, `SLA`, `Observacao`, `ValidoAte` |
-| `laudo` | Emissão/registro de laudos e certificados | `EmpresaId`, `Tipo` (laudo/certificado de calibração), `Texto`, `EmitidoEm`, `EmitidoPor`, `ArquivoUrl` |
+| `laudo` | Emissão/registro de laudos e certificados | `EmpresaId`, `Tipo` (laudo/certificado de calibração), `Texto`, `EmitidoEm`, `EmitidoPor`, `Arquivo Url` (mesmo formato `{chave, nomeArquivo, tamanho}` acima, um único item em vez de lista) |
 
 Tabela de conversão de escala de risco (legado → BI Ergonomia), a decidir
 com Léo antes de qualquer migração de dado real:
@@ -992,9 +992,50 @@ com Léo antes de qualquer migração de dado real:
 regra de migração, porque colapsar dois níveis do legado em "Baixo" pode
 distorcer indicadores históricos.)
 
-Upload de fotos (avaliação) e arquivos de laudo usam o mesmo Azure Blob
-Storage que já seria natural provisionar junto do Cosmos DB (não há Blob
-Storage configurado hoje no projeto — é recurso novo a criar).
+### Upload de arquivo (Azure Blob Storage) — feito em 27/09/2026
+
+Upload de fotos (Avaliação Ergonômica) e do arquivo do Laudo/Certificado já
+estão funcionando em produção, usando uma conta de Azure Blob Storage
+provisionada no mesmo grupo de recursos do Cosmos DB
+(`stbiergonomiaelevalife`, `rg-elevalife-ergonomia`), com dois containers
+**privados** (sem acesso anônimo): `avaliacao-fotos` e `laudos-arquivos`.
+
+Desenho de segurança — nenhum arquivo é servido diretamente do Storage, tudo
+passa pela mesma API multi-tenant que já existe:
+
+- `POST /api/arquivos` — recebe `{EmpresaId, Colecao, NomeArquivo,
+  TipoConteudo, ConteudoBase64}`, confere a mesma identidade/RBAC de
+  `entidades.js` (`podeVerEmpresa`), valida tipo (JPG/PNG na Avaliação;
+  PDF/JPG/PNG no Laudo) e tamanho (5MB Avaliação, 15MB Laudo — mesmos
+  limites do sistema legado), grava o blob com uma chave
+  `{EmpresaId}/{colecao}/{uuid}-{nome}` e devolve essa chave — nunca uma URL
+  pública.
+- `GET /api/arquivos?chave=...` — confere que o `EmpresaId` embutido na
+  chave é visível pra identidade atual e devolve o conteúdo do arquivo. O
+  navegador manda sozinho o cookie de autenticação do Static Web Apps num
+  `<img src>`/`<a href>` normal, sem precisar buscar o arquivo por fetch
+  manual — por isso as fotos aparecem como miniatura no formulário sem
+  nenhum código extra de autenticação no frontend.
+- Implementado em `api/src/shared/blob.js` (cliente Blob, mesmo padrão
+  singleton do `cosmos.js`) e `api/src/functions/arquivos.js` (rota
+  despachada de dentro de `entidades.js`, igual `me`/`usuarios` — a rota
+  genérica `{colecao}/{id?}` sempre "ganharia" de uma rota própria, mesmo
+  problema já documentado ali).
+- Frontend: novo tipo de campo `"arquivo"` em `montarFormulario()`
+  (`js/app.js`), reaproveitado nos dois formulários (`Fotos`, múltiplo, na
+  Avaliação; `Arquivo Url`, único, no Laudo) — mostra miniaturas/ícone dos
+  arquivos já enviados, um botão de remover (só tira a referência do
+  registro; o arquivo em si fica órfão no Storage — limpeza periódica de
+  órfãos fica pro backlog) e o `<input type="file">` de envio. Como só faz
+  sentido guardar arquivo de verdade na versão publicada em produção
+  (`BI.DB.estado.modoApi`), nas demais visualizações (Cowork, preview
+  local, somente leitura) o campo mostra só um aviso, sem tentar enviar
+  nada.
+
+Testado com um teste automatizado novo (`smoke_upload_arquivo.js`) que
+confirma o campo abrir sem quebrar nos 2 formulários, começar vazio/nulo
+num registro novo, e mostrar o aviso correto fora da versão publicada; mais
+os testes automatizados anteriores, sem nenhuma regressão.
 
 ### API pública (novo, além da API interna já existente)
 
@@ -1094,8 +1135,13 @@ Pontos-chave do desenho:
    por um teste automatizado novo (`smoke_dashboard_sgi.js`, 20+ checagens,
    todas passando) e por todos os testes automatizados anteriores (sem
    nenhuma regressão nas telas já existentes).
-4. **Provisionar Azure Blob Storage** para fotos de avaliação e arquivos de
-   laudo.
+4. ~~Provisionar Azure Blob Storage~~ — **feito em 27/09/2026**: conta
+   `stbiergonomiaelevalife` criada em `rg-elevalife-ergonomia`, com os
+   containers privados `avaliacao-fotos`/`laudos-arquivos` e a API nova
+   `/api/arquivos` (upload/download com o mesmo RBAC de sempre) — ver seção
+   "Upload de arquivo (Azure Blob Storage)" acima com o desenho completo.
+   Fotos da Avaliação e arquivo do Laudo já funcionam de ponta a ponta em
+   produção.
 5. **Construir a API pública** (`apiKeys`, `/api/public/v1`, rate limit,
    OpenAPI) — só depois dos passos 2–4, porque ela expõe os dados que
    precisam existir primeiro no formato certo.
@@ -1108,8 +1154,8 @@ Pontos-chave do desenho:
 
 ### Status
 
-Escopo confirmado (24/09/2026): só módulo Ergonomia. Passos 2, 3 e 3.1 do
+Escopo confirmado (24/09/2026): só módulo Ergonomia. Passos 2, 3, 3.1 e 4 do
 roteiro já feitos (contêineres + rota da API, as 3 telas novas no
-frontend, e a modernização visual + conexão com o dashboard). Próximo
-passo é o 4 (Azure Blob Storage, para desbloquear upload de fotos e
-arquivo de laudo de verdade).
+frontend, a modernização visual + conexão com o dashboard, e o Azure Blob
+Storage com upload de fotos/arquivo de laudo funcionando em produção).
+Próximo passo é o 5 (API pública com autenticação por API key).

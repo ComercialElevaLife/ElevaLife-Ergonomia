@@ -4,6 +4,7 @@
     "AzureWebJobsStorage": "",
     "FUNCTIONS_WORKER_RUNTIME": "node",
     "COSMOS_CONNECTION_STRING": "AccountEndpoint=https://<sua-conta>.documents.azure.com:443/;AccountKey=<sua-chave>;",
-    "COSMOS_DATABASE_ID": "bi-ergonomia"
+    "COSMOS_DATABASE_ID": "bi-ergonomia",
+    "STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=<sua-conta>;AccountKey=<sua-chave>;EndpointSuffix=core.windows.net"
   }
 }

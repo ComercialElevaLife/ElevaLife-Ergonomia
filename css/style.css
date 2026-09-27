@@ -1260,6 +1260,40 @@ canvas.grafico-interativo { cursor: default; }
    em ~160px. */
 .campo-form-largo { grid-column: 1 / -1; }
 
+/* Upload de arquivo (Fotos da Avaliacao Ergonomica, Arquivo do Laudo - ver
+   docs/bi-ergonomia-manual.md e construirCampoArquivo em js/app.js). Ocupa
+   a grade inteira igual um textarea longo - uma lista de miniaturas/chips
+   fica apertada demais numa celula estreita de ~160px. */
+.campo-arquivo { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
+.campo-arquivo-lista { display: flex; flex-wrap: wrap; gap: 8px; }
+.campo-arquivo-chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  background: var(--creme);
+  font-size: 12px;
+  max-width: 220px;
+}
+.campo-arquivo-chip img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; }
+.campo-arquivo-chip a { color: var(--teal-escuro); text-decoration: none; word-break: break-all; }
+.campo-arquivo-chip a:hover { text-decoration: underline; }
+.campo-arquivo-remover {
+  border: none;
+  background: transparent;
+  color: var(--cinza-quente);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.campo-arquivo-remover:hover { color: var(--vinho); }
+.campo-arquivo-aviso { font-size: 12px; color: var(--cinza-quente); font-style: italic; }
+.campo-arquivo input[type="file"] { font-size: 12.5px; }
+
 /* Seletor hierarquico de CID (Capitulo > Grupo > Categoria) - pedido do
    Leo pra achar o codigo certo sem rolar uma lista unica desordenada de
    CIDs. As 3 selects empilhadas herdam o estilo padrao de .campo-form
