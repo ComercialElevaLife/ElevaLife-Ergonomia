@@ -1,0 +1,138 @@
+openapi: 3.0.3
+info:
+  title: BI Ergonomia - API pública
+  version: "1.0.0"
+  description: |
+    API pública do BI Ergonomia (ElevaLife) para uma empresa-cliente consultar
+    ou gravar os próprios dados, ou para um sistema externo (SOC, LG, ERP) se
+    integrar sem depender de login interativo.
+
+    Autenticação por **chave de API**, enviada em `Authorization: Bearer <chave>`
+    (ou no cabeçalho `x-api-key`). Cada chave é vinculada a uma única empresa-
+    cliente e nunca enxerga dado de outra; uma chave de uso interno da
+    ElevaLife pode ter escopo "todas as empresas".
+
+    Cada chave também tem um limite de requisições por minuto (o valor
+    combinado é informado a quem recebe a chave); ao ultrapassar o limite a
+    API responde `429 Too Many Requests`.
+
+    Peça sua chave de API ao contato ElevaLife responsável pela sua conta.
+  contact:
+    name: ElevaLife
+servers:
+  - url: https://witty-sea-0b1e5c110.6.azurestaticapps.net/api/public/v1
+    description: Produção
+security:
+  - ChaveDeApi: []
+paths:
+  /{colecao}:
+    get:
+      summary: Lista os registros da coleção (filtrados pelo escopo da chave)
+      parameters:
+        - $ref: "#/components/parameters/Colecao"
+      responses:
+        "200":
+          description: Lista de registros
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Registro"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "429":
+          $ref: "#/components/responses/LimiteExcedido"
+    post:
+      summary: Cria um novo registro na coleção (exige chave com escrita)
+      parameters:
+        - $ref: "#/components/parameters/Colecao"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Registro"
+      responses:
+        "201":
+          description: Registro criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Registro"
+        "400":
+          description: "Requisição inválida (ex.: EmpresaId ausente para chave de escopo admin)"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "429":
+          $ref: "#/components/responses/LimiteExcedido"
+  /{colecao}/{id}:
+    get:
+      summary: Consulta um registro específico pelo id
+      parameters:
+        - $ref: "#/components/parameters/Colecao"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Registro encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Registro"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "404":
+          description: Não encontrado (ou fora do escopo da chave)
+        "429":
+          $ref: "#/components/responses/LimiteExcedido"
+components:
+  securitySchemes:
+    ChaveDeApi:
+      type: http
+      scheme: bearer
+      description: "Também aceito no cabeçalho 'x-api-key' em vez de Authorization."
+  parameters:
+    Colecao:
+      name: colecao
+      in: path
+      required: true
+      description: |
+        Nome da coleção. Coleções disponíveis (sujeitas ao escopo da chave):
+        unidade, setor, cargo, posto, atividade, mapaRisco, planoAcao,
+        absenteismo, compativeis, avaliacaoErgonomica, fatorRisco, laudo.
+        ("cliente" não está disponível na API pública.)
+      schema:
+        type: string
+  schemas:
+    Registro:
+      type: object
+      description: |
+        O formato exato dos campos varia por coleção (ver
+        docs/bi-ergonomia-manual.md no repositório para o dicionário de dados
+        completo de cada uma). Todo registro tem "id" e "EmpresaId".
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        EmpresaId:
+          type: string
+  responses:
+    NaoAutenticado:
+      description: Chave de API ausente ou inválida
+    SemPermissao:
+      description: Chave válida, mas sem escopo para esta coleção ou operação
+    LimiteExcedido:
+      description: Limite de requisições por minuto excedido para esta chave
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Segundos até poder tentar novamente

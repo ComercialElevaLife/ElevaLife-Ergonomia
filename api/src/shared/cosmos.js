@@ -3,15 +3,18 @@
    Cliente Cosmos DB (singleton por instancia da Function App).
    Todas as colecoes de negocio usam chave de particao "/EmpresaId" - inclusive
    "cliente" (cada registro de cliente guarda o proprio EmpresaId em si mesmo,
-   ver src/shared/tenant.js). "usuarios" e "listaCID" sao excecao: nao tem
-   tenant, particionadas por "/id".
+   ver src/shared/tenant.js). "usuarios", "listaCID" e "apiKeys" sao excecao:
+   nao tem tenant unico por documento (uma chave de API pode ate ser
+   escopada a uma empresa via campo EmpresaId, mas a busca e sempre por
+   HashChave, nao por empresa - particionar por "/EmpresaId" so obrigaria
+   fan-out em toda consulta), particionadas por "/id".
    ========================================================================== */
 
 "use strict";
 
 const { CosmosClient } = require("@azure/cosmos");
 
-const PARTICAO_POR_ID = new Set(["usuarios", "listaCID"]);
+const PARTICAO_POR_ID = new Set(["usuarios", "listaCID", "apiKeys"]);
 
 let clienteCosmos = null;
 let bancoCosmos = null;

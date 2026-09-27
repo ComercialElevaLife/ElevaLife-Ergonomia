@@ -1087,6 +1087,61 @@ Pontos-chave do desenho:
   para o sistema externo, usando a mesma tabela `integracao_id_externo` para
   saber qual registro de lá corresponde a qual registro daqui.
 
+#### Implementação (feito em 27/09/2026)
+
+O desenho acima foi implementado por completo:
+
+- **Nova coleção `apiKeys`** no Cosmos DB (partição `/id`, igual `usuarios` —
+  a busca é sempre pelo hash da chave, não faria sentido particionar por
+  empresa). Cada documento guarda `EmpresaId` (`null` = chave admin, enxerga
+  todas as empresas), `HashChave` (SHA-256 da chave — a chave em texto puro
+  só existe uma vez, no momento em que é gerada, e nunca mais depois disso),
+  `SufixoExibicao` (últimos 4 caracteres, só pra reconhecer qual chave é qual
+  numa lista), `Escopos` (`leitura`/`escrita`/`colecoes`), `LimiteRequisicoesPorMinuto`,
+  `CriadoPor`, `CriadoEm`, `RevogadoEm`, e os campos de controle do rate limit
+  (`JanelaAtual`/`ContadorJanela`/`UltimoUsoEm`).
+- **Rota nova `/api/public/v1/{colecao}/{id?}`** (`api/src/functions/publicApi.js`),
+  com autenticação por `Authorization: Bearer <chave>` (ou `x-api-key`) em vez
+  de login — por isso é uma rota Azure Functions própria, e não mais uma
+  entrada em `ROTAS_ESPECIAIS` como `me`/`usuarios`/`arquivos`/`apiKeys`: como
+  o caminho sempre tem 3+ segmentos (`public/v1/{colecao}/...`), não existe a
+  ambiguidade com a rota genérica interna `{colecao}/{id?}` (no máximo 2
+  segmentos) que forçava aquele desvio. `staticwebapp.config.json` ganhou uma
+  regra `/api/public/*` como anônima, antes da regra geral `/api/*` que exige
+  login — senão o Static Web Apps redirecionava pro login do Azure AD antes
+  mesmo da chave de API ser conferida. Suporta `GET` (lista e por id,
+  reaproveitando o mesmo filtro por `EmpresaId` da API interna) e `POST`
+  (cria, só se a chave tiver escopo de escrita); a coleção `cliente` fica de
+  fora da API pública (criar uma empresa nova continua só pela API interna).
+- **Limite de requisições (rate limit) por chave**, sem precisar de Redis ou
+  outra infraestrutura nova: usa a operação `incr` (incremento atômico) do
+  Cosmos DB Patch API direto no próprio documento da chave — funciona certo
+  mesmo com várias instâncias da Function App rodando ao mesmo tempo, sem
+  condição de corrida. Janela de 1 minuto; ao exceder, responde
+  `429 Too Many Requests` com `Retry-After: 60`.
+- **Gestão das chaves** (`api/src/functions/apiKeysAdmin.js`, despachada via
+  `ROTAS_ESPECIAIS["apiKeys"]` em `/api/apiKeys`, só Administrador, mesmo
+  padrão de `usuarios.js`): criar (devolve a chave em texto puro **uma única
+  vez** na resposta do `POST`, nunca mais depois disso), listar (sem nunca
+  devolver o hash) e revogar. Não tem tela própria no frontend ainda — mesma
+  situação de `usuarios` hoje: Léo pede e a chave é gerada/revogada por essa
+  rota.
+- **Documentação OpenAPI publicada**: `docs/openapi-publica.yaml` (contrato
+  completo dos endpoints, formato de autenticação e respostas de erro) e uma
+  página `docs/api-publica.html` com Swagger UI (via CDN, mesmo padrão do
+  Chart.js/jsPDF/SheetJS já usados no resto do site) pra qualquer sistema
+  externo (ou o próprio cliente) explorar a API sem depender da ElevaLife
+  explicar cada endpoint manualmente.
+
+Testado com um teste automatizado novo (funções puras de geração/hash de
+chave e montagem de identidade) e um teste de integração (Cosmos DB mockado
+em memória) cobrindo o fluxo completo: sem chave → 401; chave inválida → 401;
+chave fora do escopo da coleção → 403; lista filtrada corretamente por
+empresa; escrita bloqueada sem escopo de escrita; chave admin cria registro
+informando `EmpresaId`; coleção `cliente` → 404; e o rate limit disparando
+`429` depois de excedido — mais todos os testes automatizados anteriores,
+sem nenhuma regressão.
+
 ### Roteiro faseado
 
 1. ~~Confirmar com Léo o escopo definitivo~~ — **confirmado em 24/09/2026**:
@@ -1142,9 +1197,12 @@ Pontos-chave do desenho:
    "Upload de arquivo (Azure Blob Storage)" acima com o desenho completo.
    Fotos da Avaliação e arquivo do Laudo já funcionam de ponta a ponta em
    produção.
-5. **Construir a API pública** (`apiKeys`, `/api/public/v1`, rate limit,
-   OpenAPI) — só depois dos passos 2–4, porque ela expõe os dados que
-   precisam existir primeiro no formato certo.
+5. ~~Construir a API pública~~ — **feito em 27/09/2026**: coleção `apiKeys`,
+   rota `/api/public/v1/{colecao}/{id?}` com autenticação por chave (não por
+   login), rate limit por chave (atômico, via Cosmos DB Patch, sem infra
+   nova) e documentação OpenAPI/Swagger publicada em `docs/api-publica.html`
+   — ver seção "API pública" acima com o desenho completo e o que foi
+   implementado.
 6. **Migrar os dados reais**, empresa por empresa, a partir da exportação
    Excel que Léo baixar do legado (não por navegação ao vivo) — com a
    tabela de conversão de escala de risco validada antes de rodar em
@@ -1154,8 +1212,9 @@ Pontos-chave do desenho:
 
 ### Status
 
-Escopo confirmado (24/09/2026): só módulo Ergonomia. Passos 2, 3, 3.1 e 4 do
-roteiro já feitos (contêineres + rota da API, as 3 telas novas no
-frontend, a modernização visual + conexão com o dashboard, e o Azure Blob
-Storage com upload de fotos/arquivo de laudo funcionando em produção).
-Próximo passo é o 5 (API pública com autenticação por API key).
+Escopo confirmado (24/09/2026): só módulo Ergonomia. Passos 2, 3, 3.1, 4 e 5
+do roteiro já feitos (contêineres + rota da API, as 3 telas novas no
+frontend, a modernização visual + conexão com o dashboard, o Azure Blob
+Storage com upload de fotos/arquivo de laudo, e a API pública com
+autenticação por chave, rate limit e documentação OpenAPI — todos
+funcionando em produção). Próximo passo é o 6 (migrar os dados reais).
