@@ -28,6 +28,11 @@
   const CATEGORIAS_ACAO_POOL = ["Administrativa", "Engenharia", "Treinamento", "EPI"];
   const GESTAO_ACAO_POOL = ["ElevaLife", "Cliente"];
   const GENEROS_POOL = ["Masculino", "Feminino"];
+  // Pools do pacote "Sistema de Gestao Integrada" (Avaliacao Ergonomica,
+  // Inventario de Riscos, Laudos - ver docs/bi-ergonomia-manual.md). Status
+  // e Tipo de Laudo seguem o vocabulario visto no sistema legado.
+  const STATUS_FATOR_RISCO_POOL = ["A validar", "Em andamento", "Concluido", "Cancelado"];
+  const TIPOS_LAUDO_POOL = ["Laudo", "Certificado de Calibracao"];
   const ACOES_CATEGORIA_MAP = {
     "Rodizio de atividades entre colaboradores": "Administrativa",
     "Pausa ergonomica programada": "Administrativa",
@@ -333,7 +338,7 @@
   function celulaFormatada(col, linha, colunasData) {
     let v = linha[col];
     if (colunasData.includes(col)) v = formatarDataBR(v);
-    else if (col === "Risco Global" && v) v = window.BI.Calc.rotuloNivel(v);
+    else if ((col === "Risco Global" || col === "Graduacao Risco") && v) v = window.BI.Calc.rotuloNivel(v);
     return v === null || v === undefined || v === "" ? "-" : String(v);
   }
 
@@ -1400,6 +1405,66 @@
     ];
   }
 
+  // Campos das 3 telas novas do pacote "Sistema de Gestao Integrada"
+  // (Avaliacao Ergonomica, Inventario de Riscos/Fatores de Risco e Laudos -
+  // ver docs/bi-ergonomia-manual.md, secao "Reproducao do Sistema de Gestao
+  // Integrada"). Avaliacao Ergonomica e Fatores de Risco usam a mesma chave
+  // composta (camposChave) dos demais registros operacionais - cada um
+  // descreve uma Atividade especifica do cadastro-mestre. Laudo e mais
+  // simples: so precisa saber de qual Cliente (empresa) e o laudo.
+  function camposAvaliacaoErgonomica() {
+    return camposChave().concat([
+      { campo: "Jornada de Trabalho", rotulo: "Jornada de Trabalho", tipo: "textarea", obrigatorio: true },
+      { campo: "Pausas", rotulo: "Pausas", tipo: "textarea", obrigatorio: true },
+      { campo: "Rodizio", rotulo: "Rodízio", tipo: "textarea", obrigatorio: true },
+      { campo: "Descricao Setor", rotulo: "Descrição do Setor", tipo: "textarea" },
+      { campo: "Descricao Atividade Observada", rotulo: "Descrição da Atividade (Tarefa Real Observada)", tipo: "textarea" },
+      { campo: "Caracteristicas Trabalhadores", rotulo: "Características dos Trabalhadores", tipo: "textarea" },
+      { campo: "Historico Acidentes", rotulo: "Histórico de Acidentes", tipo: "textarea" },
+    ]);
+  }
+
+  function camposFatorRisco() {
+    return camposChave().concat([
+      { campo: "Grupo", rotulo: "Grupo", tipo: "texto", obrigatorio: true },
+      { campo: "Fator", rotulo: "Fator de Risco", tipo: "texto", obrigatorio: true },
+      { campo: "Existe Fator Risco", rotulo: "Existe Fator de Risco?", tipo: "select", obrigatorio: true, opcoes: SIM_NAO },
+      { campo: "Circunstancia Geradora", rotulo: "Circunstância Geradora", tipo: "textarea" },
+      { campo: "Consequencia", rotulo: "Consequência", tipo: "textarea" },
+      { campo: "Medida Controle Existente", rotulo: "Medida de Controle Existente", tipo: "textarea" },
+      // Criticidade/Probabilidade ficam texto livre por enquanto - o
+      // sistema legado nao documenta uma escala fixa pra elas (so vimos um
+      // registro de exemplo, com "Leve"/"Leve"); enrijecer isso depende de
+      // ver mais dados reais. Graduacao do Risco ja usa a MESMA escala de 4
+      // niveis do resto do BI Ergonomia (Baixo/Medio/Alto/Muito Alto) - e
+      // onde a conversao da escala de 5 niveis do legado acontece, na
+      // entrada do dado (ver tabela de conversao no manual).
+      { campo: "Criticidade", rotulo: "Criticidade", tipo: "texto" },
+      { campo: "Probabilidade", rotulo: "Probabilidade", tipo: "texto" },
+      { campo: "Pontuacao Risco", rotulo: "Pontuação de Risco", tipo: "numero", min: 0 },
+      { campo: "Graduacao Risco", rotulo: "Graduação do Risco", tipo: "select", obrigatorio: true, opcoes: window.BI.Calc ? window.BI.Calc.NIVEIS_RISCO : [] },
+      { campo: "Matriz", rotulo: "Matriz", tipo: "texto" },
+      { campo: "Propor Acao", rotulo: "Propor ação?", tipo: "select", opcoes: SIM_NAO },
+      { campo: "Acao Eliminacao", rotulo: "Ação para Eliminação", tipo: "textarea" },
+      { campo: "Controles Administrativos", rotulo: "Controles Administrativos e Organizacionais", tipo: "textarea" },
+      { campo: "Status", rotulo: "Status", tipo: "select", obrigatorio: true, opcoes: STATUS_FATOR_RISCO_POOL },
+      { campo: "SLA", rotulo: "SLA", tipo: "texto" },
+      { campo: "Observacao", rotulo: "Observação", tipo: "textarea" },
+      { campo: "Valido Ate", rotulo: "Válido até", tipo: "data" },
+    ]);
+  }
+
+  function camposLaudo() {
+    return [
+      { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
+      { campo: "Tipo", rotulo: "Tipo", tipo: "select", obrigatorio: true, opcoes: TIPOS_LAUDO_POOL },
+      { campo: "Texto", rotulo: "Texto do Laudo", tipo: "textarea", obrigatorio: true },
+      { campo: "Emitido Em", rotulo: "Emitido em", tipo: "data" },
+      { campo: "Emitido Por", rotulo: "Emitido por", tipo: "texto" },
+      { campo: "Arquivo Url", rotulo: "Link do arquivo (opcional - upload direto entra numa fase futura, com Azure Blob Storage)", tipo: "texto" },
+    ];
+  }
+
   function sugestoes(campo) {
     const chaves = ["mapaRisco", "planoAcao", "absenteismo", "compativeis"];
     const set = new Set();
@@ -1747,6 +1812,34 @@
       ]),
       aoConstruir: comCascata(null),
     },
+    // As 3 telas abaixo sao o pacote "Sistema de Gestao Integrada" (ver
+    // docs/bi-ergonomia-manual.md) - reproduzem, dentro do proprio BI
+    // Ergonomia, os cadastros de Avaliacao Ergonomica, Inventario de Riscos
+    // e Laudos do sistema legado da ElevaLife.
+    avaliacaoErgonomica: {
+      grupo: "registro", icone: "📋", tituloMenu: "Avaliação Ergonômica",
+      titulo: "Cadastro de Avaliação Ergonômica",
+      colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Atividade"],
+      colunasData: [], camposData: [],
+      campos: camposAvaliacaoErgonomica(),
+      aoConstruir: comCascata(null),
+    },
+    fatorRisco: {
+      grupo: "registro", icone: "🧩", tituloMenu: "Inventário de Riscos",
+      titulo: "Inventário de Riscos (Fatores de Risco)",
+      colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Fator", "Graduacao Risco", "Status"],
+      colunasData: ["Valido Ate"], camposData: ["Valido Ate"],
+      campos: camposFatorRisco(),
+      aoConstruir: comCascata(null),
+    },
+    laudo: {
+      grupo: "registro", icone: "📄", tituloMenu: "Laudos",
+      titulo: "Laudos e Certificados",
+      colunasTabela: ["Cliente", "Tipo", "Emitido Em", "Emitido Por"],
+      colunasData: ["Emitido Em"], camposData: ["Emitido Em"],
+      campos: camposLaudo(),
+      aoConstruir: comCascata(null),
+    },
   };
 
   const estadoCadastro = {};
@@ -1903,6 +1996,15 @@
         campoDiv.appendChild(el);
         grade.appendChild(campoDiv);
         return; // ja registrou form._campos, anexou o campo e o campoDiv na grade - pula o trecho comum abaixo
+      } else if (def.tipo === "textarea") {
+        // Texto longo (Jornada de Trabalho, Circunstancia Geradora etc. -
+        // campos do pacote "Sistema de Gestao Integrada", ver
+        // docs/bi-ergonomia-manual.md) - mesmo campoDiv.className "largo"
+        // usado pra ocupar a grade inteira, texto puro (sem editor rico).
+        el = document.createElement("textarea");
+        el.rows = 3;
+        el.value = valorInicial != null ? valorInicial : "";
+        campoDiv.className += " campo-form-largo";
       } else if (def.tipo === "data") {
         el = document.createElement("input");
         el.type = "date";
@@ -2366,7 +2468,7 @@
           const td = document.createElement("td");
           let v = linha[c];
           if (cfg.colunasData && cfg.colunasData.includes(c)) v = formatarDataBR(v);
-          else if (c === "Risco Global" && v) v = window.BI.Calc.rotuloNivel(v);
+          else if ((c === "Risco Global" || c === "Graduacao Risco") && v) v = window.BI.Calc.rotuloNivel(v);
           td.textContent = v === null || v === undefined || v === "" ? "-" : String(v);
           tr.appendChild(td);
         });

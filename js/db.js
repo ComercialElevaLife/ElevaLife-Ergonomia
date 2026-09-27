@@ -25,6 +25,8 @@
   const COLECOES = [
     "mapaRisco", "planoAcao", "absenteismo", "compativeis",
     "cliente", "unidade", "setor", "cargo", "posto", "atividade",
+    // Pacote "Sistema de Gestao Integrada" (ver docs/bi-ergonomia-manual.md).
+    "avaliacaoErgonomica", "fatorRisco", "laudo",
   ];
 
   const estado = {
@@ -37,6 +39,7 @@
     colecoes: {
       mapaRisco: [], planoAcao: [], absenteismo: [], compativeis: [],
       cliente: [], unidade: [], setor: [], cargo: [], posto: [], atividade: [],
+      avaliacaoErgonomica: [], fatorRisco: [], laudo: [],
     },
     inscricoes: [],
   };

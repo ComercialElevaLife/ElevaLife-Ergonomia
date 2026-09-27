@@ -1196,7 +1196,7 @@ canvas.grafico-interativo { cursor: default; }
   color: var(--cinza-quente);
   font-weight: 700;
 }
-.campo-form input, .campo-form select {
+.campo-form input, .campo-form select, .campo-form textarea {
   font-family: inherit;
   font-size: 13.5px;
   padding: 7px 8px;
@@ -1206,8 +1206,15 @@ canvas.grafico-interativo { cursor: default; }
   color: var(--texto);
   width: 100%;
 }
-.campo-form input:focus, .campo-form select:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
-.campo-form input:disabled, .campo-form select:disabled { opacity: 0.6; background: var(--creme); }
+.campo-form textarea { resize: vertical; min-height: 60px; }
+.campo-form input:focus, .campo-form select:focus, .campo-form textarea:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+.campo-form input:disabled, .campo-form select:disabled, .campo-form textarea:disabled { opacity: 0.6; background: var(--creme); }
+
+/* Campos de texto longo (Jornada de Trabalho, Circunstancia Geradora etc.,
+   ver docs/bi-ergonomia-manual.md) ocupam a grade inteira em vez de uma
+   celula estreita - senao um textarea de 3 linhas fica ilegivel espremido
+   em ~160px. */
+.campo-form-largo { grid-column: 1 / -1; }
 
 /* Seletor hierarquico de CID (Capitulo > Grupo > Categoria) - pedido do
    Leo pra achar o codigo certo sem rolar uma lista unica desordenada de

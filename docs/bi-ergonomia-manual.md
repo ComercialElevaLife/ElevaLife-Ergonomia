@@ -1058,10 +1058,22 @@ Pontos-chave do desenho:
    `api/src/functions/entidades.js` — a rota genérica `/api/{colecao}` já
    responde para eles com o mesmo RBAC das outras 10 coleções. Ainda não há
    tela nenhuma que grave nada aqui (isso é o passo 3).
-3. **Adaptar o frontend** do BI Ergonomia para os novos formulários
-   (Cadastro de Avaliação com upload de foto, tela de Inventário de Riscos
-   com as colunas do legado) — reaproveitando os componentes de
-   Cadastro/Registro que já existem.
+3. ~~Adaptar o frontend~~ — **feito em 27/09/2026, parcialmente**: 3 novas
+   sub-abas dentro de "Registro" (Avaliação Ergonômica, Inventário de
+   Riscos, Laudos), reaproveitando 100% do motor genérico de
+   formulário/tabela/paginação/busca/ordenação que já existia (mesmo padrão
+   de Mapa de Risco/Plano de Ação/Absenteísmo/Compatíveis — nenhum HTML novo,
+   só entradas novas em `CADASTROS_CONFIG` no `js/app.js`). Foi acrescentado
+   um tipo de campo novo (`textarea`, pro texto longo — Jornada de Trabalho,
+   Circunstância Geradora etc.) e a `Graduação do Risco` do Inventário de
+   Riscos já sai gravada na mesma escala de 4 níveis do resto do BI
+   Ergonomia (Baixo/Moderado/Alto/Muito Alto) — a conversão da escala de 5
+   níveis do legado acontece na hora de preencher o formulário, não depois.
+   Testado com um teste automatizado (`smoke_sgi.js`, 30 checagens, todas
+   passando) que simula abrir cada formulário novo, preencher e salvar.
+   **O que falta** desta etapa: upload de fotos na Avaliação (depende do
+   passo 4, Blob Storage, ainda não feito) e o link de arquivo do Laudo por
+   enquanto é só um campo de texto livre (cola a URL manualmente).
 4. **Provisionar Azure Blob Storage** para fotos de avaliação e arquivos de
    laudo.
 5. **Construir a API pública** (`apiKeys`, `/api/public/v1`, rate limit,
@@ -1076,6 +1088,7 @@ Pontos-chave do desenho:
 
 ### Status
 
-Escopo confirmado (24/09/2026): só módulo Ergonomia. Passo 2 do roteiro já
-feito (contêineres criados + rota da API atualizada). Próximo passo é o 3
-(telas novas no frontend).
+Escopo confirmado (24/09/2026): só módulo Ergonomia. Passos 2 e 3 do
+roteiro já feitos (contêineres + rota da API, e as 3 telas novas no
+frontend). Próximo passo é o 4 (Azure Blob Storage, para desbloquear
+upload de fotos e arquivo de laudo de verdade).
