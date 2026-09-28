@@ -30,6 +30,15 @@ const crypto = require("crypto");
 const { resolverIdentidade, podeVerEmpresa } = require("../shared/tenant");
 const { obterContainerCliente } = require("../shared/blob");
 
+// Mesma constante de src/functions/entidades.js (EMPRESA_GLOBAL) - o arquivo
+// do Certificado de Calibracao e gravado com esse EmpresaId fixo (biblioteca
+// global, nao presa a uma empresa-cliente), entao qualquer identidade com
+// papel liberado pode ler/gravar nele.
+const EMPRESA_GLOBAL = "GLOBAL";
+function podeAcessarEmpresaOuGlobal(identidade, empresaId) {
+  return empresaId === EMPRESA_GLOBAL || podeVerEmpresa(identidade, empresaId);
+}
+
 // Tipo/tamanho aceitos por colecao - mesmos limites do sistema legado (ate 5
 // fotos de 5MB na Avaliacao; Laudo sem limite documentado no legado, 15MB e
 // uma folga confortavel pra PDF/imagem escaneada).
@@ -53,6 +62,12 @@ const REGRAS_POR_COLECAO = {
       "application/pdf",
     ],
     tamanhoMaximoBytes: 20 * 1024 * 1024,
+  },
+  // Foto do Certificado de Calibracao (biblioteca global de instrumentos -
+  // ver docs/bi-ergonomia-manual.md, secao Laudos).
+  certificadoCalibracao: {
+    tiposAceitos: ["image/jpeg", "image/png"],
+    tamanhoMaximoBytes: 5 * 1024 * 1024,
   },
 };
 
@@ -81,7 +96,7 @@ async function tratarUpload(request, identidade) {
   if (!regra) {
     return { status: 400, jsonBody: { erro: `Colecao sem upload de arquivo: ${Colecao}` } };
   }
-  if (!EmpresaId || !podeVerEmpresa(identidade, EmpresaId)) {
+  if (!EmpresaId || !podeAcessarEmpresaOuGlobal(identidade, EmpresaId)) {
     return { status: 403, jsonBody: { erro: "Sem permissao para gravar arquivo nesta empresa." } };
   }
   if (!ConteudoBase64) {
@@ -124,7 +139,7 @@ async function tratarDownload(request, identidade) {
   const colecao = partes[1];
   const regra = REGRAS_POR_COLECAO[colecao];
   if (!empresaId || !regra) return { status: 404, jsonBody: { erro: "Arquivo nao encontrado." } };
-  if (!podeVerEmpresa(identidade, empresaId)) {
+  if (!podeAcessarEmpresaOuGlobal(identidade, empresaId)) {
     return { status: 403, jsonBody: { erro: "Sem permissao para ver este arquivo." } };
   }
 

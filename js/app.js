@@ -1715,7 +1715,28 @@
     return comSecao([
       { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
       { campo: "Tipo", rotulo: "Tipo", tipo: "select", obrigatorio: true, opcoes: TIPOS_LAUDO_POOL },
+      // Setor/Posto de Trabalho aqui sao OPCIONAIS (por isso fora de
+      // camposChave/camposAvaliacaoErgonomica) - so servem pra restringir
+      // quais Postos entram no laudo GERADO (ver gerarLaudoPDF); deixados em
+      // branco, o laudo cobre todos os Postos com Avaliacao Ergonomica
+      // cadastrada para o Cliente escolhido acima.
+      { campo: "Setor", rotulo: "Setor (opcional - restringe o laudo gerado)", tipo: "cascata" },
+      { campo: "Posto Trabalho", rotulo: "Posto de Trabalho (opcional - restringe o laudo gerado)", tipo: "cascata" },
     ], "🏢 Identificação").concat(
+      comSecao([
+        {
+          campo: "Apenas Paginas Avaliacao", rotulo: "Gerar somente as páginas de avaliação (sem capa/metodologia/introdução)",
+          tipo: "select", opcoes: SIM_NAO,
+        },
+        {
+          campo: "Incluir Certificado Calibracao", rotulo: "Incluir Certificado de Calibração no laudo?",
+          tipo: "select", opcoes: SIM_NAO,
+        },
+        {
+          campo: "Certificado Calibracao", rotulo: "Certificado de Calibração",
+          tipo: "select", opcoes: () => (window.BI.dados.certificadoCalibracao || []).map((c) => c.Nome),
+        },
+      ], "⚙️ Opções de Geração do Laudo"),
       comSecao([
         { campo: "Texto", rotulo: "Texto do Laudo", tipo: "textarea", obrigatorio: true },
         { campo: "Emitido Em", rotulo: "Emitido em", tipo: "data" },
@@ -1727,6 +1748,40 @@
         },
       ], "📄 Conteúdo do Laudo")
     );
+  }
+
+  // Biblioteca GLOBAL de Certificados de Calibracao dos instrumentos usados
+  // nas medicoes (ex.: decibelimetro, luximetro, termohigrometro) -
+  // compartilhada por todas as empresas-cliente, nao presa a uma delas (ver
+  // COLECOES_GLOBAIS no backend e resolverEmpresaIdDoForm acima). Um laudo
+  // pode anexar o certificado de um instrumento (campo "Certificado
+  // Calibracao" em camposLaudo).
+  function camposCertificadoCalibracao() {
+    return [
+      { campo: "Nome", rotulo: "Nome do Instrumento", tipo: "texto", obrigatorio: true },
+      { campo: "Validade", rotulo: "Validade da Calibração", tipo: "data" },
+      {
+        campo: "Arquivo Imagem", rotulo: "Imagem do Certificado (JPG/PNG, até 5MB)", tipo: "arquivo", multiplo: false,
+        colecaoArquivo: "certificadoCalibracao", aceitaTipos: "image/jpeg,image/png",
+        tamanhoMaximoBytes: 5 * 1024 * 1024,
+      },
+    ];
+  }
+
+  // "Editor de Texto" do Laudo (tela "Emissor" do sistema legado) - o texto
+  // padrao (Apresentacao/Metodologia/Recomendacoes/Conclusao) reaproveitado
+  // em TODO laudo gerado, tambem GLOBAL (1 unico modelo da ElevaLife, nao um
+  // por empresa-cliente - ver comentario acima em camposCertificadoCalibracao).
+  // Nunca inclui nome/registro profissional de um ergonomista especifico -
+  // isso vem do campo "Emitido Por" de cada Laudo (ver camposLaudo).
+  function camposModeloLaudo() {
+    return [
+      { campo: "Nome", rotulo: "Nome do Modelo", tipo: "texto", obrigatorio: true },
+      { campo: "Apresentacao", rotulo: "Apresentação / Demanda do Trabalho", tipo: "textarea", obrigatorio: true },
+      { campo: "Metodologia", rotulo: "Métodos e Metodologia Utilizada", tipo: "textarea", obrigatorio: true },
+      { campo: "Recomendacoes", rotulo: "Recomendações e Sugestões (texto introdutório)", tipo: "textarea" },
+      { campo: "Conclusao", rotulo: "Conclusão", tipo: "textarea", obrigatorio: true },
+    ];
   }
 
   // ------------------------------------------------------------------
@@ -1800,6 +1855,509 @@
         },
       ], "📎 Documentos da AET")
     );
+  }
+
+  // ------------------------------------------------------------------
+  // Geracao do Laudo em PDF (replica as sub-telas "Emissor"/"Editor de
+  // Texto"/"Certificado de Calibracao" do sistema legado - ver
+  // docs/bi-ergonomia-manual.md, secao Laudos). Estrutura preservada
+  // (capa, sumario, apresentacao/demanda, metodologia, taxonomia de fatores
+  // de risco, matriz de severidade/probabilidade/risco, recomendacoes, um
+  // bloco por Posto de Trabalho com um sub-bloco por fator de risco
+  // identificado, conclusao com NR-17/Portaria MTB 3.214/MTP 4.219 e
+  // assinatura) - so o LAYOUT e novo (paginas em branco, boa hierarquia
+  // tipografica, badges coloridos de nivel de risco, tabelas de verdade em
+  // vez de imagem estatica). O "Emitido Por" de cada Laudo e quem assina -
+  // NUNCA um nome/registro profissional fixo no template (o layout e
+  // generico, reaproveitado por qualquer ergonomista da ElevaLife).
+  //
+  // Renderiza em 2 passadas com o MESMO conteudo (documento "seco" primeiro,
+  // so pra descobrir em que pagina cada secao comeca) porque o Sumario
+  // precisa citar o numero de pagina de secoes que so existem MAIS ADIANTE
+  // no PDF - jsPDF nao permite "voltar" e reescrever uma pagina ja
+  // finalizada. As 2 passadas produzem o mesmo numero de paginas porque
+  // usam exatamente o mesmo conteudo/entradas.
+  async function gerarLaudoPDF(opcoes) {
+    const jsPDFCtor = window.jspdf && window.jspdf.jsPDF;
+    if (!jsPDFCtor) {
+      throw new Error("A biblioteca de geração de PDF não carregou (script externo bloqueado ou indisponível).");
+    }
+    const Calc = window.BI.Calc;
+    const dados = window.BI.dados;
+    const modelo = (dados.modeloLaudo || [])[0] || {};
+    const nomeMatriz = Calc.matrizDoCliente(dados.cliente, opcoes.nomeCliente);
+    const escala = Calc.escalaDaMatriz(nomeMatriz);
+    const docCliente = (dados.cliente || []).find((c) => c.Cliente === opcoes.nomeCliente) || {};
+
+    const avaliacoes = (dados.avaliacaoErgonomica || []).filter((a) => {
+      if (a.Cliente !== opcoes.nomeCliente) return false;
+      if (opcoes.setor && a.Setor !== opcoes.setor) return false;
+      if (opcoes.postoTrabalho && a["Posto Trabalho"] !== opcoes.postoTrabalho) return false;
+      return true;
+    });
+    if (!avaliacoes.length) {
+      throw new Error("Nenhuma Avaliação Ergonômica cadastrada para esse Cliente/Setor/Posto - cadastre a Avaliação Ergonômica antes de gerar o laudo.");
+    }
+
+    function fatoresDoPosto(av) {
+      return (dados.fatorRisco || []).filter((f) =>
+        f.Cliente === av.Cliente && f.Unidade === av.Unidade && f.Setor === av.Setor &&
+        f.Cargo === av.Cargo && f["Posto Trabalho"] === av["Posto Trabalho"] && f.Atividade === av.Atividade &&
+        f["Existe Fator Risco"] === "Sim"
+      );
+    }
+    const certificado = opcoes.incluirCertificado && opcoes.nomeCertificado
+      ? (dados.certificadoCalibracao || []).find((c) => c.Nome === opcoes.nomeCertificado)
+      : null;
+
+    function corDoNivel(nivel) {
+      const n = String(nivel || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+      if (n.includes("muito alto") || n.includes("altissimo")) return [140, 0, 0];
+      if (n.includes("alto")) return [196, 0, 0];
+      if (n.includes("moder") || n.includes("medio") || n.includes("toler")) return [219, 164, 0];
+      return [36, 131, 110]; // baixo / muito baixo
+    }
+    function rotuloSimNao(v) { return v === "Nao" ? "Não" : v === "Sim" ? "Sim" : v || "-"; }
+
+    // Constroi o documento inteiro (capa -> sumario -> corpo -> conclusao).
+    // gravando=true: so mede, registrando em mapaPaginas em que pagina cada
+    // secao top-level comecou (nao produz o PDF final). gravando=false: usa
+    // o mapaPaginas ja preenchido pra escrever os numeros certos no Sumario.
+    function construirDocumento(doc, mapaPaginas, gravando) {
+      const margem = 42;
+      const larguraPagina = doc.internal.pageSize.getWidth();
+      const alturaPagina = doc.internal.pageSize.getHeight();
+      const larguraUtil = larguraPagina - margem * 2;
+      let y = margem;
+      let pagina = 1;
+
+      function novaPagina() { doc.addPage(); pagina++; y = margem; }
+      function garantirEspaco(altura) { if (y + altura > alturaPagina - margem) novaPagina(); }
+      function registrar(chaveSecao) { if (gravando) mapaPaginas[chaveSecao] = pagina; }
+
+      function tituloSecao(texto) {
+        garantirEspaco(38);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.setTextColor(36, 131, 110);
+        doc.text(texto, margem, y);
+        y += 8;
+        doc.setDrawColor(36, 131, 110);
+        doc.setLineWidth(1.2);
+        doc.line(margem, y, margem + larguraUtil, y);
+        doc.setLineWidth(0.5);
+        y += 18;
+      }
+      function subtitulo(texto) {
+        garantirEspaco(20);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(40, 40, 40);
+        doc.text(texto, margem, y);
+        y += 16;
+      }
+      function paragrafo(texto, opts) {
+        opts = opts || {};
+        doc.setFont("helvetica", opts.negrito ? "bold" : "normal");
+        doc.setFontSize(opts.tamanho || 10);
+        doc.setTextColor.apply(doc, opts.cor || [55, 55, 55]);
+        const linhas = doc.splitTextToSize(String(texto || "-"), larguraUtil - (opts.recuo || 0));
+        garantirEspaco(linhas.length * (opts.altura || 13) + 4);
+        doc.text(linhas, margem + (opts.recuo || 0), y);
+        y += linhas.length * (opts.altura || 13) + (opts.espacoDepois != null ? opts.espacoDepois : 8);
+      }
+      function campoValor(rotulo, valor) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9.5);
+        const larguraRotulo = doc.getTextWidth(rotulo + ":  ");
+        const linhas = doc.splitTextToSize(String(valor == null || valor === "" ? "-" : valor), larguraUtil - larguraRotulo);
+        garantirEspaco(linhas.length * 12 + 4);
+        doc.setTextColor(90, 90, 90);
+        doc.text(rotulo + ":", margem, y);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(30, 30, 30);
+        doc.text(linhas, margem + larguraRotulo, y);
+        y += Math.max(linhas.length, 1) * 12 + 3;
+      }
+      function badge(texto, cor) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        const largura = doc.getTextWidth(texto) + 14;
+        garantirEspaco(18);
+        doc.setFillColor.apply(doc, cor);
+        doc.roundedRect(margem, y - 10, largura, 15, 3, 3, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.text(texto, margem + 7, y);
+        doc.setTextColor(30, 30, 30);
+        y += 20;
+      }
+      // Tabela generica (cabecalho colorido + linhas zebradas). Cada celula
+      // de "linhas" e um texto simples OU { texto, cor: [r,g,b] } pra pintar
+      // o fundo da celula (usado na Matriz de Risco e nas graduacoes).
+      function tabela(cabecalhos, linhas, larguras) {
+        const altura = 18;
+        garantirEspaco(altura * (linhas.length + 1) + 6);
+        let x = margem;
+        doc.setFillColor(36, 131, 110);
+        doc.rect(margem, y, larguraUtil, altura, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(255, 255, 255);
+        cabecalhos.forEach((c, i) => { doc.text(String(c), x + 5, y + altura - 6); x += larguras[i]; });
+        y += altura;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        linhas.forEach((linha, idx) => {
+          garantirEspaco(altura);
+          if (idx % 2 === 1) { doc.setFillColor(244, 246, 245); doc.rect(margem, y, larguraUtil, altura, "F"); }
+          x = margem;
+          linha.forEach((celula, i) => {
+            if (celula && typeof celula === "object") {
+              doc.setFillColor.apply(doc, celula.cor);
+              doc.rect(x + 1, y + 1, larguras[i] - 2, altura - 2, "F");
+              doc.setTextColor(255, 255, 255);
+              doc.text(String(celula.texto), x + 5, y + altura - 6);
+              doc.setTextColor(40, 40, 40);
+            } else {
+              doc.setTextColor(40, 40, 40);
+              doc.text(String(celula == null ? "-" : celula), x + 5, y + altura - 6);
+            }
+            x += larguras[i];
+          });
+          y += altura;
+        });
+        doc.setDrawColor(215, 215, 215);
+        doc.rect(margem, y - altura * (linhas.length + 1), larguraUtil, altura * (linhas.length + 1));
+        y += 12;
+      }
+
+      const apenasAvaliacao = opcoes.apenasPaginasAvaliacao === "Sim";
+
+      // ---------------- Capa ----------------
+      if (!apenasAvaliacao) {
+        registrar("capa");
+        doc.setFillColor(36, 131, 110);
+        doc.rect(0, 0, larguraPagina, 130, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(22);
+        doc.setTextColor(255, 255, 255);
+        doc.text("ElevaLife", margem, 60);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "normal");
+        doc.text("BI Ergonomia - Sistema de Gestão Integrada", margem, 82);
+        y = 190;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(24);
+        doc.setTextColor(30, 30, 30);
+        const linhasTitulo = doc.splitTextToSize("Laudo de Análise Ergonômica do Trabalho", larguraUtil);
+        doc.text(linhasTitulo, margem, y);
+        y += linhasTitulo.length * 28 + 20;
+        doc.setDrawColor(36, 131, 110);
+        doc.setLineWidth(1.5);
+        doc.line(margem, y, margem + larguraUtil, y);
+        y += 30;
+        campoValor("Cliente", opcoes.nomeCliente);
+        campoValor("Tipo", opcoes.tipo || "Laudo");
+        if (opcoes.setor) campoValor("Setor", opcoes.setor);
+        if (opcoes.postoTrabalho) campoValor("Posto de Trabalho", opcoes.postoTrabalho);
+        campoValor("Data de Emissão", opcoes.emitidoEm ? new Date(opcoes.emitidoEm + "T00:00:00").toLocaleDateString("pt-BR") : new Date().toLocaleDateString("pt-BR"));
+        campoValor("Emitido por", opcoes.emitidoPor || "Responsável Técnico ElevaLife");
+        campoValor("Norma de Referência", "NR-17 (Ergonomia) - Ministério do Trabalho e Emprego");
+
+        // ---------------- Sumario ----------------
+        novaPagina();
+        registrar("sumario");
+        tituloSecao("Sumário");
+        const itensSumario = [
+          ["1. Apresentação e Demanda do Trabalho", "apresentacao"],
+          ["2. Métodos e Metodologia Utilizada", "metodologia"],
+          ["3. Fatores de Risco Avaliados (ISO TS-20646)", "taxonomia"],
+          ["4. Matriz de Severidade, Probabilidade e Risco", "matrizes"],
+          ["5. Recomendações e Sugestões", "recomendacoes"],
+        ];
+        avaliacoes.forEach((av, i) => {
+          itensSumario.push([`6.${i + 1} ${av.Setor} - ${av["Posto Trabalho"]}`, "posto-" + i]);
+        });
+        itensSumario.push(["7. Conclusão", "conclusao"]);
+        doc.setFontSize(10);
+        itensSumario.forEach(([rotulo, chaveSecao]) => {
+          garantirEspaco(18);
+          const numeroPag = mapaPaginas[chaveSecao] != null ? String(mapaPaginas[chaveSecao]) : "-";
+          doc.setFont("helvetica", chaveSecao.indexOf("posto-") === 0 ? "normal" : "bold");
+          doc.setFontSize(chaveSecao.indexOf("posto-") === 0 ? 9.5 : 10.5);
+          doc.setTextColor(40, 40, 40);
+          const larguraNumero = doc.getTextWidth(numeroPag);
+          const larguraTitulo = doc.getTextWidth(rotulo);
+          doc.text(rotulo, margem, y);
+          const larguraPontos = larguraUtil - larguraTitulo - larguraNumero - 10;
+          if (larguraPontos > 0) {
+            const larguraPonto = doc.getTextWidth(".");
+            const qtdPontos = Math.max(0, Math.floor(larguraPontos / larguraPonto));
+            doc.setTextColor(190, 190, 190);
+            doc.text(".".repeat(qtdPontos), margem + larguraTitulo + 4, y);
+          }
+          doc.setTextColor(40, 40, 40);
+          doc.text(numeroPag, margem + larguraUtil - larguraNumero, y);
+          y += 18;
+        });
+
+        // ---------------- Apresentacao / Demanda ----------------
+        novaPagina();
+        registrar("apresentacao");
+        tituloSecao("1. Apresentação e Demanda do Trabalho");
+        paragrafo(
+          modelo.Apresentacao ||
+            `A ElevaLife foi contratada pela empresa ${opcoes.nomeCliente} para realizar a Análise Ergonômica do Trabalho (AET), em atendimento à Norma Regulamentadora NR-17 (Ergonomia), com o objetivo de identificar, avaliar e propor medidas de controle para os fatores de risco ergonômico presentes nos postos de trabalho analisados.`
+        );
+
+        // ---------------- Metodologia ----------------
+        novaPagina();
+        registrar("metodologia");
+        tituloSecao("2. Métodos e Metodologia Utilizada");
+        paragrafo(
+          modelo.Metodologia ||
+            "A avaliação seguiu método observacional e entrevistas com os trabalhadores, com base na ISO TS-20646 (Ergonomics - Ergonomics checkpoints for the design of good workstations) e na NR-17, contemplando: entrevista com trabalhadores e lideranças, observação e registro fotográfico das atividades, e identificação sistemática de fatores de risco por posto de trabalho conforme checklist padronizado."
+        );
+
+        // ---------------- Taxonomia dos fatores de risco ----------------
+        novaPagina();
+        registrar("taxonomia");
+        tituloSecao("3. Fatores de Risco Avaliados (ISO TS-20646)");
+        paragrafo("Cada Posto de Trabalho foi avaliado quanto à presença dos seguintes grupos de fatores de risco ergonômico, conforme referência ISO TS-20646 e NR-01:", { espacoDepois: 10 });
+        (Calc.GRUPOS_FATOR_RISCO || []).forEach((grupo) => {
+          garantirEspaco(16);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.setTextColor(36, 131, 110);
+          doc.text("• " + grupo, margem, y);
+          y += 14;
+          (Calc.fatoresDoGrupo ? Calc.fatoresDoGrupo(grupo) : []).forEach((item) => {
+            paragrafo(item, { recuo: 14, tamanho: 9, cor: [80, 80, 80], altura: 11, espacoDepois: 3 });
+          });
+          y += 4;
+        });
+
+        // ---------------- Matrizes ----------------
+        novaPagina();
+        registrar("matrizes");
+        tituloSecao("4. Matriz de Severidade, Probabilidade e Risco");
+        paragrafo(`Matriz de Risco em uso para ${opcoes.nomeCliente}: ${nomeMatriz} (conforme NR-01 - Gerenciamento de Riscos Ocupacionais).`, { espacoDepois: 10 });
+        subtitulo("Matriz de Risco (Probabilidade × Gravidade)");
+        const larguraColMatriz = larguraUtil / (escala.length + 1);
+        const cabecalhoMatriz = ["Prob. \\ Gravidade"].concat(escala);
+        const linhasMatriz = escala.map((probabilidade) => {
+          const linha = [probabilidade];
+          escala.forEach((gravidade) => {
+            const nivel = Calc.nivelDaMatriz(nomeMatriz, probabilidade, gravidade);
+            const pontos = Calc.pontuacaoDaMatriz(nomeMatriz, probabilidade, gravidade);
+            linha.push({ texto: `${pontos} - ${nivel}`, cor: corDoNivel(nivel) });
+          });
+          return linha;
+        });
+        tabela(cabecalhoMatriz, linhasMatriz, [larguraColMatriz].concat(escala.map(() => larguraColMatriz)));
+
+        // ---------------- Recomendacoes (intro) ----------------
+        novaPagina();
+        registrar("recomendacoes");
+        tituloSecao("5. Recomendações e Sugestões");
+        paragrafo(
+          modelo.Recomendacoes ||
+            "As medidas de controle e ações recomendadas a seguir devem ser priorizadas conforme a graduação de risco identificada em cada Posto de Trabalho, buscando eliminar ou reduzir a exposição aos fatores de risco ergonômico apontados nesta análise."
+        );
+        if (certificado) {
+          novaPagina();
+          subtitulo("Certificado de Calibração do Instrumento Utilizado");
+          campoValor("Instrumento", certificado.Nome);
+          if (certificado.Validade) campoValor("Validade da Calibração", new Date(certificado.Validade + "T00:00:00").toLocaleDateString("pt-BR"));
+          if (certificado["Arquivo Imagem"] && certificado["Arquivo Imagem"].chave) {
+            paragrafo("(imagem do certificado anexada ao cadastro do instrumento - ver Certificados de Calibração)", { tamanho: 8.5, cor: [120, 120, 120] });
+          }
+        }
+      }
+
+      // ---------------- Um bloco por Posto de Trabalho ----------------
+      avaliacoes.forEach((av, i) => {
+        novaPagina();
+        registrar("posto-" + i);
+        tituloSecao(`6.${i + 1} ${av.Setor} - ${av["Posto Trabalho"]}`);
+        campoValor("Unidade", av.Unidade);
+        campoValor("Cargo", av.Cargo);
+        campoValor("Atividade", av.Atividade);
+        campoValor("Jornada de Trabalho", av["Jornada de Trabalho"]);
+        campoValor("Pausas", av.Pausas);
+        campoValor("Rodízio", av.Rodizio);
+        if (av["Historico Acidentes"]) campoValor("Histórico de Acidentes", av["Historico Acidentes"]);
+        y += 4;
+        if (av["Descricao Setor"]) {
+          subtitulo("Descrição do Setor");
+          paragrafo(av["Descricao Setor"]);
+        }
+        if (av["Descricao Atividade Observada"]) {
+          subtitulo("Descrição da Atividade (Tarefa Real Observada)");
+          paragrafo(av["Descricao Atividade Observada"]);
+        }
+        if (av["Caracteristicas Trabalhadores"]) {
+          subtitulo("Características dos Trabalhadores");
+          paragrafo(av["Caracteristicas Trabalhadores"]);
+        }
+
+        const fatores = fatoresDoPosto(av);
+        if (!fatores.length) {
+          paragrafo("Nenhum fator de risco com \"Existe Fator de Risco: Sim\" cadastrado para este Posto de Trabalho.", { cor: [140, 140, 140], tamanho: 9 });
+        }
+        fatores.forEach((fr, j) => {
+          garantirEspaco(30);
+          subtitulo(`6.${i + 1}.${j + 1} ${fr.Grupo} - ${fr.Fator}`);
+          if (fr["Circunstancia Geradora"]) campoValor("Circunstância Geradora", fr["Circunstancia Geradora"]);
+          if (fr.Consequencia) campoValor("Consequência", fr.Consequencia);
+          if (fr["Medida Controle Existente"]) campoValor("Medida de Controle Existente", fr["Medida Controle Existente"]);
+          const pontos = fr["Pontuacao Risco"] != null ? fr["Pontuacao Risco"] : Calc.pontuacaoDaMatriz(nomeMatriz, fr.Probabilidade, fr.Criticidade);
+          const graduacao = fr["Graduacao Risco"] || Calc.nivelDaMatriz(nomeMatriz, fr.Probabilidade, fr.Criticidade);
+          campoValor("Criticidade (Gravidade)", fr.Criticidade);
+          campoValor("Probabilidade", fr.Probabilidade);
+          campoValor("Pontuação de Risco", pontos != null ? String(pontos) : "-");
+          if (graduacao) badge(graduacao, corDoNivel(graduacao));
+          campoValor("Propor Ação?", rotuloSimNao(fr["Propor Acao"]));
+          if (fr["Acao Eliminacao"]) campoValor("Ação para Eliminação", fr["Acao Eliminacao"]);
+          if (fr["Controles Administrativos"]) campoValor("Controles Administrativos e Organizacionais", fr["Controles Administrativos"]);
+          y += 6;
+        });
+      });
+
+      // ---------------- Conclusao ----------------
+      novaPagina();
+      registrar("conclusao");
+      tituloSecao("7. Conclusão");
+      paragrafo(
+        modelo.Conclusao ||
+          "Com base na análise realizada, recomenda-se a adoção das medidas de controle sugeridas neste laudo, priorizadas conforme a graduação de risco de cada Posto de Trabalho, em atendimento à NR-17 (Ergonomia) e à Portaria MTb nº 3.214/1978 e à Portaria MTP nº 4.219 (Gerenciamento de Riscos Ocupacionais)."
+      );
+      y += 30;
+      garantirEspaco(60);
+      doc.setDrawColor(120, 120, 120);
+      doc.line(margem, y, margem + 220, y);
+      y += 14;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(30, 30, 30);
+      doc.text(opcoes.emitidoPor || "Responsável Técnico ElevaLife", margem, y);
+      y += 13;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(90, 90, 90);
+      doc.text("ElevaLife - BI Ergonomia", margem, y);
+
+      // ---------------- Rodape (so na passada final) ----------------
+      if (!gravando) {
+        const totalPaginas = doc.internal.getNumberOfPages();
+        for (let p = 1; p <= totalPaginas; p++) {
+          doc.setPage(p);
+          if (p === 1 && !apenasAvaliacao) continue; // capa sem rodape
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(150, 150, 150);
+          doc.text(`${opcoes.nomeCliente} - Laudo Ergonômico`, margem, alturaPagina - 20);
+          doc.text(`Página ${p} de ${totalPaginas}`, margem + larguraUtil - doc.getTextWidth(`Página ${p} de ${totalPaginas}`), alturaPagina - 20);
+        }
+      }
+      return pagina;
+    }
+
+    const docSeco = new jsPDFCtor({ unit: "pt", format: "a4" });
+    const mapaPaginas = {};
+    construirDocumento(docSeco, mapaPaginas, true);
+
+    const doc = new jsPDFCtor({ unit: "pt", format: "a4" });
+    construirDocumento(doc, mapaPaginas, false);
+    // "arraybuffer" (nunca "blob"): os bytes puros funcionam em qualquer
+    // contexto que monte o File/Blob final (ver ligarGeracaoLaudo) - um
+    // Blob construido aqui dentro do jsPDF podia acabar de um "realm"
+    // diferente do File criado logo depois, o que corrompe silenciosamente
+    // o conteudo (virava um arquivo de poucos bytes).
+    return doc.output("arraybuffer");
+  }
+
+  // Injeta o botao "Gerar Laudo (PDF)" na tela de Laudos - combinado com a
+  // cascata Cliente/Setor/Posto (ver comCascata(ligarGeracaoLaudo) em
+  // CADASTROS_CONFIG.laudo). Ao clicar: monta o PDF com gerarLaudoPDF() a
+  // partir dos dados ja cadastrados (Avaliacao Ergonomica + Fatores de
+  // Risco) e anexa o resultado no campo "Arquivo Url" do proprio formulario
+  // - reaproveitando o MESMO caminho de upload usado pelo <input
+  // type="file"> manual (ver campoFake.anexarArquivos em
+  // construirCampoArquivo), sem duplicar a logica de envio.
+  function ligarGeracaoLaudo(form) {
+    const corpo = form.querySelector(".form-cadastro-corpo") || form;
+    const wrapBotao = document.createElement("div");
+    wrapBotao.className = "campo-form campo-form-largo";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-cad-secundario";
+    btn.textContent = "📄 Gerar Laudo (PDF)";
+    const avisoEl = document.createElement("div");
+    avisoEl.className = "campo-arquivo-aviso";
+    avisoEl.hidden = true;
+    wrapBotao.appendChild(btn);
+    wrapBotao.appendChild(avisoEl);
+    corpo.insertBefore(wrapBotao, corpo.firstChild);
+
+    function mostrarAviso(msg, ehErro) {
+      avisoEl.textContent = msg || "";
+      avisoEl.hidden = !msg;
+      avisoEl.style.color = ehErro ? "var(--vinho)" : "";
+    }
+
+    btn.addEventListener("click", async () => {
+      const elCliente = form._campos["Cliente"];
+      const nomeCliente = elCliente ? elCliente.value : "";
+      if (!nomeCliente) {
+        mostrarAviso("Selecione o Cliente antes de gerar o laudo.", true);
+        return;
+      }
+      const empresaId = resolverEmpresaIdDoForm(form);
+      const opcoes = {
+        empresaId,
+        nomeCliente,
+        tipo: form._campos["Tipo"] ? form._campos["Tipo"].value : "Laudo",
+        setor: form._campos["Setor"] ? form._campos["Setor"].value : "",
+        postoTrabalho: form._campos["Posto Trabalho"] ? form._campos["Posto Trabalho"].value : "",
+        apenasPaginasAvaliacao: form._campos["Apenas Paginas Avaliacao"] ? form._campos["Apenas Paginas Avaliacao"].value : "",
+        incluirCertificado: form._campos["Incluir Certificado Calibracao"] ? form._campos["Incluir Certificado Calibracao"].value === "Sim" : false,
+        nomeCertificado: form._campos["Certificado Calibracao"] ? form._campos["Certificado Calibracao"].value : "",
+        emitidoPor: form._campos["Emitido Por"] ? form._campos["Emitido Por"].value : "",
+        emitidoEm: form._campos["Emitido Em"] ? form._campos["Emitido Em"].value : "",
+      };
+
+      btn.disabled = true;
+      mostrarAviso("Gerando laudo...");
+      try {
+        const bufferPDF = await gerarLaudoPDF(opcoes);
+        const dataArquivo = hojeMeiaNoite().toISOString().slice(0, 10);
+        const nomeArquivo = `laudo-${slug(nomeCliente)}-${dataArquivo}.pdf`;
+        const arquivoGerado = new File([bufferPDF], nomeArquivo, { type: "application/pdf" });
+
+        const campoArquivo = form._campos["Arquivo Url"];
+        if (campoArquivo && campoArquivo.anexarArquivos) {
+          if (!window.BI.DB.estado.modoApi) {
+            mostrarAviso("Laudo gerado - upload automatico so na versao publicada (producao). Baixando o PDF...");
+            const url = URL.createObjectURL(new Blob([bufferPDF], { type: "application/pdf" }));
+            const link = document.createElement("a");
+            link.href = url; link.download = nomeArquivo;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          } else {
+            await campoArquivo.anexarArquivos([arquivoGerado], empresaId || "GLOBAL");
+            mostrarAviso("Laudo gerado e anexado com sucesso.");
+          }
+        }
+        if (form._campos["Emitido Em"] && !form._campos["Emitido Em"].value) {
+          form._campos["Emitido Em"].value = hojeMeiaNoite().toISOString().slice(0, 10);
+        }
+      } catch (erro) {
+        mostrarAviso(erro && erro.message ? erro.message : "Falha ao gerar o laudo.", true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
   }
 
   function sugestoes(campo) {
@@ -2240,7 +2798,9 @@
       colunasTabela: ["Cliente", "Tipo", "Emitido Em", "Emitido Por"],
       colunasData: ["Emitido Em"], camposData: ["Emitido Em"],
       campos: camposLaudo(),
-      aoConstruir: comCascata(null),
+      // Alem da cascata Cliente/Setor/Posto (comCascata), injeta o botao
+      // "Gerar Laudo (PDF)" - ver ligarGeracaoLaudo.
+      aoConstruir: comCascata(ligarGeracaoLaudo),
     },
     // AET (Analise Ergonomica do Trabalho) - hoje feita fora do sistema
     // (Excel/PDF) e so anexada aqui; o cadastro le e classifica o conteudo
@@ -2254,6 +2814,25 @@
       campos: camposAET(),
       aoConstruir: comCascata(null),
     },
+    // Certificado de Calibracao e Editor de Texto do Laudo (telas "Emissor" /
+    // sub-telas do Laudo do sistema legado) - bibliotecas GLOBAIS (nao
+    // presas a uma empresa-cliente, ver COLECOES_GLOBAIS no backend e
+    // camposCertificadoCalibracao/camposModeloLaudo acima). Por isso, sem
+    // "aoConstruir": nao ha cascata Cliente/Unidade/... nenhuma aqui.
+    certificadoCalibracao: {
+      grupo: "registro", icone: "📐", tituloMenu: "Certificado Calibração",
+      titulo: "Certificados de Calibração (biblioteca de instrumentos)",
+      colunasTabela: ["Nome", "Validade"],
+      colunasData: ["Validade"], camposData: ["Validade"],
+      campos: camposCertificadoCalibracao(),
+    },
+    modeloLaudo: {
+      grupo: "registro", icone: "📝", tituloMenu: "Editor de Texto",
+      titulo: "Editor de Texto do Laudo (modelo padrão reaproveitado em todo laudo gerado)",
+      colunasTabela: ["Nome"],
+      colunasData: [], camposData: [],
+      campos: camposModeloLaudo(),
+    },
   };
 
   const estadoCadastro = {};
@@ -2264,7 +2843,14 @@
   // jeito que db.js/anexarEmpresaId() resolve na hora de salvar o registro.
   function resolverEmpresaIdDoForm(form) {
     const elCliente = form._campos["Cliente"];
-    const nomeCliente = elCliente ? elCliente.value : null;
+    // Cadastros GLOBAIS (Certificado de Calibracao, Modelo de Laudo - ver
+    // js/db.js/COLECOES e docs/bi-ergonomia-manual.md, secao Laudos) nao tem
+    // campo "Cliente" nenhum: sao uma biblioteca unica compartilhada por
+    // todas as empresas-cliente, entao sempre gravam com o EmpresaId fixo
+    // "GLOBAL" (mesmo sentinel do backend, ver api/src/functions/entidades.js
+    // EMPRESA_GLOBAL).
+    if (!elCliente) return "GLOBAL";
+    const nomeCliente = elCliente.value;
     if (!nomeCliente) return null;
     const doc = (window.BI.DB.estado.colecoes.cliente || []).find((c) => c.Cliente === nomeCliente);
     return doc ? doc.id || doc._id : null;
@@ -2371,33 +2957,30 @@
     }
     renderizarLista();
 
-    if (!window.BI.DB.estado.modoApi) {
-      mostrarAviso("Upload de arquivo disponivel so na versao publicada (producao).");
-      return wrap;
-    }
-
-    const input = document.createElement("input");
-    input.type = "file";
-    if (def.aceitaTipos) input.accept = def.aceitaTipos;
-    if (def.multiplo) input.multiple = true;
-
-    input.addEventListener("change", async () => {
-      const arquivos = Array.from(input.files || []);
-      input.value = "";
+    // Envia uma lista de arquivos (validar tamanho -> classificar por
+    // conteudo se aplicavel -> gravar no Blob -> anexar ao campo -> atualizar
+    // a lista visivel). Extraido do listener do <input type="file"> abaixo
+    // pra poder ser chamado tambem programaticamente - ex.: o botao "Gerar
+    // Laudo (PDF)" (ver ligarGeracaoLaudo) usa o mesmo caminho de upload pra
+    // anexar o PDF gerado no campo "Arquivo Url", sem duplicar essa logica.
+    // empresaIdForcado permite chamar isso fora do fluxo normal do form (ex.:
+    // geracao de laudo, que ja sabe o EmpresaId sem depender do campo
+    // "Cliente" estar preenchido nesse form especifico).
+    async function anexarArquivos(arquivos, empresaIdForcado) {
+      arquivos = Array.from(arquivos || []);
       if (!arquivos.length) return;
 
-      const empresaId = resolverEmpresaIdDoForm(form);
+      const empresaId = empresaIdForcado || resolverEmpresaIdDoForm(form);
       if (!empresaId) {
         mostrarAviso("Selecione o Cliente antes de anexar arquivo.");
-        return;
+        throw new Error("Selecione o Cliente antes de anexar arquivo.");
       }
       if (!def.multiplo && arquivos.length > 1) {
         mostrarAviso("So e permitido 1 arquivo aqui.");
-        return;
+        throw new Error("So e permitido 1 arquivo aqui.");
       }
 
       mostrarAviso("Enviando...");
-      input.disabled = true;
       try {
         for (const arquivo of arquivos) {
           if (def.tamanhoMaximoBytes && arquivo.size > def.tamanhoMaximoBytes) {
@@ -2435,6 +3018,33 @@
           campoFake.value = def.multiplo ? itensAtuais().concat([item]) : item;
         }
         mostrarAviso(null);
+      } finally {
+        renderizarLista();
+      }
+    }
+    // Ponto de entrada programatico (ver comentario acima) - usado pelo
+    // gerador de Laudo pra anexar o PDF/imagem gerado sem passar pelo
+    // <input type="file"> manual.
+    campoFake.anexarArquivos = anexarArquivos;
+
+    if (!window.BI.DB.estado.modoApi) {
+      mostrarAviso("Upload de arquivo disponivel so na versao publicada (producao).");
+      return wrap;
+    }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    if (def.aceitaTipos) input.accept = def.aceitaTipos;
+    if (def.multiplo) input.multiple = true;
+
+    input.addEventListener("change", async () => {
+      const arquivos = Array.from(input.files || []);
+      input.value = "";
+      if (!arquivos.length) return;
+
+      input.disabled = true;
+      try {
+        await anexarArquivos(arquivos);
       } catch (erro) {
         mostrarAviso(erro.message || "Falha ao enviar arquivo.");
       } finally {

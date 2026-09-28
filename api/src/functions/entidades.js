@@ -31,7 +31,21 @@ const COLECOES = [
   "mapaRisco", "planoAcao", "absenteismo", "compativeis",
   "avaliacaoErgonomica", "fatorRisco", "laudo",
   "aet",
+  // Certificados de Calibracao e o Modelo de texto do Laudo (Emissor/Editor
+  // de Texto - ver docs/bi-ergonomia-manual.md, secao Laudos) sao GLOBAIS -
+  // compartilhados entre todas as empresas-cliente (a ElevaLife tem 1 so
+  // conjunto de certificados de instrumento e 1 modelo de texto reaproveitado
+  // em todo laudo que gera), nunca filtrados por EmpresaId - ver
+  // COLECOES_GLOBAIS abaixo.
+  "certificadoCalibracao", "modeloLaudo",
 ];
+
+// Colecoes sem dono (nenhuma amarrada a uma empresa-cliente especifica) -
+// todo usuario autenticado com papel liberado ve e edita, independente de
+// quais empresas estao vinculadas a ele. Gravadas sempre com
+// EmpresaId=EMPRESA_GLOBAL (constante fixa, nunca uma empresa real).
+const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo"];
+const EMPRESA_GLOBAL = "GLOBAL";
 
 // "me" e "usuarios" sao despachadas aqui dentro (em vez de cada uma ter seu
 // proprio app.http()) porque em producao a rota generica "{colecao}/{id?}"
@@ -53,6 +67,10 @@ async function lerPorId(container, id) {
 }
 
 async function listarComFiltro(container, colecao, identidade) {
+  if (COLECOES_GLOBAIS.includes(colecao)) {
+    const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
+    return resources;
+  }
   const empresas = empresasVisiveis(identidade);
   if (empresas === null) {
     const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
@@ -104,7 +122,8 @@ async function tratar(request, context) {
       case "GET": {
         if (id) {
           const item = await lerPorId(container, id);
-          if (!item || !podeVerDocumento(identidade, colecao, item)) {
+          const visivel = item && (COLECOES_GLOBAIS.includes(colecao) || podeVerDocumento(identidade, colecao, item));
+          if (!visivel) {
             return { status: 404, jsonBody: { erro: "Nao encontrado." } };
           }
           return { jsonBody: item };
@@ -117,11 +136,13 @@ async function tratar(request, context) {
         if (colecao === "cliente" && identidade.papel !== "Administrador") {
           return { status: 403, jsonBody: { erro: "So Administrador pode cadastrar uma nova empresa-cliente." } };
         }
-        const empresaId = colecao === "cliente" ? corpo.EmpresaId || crypto.randomUUID() : corpo.EmpresaId;
+        const empresaId = colecao === "cliente"
+          ? corpo.EmpresaId || crypto.randomUUID()
+          : COLECOES_GLOBAIS.includes(colecao) ? EMPRESA_GLOBAL : corpo.EmpresaId;
         if (!empresaId) {
           return { status: 400, jsonBody: { erro: "EmpresaId e obrigatorio." } };
         }
-        if (!podeVerEmpresa(identidade, empresaId)) {
+        if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerEmpresa(identidade, empresaId)) {
           return { status: 403, jsonBody: { erro: "Sem permissao para gravar nesta empresa." } };
         }
         const doc = Object.assign({}, corpo, { id: corpo.id || crypto.randomUUID(), EmpresaId: empresaId });
@@ -133,12 +154,14 @@ async function tratar(request, context) {
         if (!id) return { status: 400, jsonBody: { erro: "Id e obrigatorio para atualizar." } };
         const existente = await lerPorId(container, id);
         if (!existente) return { status: 404, jsonBody: { erro: "Nao encontrado." } };
-        if (!podeVerDocumento(identidade, colecao, existente)) {
+        if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerDocumento(identidade, colecao, existente)) {
           return { status: 403, jsonBody: { erro: "Sem permissao." } };
         }
         const corpo = await request.json();
-        const empresaIdFinal = colecao === "cliente" ? empresaIdDoDocumento(colecao, existente) : corpo.EmpresaId || existente.EmpresaId;
-        if (!podeVerEmpresa(identidade, empresaIdFinal)) {
+        const empresaIdFinal = colecao === "cliente"
+          ? empresaIdDoDocumento(colecao, existente)
+          : COLECOES_GLOBAIS.includes(colecao) ? EMPRESA_GLOBAL : corpo.EmpresaId || existente.EmpresaId;
+        if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerEmpresa(identidade, empresaIdFinal)) {
           return { status: 403, jsonBody: { erro: "Sem permissao para gravar nesta empresa." } };
         }
         const doc = Object.assign({}, existente, corpo, { id, EmpresaId: empresaIdFinal });
@@ -150,7 +173,7 @@ async function tratar(request, context) {
         if (!id) return { status: 400, jsonBody: { erro: "Id e obrigatorio para excluir." } };
         const existente = await lerPorId(container, id);
         if (!existente) return { status: 204 };
-        if (!podeVerDocumento(identidade, colecao, existente)) {
+        if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerDocumento(identidade, colecao, existente)) {
           return { status: 403, jsonBody: { erro: "Sem permissao." } };
         }
         if (colecao === "cliente" && identidade.papel !== "Administrador") {

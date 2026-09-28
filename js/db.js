@@ -31,6 +31,11 @@
     // classificacao automatica por conteudo (ver js/calc.js/classificarTextoAET
     // e js/app.js/camposAET).
     "aet",
+    // Laudos (Emissor/Editor de Texto/Certificado de Calibracao - ver
+    // js/app.js/gerarLaudoPDF): "certificadoCalibracao" e "modeloLaudo" sao
+    // GLOBAIS (compartilhados entre todas as empresas), gravados com
+    // EmpresaId="GLOBAL" - ver api/src/functions/entidades.js/COLECOES_GLOBAIS.
+    "certificadoCalibracao", "modeloLaudo",
   ];
 
   const estado = {
@@ -44,6 +49,7 @@
       mapaRisco: [], planoAcao: [], absenteismo: [], compativeis: [],
       cliente: [], unidade: [], setor: [], cargo: [], posto: [], atividade: [],
       avaliacaoErgonomica: [], fatorRisco: [], laudo: [], aet: [],
+      certificadoCalibracao: [], modeloLaudo: [],
     },
     inscricoes: [],
   };

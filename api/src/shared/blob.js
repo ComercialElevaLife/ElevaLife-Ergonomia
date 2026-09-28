@@ -23,6 +23,7 @@ const CONTAINER_POR_COLECAO = {
   avaliacaoErgonomica: "avaliacao-fotos",
   laudo: "laudos-arquivos",
   aet: "aet-arquivos",
+  certificadoCalibracao: "certificados-calibracao",
 };
 
 let clienteBlob = null;
