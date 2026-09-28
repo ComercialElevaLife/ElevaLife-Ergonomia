@@ -1729,8 +1729,81 @@
     );
   }
 
+  // ------------------------------------------------------------------
+  // AET (Analise Ergonomica do Trabalho) - upload de Excel e/ou PDF com
+  // classificacao automatica por CONTEUDO (nunca por extensao/nome de
+  // arquivo - pedido explicito do Leo: o sistema precisa ler o Excel e o
+  // PDF e, com base na leitura, entender o que e cada um). As duas funcoes
+  // abaixo so leem os BYTES do arquivo pra conseguir extrair o texto (isso
+  // e inevitavel - um .xlsx e um .pdf sao formatos binarios diferentes);
+  // qual das 5 classificacoes fixas (ver js/calc.js/NOMES_CLASSIFICACAO_AET)
+  // o conteudo representa e decidido so depois, por classificarTextoAET,
+  // olhando o texto extraido - nao o formato do arquivo.
+  // ------------------------------------------------------------------
+  async function extrairTextoExcel(arquivo) {
+    const buffer = await arquivo.arrayBuffer();
+    const workbook = window.XLSX.read(buffer, { type: "array" });
+    const partes = [];
+    workbook.SheetNames.forEach((nomeAba) => {
+      partes.push("Aba: " + nomeAba);
+      const folha = workbook.Sheets[nomeAba];
+      partes.push(window.XLSX.utils.sheet_to_csv(folha, { blankrows: false }));
+    });
+    // Limite generoso (~40 mil caracteres) so pra nao travar em planilhas
+    // gigantes - o inicio de cada aba (titulos/cabecalhos) ja e suficiente
+    // pra classificar o conteudo.
+    return partes.join("\n").slice(0, 40000);
+  }
+
+  async function extrairTextoPDF(arquivo) {
+    const buffer = await arquivo.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({ data: buffer }).promise;
+    const partes = [];
+    // Poucas paginas (inicio do documento) ja bastam pra identificar o
+    // conteudo (titulo, introducao, cabecalhos de tabela) sem demorar em
+    // PDFs longos.
+    const maxPaginas = Math.min(pdf.numPages, 8);
+    for (let i = 1; i <= maxPaginas; i++) {
+      const pagina = await pdf.getPage(i);
+      const conteudo = await pagina.getTextContent();
+      partes.push(conteudo.items.map((it) => it.str).join(" "));
+    }
+    return partes.join("\n").slice(0, 40000);
+  }
+
+  // Unico ponto de entrada usado pelo campo de upload da AET (ver
+  // camposAET abaixo) - decide so COMO ler os bytes (Excel x PDF), nunca o
+  // QUE o conteudo significa (isso e sempre classificarTextoAET).
+  async function extrairTextoParaClassificacaoAET(arquivo) {
+    const nome = (arquivo.name || "").toLowerCase();
+    const tipo = arquivo.type || "";
+    const ehExcel = /spreadsheet|ms-excel/.test(tipo) || /\.(xlsx|xls)$/.test(nome);
+    return ehExcel ? extrairTextoExcel(arquivo) : extrairTextoPDF(arquivo);
+  }
+
+  function camposAET() {
+    return comSecao(camposChave(), "🧭 Identificação do Posto").concat(
+      comSecao([
+        { campo: "Data Analise", rotulo: "Data da Análise", tipo: "data", obrigatorio: true },
+        { campo: "Ergonomista Responsavel", rotulo: "Ergonomista Responsável", tipo: "texto", obrigatorio: true, sugestoesDe: "Ergonomista Responsavel" },
+        { campo: "Observacoes", rotulo: "Observações Gerais", tipo: "textarea" },
+      ], "🧑‍⚕️ Responsável e Data"),
+      comSecao([
+        {
+          campo: "Arquivos AET",
+          rotulo: "Arquivos da AET (Excel e/ou PDF, até 20MB cada) - o sistema lê o conteúdo de cada arquivo e sugere a classificação automaticamente",
+          tipo: "arquivo", multiplo: true,
+          colecaoArquivo: "aet",
+          aceitaTipos: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/pdf",
+          tamanhoMaximoBytes: 20 * 1024 * 1024,
+          extrairTextoParaClassificacao: extrairTextoParaClassificacaoAET,
+        },
+      ], "📎 Documentos da AET")
+    );
+  }
+
   function sugestoes(campo) {
-    const chaves = ["mapaRisco", "planoAcao", "absenteismo", "compativeis"];
+    const chaves = ["mapaRisco", "planoAcao", "absenteismo", "compativeis", "aet"];
     const set = new Set();
     chaves.forEach((c) => (window.BI.dados[c] || []).forEach((l) => { if (l[campo]) set.add(l[campo]); }));
     return Array.from(set).sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
@@ -2169,6 +2242,18 @@
       campos: camposLaudo(),
       aoConstruir: comCascata(null),
     },
+    // AET (Analise Ergonomica do Trabalho) - hoje feita fora do sistema
+    // (Excel/PDF) e so anexada aqui; o cadastro le e classifica o conteudo
+    // de cada arquivo automaticamente (ver camposAET/extrairTextoParaClassificacaoAET
+    // acima e docs/bi-ergonomia-manual.md, secao AET).
+    aet: {
+      grupo: "registro", icone: "📊", tituloMenu: "AET",
+      titulo: "Análise Ergonômica do Trabalho (AET)",
+      colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Data Analise"],
+      colunasData: ["Data Analise"], camposData: ["Data Analise"],
+      campos: camposAET(),
+      aoConstruir: comCascata(null),
+    },
   };
 
   const estadoCadastro = {};
@@ -2237,6 +2322,30 @@
           chip.appendChild(link);
         }
 
+        // Classificacao por CONTEUDO (so nos campos que declaram
+        // extrairTextoParaClassificacao - hoje, so a AET; ver
+        // js/calc.js/classificarTextoAET e docs/bi-ergonomia-manual.md,
+        // secao AET). Mostra o rotulo detectado automaticamente ao ler o
+        // arquivo e deixa o usuario confirmar ou corrigir - nunca assume o
+        // tipo por extensao, e a escolha final de quem confirma e o que
+        // fica gravado (item.classificacaoConfirmada).
+        if (def.extrairTextoParaClassificacao && item.classificacao !== undefined) {
+          const selClassificacao = document.createElement("select");
+          selClassificacao.className = "campo-arquivo-classificacao";
+          selClassificacao.title = "Classificação do conteúdo deste arquivo (detectada automaticamente pela leitura do Excel/PDF - confira e corrija se necessário)";
+          (window.BI.Calc.NOMES_CLASSIFICACAO_AET || []).forEach((rotulo) => {
+            const opt = document.createElement("option");
+            opt.value = rotulo;
+            opt.textContent = rotulo;
+            selClassificacao.appendChild(opt);
+          });
+          selClassificacao.value = item.classificacaoConfirmada || item.classificacao || "Não identificado";
+          selClassificacao.addEventListener("change", () => {
+            item.classificacaoConfirmada = selClassificacao.value;
+          });
+          chip.appendChild(selClassificacao);
+        }
+
         const btnRemover = document.createElement("button");
         btnRemover.type = "button";
         btnRemover.className = "campo-arquivo-remover";
@@ -2294,6 +2403,24 @@
           if (def.tamanhoMaximoBytes && arquivo.size > def.tamanhoMaximoBytes) {
             throw new Error(`"${arquivo.name}" e maior que o limite de ${(def.tamanhoMaximoBytes / (1024 * 1024)).toFixed(0)} MB.`);
           }
+          // Classificacao por CONTEUDO (nunca por extensao/tipo - ver
+          // js/calc.js/classificarTextoAET e docs/bi-ergonomia-manual.md,
+          // secao AET). So o campo que declara "extrairTextoParaClassificacao"
+          // passa por aqui (hoje: o upload da AET) - os demais cadastros
+          // (Fotos da Avaliacao, Arquivo do Laudo) nao usam isso e seguem
+          // exatamente como antes. Falha ao extrair/classificar nao impede o
+          // upload em si - so fica sem pre-classificacao automatica (usuario
+          // classifica manualmente no select que aparece no chip do arquivo).
+          let classificacaoDetectada;
+          if (def.extrairTextoParaClassificacao) {
+            try {
+              const texto = await def.extrairTextoParaClassificacao(arquivo);
+              classificacaoDetectada = window.BI.Calc.classificarTextoAET(texto);
+            } catch (erroClassificacao) {
+              classificacaoDetectada = "Não identificado";
+            }
+            if (campoFake.aoClassificar) campoFake.aoClassificar(classificacaoDetectada);
+          }
           const resultado = await window.BI.DB.enviarArquivo(def.colecaoArquivo, empresaId, arquivo);
           const item = {
             chave: resultado.chave,
@@ -2301,6 +2428,10 @@
             tamanho: resultado.tamanho,
             tipoConteudo: arquivo.type,
           };
+          if (def.extrairTextoParaClassificacao) {
+            item.classificacao = classificacaoDetectada;
+            item.classificacaoConfirmada = classificacaoDetectada;
+          }
           campoFake.value = def.multiplo ? itensAtuais().concat([item]) : item;
         }
         mostrarAviso(null);

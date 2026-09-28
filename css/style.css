@@ -1296,6 +1296,18 @@ canvas.grafico-interativo { cursor: default; }
 .campo-arquivo-remover:hover { color: var(--vinho); }
 .campo-arquivo-aviso { font-size: 12px; color: var(--cinza-quente); font-style: italic; }
 .campo-arquivo input[type="file"] { font-size: 12.5px; }
+/* Select de classificacao por conteudo (AET - ver js/app.js/construirCampoArquivo
+   e docs/bi-ergonomia-manual.md, secao AET): o chip do arquivo cresce e quebra
+   linha pra caber o select detectado/confirmado abaixo do nome do arquivo. */
+.campo-arquivo-chip:has(.campo-arquivo-classificacao) { max-width: 260px; flex-wrap: wrap; }
+.campo-arquivo-classificacao {
+  flex: 1 1 100%;
+  font-size: 11.5px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--linha);
+  background: #fff;
+}
 
 /* Seletor hierarquico de CID (Capitulo > Grupo > Categoria) - pedido do
    Leo pra achar o codigo certo sem rolar uma lista unica desordenada de

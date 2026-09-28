@@ -27,6 +27,10 @@
     "cliente", "unidade", "setor", "cargo", "posto", "atividade",
     // Pacote "Sistema de Gestao Integrada" (ver docs/bi-ergonomia-manual.md).
     "avaliacaoErgonomica", "fatorRisco", "laudo",
+    // AET (Analise Ergonomica do Trabalho) - upload de Excel/PDF com
+    // classificacao automatica por conteudo (ver js/calc.js/classificarTextoAET
+    // e js/app.js/camposAET).
+    "aet",
   ];
 
   const estado = {
@@ -39,7 +43,7 @@
     colecoes: {
       mapaRisco: [], planoAcao: [], absenteismo: [], compativeis: [],
       cliente: [], unidade: [], setor: [], cargo: [], posto: [], atividade: [],
-      avaliacaoErgonomica: [], fatorRisco: [], laudo: [],
+      avaliacaoErgonomica: [], fatorRisco: [], laudo: [], aet: [],
     },
     inscricoes: [],
   };

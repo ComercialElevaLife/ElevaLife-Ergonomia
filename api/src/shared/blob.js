@@ -22,6 +22,7 @@ const { BlobServiceClient } = require("@azure/storage-blob");
 const CONTAINER_POR_COLECAO = {
   avaliacaoErgonomica: "avaliacao-fotos",
   laudo: "laudos-arquivos",
+  aet: "aet-arquivos",
 };
 
 let clienteBlob = null;

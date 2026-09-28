@@ -42,6 +42,18 @@ const REGRAS_POR_COLECAO = {
     tiposAceitos: ["application/pdf", "image/jpeg", "image/png"],
     tamanhoMaximoBytes: 15 * 1024 * 1024,
   },
+  // AET (Analise Ergonomica do Trabalho): Excel (Mapa de Risco/Plano de Acao)
+  // e/ou PDF (analise narrativa) - o conteudo e lido e classificado no
+  // navegador (ver js/app.js/extrairTextoParaClassificacaoAET), nunca por
+  // esta lista de tipos aceitos, que so controla o que pode ser gravado.
+  aet: {
+    tiposAceitos: [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+      "application/pdf",
+    ],
+    tamanhoMaximoBytes: 20 * 1024 * 1024,
+  },
 };
 
 function sanitizarNomeArquivo(nome) {

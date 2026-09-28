@@ -166,6 +166,81 @@
     return (doc && doc["Matriz Risco"]) || MATRIZ_PADRAO;
   }
 
+  // ------------------------------------------------------------------
+  // AET (Analise Ergonomica do Trabalho) - classificacao de arquivo por
+  // CONTEUDO, nunca por extensao/tipo (pedido explicito do Leo: "nao rotule
+  // o excel como analise e o PDF como inventario de riscos... ele precisa
+  // ler excel e pdf e com base na leitura entender o que e cada"). O mesmo
+  // classificador serve tanto pra um Excel (texto = nomes das abas +
+  // cabecalhos/primeiras linhas, montado em app.js via SheetJS) quanto pra
+  // um PDF (texto = texto extraido das paginas via pdf.js) - o classificador
+  // em si so enxerga texto, nunca sabe de onde ele veio. O resultado e
+  // sempre uma pre-classificacao (autopreenchida no formulario) que o
+  // ergonomista confirma ou corrige manualmente antes de salvar.
+  // ------------------------------------------------------------------
+  const PALAVRAS_CHAVE_AET = {
+    "Mapa de Risco Ergonômico": [
+      "mapa de risco", "matriz de risco", "gravidade", "probabilidade",
+      "criticidade", "graduacao do risco", "graduação do risco", "nivel de risco",
+      "nível de risco", "fator de risco", "inventario de riscos", "inventário de riscos",
+    ],
+    "Plano de Ação": [
+      "plano de acao", "plano de ação", "acao recomendada", "ação recomendada",
+      "responsavel", "responsável", "prazo", "status da acao", "status da ação",
+      "data de conclusao", "data de conclusão", "acao corretiva", "ação corretiva",
+    ],
+    "Análise Ergonômica do Trabalho (texto)": [
+      "analise ergonomica do trabalho", "análise ergonômica do trabalho", " aet ",
+      "metodologia", "introducao", "introdução", "conclusao", "conclusão",
+      "recomendacoes e sugestoes", "recomendações e sugestões", "nr-17", "nr 17",
+    ],
+  };
+  const NOMES_CLASSIFICACAO_AET = [
+    "Mapa de Risco Ergonômico",
+    "Plano de Ação",
+    "Mapa de Risco + Plano de Ação",
+    "Análise Ergonômica do Trabalho (texto)",
+    "Não identificado",
+  ];
+
+  function normalizarTextoClassificacao(texto) {
+    return " " + String(texto || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      + " ";
+  }
+
+  // Conta, por categoria, quantos termos-chave aparecem no texto (mesmo
+  // termo normalizado sem acento, pra casar tanto "ação" quanto "acao" nos
+  // dois lados - lista de palavras-chave e texto de entrada).
+  function pontuarClassificacaoAET(texto) {
+    const alvo = normalizarTextoClassificacao(texto);
+    const pontos = {};
+    Object.keys(PALAVRAS_CHAVE_AET).forEach((categoria) => {
+      pontos[categoria] = PALAVRAS_CHAVE_AET[categoria].reduce((soma, termo) => {
+        return soma + (alvo.indexOf(normalizarTextoClassificacao(termo).trim()) >= 0 ? 1 : 0);
+      }, 0);
+    });
+    return pontos;
+  }
+
+  // Classifica um texto (de um Excel ou de um PDF - ver comentario acima)
+  // num dos 5 rotulos fixos de NOMES_CLASSIFICACAO_AET, sempre a MELHOR
+  // estimativa por contagem de palavras-chave - nunca 100% garantida, por
+  // isso o formulario sempre pede confirmacao do ergonomista.
+  function classificarTextoAET(texto) {
+    const pontos = pontuarClassificacaoAET(texto);
+    const temMapa = pontos["Mapa de Risco Ergonômico"] > 0;
+    const temPlano = pontos["Plano de Ação"] > 0;
+    const temAnalise = pontos["Análise Ergonômica do Trabalho (texto)"] > 0;
+    if (temMapa && temPlano) return "Mapa de Risco + Plano de Ação";
+    if (temMapa) return "Mapa de Risco Ergonômico";
+    if (temPlano) return "Plano de Ação";
+    if (temAnalise) return "Análise Ergonômica do Trabalho (texto)";
+    return "Não identificado";
+  }
+
   // Duas paletas fixas e distintas (nunca misturadas): Mapa de Risco
   // (Baixo=verde, Moderado=amarelo, Alto=vermelho, Muito Alto=roxo) e
   // Plano de Acao / Status (Nao Iniciado=cinza, Em Andamento=azul,
@@ -679,6 +754,8 @@
     fatoresDoGrupo,
     NOMES_MATRIZ_RISCO,
     MATRIZ_PADRAO,
+    NOMES_CLASSIFICACAO_AET,
+    classificarTextoAET,
     escalaDaMatriz,
     nivelDaMatriz,
     pontuacaoDaMatriz,

@@ -30,6 +30,7 @@ const COLECOES = [
   "cliente", "unidade", "setor", "cargo", "posto", "atividade",
   "mapaRisco", "planoAcao", "absenteismo", "compativeis",
   "avaliacaoErgonomica", "fatorRisco", "laudo",
+  "aet",
 ];
 
 // "me" e "usuarios" sao despachadas aqui dentro (em vez de cada uma ter seu
