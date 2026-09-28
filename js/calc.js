@@ -24,6 +24,148 @@
 
   const STATUS_RESTRICAO_ORDEM = ["Ativa", "Em Avaliacao", "Encerrada"];
 
+  // ------------------------------------------------------------------
+  // Fatores de Risco (Inventario de Riscos) - lista fixa e padronizada,
+  // baseada na ISO TS-20646 (mesma referencia do sistema de gestao atual
+  // da ElevaLife, visto na tela "Editor do texto" do Laudo). "Grupo" e
+  // "Fator" deixam de ser texto livre: o ergonomista percorre esta
+  // checklist posto a posto e so os itens marcados "Existe Fator Risco:
+  // Sim" entram pontuados no inventario.
+  // ------------------------------------------------------------------
+  const FATORES_RISCO_ISO20646 = {
+    "Jornada de trabalho e concentração no trabalho": [
+      "Jornada longa de trabalho de mais de 8h por dia",
+      "Longas e frequentes horas extras de trabalho (>2h/dia e >2x na semana)",
+      "Longo tempo de operação contínua (>4h)",
+      "Intervalo de descanso insuficiente (<1h/dia)",
+      "Dias de descanso insuficientes (1x semana)",
+      "Concentrações desequilibradas de trabalho em um dia, semana, mês ou ano",
+      "Concentrações desequilibradas de trabalho entre trabalhadores",
+      "Descanso insuficiente entre turnos (menos de 11h)",
+    ],
+    "Tipo de trabalho": [
+      "Levantar e carregar objetos pesados",
+      "Trabalho requer grande força",
+      "Forças acentuadas para empurrar e puxar",
+      "Trabalho repetitivo (ciclos idênticos, menores que 30 seg)",
+      "Trabalho requer movimentos frequentes de dedo, mão ou braço",
+      "Trabalho intensivo com um teclado ou outros dispositivos de entrada de dados",
+      "Trabalho de precisão",
+      "Elevados requisitos visuais",
+    ],
+    "Posturas e movimentos": [
+      "Posturas e movimentos desconfortáveis",
+      "Mudança contínua e/ou altamente frequente nas articulações",
+      "Longa duração de posição restritiva",
+      "Caminhada de longa duração e/ou longa distância (horizontal bem como numa superfície inclinada)",
+      "Subida de escada frequente",
+      "Trabalho prolongado em posição sentada/de pé",
+    ],
+    "Influência do espaço de trabalho e fatores da tarefa": [
+      "Espaço de trabalho inadequado que force uma postura desconfortável ou movimento restritivo",
+      "Layout da estação de trabalho que force movimento excessivo ou posturas desconfortáveis",
+      "Altura e dimensões inadequadas da superfície de trabalho",
+      "Manuseio de objetos de trabalho acima do ombro ou abaixo do joelho",
+      "Espaço de trabalho que force o trabalhador a manter a mesma postura de trabalho",
+      "Espaço de trabalho que seja pesado e/ou requeira grande força física",
+      "Objetos de trabalho difíceis de manusear ou escorregadios",
+      "Ambiente de trabalho e/ou objetos manuseados que sejam quentes/frios",
+      "Tensão de contato alta ou pressão local que age no corpo",
+    ],
+    "Influência do fator psicossocial": [
+      "Sobrecarga ou subcarga mental",
+      "Pressão de tempo e altas demandas",
+      "Estresse relacionado ao trabalho",
+      "Baixa satisfação no trabalho",
+      "Falta de autonomia (baixa influência, controle baixo)",
+      "Apoio Social",
+    ],
+    "Influência de fatores do meio ambiente": [
+      "Piso escorregadio e/ou irregular",
+      "Vibração em todo o corpo ou vibração na mão e braço",
+      "Ambiente de trabalho extremamente quente ou frio",
+      "Condições visuais precárias (iluminação insuficiente)",
+    ],
+  };
+  const GRUPOS_FATOR_RISCO = Object.keys(FATORES_RISCO_ISO20646);
+  function fatoresDoGrupo(grupo) { return FATORES_RISCO_ISO20646[grupo] || []; }
+
+  // ------------------------------------------------------------------
+  // Matriz de Risco (Gravidade x Probabilidade, conforme NR-01) -
+  // configuravel por empresa (campo "Matriz Risco" no Cadastro de
+  // Cliente), em vez de uma formula unica fixa. Cada empresa/cliente
+  // pode usar uma matriz de tamanho diferente (3x3, 4x4, 5x5, ou uma
+  // variante propria como a "Matriz 5x5 Gerdau"), e o numero de niveis
+  // de risco resultante depende do tamanho da matriz escolhida.
+  // ------------------------------------------------------------------
+  const MATRIZ_PADRAO = "Matriz 5x5";
+
+  // pontuacao = (probIdx+1) * (gravIdx+1) (escala classica de matriz de
+  // risco); nivelIdx = faixa da pontuacao normalizada em N niveis iguais.
+  function construirGradeSimetrica(qtdNiveis) {
+    const grade = [];
+    const maxPontuacao = qtdNiveis * qtdNiveis;
+    for (let p = 0; p < qtdNiveis; p++) {
+      const linha = [];
+      for (let g = 0; g < qtdNiveis; g++) {
+        const pontuacao = (p + 1) * (g + 1);
+        const nivelIdx = Math.min(qtdNiveis - 1, Math.floor(((pontuacao - 1) / maxPontuacao) * qtdNiveis));
+        linha.push({ pontuacao, nivelIdx });
+      }
+      grade.push(linha);
+    }
+    return grade;
+  }
+
+  const MATRIZES_RISCO = {
+    "Matriz 3x3": {
+      escala: ["Baixa", "Media", "Alta"],
+      niveis: ["Baixo", "Moderado", "Alto"],
+    },
+    "Matriz 4x4": {
+      escala: ["Baixa", "Media", "Alta", "Muito Alta"],
+      niveis: ["Baixo", "Moderado", "Alto", "Muito Alto"],
+    },
+    "Matriz 5x5": {
+      escala: ["Muito Baixa", "Baixa", "Media", "Alta", "Muito Alta"],
+      niveis: ["Muito Baixo", "Baixo", "Moderado", "Alto", "Altíssimo"],
+    },
+    // Exemplo de variante propria de um cliente (mesmo formato 5x5, so
+    // ilustrando que a matriz e configuravel por empresa).
+    "Matriz 5x5 Gerdau": {
+      escala: ["Muito Baixa", "Baixa", "Media", "Alta", "Muito Alta"],
+      niveis: ["Muito Baixo", "Baixo", "Moderado", "Alto", "Altíssimo"],
+    },
+  };
+  Object.keys(MATRIZES_RISCO).forEach((nome) => {
+    MATRIZES_RISCO[nome].grade = construirGradeSimetrica(MATRIZES_RISCO[nome].niveis.length);
+  });
+  const NOMES_MATRIZ_RISCO = Object.keys(MATRIZES_RISCO);
+
+  function matrizPorNome(nomeMatriz) { return MATRIZES_RISCO[nomeMatriz] || MATRIZES_RISCO[MATRIZ_PADRAO]; }
+  function escalaDaMatriz(nomeMatriz) { return matrizPorNome(nomeMatriz).escala; }
+  function celulaDaMatriz(nomeMatriz, probabilidade, gravidade) {
+    const m = matrizPorNome(nomeMatriz);
+    const p = m.escala.indexOf(probabilidade);
+    const g = m.escala.indexOf(gravidade);
+    if (p < 0 || g < 0) return null;
+    return Object.assign({ nivel: m.niveis[m.grade[p][g].nivelIdx] }, m.grade[p][g]);
+  }
+  function nivelDaMatriz(nomeMatriz, probabilidade, gravidade) {
+    const celula = celulaDaMatriz(nomeMatriz, probabilidade, gravidade);
+    return celula ? celula.nivel : "";
+  }
+  function pontuacaoDaMatriz(nomeMatriz, probabilidade, gravidade) {
+    const celula = celulaDaMatriz(nomeMatriz, probabilidade, gravidade);
+    return celula ? celula.pontuacao : null;
+  }
+  // Matriz configurada para uma empresa (le "Matriz Risco" no cadastro do
+  // Cliente; cai no padrao 5x5 se a empresa ainda nao tiver o campo).
+  function matrizDoCliente(linhasCliente, nomeCliente) {
+    const doc = (linhasCliente || []).find((c) => c.Cliente === nomeCliente);
+    return (doc && doc["Matriz Risco"]) || MATRIZ_PADRAO;
+  }
+
   // Duas paletas fixas e distintas (nunca misturadas): Mapa de Risco
   // (Baixo=verde, Moderado=amarelo, Alto=vermelho, Muito Alto=roxo) e
   // Plano de Acao / Status (Nao Iniciado=cinza, Em Andamento=azul,
@@ -52,6 +194,15 @@
     "Em andamento": "var(--acao-andamento)",
     "Concluido": "var(--acao-concluida)",
     "Cancelado": "var(--acao-atrasada)",
+
+    // Graduacao do Risco calculada pela Matriz de Risco (Inventario de
+    // Riscos) - "Moderado"/"Altíssimo"/"Muito Baixo" sao os rotulos que a
+    // propria matriz ja grava (ver MATRIZES_RISCO acima), por isso entram
+    // aqui como chaves adicionais (nunca uma paleta nova: reaproveita as
+    // mesmas 4 cores de risco; "Muito Baixo" ganha um tom mais claro).
+    "Moderado": "var(--risco-moderado)",
+    "Altíssimo": "var(--risco-muitoalto)",
+    "Muito Baixo": "var(--risco-muitobaixo)",
   };
 
   // Uma chave "tem cor definida" quando existe de verdade em COR_STATUS -
@@ -524,6 +675,14 @@
     DIMENSOES,
     DIMENSOES_RISCO,
     NIVEIS_RISCO,
+    GRUPOS_FATOR_RISCO,
+    fatoresDoGrupo,
+    NOMES_MATRIZ_RISCO,
+    MATRIZ_PADRAO,
+    escalaDaMatriz,
+    nivelDaMatriz,
+    pontuacaoDaMatriz,
+    matrizDoCliente,
     STATUS_ACAO_ORDEM,
     STATUS_RESTRICAO_ORDEM,
     resolverCorCSS,

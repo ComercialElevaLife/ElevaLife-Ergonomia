@@ -39,6 +39,7 @@
      semaforo de risco ocupacional, obrigatoria por definicao de produto):
      Baixo=verde, Moderado=amarelo, Alto=vermelho, Muito Alto=roxo. */
   --risco-baixo: #1a9c4b;
+  --risco-muitobaixo: #6fc78b;
   --risco-moderado: #c9960c;
   --risco-alto: #d93636;
   --risco-muitoalto: #7c3aed;
@@ -98,6 +99,7 @@
     --status-neutral: #a08f8c;
 
     --risco-baixo: #2fb865;
+    --risco-muitobaixo: #7fd9a0;
     --risco-moderado: #f0b429;
     --risco-alto: #e35d5d;
     --risco-muitoalto: #9b71f5;
@@ -143,6 +145,7 @@
   --status-neutral: #a08f8c;
 
   --risco-baixo: #2fb865;
+  --risco-muitobaixo: #7fd9a0;
   --risco-moderado: #f0b429;
   --risco-alto: #e35d5d;
   --risco-muitoalto: #9b71f5;

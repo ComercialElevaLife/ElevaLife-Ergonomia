@@ -1584,7 +1584,16 @@
   // apontando para um registro ja cadastrado na tela do nivel anterior -
   // nunca texto livre, para nao criar uma Unidade "orfa" sem Cliente, etc.
   function camposCadastroCliente() {
-    return [{ campo: "Cliente", rotulo: "Nome do Cliente (Empresa)", tipo: "texto", obrigatorio: true }];
+    const Calc = window.BI.Calc;
+    return [
+      { campo: "Cliente", rotulo: "Nome do Cliente (Empresa)", tipo: "texto", obrigatorio: true },
+      // Matriz de Risco (NR-01) usada no Inventario de Riscos (fatorRisco)
+      // desse cliente - ver ligarCascataFatorRisco/Calc.matrizDoCliente.
+      // Cada cliente pode ter uma matriz de tamanho diferente (3x3/4x4/5x5
+      // ou uma variante propria), reproduzindo o campo "Matriz para
+      // Avaliacao" do sistema de gestao atual da ElevaLife.
+      { campo: "Matriz Risco", rotulo: "Matriz de Risco (NR-01)", tipo: "select", obrigatorio: true, opcoes: Calc ? Calc.NOMES_MATRIZ_RISCO : [] },
+    ];
   }
   function camposCadastroUnidade() {
     return [
@@ -1664,28 +1673,31 @@
   }
 
   function camposFatorRisco() {
+    const Calc = window.BI.Calc;
     return comSecao(camposChave(), "🧭 Identificação do Posto").concat(
       comSecao([
-        { campo: "Grupo", rotulo: "Grupo", tipo: "texto", obrigatorio: true },
-        { campo: "Fator", rotulo: "Fator de Risco", tipo: "texto", obrigatorio: true },
+        // Grupo/Fator vem de uma checklist fixa (ISO TS-20646, mesma
+        // referencia do sistema de gestao atual da ElevaLife) - nunca mais
+        // texto livre. "Fator" e uma cascata: as opcoes dependem do Grupo
+        // escolhido (ver ligarCascataFatorRisco).
+        { campo: "Grupo", rotulo: "Grupo", tipo: "select", obrigatorio: true, opcoes: Calc ? Calc.GRUPOS_FATOR_RISCO : [] },
+        { campo: "Fator", rotulo: "Fator de Risco", tipo: "select", obrigatorio: true, opcoes: [] },
         { campo: "Existe Fator Risco", rotulo: "Existe Fator de Risco?", tipo: "select", obrigatorio: true, opcoes: SIM_NAO },
         { campo: "Circunstancia Geradora", rotulo: "Circunstância Geradora", tipo: "textarea" },
         { campo: "Consequencia", rotulo: "Consequência", tipo: "textarea" },
         { campo: "Medida Controle Existente", rotulo: "Medida de Controle Existente", tipo: "textarea" },
       ], "⚠️ Descrição do Risco"),
-      // Criticidade/Probabilidade ficam texto livre por enquanto - o
-      // sistema legado nao documenta uma escala fixa pra elas (so vimos um
-      // registro de exemplo, com "Leve"/"Leve"); enrijecer isso depende de
-      // ver mais dados reais. Graduacao do Risco ja usa a MESMA escala de 4
-      // niveis do resto do BI Ergonomia (Baixo/Medio/Alto/Muito Alto) - e
-      // onde a conversao da escala de 5 niveis do legado acontece, na
-      // entrada do dado (ver tabela de conversao no manual).
+      // Criticidade/Probabilidade/Pontuacao/Graduacao seguem a Matriz de
+      // Risco configurada para a empresa (Cadastro de Cliente > "Matriz
+      // Risco") - a escala de opcoes e o calculo de Pontuacao/Graduacao
+      // sao montados em runtime por ligarCascataFatorRisco, de acordo com
+      // a matriz da empresa escolhida acima em "Identificação do Posto".
       comSecao([
-        { campo: "Criticidade", rotulo: "Criticidade", tipo: "texto" },
-        { campo: "Probabilidade", rotulo: "Probabilidade", tipo: "texto" },
-        { campo: "Pontuacao Risco", rotulo: "Pontuação de Risco", tipo: "numero", min: 0 },
-        { campo: "Graduacao Risco", rotulo: "Graduação do Risco", tipo: "select", obrigatorio: true, opcoes: window.BI.Calc ? window.BI.Calc.NIVEIS_RISCO : [] },
-        { campo: "Matriz", rotulo: "Matriz", tipo: "texto" },
+        { campo: "Criticidade", rotulo: "Criticidade (Gravidade)", tipo: "select", obrigatorio: true, opcoes: [] },
+        { campo: "Probabilidade", rotulo: "Probabilidade", tipo: "select", obrigatorio: true, opcoes: [] },
+        { campo: "Pontuacao Risco", rotulo: "Pontuação de Risco (calculada)", tipo: "calculado" },
+        { campo: "Graduacao Risco", rotulo: "Graduação do Risco (calculada)", tipo: "calculado" },
+        { campo: "Matriz", rotulo: "Matriz de Risco em uso", tipo: "calculado" },
         { campo: "Propor Acao", rotulo: "Propor ação?", tipo: "select", opcoes: SIM_NAO },
         { campo: "Acao Eliminacao", rotulo: "Ação para Eliminação", tipo: "textarea" },
         { campo: "Controles Administrativos", rotulo: "Controles Administrativos e Organizacionais", tipo: "textarea" },
@@ -1935,6 +1947,71 @@
     });
   }
 
+  // Liga o Inventario de Riscos (Fator de Risco) as duas fontes de opcoes
+  // dinamicas que nao vem mais fixas na declaracao de camposFatorRisco():
+  // 1) Fator depende do Grupo escolhido (checklist ISO TS-20646 - ver
+  //    Calc.fatoresDoGrupo); 2) Criticidade/Probabilidade (e o calculo de
+  //    Pontuacao/Graduacao) dependem da Matriz de Risco configurada para o
+  //    Cliente escolhido (Cadastro de Cliente > "Matriz Risco" - ver
+  //    Calc.matrizDoCliente/escalaDaMatriz/nivelDaMatriz/pontuacaoDaMatriz).
+  // Mesmo padrao visual de ligarCalculoRiscoGlobal para campos "calculado"
+  // (textContent = rotulo exibido, dataset.valorReal = valor gravado).
+  function ligarCascataFatorRisco(form, valoresIniciais) {
+    const Calc = window.BI.Calc;
+    const iniciais = valoresIniciais || {};
+
+    function nomeMatrizAtual() {
+      const nomeCliente = form._campos["Cliente"] ? form._campos["Cliente"].value : "";
+      return Calc.matrizDoCliente(window.BI.dados.cliente, nomeCliente);
+    }
+
+    function atualizarFator(valorDesejado) {
+      const grupo = form._campos["Grupo"].value;
+      repopularSelectCascata(form._campos["Fator"], Calc.fatoresDoGrupo(grupo), valorDesejado);
+    }
+
+    function recalcularPontuacao() {
+      const nomeMatriz = nomeMatrizAtual();
+      const criticidade = form._campos["Criticidade"].value;
+      const probabilidade = form._campos["Probabilidade"].value;
+      const elPontuacao = form._campos["Pontuacao Risco"];
+      const elGraduacao = form._campos["Graduacao Risco"];
+      const temAmbos = !!(criticidade && probabilidade);
+      const pontuacao = temAmbos ? Calc.pontuacaoDaMatriz(nomeMatriz, probabilidade, criticidade) : null;
+      const nivel = temAmbos ? Calc.nivelDaMatriz(nomeMatriz, probabilidade, criticidade) : "";
+      elPontuacao.textContent = pontuacao != null ? String(pontuacao) : "-";
+      elPontuacao.dataset.valorReal = pontuacao != null ? pontuacao : "";
+      elGraduacao.textContent = nivel || "-";
+      elGraduacao.dataset.valorReal = nivel || "";
+      elGraduacao.style.color = nivel ? (Calc.corStatus(nivel) || "") : "";
+      elGraduacao.style.fontWeight = "700";
+    }
+
+    function atualizarMatriz(valorDesejadoCriticidade, valorDesejadoProbabilidade) {
+      const nomeMatriz = nomeMatrizAtual();
+      const escala = Calc.escalaDaMatriz(nomeMatriz);
+      repopularSelectCascata(form._campos["Criticidade"], escala, valorDesejadoCriticidade);
+      repopularSelectCascata(form._campos["Probabilidade"], escala, valorDesejadoProbabilidade);
+      const elMatriz = form._campos["Matriz"];
+      elMatriz.textContent = nomeMatriz;
+      elMatriz.dataset.valorReal = nomeMatriz;
+      recalcularPontuacao();
+    }
+
+    // Estado inicial (novo registro ou edicao) - usa os valores gravados
+    // (iniciais), nunca form._campos[...].value, porque os selects "Fator"/
+    // "Criticidade"/"Probabilidade" comecam com opcoes vazias (a lista real
+    // so existe depois de saber o Grupo/a Matriz) e perderiam o valor
+    // gravado se a gente tentasse ler o value antes de repopular as opcoes.
+    atualizarFator(iniciais["Fator"] || "");
+    atualizarMatriz(iniciais["Criticidade"] || "", iniciais["Probabilidade"] || "");
+
+    form._campos["Grupo"].addEventListener("change", () => atualizarFator());
+    form._campos["Cliente"].addEventListener("change", () => atualizarMatriz());
+    form._campos["Criticidade"].addEventListener("change", recalcularPontuacao);
+    form._campos["Probabilidade"].addEventListener("change", recalcularPontuacao);
+  }
+
   // grupo "mestre" = aba Cadastro (setup: estrutura organizacional valida);
   // grupo "registro" = aba Registro (input operacional do dia a dia).
   const CADASTROS_CONFIG = {
@@ -2082,7 +2159,7 @@
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Fator", "Graduacao Risco", "Status"],
       colunasData: ["Valido Ate"], camposData: ["Valido Ate"],
       campos: camposFatorRisco(),
-      aoConstruir: comCascata(null),
+      aoConstruir: comCascata(ligarCascataFatorRisco),
     },
     laudo: {
       grupo: "registro", icone: "📄", tituloMenu: "Laudos",
