@@ -1,6 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>BI Ergonomia - ElevaLife</title>
+<title>S.I.G.E - ElevaLife</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Montserrat+Alternates:wght@600;700&display=swap" rel="stylesheet">
@@ -15,7 +15,7 @@
   <div class="tela-acesso-cartao">
     <div class="tela-acesso-marca">
       <div class="logo-mark">EL</div>
-      <div class="produto">BI Ergonomia</div>
+      <div class="produto">S.I.G.E</div>
       <div class="tagline">ElevaLife · 15 anos elevando pessoas e resultados</div>
     </div>
     <div id="tela-acesso-conteudo"></div>
@@ -28,7 +28,7 @@
       <div class="marca">
         <div class="logo-mark">EL</div>
         <div class="titulos">
-          <div class="produto">BI Ergonomia</div>
+          <div class="produto">S.I.G.E</div>
           <div class="tagline">ElevaLife · 15 anos elevando pessoas e resultados</div>
         </div>
       </div>
@@ -392,7 +392,7 @@
 
   <section id="aba-registro" hidden>
     <p class="dados-intro">
-      Registro (input do dia a dia): lancamento real nas 4 tabelas operacionais do BI Ergonomia - Mapa de Risco,
+      Registro (input do dia a dia): lancamento real nas 4 tabelas operacionais do S.I.G.E - Mapa de Risco,
       Plano de Acao, Absenteismo e Compativeis. O que voce salvar aqui fica gravado de verdade neste BI - qualquer
       pessoa que abrir este link ve os mesmos dados. Lista CID e Dias Uteis sao tabelas de referencia (fixas) e
       ficam disponiveis so para consulta no rodape da pagina.
@@ -410,7 +410,7 @@
        cada pessoa esta vinculada (ver api/src/functions/usuarios.js). -->
   <section id="aba-usuarios" hidden>
     <p class="dados-intro">
-      Usuários com acesso ao BI Ergonomia - defina o papel de cada pessoa (Administrador vê tudo; Consultor e
+      Usuários com acesso ao S.I.G.E - defina o papel de cada pessoa (Administrador vê tudo; Consultor e
       Cliente só veem as empresas vinculadas a eles) e a quais empresas-cliente cada uma está vinculada.
     </p>
     <div class="cartao col-12 bloco-cadastro">
@@ -438,7 +438,7 @@
     </main>
 
     <footer class="rodape">
-      BI Ergonomia · ElevaLife · Produto ElevaLife, dados ficticios nesta fase de validacao · Gerado em <span id="data-geracao"></span>
+      S.I.G.E · ElevaLife · Produto ElevaLife, dados ficticios nesta fase de validacao · Gerado em <span id="data-geracao"></span>
       · <button type="button" class="link-referencia" id="btn-toggle-referencia">Ver tabelas de referencia</button>
     </footer>
   </div>
@@ -462,4 +462,10 @@
 <script src="js/calc.js"></script>
 <script src="js/db.js"></script>
 <script src="js/diagramas.js"></script>
+<!-- Fontes Montserrat/Montserrat Alternates embutidas (base64) para o Laudo
+     em PDF - jsPDF nao enxerga as fontes do CSS/navegador, entao a fonte tem
+     que ser embutida como arquivo (ver js/pdf-fonts.js/registrarFontesPDF).
+     Sem isso o PDF caia pra "helvetica" (fonte padrao do jsPDF), sem nenhuma
+     relacao com a identidade visual dos 15 anos da ElevaLife. -->
+<script src="js/pdf-fonts.js"></script>
 <script src="js/app.js"></script>

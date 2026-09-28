@@ -1998,14 +1998,64 @@
       ? (dados.certificadoCalibracao || []).find((c) => c.Nome === opcoes.nomeCertificado)
       : null;
 
+    // Pedido do Leo (28/09/2026): o Laudo em PDF estava "generico", com cores
+    // e fonte sem nenhuma relacao com os 15 anos da ElevaLife - o proprio
+    // site (css/style.css) ja segue a paleta oficial (vinho + creme +
+    // Montserrat); o PDF (jsPDF, sem acesso a CSS) tinha ficado com a fonte
+    // padrao (helvetica) e um teal generico. Usa exatamente os mesmos tons
+    // (RGB) das variaveis --vinho-escuro/--vinho/--vinho-medio/--creme/
+    // --texto/--cinza-quente/--teal do CSS, pra ficar visualmente o MESMO
+    // sistema, nunca uma versao a parte.
+    const PALETA = {
+      vinhoEscuro: [94, 42, 48], vinho: [139, 58, 66], vinhoMedio: [163, 78, 86],
+      vinhoSuave: [216, 183, 187], vinhoSuave2: [201, 154, 160],
+      creme: [245, 239, 234], texto: [61, 46, 48], cinzaQuente: [138, 122, 120],
+      teal: [62, 123, 126], tealEscuro: [46, 95, 98],
+      branco: [255, 255, 255],
+    };
+    // Mesmas 4 cores da Graduacao do Risco usadas no dashboard (Mapa de
+    // Risco: Baixo verde, Moderado amarelo, Alto vermelho, Muito Alto roxo -
+    // ver --risco-* em css/style.css) - o Laudo tinha uma paleta de risco
+    // PROPRIA e diferente da do dashboard; agora e a mesma em qualquer lugar
+    // que o usuario ve uma Graduacao de Risco.
     function corDoNivel(nivel) {
       const n = String(nivel || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-      if (n.includes("muito alto") || n.includes("altissimo")) return [140, 0, 0];
-      if (n.includes("alto")) return [196, 0, 0];
-      if (n.includes("moder") || n.includes("medio") || n.includes("toler")) return [219, 164, 0];
-      return [36, 131, 110]; // baixo / muito baixo
+      if (n.includes("muito alto") || n.includes("altissimo")) return [124, 58, 237];
+      if (n.includes("alto")) return [217, 54, 54];
+      if (n.includes("moder") || n.includes("medio") || n.includes("toler")) return [201, 150, 12];
+      return [26, 156, 75]; // baixo / muito baixo
     }
     function rotuloSimNao(v) { return v === "Nao" ? "Não" : v === "Sim" ? "Sim" : v || "-"; }
+
+    // Baixa (uma unica vez, antes das 2 passadas de construirDocumento) o
+    // conteudo de cada foto da Avaliacao Ergonomica e converte pra data URL -
+    // jsPDF.addImage precisa dos bytes da imagem, nao so da URL. Feito UMA
+    // vez fora do loop de paginacao (nao a cada passada) pra nao baixar cada
+    // foto 2x; getImageProperties (usado depois pra medir altura) e sincrono
+    // uma vez que a data URL ja esta em memoria.
+    async function coletarFotosDataUrl(avals) {
+      const mapa = {};
+      for (const av of avals) {
+        for (const item of av.Fotos || []) {
+          if (!item || !item.chave || mapa[item.chave] !== undefined) continue;
+          try {
+            const resp = await fetch(window.BI.DB.urlArquivo(item.chave), { credentials: "same-origin" });
+            if (!resp.ok) { mapa[item.chave] = null; continue; }
+            const blob = await resp.blob();
+            mapa[item.chave] = await new Promise((resolve) => {
+              const leitor = new FileReader();
+              leitor.onload = () => resolve(String(leitor.result || "") || null);
+              leitor.onerror = () => resolve(null);
+              leitor.readAsDataURL(blob);
+            });
+          } catch (e) {
+            mapa[item.chave] = null;
+          }
+        }
+      }
+      return mapa;
+    }
+    const mapaFotos = await coletarFotosDataUrl(avaliacoes);
 
     // Constroi o documento inteiro (capa -> sumario -> corpo -> conclusao).
     // gravando=true: so mede, registrando em mapaPaginas em que pagina cada
@@ -2025,12 +2075,12 @@
 
       function tituloSecao(texto) {
         garantirEspaco(38);
-        doc.setFont("helvetica", "bold");
+        doc.setFont("MontserratAlternates", "bold");
         doc.setFontSize(14);
-        doc.setTextColor(36, 131, 110);
+        doc.setTextColor.apply(doc, PALETA.vinho);
         doc.text(texto, margem, y);
         y += 8;
-        doc.setDrawColor(36, 131, 110);
+        doc.setDrawColor.apply(doc, PALETA.vinho);
         doc.setLineWidth(1.2);
         doc.line(margem, y, margem + larguraUtil, y);
         doc.setLineWidth(0.5);
@@ -2038,45 +2088,45 @@
       }
       function subtitulo(texto) {
         garantirEspaco(20);
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Montserrat", "bold");
         doc.setFontSize(11);
-        doc.setTextColor(40, 40, 40);
+        doc.setTextColor.apply(doc, PALETA.vinhoMedio);
         doc.text(texto, margem, y);
         y += 16;
       }
       function paragrafo(texto, opts) {
         opts = opts || {};
-        doc.setFont("helvetica", opts.negrito ? "bold" : "normal");
+        doc.setFont("Montserrat", opts.negrito ? "bold" : "normal");
         doc.setFontSize(opts.tamanho || 10);
-        doc.setTextColor.apply(doc, opts.cor || [55, 55, 55]);
+        doc.setTextColor.apply(doc, opts.cor || PALETA.texto);
         const linhas = doc.splitTextToSize(String(texto || "-"), larguraUtil - (opts.recuo || 0));
         garantirEspaco(linhas.length * (opts.altura || 13) + 4);
         doc.text(linhas, margem + (opts.recuo || 0), y);
         y += linhas.length * (opts.altura || 13) + (opts.espacoDepois != null ? opts.espacoDepois : 8);
       }
       function campoValor(rotulo, valor) {
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Montserrat", "bold");
         doc.setFontSize(9.5);
         const larguraRotulo = doc.getTextWidth(rotulo + ":  ");
         const linhas = doc.splitTextToSize(String(valor == null || valor === "" ? "-" : valor), larguraUtil - larguraRotulo);
         garantirEspaco(linhas.length * 12 + 4);
-        doc.setTextColor(90, 90, 90);
+        doc.setTextColor.apply(doc, PALETA.cinzaQuente);
         doc.text(rotulo + ":", margem, y);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(30, 30, 30);
+        doc.setFont("Montserrat", "normal");
+        doc.setTextColor.apply(doc, PALETA.texto);
         doc.text(linhas, margem + larguraRotulo, y);
         y += Math.max(linhas.length, 1) * 12 + 3;
       }
       function badge(texto, cor) {
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Montserrat", "bold");
         doc.setFontSize(9);
         const largura = doc.getTextWidth(texto) + 14;
         garantirEspaco(18);
         doc.setFillColor.apply(doc, cor);
         doc.roundedRect(margem, y - 10, largura, 15, 3, 3, "F");
-        doc.setTextColor(255, 255, 255);
+        doc.setTextColor.apply(doc, PALETA.branco);
         doc.text(texto, margem + 7, y);
-        doc.setTextColor(30, 30, 30);
+        doc.setTextColor.apply(doc, PALETA.texto);
         y += 20;
       }
       // Tabela generica (cabecalho colorido + linhas zebradas). Cada celula
@@ -2086,35 +2136,35 @@
         const altura = 18;
         garantirEspaco(altura * (linhas.length + 1) + 6);
         let x = margem;
-        doc.setFillColor(36, 131, 110);
+        doc.setFillColor.apply(doc, PALETA.vinho);
         doc.rect(margem, y, larguraUtil, altura, "F");
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Montserrat", "bold");
         doc.setFontSize(9);
-        doc.setTextColor(255, 255, 255);
+        doc.setTextColor.apply(doc, PALETA.branco);
         cabecalhos.forEach((c, i) => { doc.text(String(c), x + 5, y + altura - 6); x += larguras[i]; });
         y += altura;
-        doc.setFont("helvetica", "normal");
+        doc.setFont("Montserrat", "normal");
         doc.setFontSize(9);
         linhas.forEach((linha, idx) => {
           garantirEspaco(altura);
-          if (idx % 2 === 1) { doc.setFillColor(244, 246, 245); doc.rect(margem, y, larguraUtil, altura, "F"); }
+          if (idx % 2 === 1) { doc.setFillColor(249, 245, 242); doc.rect(margem, y, larguraUtil, altura, "F"); }
           x = margem;
           linha.forEach((celula, i) => {
             if (celula && typeof celula === "object") {
               doc.setFillColor.apply(doc, celula.cor);
               doc.rect(x + 1, y + 1, larguras[i] - 2, altura - 2, "F");
-              doc.setTextColor(255, 255, 255);
+              doc.setTextColor.apply(doc, PALETA.branco);
               doc.text(String(celula.texto), x + 5, y + altura - 6);
-              doc.setTextColor(40, 40, 40);
+              doc.setTextColor.apply(doc, PALETA.texto);
             } else {
-              doc.setTextColor(40, 40, 40);
+              doc.setTextColor.apply(doc, PALETA.texto);
               doc.text(String(celula == null ? "-" : celula), x + 5, y + altura - 6);
             }
             x += larguras[i];
           });
           y += altura;
         });
-        doc.setDrawColor(215, 215, 215);
+        doc.setDrawColor.apply(doc, PALETA.vinhoSuave);
         doc.rect(margem, y - altura * (linhas.length + 1), larguraUtil, altura * (linhas.length + 1));
         y += 12;
       }
@@ -2124,25 +2174,41 @@
       // ---------------- Capa ----------------
       if (!apenasAvaliacao) {
         registrar("capa");
-        doc.setFillColor(36, 131, 110);
-        doc.rect(0, 0, larguraPagina, 130, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(22);
-        doc.setTextColor(255, 255, 255);
-        doc.text("ElevaLife", margem, 60);
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "normal");
-        doc.text("BI Ergonomia - Sistema de Gestão Integrada", margem, 82);
-        y = 190;
-        doc.setFont("helvetica", "bold");
+        // Faixa vinho em gradiente (aprox. #5E2A30 -> #8B3A42), igual a
+        // identidade dos 15 anos da ElevaLife usada no site (css/style.css).
+        const alturaFaixa = 130;
+        const passos = 40;
+        for (let p = 0; p < passos; p++) {
+          const t = p / (passos - 1);
+          const r = Math.round(PALETA.vinhoEscuro[0] + (PALETA.vinho[0] - PALETA.vinhoEscuro[0]) * t);
+          const g = Math.round(PALETA.vinhoEscuro[1] + (PALETA.vinho[1] - PALETA.vinhoEscuro[1]) * t);
+          const b = Math.round(PALETA.vinhoEscuro[2] + (PALETA.vinho[2] - PALETA.vinhoEscuro[2]) * t);
+          doc.setFillColor(r, g, b);
+          doc.rect((larguraPagina / passos) * p, 0, larguraPagina / passos + 1, alturaFaixa, "F");
+        }
+        doc.setFont("MontserratAlternates", "bold");
         doc.setFontSize(24);
-        doc.setTextColor(30, 30, 30);
+        doc.setTextColor.apply(doc, PALETA.branco);
+        doc.text("ElevaLife", margem, 55);
+        doc.setFontSize(10.5);
+        doc.setFont("Montserrat", "normal");
+        doc.setTextColor(232, 214, 216);
+        doc.text("15 anos elevando pessoas e resultados", margem, 73);
+        doc.setFontSize(11.5);
+        doc.setFont("Montserrat", "bold");
+        doc.setTextColor.apply(doc, PALETA.branco);
+        doc.text("S.I.G.E - Sistema Integrado de Gestão da Ergonomia", margem, 98);
+        y = 190;
+        doc.setFont("MontserratAlternates", "bold");
+        doc.setFontSize(24);
+        doc.setTextColor.apply(doc, PALETA.vinhoEscuro);
         const linhasTitulo = doc.splitTextToSize("Laudo de Análise Ergonômica do Trabalho", larguraUtil);
         doc.text(linhasTitulo, margem, y);
         y += linhasTitulo.length * 28 + 20;
-        doc.setDrawColor(36, 131, 110);
+        doc.setDrawColor.apply(doc, PALETA.vinho);
         doc.setLineWidth(1.5);
         doc.line(margem, y, margem + larguraUtil, y);
+        doc.setLineWidth(0.5);
         y += 30;
         campoValor("Cliente", opcoes.nomeCliente);
         campoValor("Tipo", opcoes.tipo || "Laudo");
@@ -2171,9 +2237,9 @@
         itensSumario.forEach(([rotulo, chaveSecao]) => {
           garantirEspaco(18);
           const numeroPag = mapaPaginas[chaveSecao] != null ? String(mapaPaginas[chaveSecao]) : "-";
-          doc.setFont("helvetica", chaveSecao.indexOf("posto-") === 0 ? "normal" : "bold");
+          doc.setFont("Montserrat", chaveSecao.indexOf("posto-") === 0 ? "normal" : "bold");
           doc.setFontSize(chaveSecao.indexOf("posto-") === 0 ? 9.5 : 10.5);
-          doc.setTextColor(40, 40, 40);
+          doc.setTextColor.apply(doc, PALETA.texto);
           const larguraNumero = doc.getTextWidth(numeroPag);
           const larguraTitulo = doc.getTextWidth(rotulo);
           doc.text(rotulo, margem, y);
@@ -2181,10 +2247,10 @@
           if (larguraPontos > 0) {
             const larguraPonto = doc.getTextWidth(".");
             const qtdPontos = Math.max(0, Math.floor(larguraPontos / larguraPonto));
-            doc.setTextColor(190, 190, 190);
+            doc.setTextColor.apply(doc, PALETA.vinhoSuave2);
             doc.text(".".repeat(qtdPontos), margem + larguraTitulo + 4, y);
           }
-          doc.setTextColor(40, 40, 40);
+          doc.setTextColor.apply(doc, PALETA.texto);
           doc.text(numeroPag, margem + larguraUtil - larguraNumero, y);
           y += 18;
         });
@@ -2214,13 +2280,13 @@
         paragrafo("Cada Posto de Trabalho foi avaliado quanto à presença dos seguintes grupos de fatores de risco ergonômico, conforme referência ISO TS-20646 e NR-01:", { espacoDepois: 10 });
         (Calc.GRUPOS_FATOR_RISCO || []).forEach((grupo) => {
           garantirEspaco(16);
-          doc.setFont("helvetica", "bold");
+          doc.setFont("Montserrat", "bold");
           doc.setFontSize(10);
-          doc.setTextColor(36, 131, 110);
+          doc.setTextColor.apply(doc, PALETA.tealEscuro);
           doc.text("• " + grupo, margem, y);
           y += 14;
           (Calc.fatoresDoGrupo ? Calc.fatoresDoGrupo(grupo) : []).forEach((item) => {
-            paragrafo(item, { recuo: 14, tamanho: 9, cor: [80, 80, 80], altura: 11, espacoDepois: 3 });
+            paragrafo(item, { recuo: 14, tamanho: 9, cor: PALETA.cinzaQuente, altura: 11, espacoDepois: 3 });
           });
           y += 4;
         });
@@ -2289,6 +2355,58 @@
           paragrafo(av["Caracteristicas Trabalhadores"]);
         }
 
+        // Registro fotografico do posto (fotos anexadas em "Fotos" na
+        // Avaliacao Ergonomica) - grade de 2 colunas com legenda pelo nome
+        // do arquivo. Os data URLs ja foram coletados uma unica vez em
+        // mapaFotos (coletarFotosDataUrl), antes das duas passadas de
+        // construirDocumento, para nao buscar o arquivo em duplicidade.
+        const fotosDoPosto = (av.Fotos || []).filter((item) => item && item.chave && mapaFotos[item.chave]);
+        if (fotosDoPosto.length) {
+          subtitulo("Registro Fotográfico");
+          const colunasFoto = 2;
+          const gapFoto = 10;
+          const larguraCelula = (larguraUtil - gapFoto * (colunasFoto - 1)) / colunasFoto;
+          const alturaCelula = 150;
+          for (let f = 0; f < fotosDoPosto.length; f += colunasFoto) {
+            garantirEspaco(alturaCelula + 22);
+            const linhaFotos = fotosDoPosto.slice(f, f + colunasFoto);
+            const yLinha = y;
+            linhaFotos.forEach((item, idx) => {
+              const xCelula = margem + idx * (larguraCelula + gapFoto);
+              const dataUrl = mapaFotos[item.chave];
+              doc.setDrawColor.apply(doc, PALETA.vinhoSuave);
+              doc.setFillColor.apply(doc, PALETA.creme);
+              doc.roundedRect(xCelula, yLinha, larguraCelula, alturaCelula, 4, 4, "FD");
+              try {
+                const props = doc.getImageProperties(dataUrl);
+                const proporcao = props.height / props.width;
+                let larguraImg = larguraCelula - 12;
+                let alturaImg = larguraImg * proporcao;
+                const alturaMaxImg = alturaCelula - 24;
+                if (alturaImg > alturaMaxImg) {
+                  alturaImg = alturaMaxImg;
+                  larguraImg = alturaImg / proporcao;
+                }
+                const xImg = xCelula + (larguraCelula - larguraImg) / 2;
+                const yImg = yLinha + 6;
+                doc.addImage(dataUrl, props.fileType, xImg, yImg, larguraImg, alturaImg);
+                doc.setFont("Montserrat", "normal");
+                doc.setFontSize(7.5);
+                doc.setTextColor.apply(doc, PALETA.cinzaQuente);
+                const legenda = doc.splitTextToSize(item.nomeArquivo || "", larguraCelula - 12)[0] || "";
+                doc.text(legenda, xCelula + 6, yLinha + alturaCelula - 8);
+              } catch (e) {
+                doc.setFont("Montserrat", "normal");
+                doc.setFontSize(8);
+                doc.setTextColor.apply(doc, PALETA.cinzaQuente);
+                doc.text("(não foi possível carregar a imagem)", xCelula + 8, yLinha + alturaCelula / 2);
+              }
+            });
+            y = yLinha + alturaCelula + 12;
+          }
+          y += 4;
+        }
+
         const fatores = fatoresDoPosto(av);
         if (!fatores.length) {
           paragrafo("Nenhum fator de risco com \"Existe Fator de Risco: Sim\" cadastrado para este Posto de Trabalho.", { cor: [140, 140, 140], tamanho: 9 });
@@ -2322,18 +2440,18 @@
       );
       y += 30;
       garantirEspaco(60);
-      doc.setDrawColor(120, 120, 120);
+      doc.setDrawColor.apply(doc, PALETA.vinhoSuave2);
       doc.line(margem, y, margem + 220, y);
       y += 14;
-      doc.setFont("helvetica", "bold");
+      doc.setFont("Montserrat", "bold");
       doc.setFontSize(10);
-      doc.setTextColor(30, 30, 30);
+      doc.setTextColor.apply(doc, PALETA.texto);
       doc.text(opcoes.emitidoPor || "Responsável Técnico ElevaLife", margem, y);
       y += 13;
-      doc.setFont("helvetica", "normal");
+      doc.setFont("Montserrat", "normal");
       doc.setFontSize(9);
-      doc.setTextColor(90, 90, 90);
-      doc.text("ElevaLife - BI Ergonomia", margem, y);
+      doc.setTextColor.apply(doc, PALETA.cinzaQuente);
+      doc.text("ElevaLife - S.I.G.E (Sistema Integrado de Gestão da Ergonomia)", margem, y);
 
       // ---------------- Rodape (so na passada final) ----------------
       if (!gravando) {
@@ -2341,7 +2459,7 @@
         for (let p = 1; p <= totalPaginas; p++) {
           doc.setPage(p);
           if (p === 1 && !apenasAvaliacao) continue; // capa sem rodape
-          doc.setFont("helvetica", "normal");
+          doc.setFont("Montserrat", "normal");
           doc.setFontSize(8);
           doc.setTextColor(150, 150, 150);
           doc.text(`${opcoes.nomeCliente} - Laudo Ergonômico`, margem, alturaPagina - 20);
@@ -2352,10 +2470,12 @@
     }
 
     const docSeco = new jsPDFCtor({ unit: "pt", format: "a4" });
+    if (window.BI && window.BI.registrarFontesPDF) window.BI.registrarFontesPDF(docSeco);
     const mapaPaginas = {};
     construirDocumento(docSeco, mapaPaginas, true);
 
     const doc = new jsPDFCtor({ unit: "pt", format: "a4" });
+    if (window.BI && window.BI.registrarFontesPDF) window.BI.registrarFontesPDF(doc);
     construirDocumento(doc, mapaPaginas, false);
     // "arraybuffer" (nunca "blob"): os bytes puros funcionam em qualquer
     // contexto que monte o File/Blob final (ver ligarGeracaoLaudo) - um
@@ -2445,7 +2565,7 @@
         // lista - nunca obriga o usuario a digitar nada so pra conseguir
         // salvar o registro depois de gerar o PDF.
         if (form._campos["Texto"] && !form._campos["Texto"].value) {
-          form._campos["Texto"].value = `Laudo gerado automaticamente pela plataforma BI Ergonomia em ${hojeMeiaNoite().toLocaleDateString("pt-BR")}, a partir das Avaliações Ergonômicas e do Inventário de Riscos já registrados para ${nomeCliente}. Ver arquivo PDF anexado.`;
+          form._campos["Texto"].value = `Laudo gerado automaticamente pela plataforma S.I.G.E (Sistema Integrado de Gestão da Ergonomia) em ${hojeMeiaNoite().toLocaleDateString("pt-BR")}, a partir das Avaliações Ergonômicas e do Inventário de Riscos já registrados para ${nomeCliente}. Ver arquivo PDF anexado.`;
         }
       } catch (erro) {
         mostrarAviso(erro && erro.message ? erro.message : "Falha ao gerar o laudo.", true);
@@ -4642,6 +4762,7 @@
     if (!secao) return;
 
     const doc = new jsPDFCtor({ unit: "pt", format: "a4" });
+    if (window.BI && window.BI.registrarFontesPDF) window.BI.registrarFontesPDF(doc);
     const margem = 36;
     const larguraPagina = doc.internal.pageSize.getWidth();
     const alturaPagina = doc.internal.pageSize.getHeight();
@@ -4651,12 +4772,12 @@
     function novaPagina() { doc.addPage(); y = margem; }
     function garantirEspaco(altura) { if (y + altura > alturaPagina - margem) novaPagina(); }
 
-    doc.setFont("helvetica", "bold");
+    doc.setFont("Montserrat", "bold");
     doc.setFontSize(16);
-    doc.setTextColor(46, 95, 98);
-    doc.text("BI Ergonomia - ElevaLife", margem, y);
+    doc.setTextColor(94, 42, 48);
+    doc.text("S.I.G.E - ElevaLife", margem, y);
     y += 20;
-    doc.setFont("helvetica", "normal");
+    doc.setFont("Montserrat", "normal");
     doc.setFontSize(10);
     doc.setTextColor(90, 90, 90);
     doc.text(TITULOS_ABA[chave], margem, y);
@@ -4679,13 +4800,13 @@
       const sub = subEl ? subEl.textContent.trim() : "";
 
       garantirEspaco(50);
-      doc.setFont("helvetica", "bold");
+      doc.setFont("Montserrat", "bold");
       doc.setFontSize(11);
       doc.setTextColor(30, 30, 30);
       doc.text(titulo, margem, y);
       y += 14;
       if (sub) {
-        doc.setFont("helvetica", "normal");
+        doc.setFont("Montserrat", "normal");
         doc.setFontSize(9);
         doc.setTextColor(120, 120, 120);
         doc.text(sub, margem, y);
@@ -4696,7 +4817,7 @@
       if (tilesEl) {
         const linhasTexto = extrairTextoTiles(tilesEl);
         garantirEspaco(linhasTexto.length * 12 + 6);
-        doc.setFont("helvetica", "normal");
+        doc.setFont("Montserrat", "normal");
         doc.setFontSize(9);
         doc.setTextColor(50, 50, 50);
         linhasTexto.forEach((linha) => { doc.text(linha, margem + 8, y); y += 12; });
@@ -4714,7 +4835,7 @@
         if (legendaEl && legendaEl.textContent.trim()) {
           const linhasLeg = doc.splitTextToSize(legendaEl.textContent.trim().replace(/\s+/g, "  "), larguraUtil);
           garantirEspaco(linhasLeg.length * 11 + 4);
-          doc.setFont("helvetica", "normal");
+          doc.setFont("Montserrat", "normal");
           doc.setFontSize(8);
           doc.setTextColor(90, 90, 90);
           doc.text(linhasLeg, margem, y);
@@ -4831,7 +4952,7 @@
     }
     el.innerHTML = "";
     const forte = document.createElement("strong");
-    forte.textContent = "Nao foi possivel carregar o BI Ergonomia:";
+    forte.textContent = "Nao foi possivel carregar o S.I.G.E:";
     const texto = document.createElement("span");
     texto.textContent = mensagem;
     el.appendChild(forte);
@@ -5016,7 +5137,7 @@
   }
 
   function excluirUsuario(id, email) {
-    if (!window.confirm(`Remover o acesso de "${email}" ao BI Ergonomia? Essa ação não pode ser desfeita.`)) return;
+    if (!window.confirm(`Remover o acesso de "${email}" ao S.I.G.E? Essa ação não pode ser desfeita.`)) return;
     window.BI.DB.excluir("usuarios", id).then(() => carregarUsuarios()).catch((e) => {
       mostrarErro("Erro ao excluir usuario: " + (e && e.message ? e.message : String(e)));
     });
@@ -5110,7 +5231,7 @@
       const h2 = document.createElement("h2");
       h2.textContent = "Bem-vindo(a)";
       const p = document.createElement("p");
-      p.textContent = "Entre com a sua conta Microsoft da ElevaLife para acessar o BI Ergonomia.";
+      p.textContent = "Entre com a sua conta Microsoft da ElevaLife para acessar o S.I.G.E.";
       const btnEntrar = criarBotao("btn-entrar-microsoft", "Entrar com Microsoft", "btn-entrar-microsoft", () => {
         btnEntrar.disabled = true;
         btnEntrar.textContent = "Redirecionando...";
@@ -5131,7 +5252,7 @@
       spanEmail.className = "tela-acesso-email";
       spanEmail.textContent = email;
       p.appendChild(spanEmail);
-      p.appendChild(document.createTextNode(", mas ainda não foi vinculado a nenhuma empresa. Peça a um Administrador do BI Ergonomia para liberar o seu acesso."));
+      p.appendChild(document.createTextNode(", mas ainda não foi vinculado a nenhuma empresa. Peça a um Administrador do S.I.G.E para liberar o seu acesso."));
       const btnNovamente = criarBotao("btn-tentar-novamente-acesso", "Já fui liberado, tentar novamente", "btn-entrar-microsoft", () => window.location.reload());
       const btnTrocar = criarBotao("btn-trocar-conta", "Trocar de conta", "btn-trocar-conta", () => window.BI.DB.sairDaConta());
       conteudo.append(h2, p, btnNovamente, btnTrocar);
