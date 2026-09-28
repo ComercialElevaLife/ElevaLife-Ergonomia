@@ -185,6 +185,76 @@ h1, h2, h3, .titulo-marca {
   font-family: 'Montserrat Alternates', 'Montserrat', system-ui, sans-serif;
 }
 
+/* ---------------------------- Tela de acesso (login/bloqueado) ---------------------------- */
+
+.tela-acesso {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(165deg, var(--vinho-escuro), var(--vinho));
+  padding: 24px;
+}
+.tela-acesso-cartao {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 40px 32px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+  text-align: center;
+}
+.tela-acesso-marca { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 28px; }
+.tela-acesso-marca .logo-mark {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(165deg, var(--vinho-escuro), var(--vinho));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.tela-acesso-marca .produto { font-weight: 700; font-size: 19px; color: var(--texto); }
+.tela-acesso-marca .tagline { font-size: 12px; color: var(--texto-secundario); text-align: center; }
+#tela-acesso-conteudo h2 { font-size: 17px; margin: 0 0 10px; color: var(--texto); }
+#tela-acesso-conteudo p { font-size: 14px; color: var(--texto-secundario); line-height: 1.55; margin: 0 0 22px; }
+.tela-acesso-email { font-weight: 600; color: var(--texto); }
+.btn-entrar-microsoft, .btn-trocar-conta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: none;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14.5px;
+  cursor: pointer;
+  background: var(--vinho);
+  color: #fff;
+  transition: background .15s ease;
+}
+.btn-entrar-microsoft:hover { background: var(--vinho-escuro); }
+.btn-entrar-microsoft:disabled { opacity: 0.7; cursor: default; }
+.btn-entrar-microsoft + .btn-trocar-conta,
+.btn-entrar-microsoft + .btn-entrar-microsoft { margin-top: 10px; }
+.btn-trocar-conta {
+  background: transparent;
+  border: 1px solid var(--linha);
+  color: var(--texto);
+  margin-top: 10px;
+}
+.btn-trocar-conta:hover { background: var(--creme); }
+
 /* ---------------------------- Layout geral (shell + menu lateral) ---------------------------- */
 
 .app-shell {

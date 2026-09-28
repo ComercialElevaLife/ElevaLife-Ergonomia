@@ -45,6 +45,12 @@
     db: null,
     identidade: null, // { email, papel, empresasVinculadas, acessoLiberado } quando modoApi
     mensagemAcesso: null, // preenchido quando autenticado mas sem papel liberado
+    // Preenchido em iniciar() quando o app precisa mostrar a tela de acesso
+    // (ver #tela-acesso em index.html/configurarTelaAcesso em app.js), em vez
+    // de operar normalmente: "login" (ainda nao autenticado - precisa clicar
+    // em "Entrar com Microsoft") ou "bloqueado" (autenticado mas sem papel
+    // liberado em /api/usuarios ainda). null = opera normalmente.
+    telaAcesso: null,
     colecoes: {
       mapaRisco: [], planoAcao: [], absenteismo: [], compativeis: [],
       cliente: [], unidade: [], setor: [], cargo: [], posto: [], atividade: [],
@@ -123,18 +129,23 @@
     }
   }
 
-  // So redireciona uma vez por sessao de aba - evita loop se o login falhar,
-  // for cancelado, ou o usuario nao tiver conta autorizada.
-  function tentarRedirecionarParaLogin() {
-    try {
-      if (global.sessionStorage.getItem("bi-ergonomia-tentou-login")) return false;
-      global.sessionStorage.setItem("bi-ergonomia-tentou-login", "1");
-    } catch (e) {
-      // sessionStorage indisponivel (raro) - segue sem travar, so nao evita loop.
-    }
+  // Manda o usuario pro login da Microsoft (Azure AD, gerenciado pelo Static
+  // Web App - nunca lidamos com senha aqui). So e chamada quando o proprio
+  // usuario clica em "Entrar com Microsoft" na tela de acesso (ver
+  // configurarTelaAcesso em app.js) - iniciar() abaixo so PREPARA o estado
+  // (estado.telaAcesso = "login"), nunca redireciona sozinho.
+  function irParaLoginMicrosoft() {
     const destino = global.location.pathname + global.location.search;
     global.location.href = "/.auth/login/aad?post_login_redirect_uri=" + encodeURIComponent(destino);
-    return true;
+  }
+
+  // Encerra a sessao AAD atual (usado no botao "Trocar de conta" da tela de
+  // acesso, quando o usuario autenticado ainda nao foi vinculado a nenhuma
+  // empresa) - volta pra mesma pagina, que vai detectar de novo e mostrar a
+  // tela de login.
+  function irParaLogout() {
+    const destino = global.location.pathname;
+    global.location.href = "/.auth/logout?post_logout_redirect_uri=" + encodeURIComponent(destino);
   }
 
   async function recarregarColecaoApi(chave) {
@@ -219,14 +230,16 @@
     if (deteccao.existe && deteccao.identidade && !deteccao.identidade.acessoLiberado) {
       estado.identidade = deteccao.identidade;
       estado.mensagemAcesso = "Seu acesso ainda nao foi liberado. Peca a um Administrador para te vincular a uma empresa.";
+      estado.telaAcesso = "bloqueado";
       console.warn("BI Ergonomia - " + estado.mensagemAcesso);
     }
 
     // API existe mas o usuario ainda nao esta autenticado (401/redirect) -
-    // manda ele para o login do Azure AD em vez de mostrar o mock estatico
-    // silenciosamente. So dispara uma vez por aba (ver tentarRedirecionarParaLogin).
+    // so prepara o estado; quem decide mostrar a tela de login (e so
+    // redirecionar pro Azure AD quando o usuario clicar em "Entrar com
+    // Microsoft") e configurarTelaAcesso() em app.js.
     if (deteccao.existe && deteccao.precisaLogin) {
-      tentarRedirecionarParaLogin();
+      estado.telaAcesso = "login";
     }
 
     estado.disponivel = false;
@@ -361,5 +374,7 @@
     excluir,
     enviarArquivo,
     urlArquivo,
+    entrarComMicrosoft: irParaLoginMicrosoft,
+    sairDaConta: irParaLogout,
   };
 })(window);

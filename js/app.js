@@ -4520,6 +4520,71 @@
     });
   }
 
+  // So chamado depois de window.BI.DB.iniciar() resolver - mostra a tela de
+  // acesso (login com Microsoft, ou aviso de acesso ainda nao liberado) no
+  // lugar do app inteiro, conforme window.BI.DB.estado.telaAcesso ("login" /
+  // "bloqueado" / null). So acontece na versao publicada (producao); no
+  // preview/mock (Cowork ou index.html aberto direto) telaAcesso fica null e
+  // esta funcao nao faz nada.
+  function configurarTelaAcesso() {
+    const tela = document.getElementById("tela-acesso");
+    const shell = document.getElementById("app-shell");
+    const conteudo = document.getElementById("tela-acesso-conteudo");
+    if (!tela || !shell || !conteudo) return;
+
+    const modo = window.BI.DB.estado.telaAcesso;
+    if (!modo) {
+      tela.hidden = true;
+      shell.hidden = false;
+      return;
+    }
+
+    shell.hidden = true;
+    tela.hidden = false;
+    conteudo.innerHTML = "";
+
+    function criarBotao(id, texto, classe, aoClicar) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = id;
+      btn.className = classe;
+      btn.textContent = texto;
+      btn.addEventListener("click", aoClicar);
+      return btn;
+    }
+
+    if (modo === "login") {
+      const h2 = document.createElement("h2");
+      h2.textContent = "Bem-vindo(a)";
+      const p = document.createElement("p");
+      p.textContent = "Entre com a sua conta Microsoft da ElevaLife para acessar o BI Ergonomia.";
+      const btnEntrar = criarBotao("btn-entrar-microsoft", "Entrar com Microsoft", "btn-entrar-microsoft", () => {
+        btnEntrar.disabled = true;
+        btnEntrar.textContent = "Redirecionando...";
+        window.BI.DB.entrarComMicrosoft();
+      });
+      conteudo.append(h2, p, btnEntrar);
+      return;
+    }
+
+    if (modo === "bloqueado") {
+      const identidade = window.BI.DB.estado.identidade;
+      const email = (identidade && identidade.email) || "";
+      const h2 = document.createElement("h2");
+      h2.textContent = "Acesso ainda não liberado";
+      const p = document.createElement("p");
+      p.appendChild(document.createTextNode("Você entrou como "));
+      const spanEmail = document.createElement("span");
+      spanEmail.className = "tela-acesso-email";
+      spanEmail.textContent = email;
+      p.appendChild(spanEmail);
+      p.appendChild(document.createTextNode(", mas ainda não foi vinculado a nenhuma empresa. Peça a um Administrador do BI Ergonomia para liberar o seu acesso."));
+      const btnNovamente = criarBotao("btn-tentar-novamente-acesso", "Já fui liberado, tentar novamente", "btn-entrar-microsoft", () => window.location.reload());
+      const btnTrocar = criarBotao("btn-trocar-conta", "Trocar de conta", "btn-trocar-conta", () => window.BI.DB.sairDaConta());
+      conteudo.append(h2, p, btnNovamente, btnTrocar);
+    }
+  }
+
   // So chamado depois de window.BI.DB.iniciar() resolver (e so entao
   // estado.identidade existe de verdade) - mostra o item de menu
   // "Usuarios" so pra quem e Administrador, e carrega a lista se for o
@@ -4595,9 +4660,11 @@
       if (!disponivel) {
         console.warn("BI Ergonomia - capacidade 'db' indisponivel nesta visualizacao; cadastros em modo somente leitura (dados ficticios de exemplo).");
       }
-      // So depois do iniciar() acima e que window.BI.DB.estado.identidade
-      // existe de verdade (preenchido so no modo API - ver js/db.js) -
-      // decide aqui se mostra o item de menu "Usuarios".
+      // So depois do iniciar() acima e que window.BI.DB.estado.identidade/
+      // telaAcesso existem de verdade (preenchidos so no modo API - ver
+      // js/db.js) - decide aqui se mostra a tela de login/bloqueio (cobrindo
+      // o app inteiro) e/ou o item de menu "Usuarios".
+      configurarTelaAcesso();
       configurarUsuarios();
     } catch (erro) {
       console.error("BI Ergonomia - erro na inicializacao:", erro);

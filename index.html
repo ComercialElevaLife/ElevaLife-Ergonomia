@@ -6,6 +6,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Montserrat+Alternates:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 
+<!-- Tela de acesso (login/bloqueado) - cobre a tela inteira quando o
+     usuario ainda precisa entrar com a conta Microsoft ou ja entrou mas
+     ainda nao foi vinculado a nenhuma empresa (ver estado.telaAcesso em
+     js/db.js e configurarTelaAcesso em js/app.js). Escondida por padrao:
+     so aparece na versao publicada (producao), nunca no preview/mock. -->
+<div class="tela-acesso" id="tela-acesso" hidden>
+  <div class="tela-acesso-cartao">
+    <div class="tela-acesso-marca">
+      <div class="logo-mark">EL</div>
+      <div class="produto">BI Ergonomia</div>
+      <div class="tagline">ElevaLife · 15 anos elevando pessoas e resultados</div>
+    </div>
+    <div id="tela-acesso-conteudo"></div>
+  </div>
+</div>
+
 <div class="app-shell" id="app-shell">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-topo">
