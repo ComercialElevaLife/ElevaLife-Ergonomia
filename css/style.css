@@ -1148,6 +1148,95 @@ table.tabela-dados tbody tr:hover td.col-acoes { background: var(--creme); }
   .drilldown-painel { width: 100vw; }
 }
 
+/* ------------------ Checklist de Inventario de Riscos ------------------ */
+/* Painel de checklist (pedido do Leo 28/09: "abre uma tela com caixas de
+   selecao... nao queria uma copia do outro sistema") - mesmo padrao visual
+   de slide-in do painel de drill-down (.drilldown-painel), so que mais
+   largo (tem selects inline por linha) e com um rodape fixo de acoes
+   (Cancelar/Salvar), que o drill-down (so leitura) nao precisa. */
+.checklist-painel { width: min(760px, 94vw); }
+.checklist-corpo { padding-bottom: 8px; }
+.checklist-aviso-matriz {
+  font-size: 12px;
+  color: var(--cinza-quente);
+  background: var(--creme);
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+}
+.checklist-grupo-titulo {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--teal-escuro);
+  margin: 18px 0 8px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--linha);
+}
+.checklist-grupo-titulo:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+.checklist-fator-linha {
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: var(--card);
+  transition: border-color 0.15s, background 0.15s;
+}
+.checklist-fator-linha.checklist-fator-com-erro {
+  border-color: var(--status-critical);
+  background: color-mix(in srgb, var(--status-critical) 8%, var(--card));
+}
+.checklist-fator-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.checklist-fator-cabecalho input[type="checkbox"] { margin-top: 2px; flex: none; }
+.checklist-fator-detalhes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px 12px;
+  margin: 10px 0 2px 24px;
+}
+.checklist-fator-detalhes .campo-form label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--cinza-quente);
+  font-weight: 700;
+}
+.checklist-fator-detalhes select {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 7px;
+  border-radius: 7px;
+  border: 1px solid var(--linha);
+  background: var(--card);
+}
+.checklist-badge-graduacao { font-weight: 700; font-size: 13.5px; }
+.checklist-erro {
+  padding: 0 clamp(14px, 3vw, 24px);
+  flex-shrink: 0;
+}
+.checklist-rodape {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 12px clamp(14px, 3vw, 24px);
+  border-top: 1px solid var(--linha);
+  background: var(--creme);
+  flex-shrink: 0;
+}
+.btn-acao-linha-checklist { background: var(--teal); border-color: var(--teal); color: #fff; }
+.btn-acao-linha-checklist:hover { background: var(--teal-escuro); border-color: var(--teal-escuro); }
+@media (max-width: 480px) {
+  .checklist-painel { width: 100vw; }
+}
+
 /* Canvas de grafico clicavel - cursor muda via JS (onHover), mas o estado
    base ja sinaliza interatividade para quem passa o mouse rapido. */
 canvas.grafico-interativo { cursor: default; }
@@ -1315,6 +1404,41 @@ canvas.grafico-interativo { cursor: default; }
   margin-top: 18px;
   padding-top: 16px;
   border-top: 1px dashed var(--linha);
+}
+
+/* Modo "abas" do formulario (pedido do Leo 28/09: "achei muito longa a
+   tela, tem que ficar rolando a tela... faz varias abas") - mesmas secoes
+   de sempre (comSecao), so que em vez de ficarem empilhadas viram um menu
+   de abas clicaveis (ver montarFormulario/cfg.emAbas). Só entra quando o
+   cadastro tem cfg.emAbas: true. */
+.form-cadastro-abas-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--linha);
+  order: -1;
+}
+.form-cadastro-aba-botao {
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--linha);
+  background: var(--card);
+  color: var(--cinza-quente);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.form-cadastro-aba-botao:hover { border-color: var(--teal); color: var(--teal-escuro); }
+.form-cadastro-aba-botao.ativa {
+  background: var(--teal-escuro);
+  border-color: var(--teal-escuro);
+  color: #fff;
 }
 
 .campo-form { display: flex; flex-direction: column; gap: 3px; min-width: 0; }

@@ -2738,6 +2738,326 @@
     form._campos["Probabilidade"].addEventListener("change", recalcularPontuacao);
   }
 
+  // ------------------------------------------------------------------
+  // Checklist de Inventario de Riscos (pedido do Leo 28/09/2026: "criou a
+  // avaliacao, vai registrar o inventario de risco daquela avaliacao. Abre
+  // uma tela com caixas de selecao... nao queria uma copia do outro
+  // sistema, queria que voce se baseasse na estrutura do sistema, na
+  // logica, e fizesse um novo"). Substitui, so pra este fluxo (a partir de
+  // uma linha ja existente de Avaliacao Ergonomica), o caminho antigo de
+  // abrir "Novo Registro" em Inventario de Riscos e escolher Grupo/Fator um
+  // a um: aqui os 41 fatores da ISO TS-20646 (Calc.GRUPOS_FATOR_RISCO/
+  // fatoresDoGrupo - mesma fonte unica do cadastro antigo) aparecem todos
+  // de uma vez, agrupados, cada um com uma caixa de selecao. O cadastro
+  // antigo (tela "Inventário de Riscos (AEP)") continua existindo do lado -
+  // util pra buscar/editar/excluir um fator especifico depois.
+  // ------------------------------------------------------------------
+  let elChecklistPainel = null;
+  let elOverlayChecklist = null;
+
+  function obterPainelChecklist() {
+    if (elChecklistPainel) return elChecklistPainel;
+
+    const overlay = document.createElement("div");
+    overlay.className = "overlay-drilldown overlay-checklist";
+    overlay.id = "overlay-checklist";
+    overlay.hidden = true;
+    document.body.appendChild(overlay);
+    elOverlayChecklist = overlay;
+
+    const painel = document.createElement("aside");
+    painel.className = "drilldown-painel checklist-painel";
+    painel.id = "checklist-painel";
+    painel.setAttribute("aria-hidden", "true");
+
+    const cab = document.createElement("div");
+    cab.className = "drilldown-cabecalho";
+    const titulos = document.createElement("div");
+    titulos.className = "drilldown-titulos";
+    const titulo = document.createElement("div");
+    titulo.className = "titulo";
+    titulo.id = "checklist-titulo";
+    const sub = document.createElement("div");
+    sub.className = "sub";
+    sub.id = "checklist-sub";
+    titulos.appendChild(titulo);
+    titulos.appendChild(sub);
+    const btnFechar = document.createElement("button");
+    btnFechar.type = "button";
+    btnFechar.className = "drilldown-fechar";
+    btnFechar.setAttribute("aria-label", "Fechar checklist de inventario de riscos");
+    btnFechar.textContent = "×";
+    btnFechar.addEventListener("click", fecharPainelChecklist);
+    cab.appendChild(titulos);
+    cab.appendChild(btnFechar);
+
+    const corpo = document.createElement("div");
+    corpo.className = "drilldown-corpo checklist-corpo";
+    corpo.id = "checklist-corpo";
+
+    const erro = document.createElement("div");
+    erro.className = "form-cadastro-erro checklist-erro";
+    erro.hidden = true;
+    erro.id = "checklist-erro";
+
+    const rodape = document.createElement("div");
+    rodape.className = "checklist-rodape";
+    const btnCancelar = document.createElement("button");
+    btnCancelar.type = "button"; btnCancelar.className = "btn-cad-secundario"; btnCancelar.textContent = "Cancelar";
+    btnCancelar.addEventListener("click", fecharPainelChecklist);
+    const btnSalvar = document.createElement("button");
+    btnSalvar.type = "button"; btnSalvar.className = "btn-cad-primario"; btnSalvar.textContent = "Salvar Inventario de Riscos";
+    rodape.appendChild(btnCancelar);
+    rodape.appendChild(btnSalvar);
+    painel.rodapeBotaoSalvar = btnSalvar;
+
+    painel.appendChild(cab);
+    painel.appendChild(corpo);
+    painel.appendChild(erro);
+    painel.appendChild(rodape);
+    document.body.appendChild(painel);
+
+    elChecklistPainel = painel;
+    return painel;
+  }
+
+  function fecharPainelChecklist() {
+    if (elChecklistPainel) { elChecklistPainel.classList.remove("aberto"); elChecklistPainel.setAttribute("aria-hidden", "true"); }
+    if (elOverlayChecklist) elOverlayChecklist.hidden = true;
+  }
+
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && elChecklistPainel && elChecklistPainel.classList.contains("aberto")) fecharPainelChecklist();
+  });
+  document.addEventListener("click", (ev) => {
+    if (!elChecklistPainel || !elChecklistPainel.classList.contains("aberto")) return;
+    // Exclui o proprio botao que ABRE o painel (linha da tabela de Avaliacao
+    // Ergonomica) - senao o clique que abre o painel borbulha ate aqui no
+    // MESMO evento (o listener do botao ja rodou e marcou ".aberto" antes de
+    // este listener no document ser alcancado) e fecha o painel na hora,
+    // igual ao workaround ja existente pro drill-down com canvas/clique-que-abre.
+    if (ev.target.closest(".checklist-painel") || ev.target.closest(".btn-acao-linha-checklist")) return;
+    fecharPainelChecklist();
+  });
+
+  // Acha o registro de fatorRisco ja cadastrado (se algum) para esta
+  // combinacao exata de posto (chave completa da Avaliacao) + Grupo/Fator.
+  function fatorRiscoExistente(linhaAval, grupo, fator) {
+    return (window.BI.dados.fatorRisco || []).find((f) =>
+      f.Cliente === linhaAval.Cliente && f.Unidade === linhaAval.Unidade && f.Setor === linhaAval.Setor &&
+      f.Cargo === linhaAval.Cargo && f["Posto Trabalho"] === linhaAval["Posto Trabalho"] && f.Atividade === linhaAval.Atividade &&
+      f.Grupo === grupo && f.Fator === fator
+    );
+  }
+
+  function abrirInventarioChecklist(linhaAval) {
+    const Calc = window.BI.Calc;
+    const painel = obterPainelChecklist();
+    const podeEditar = window.BI.DB.estado.disponivel;
+
+    document.getElementById("checklist-titulo").textContent = "Inventário de Riscos - " + (linhaAval["Posto Trabalho"] || "");
+    document.getElementById("checklist-sub").textContent =
+      [linhaAval.Cliente, linhaAval.Unidade, linhaAval.Setor, linhaAval.Cargo, linhaAval.Atividade].filter(Boolean).join(" › ");
+
+    const corpo = document.getElementById("checklist-corpo");
+    corpo.innerHTML = "";
+    const erroEl = document.getElementById("checklist-erro");
+    erroEl.hidden = true;
+    erroEl.textContent = "";
+
+    const nomeMatriz = Calc.matrizDoCliente(window.BI.dados.cliente, linhaAval.Cliente);
+    const escala = Calc.escalaDaMatriz(nomeMatriz);
+
+    const aviso = document.createElement("div");
+    aviso.className = "checklist-aviso-matriz";
+    aviso.textContent = "Matriz de Risco em uso: " + nomeMatriz + " (definida no Cadastro de Cliente).";
+    corpo.appendChild(aviso);
+
+    // Uma "linha" por fator (41 no total) - guarda tudo que o Salvar precisa
+    // pra decidir se cria/atualiza/marca "Nao" cada uma.
+    const linhasChecklist = [];
+
+    Calc.GRUPOS_FATOR_RISCO.forEach((grupo) => {
+      const tituloGrupo = document.createElement("div");
+      tituloGrupo.className = "checklist-grupo-titulo";
+      tituloGrupo.textContent = grupo;
+      corpo.appendChild(tituloGrupo);
+
+      Calc.fatoresDoGrupo(grupo).forEach((fator) => {
+        const registroExistente = fatorRiscoExistente(linhaAval, grupo, fator);
+        const marcadoInicialmente = !!registroExistente && registroExistente["Existe Fator Risco"] === "Sim";
+
+        const linha = document.createElement("div");
+        linha.className = "checklist-fator-linha";
+
+        const cabecalhoLinha = document.createElement("label");
+        cabecalhoLinha.className = "checklist-fator-cabecalho";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = marcadoInicialmente;
+        checkbox.disabled = !podeEditar;
+        const textoFator = document.createElement("span");
+        textoFator.textContent = fator;
+        cabecalhoLinha.appendChild(checkbox);
+        cabecalhoLinha.appendChild(textoFator);
+        linha.appendChild(cabecalhoLinha);
+
+        const detalhes = document.createElement("div");
+        detalhes.className = "checklist-fator-detalhes";
+        detalhes.hidden = !marcadoInicialmente;
+
+        function campoDetalhe(rotulo) {
+          const div = document.createElement("div");
+          div.className = "campo-form";
+          const lbl = document.createElement("label");
+          lbl.textContent = rotulo;
+          div.appendChild(lbl);
+          return div;
+        }
+
+        const divCriticidade = campoDetalhe("Criticidade (Gravidade)");
+        const selCriticidade = document.createElement("select");
+        escala.forEach((v) => { const o = document.createElement("option"); o.value = v; o.textContent = v; selCriticidade.appendChild(o); });
+        selCriticidade.insertBefore(document.createElement("option"), selCriticidade.firstChild);
+        selCriticidade.value = (registroExistente && registroExistente.Criticidade) || "";
+        divCriticidade.appendChild(selCriticidade);
+
+        const divProbabilidade = campoDetalhe("Probabilidade");
+        const selProbabilidade = document.createElement("select");
+        escala.forEach((v) => { const o = document.createElement("option"); o.value = v; o.textContent = v; selProbabilidade.appendChild(o); });
+        selProbabilidade.insertBefore(document.createElement("option"), selProbabilidade.firstChild);
+        selProbabilidade.value = (registroExistente && registroExistente.Probabilidade) || "";
+        divProbabilidade.appendChild(selProbabilidade);
+
+        const divGraduacao = campoDetalhe("Graduação (calculada)");
+        const badgeGraduacao = document.createElement("span");
+        badgeGraduacao.className = "checklist-badge-graduacao";
+        divGraduacao.appendChild(badgeGraduacao);
+
+        function recalcularGraduacao() {
+          const criticidade = selCriticidade.value;
+          const probabilidade = selProbabilidade.value;
+          const temAmbos = !!(criticidade && probabilidade);
+          const nivel = temAmbos ? Calc.nivelDaMatriz(nomeMatriz, probabilidade, criticidade) : "";
+          badgeGraduacao.textContent = nivel || "-";
+          badgeGraduacao.style.color = nivel ? (Calc.corStatus(nivel) || "") : "";
+        }
+        recalcularGraduacao();
+        selCriticidade.addEventListener("change", recalcularGraduacao);
+        selProbabilidade.addEventListener("change", recalcularGraduacao);
+        if (!podeEditar) { selCriticidade.disabled = true; selProbabilidade.disabled = true; }
+
+        detalhes.appendChild(divCriticidade);
+        detalhes.appendChild(divProbabilidade);
+        detalhes.appendChild(divGraduacao);
+        linha.appendChild(detalhes);
+        corpo.appendChild(linha);
+
+        checkbox.addEventListener("change", () => { detalhes.hidden = !checkbox.checked; });
+
+        linhasChecklist.push({ grupo, fator, registroExistente, checkbox, selCriticidade, selProbabilidade, linha });
+      });
+    });
+
+    const btnSalvar = painel.rodapeBotaoSalvar;
+    btnSalvar.disabled = !podeEditar;
+    btnSalvar.onclick = async () => {
+      erroEl.hidden = true;
+      linhasChecklist.forEach((l) => l.linha.classList.remove("checklist-fator-com-erro"));
+
+      // Valida ANTES de salvar qualquer coisa: todo fator marcado precisa de
+      // Criticidade + Probabilidade (mesma exigencia do cadastro antigo,
+      // camposFatorRisco) - senao a Graduacao nao tem como ser calculada.
+      const semClassificacao = linhasChecklist.find((l) => l.checkbox.checked && (!l.selCriticidade.value || !l.selProbabilidade.value));
+      if (semClassificacao) {
+        erroEl.hidden = false;
+        erroEl.textContent = `Preencha Criticidade e Probabilidade do fator "${semClassificacao.fator}" (marcado, mas sem classificacao).`;
+        semClassificacao.linha.classList.add("checklist-fator-com-erro");
+        if (typeof semClassificacao.linha.scrollIntoView === "function") {
+          semClassificacao.linha.scrollIntoView({ block: "center", behavior: "smooth" });
+        }
+        return;
+      }
+
+      const paraSalvar = linhasChecklist.filter((l) => {
+        const jaEraSim = l.registroExistente && l.registroExistente["Existe Fator Risco"] === "Sim";
+        if (l.checkbox.checked) {
+          // Novo, ou existente mas com Criticidade/Probabilidade alteradas.
+          return !jaEraSim || l.registroExistente.Criticidade !== l.selCriticidade.value || l.registroExistente.Probabilidade !== l.selProbabilidade.value;
+        }
+        // Desmarcado: so precisa salvar se antes estava "Sim" (senao nao ha nada pra mudar).
+        return jaEraSim;
+      });
+
+      if (!paraSalvar.length) { fecharPainelChecklist(); return; }
+
+      btnSalvar.disabled = true;
+      const textoOriginal = btnSalvar.textContent;
+      try {
+        for (let i = 0; i < paraSalvar.length; i++) {
+          const l = paraSalvar[i];
+          btnSalvar.textContent = `Salvando (${i + 1}/${paraSalvar.length})...`;
+          const marcado = l.checkbox.checked;
+          const nivel = marcado ? Calc.nivelDaMatriz(nomeMatriz, l.selProbabilidade.value, l.selCriticidade.value) : "";
+          const pontuacao = marcado ? Calc.pontuacaoDaMatriz(nomeMatriz, l.selProbabilidade.value, l.selCriticidade.value) : null;
+          const dados = Object.assign(
+            {
+              Cliente: linhaAval.Cliente, Unidade: linhaAval.Unidade, Setor: linhaAval.Setor,
+              Cargo: linhaAval.Cargo, "Posto Trabalho": linhaAval["Posto Trabalho"], Atividade: linhaAval.Atividade,
+              Grupo: l.grupo, Fator: l.fator,
+              "Existe Fator Risco": marcado ? "Sim" : "Nao",
+              Criticidade: marcado ? l.selCriticidade.value : null,
+              Probabilidade: marcado ? l.selProbabilidade.value : null,
+              "Pontuacao Risco": pontuacao,
+              "Graduacao Risco": nivel || null,
+              Matriz: marcado ? nomeMatriz : null,
+              // Campos de texto/acompanhamento livres (Circunstancia Geradora,
+              // Consequencia, Medida Controle Existente, Propor Acao, Acao
+              // Eliminacao, Controles Administrativos, SLA, Observacao,
+              // Valido Ate) nao existem nesta tela de checklist (proposital -
+              // sao detalhes que fazem mais sentido no cadastro antigo,
+              // aberto depois pra um fator especifico) - preserva o que ja
+              // existia, ou entra nulo num registro novo.
+              "Circunstancia Geradora": null, Consequencia: null, "Medida Controle Existente": null,
+              "Propor Acao": null, "Acao Eliminacao": null, "Controles Administrativos": null,
+              SLA: null, Observacao: null, "Valido Ate": null,
+              Status: STATUS_FATOR_RISCO_POOL[0],
+            },
+            l.registroExistente || {}
+          );
+          // Object.assign acima usa o registro existente como "base" de
+          // campos livres (preserva o que o ergonomista ja tinha escrito no
+          // cadastro antigo), mas os campos calculados/da checklist (Existe
+          // Fator Risco/Criticidade/Probabilidade/Pontuacao/Graduacao/
+          // Matriz) tem que vir sempre do que foi decidido AGORA na tela -
+          // reaplica por cima.
+          Object.assign(dados, {
+            "Existe Fator Risco": marcado ? "Sim" : "Nao",
+            Criticidade: marcado ? l.selCriticidade.value : null,
+            Probabilidade: marcado ? l.selProbabilidade.value : null,
+            "Pontuacao Risco": pontuacao,
+            "Graduacao Risco": nivel || null,
+            Matriz: marcado ? nomeMatriz : null,
+          });
+          delete dados._id;
+          await window.BI.DB.salvar("fatorRisco", l.registroExistente ? l.registroExistente._id : null, dados);
+        }
+        fecharPainelChecklist();
+      } catch (e) {
+        erroEl.hidden = false;
+        erroEl.textContent = "Erro ao salvar o inventario de riscos: " + (e && e.message ? e.message : String(e));
+      } finally {
+        btnSalvar.disabled = !podeEditar;
+        btnSalvar.textContent = textoOriginal;
+      }
+    };
+
+    painel.classList.add("aberto");
+    painel.setAttribute("aria-hidden", "false");
+    if (elOverlayChecklist) elOverlayChecklist.hidden = false;
+    corpo.scrollTop = 0;
+  }
+
   // grupo "mestre" = aba Cadastro (setup: estrutura organizacional valida);
   // grupo "registro" = aba Registro (input operacional do dia a dia).
   const CADASTROS_CONFIG = {
@@ -2885,6 +3205,22 @@
       colunasData: [], camposData: [],
       campos: camposAvaliacaoErgonomica(),
       aoConstruir: comCascata(null),
+      // Pedido do Leo (28/09/2026): "achei muito longa a tela, tem que
+      // ficar rolando a tela... faz varias abas" - as 3 secoes do form (ver
+      // camposAvaliacaoErgonomica) viram abas clicaveis em vez de ficarem
+      // empilhadas (ver montarFormulario/emAbas). Nao e um redesign do
+      // sistema legado - e a propria estrutura/logica do BI Ergonomia
+      // (secoes ja existentes), so apresentada em abas.
+      emAbas: true,
+      // Pedido do Leo: depois de criada a Avaliacao, registrar o Inventario
+      // de Riscos dela nao deve parecer "criar um novo registro" formulario
+      // a formulario - abre uma tela de checklist com caixas de selecao (ver
+      // abrirInventarioChecklist), 1 por fator da ISO TS-20646, agrupados
+      // por Grupo. Substitui, pra este fluxo, o antigo caminho de abrir
+      // "Novo Registro" em Inventario de Riscos e escolher Grupo/Fator um a
+      // um - o cadastro antigo continua existindo (util pra buscar/editar/
+      // excluir um fator especifico depois).
+      temInventarioChecklist: true,
     },
     fatorRisco: {
       grupo: "registro", icone: "🧩", tituloMenu: "Inventário de Riscos (AEP)",
@@ -3176,6 +3512,16 @@
   function montarFormulario(cfg, chave, valoresIniciais) {
     const form = document.createElement("form");
     form.className = "form-cadastro";
+    // A validacao "required" nativa do navegador bloqueia o submit
+    // silenciosamente quando o campo invalido esta escondido (display:none) -
+    // e o caso de um campo obrigatorio numa aba que nao e a ativa (ver
+    // cfg.emAbas): o navegador nao consegue rolar/focar um campo escondido
+    // pra avisar o usuario, entao o clique em "Salvar" simplesmente nao faz
+    // nada, sem nenhuma mensagem. lerValoresFormulario ja faz a mesma
+    // checagem (obrigatorio + vazio) e mostra a mensagem certa, alem de
+    // pular pra aba certa - entao desliga a validacao nativa e usa so a
+    // nossa, que funciona igual em formularios com ou sem abas.
+    form.noValidate = true;
     form._campos = {};
 
     const titulo = document.createElement("div");
@@ -3193,6 +3539,27 @@
     const corpo = document.createElement("div");
     corpo.className = "form-cadastro-corpo";
     const usandoSecoes = cfg.campos.some((d) => d.secao);
+    // Modo "abas" (pedido do Leo, 28/09/2026: a tela de Avaliacao Ergonomica
+    // "ficava rolando", queria varias abas em vez de 1 grade longa) - so
+    // ativado por cfg.emAbas (hoje so avaliacaoErgonomica). Em vez de
+    // empilhar titulo+grade de cada secao um embaixo do outro, cada secao
+    // vira uma aba clicavel (form-cadastro-abas-nav) e so a grade da aba
+    // ativa fica visivel por vez - reaproveita a MESMA leitura/gravacao de
+    // campos de sempre (lerValoresFormulario nao muda nada), so a
+    // apresentacao visual e diferente.
+    const emAbas = !!cfg.emAbas && usandoSecoes;
+    let abasNav = null;
+    const secoesAbas = []; // [{ titulo, grade }] na ordem de aparicao
+    function trocarAba(indice) {
+      secoesAbas.forEach((s, i) => {
+        s.grade.hidden = i !== indice;
+        s.botao.classList.toggle("ativa", i === indice);
+      });
+    }
+    form._trocarAba = trocarAba; // exposto pra "Preencha o campo X" poder pular pra aba certa (ver renderizarFormCadastro)
+    form._secoesAbas = secoesAbas;
+    form._abaDoCampo = {}; // { "Jornada de Trabalho": 1, ... } - preenchido abaixo, usado pelo mesmo motivo
+    let abaIndiceAtual = -1;
     let grade = null;
     let secaoAtual;
     function novaGrade() {
@@ -3202,18 +3569,35 @@
       return g;
     }
     if (!usandoSecoes) grade = novaGrade();
+    if (emAbas) {
+      abasNav = document.createElement("div");
+      abasNav.className = "form-cadastro-abas-nav";
+      corpo.appendChild(abasNav);
+    }
 
     cfg.campos.forEach((def) => {
       if (usandoSecoes && def.secao !== secaoAtual) {
         secaoAtual = def.secao;
-        if (secaoAtual) {
+        if (secaoAtual && !emAbas) {
           const tituloSecao = document.createElement("div");
           tituloSecao.className = "form-cadastro-secao-titulo";
           tituloSecao.textContent = secaoAtual;
           corpo.appendChild(tituloSecao);
         }
         grade = novaGrade();
+        if (emAbas && secaoAtual) {
+          const indice = secoesAbas.length;
+          abaIndiceAtual = indice;
+          const botaoAba = document.createElement("button");
+          botaoAba.type = "button";
+          botaoAba.className = "form-cadastro-aba-botao";
+          botaoAba.textContent = secaoAtual;
+          botaoAba.addEventListener("click", () => trocarAba(indice));
+          abasNav.appendChild(botaoAba);
+          secoesAbas.push({ titulo: secaoAtual, grade, botao: botaoAba });
+        }
       }
+      if (emAbas) form._abaDoCampo[def.campo] = abaIndiceAtual;
 
       const campoDiv = document.createElement("div");
       campoDiv.className = "campo-form";
@@ -3433,6 +3817,8 @@
       grade.appendChild(campoDiv);
     });
 
+    if (emAbas && secoesAbas.length) trocarAba(0);
+
     form.appendChild(corpo);
 
     const erro = document.createElement("div");
@@ -3460,6 +3846,7 @@
   function lerValoresFormulario(cfg, form) {
     const dados = {};
     let erro = null;
+    let campoComErro = null;
     cfg.campos.forEach((def) => {
       const el = form._campos[def.campo];
       let valor;
@@ -3473,12 +3860,13 @@
         valor = el.value === "" ? null : el.value;
       }
       const vazio = def.tipo === "multiselect" ? valor.length === 0 : (valor === null || valor === "");
-      if (def.obrigatorio && vazio) {
+      if (def.obrigatorio && vazio && !erro) {
         erro = `Preencha o campo "${def.rotulo || def.campo}".`;
+        campoComErro = def.campo;
       }
       dados[def.campo] = valor;
     });
-    return { dados, erro };
+    return { dados, erro, campoComErro };
   }
 
   // Dois grupos de cadastro, cada um com sua propria grade e sub-menu de
@@ -3736,10 +4124,17 @@
         form._erroEl.textContent = "Banco de dados indisponivel nesta visualizacao - nao e possivel salvar agora.";
         return;
       }
-      const { dados, erro } = lerValoresFormulario(cfg, form);
+      const { dados, erro, campoComErro } = lerValoresFormulario(cfg, form);
       if (erro) {
         form._erroEl.hidden = false;
         form._erroEl.textContent = erro;
+        // Modo "abas" (ver montarFormulario): o campo com erro pode estar
+        // numa aba que nao e a ativa no momento - pula pra ela sozinho, senao
+        // a mensagem de erro fica "sem explicacao" pro usuario (ele nao ve o
+        // campo citado na tela).
+        if (form._trocarAba && campoComErro != null && form._abaDoCampo[campoComErro] != null) {
+          form._trocarAba(form._abaDoCampo[campoComErro]);
+        }
         return;
       }
       try {
@@ -3891,6 +4286,20 @@
             btnBaixar.title = "Este registro ainda nao tem um arquivo gerado/anexado - use Editar e o botao \"Gerar Laudo (PDF)\"";
           }
           tdAcoes.appendChild(btnBaixar);
+        }
+        // "Inventário de Riscos" direto na linha de Avaliacao Ergonomica
+        // (pedido do Leo 28/09/2026 - ver abrirInventarioChecklist) - abre a
+        // tela de checklist com os 41 fatores da ISO TS-20646 ja filtrados
+        // pro posto desta linha, em vez do usuario ter que ir na tela
+        // separada de Inventario de Riscos e montar um registro por vez.
+        if (cfg.temInventarioChecklist) {
+          const btnChecklist = document.createElement("button");
+          btnChecklist.type = "button";
+          btnChecklist.className = "btn-acao-linha btn-acao-linha-checklist";
+          btnChecklist.textContent = "📋 Inventário de Riscos";
+          btnChecklist.title = "Abre a checklist de fatores de risco (ISO TS-20646) para este posto";
+          btnChecklist.addEventListener("click", () => abrirInventarioChecklist(linha));
+          tdAcoes.appendChild(btnChecklist);
         }
         const btnEditar = document.createElement("button");
         btnEditar.type = "button"; btnEditar.className = "btn-acao-linha"; btnEditar.textContent = "Editar";
