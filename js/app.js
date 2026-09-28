@@ -2812,17 +2812,24 @@
     // docs/bi-ergonomia-manual.md) - reproduzem, dentro do proprio BI
     // Ergonomia, os cadastros de Avaliacao Ergonomica, Inventario de Riscos
     // e Laudos do sistema legado da ElevaLife.
+    //
+    // Avaliacao Ergonomica + Inventario de Riscos SAO o modulo AEP (Analise
+    // Ergonomica Preliminar), feito nativamente aqui dentro do sistema -
+    // combinado com o Leo em 28/09: risco por posto se divide em 2 trilhas
+    // paralelas, AEP (aqui, nativo) e AET (ver "aet" abaixo, upload externo
+    // de Excel/PDF). Rotulo "(AEP)" no tituloMenu/titulo so pra deixar isso
+    // visivel no menu, ja que antes so "AET" aparecia com sigla propria.
     avaliacaoErgonomica: {
-      grupo: "registro", icone: "📋", tituloMenu: "Avaliação Ergonômica",
-      titulo: "Cadastro de Avaliação Ergonômica",
+      grupo: "registro", icone: "📋", tituloMenu: "Avaliação Ergonômica (AEP)",
+      titulo: "Cadastro de Avaliação Ergonômica (AEP)",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Atividade"],
       colunasData: [], camposData: [],
       campos: camposAvaliacaoErgonomica(),
       aoConstruir: comCascata(null),
     },
     fatorRisco: {
-      grupo: "registro", icone: "🧩", tituloMenu: "Inventário de Riscos",
-      titulo: "Inventário de Riscos (Fatores de Risco)",
+      grupo: "registro", icone: "🧩", tituloMenu: "Inventário de Riscos (AEP)",
+      titulo: "Inventário de Riscos (Fatores de Risco) (AEP)",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Fator", "Graduacao Risco", "Status"],
       colunasData: ["Valido Ate"], camposData: ["Valido Ate"],
       campos: camposFatorRisco(),

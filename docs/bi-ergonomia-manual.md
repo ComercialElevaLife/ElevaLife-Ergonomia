@@ -1218,3 +1218,54 @@ frontend, a modernização visual + conexão com o dashboard, o Azure Blob
 Storage com upload de fotos/arquivo de laudo, e a API pública com
 autenticação por chave, rate limit e documentação OpenAPI — todos
 funcionando em produção). Próximo passo é o 6 (migrar os dados reais).
+
+### AEP e AET — as duas trilhas de gestão de risco por posto
+
+Combinado com Léo em 28/09/2026: a gestão de risco por posto de trabalho se
+divide em **duas trilhas paralelas** (um posto pode ter uma, outra, ou as
+duas):
+
+- **AEP (Análise Ergonômica Preliminar)** — feita **nativamente dentro do
+  próprio BI Ergonomia**, através das telas "Avaliação Ergonômica (AEP)" e
+  "Inventário de Riscos (AEP)" já descritas acima (passo 3/3.1 do roteiro).
+  O rótulo "(AEP)" foi adicionado ao menu dessas duas telas em 28/09/2026
+  pra deixar isso explícito — antes só "AET" aparecia com sigla própria no
+  menu, o que dava a impressão de que a AEP não tinha um módulo
+  correspondente, quando na verdade ela sempre foi essas duas telas.
+- **AET (Análise Ergonômica do Trabalho)** — hoje feita **fora** do BI
+  Ergonomia (em Excel/PDF por um ergonomista) e só **anexada** aqui: a tela
+  "AET" (também dentro de "Registro") recebe o(s) arquivo(s) e o próprio
+  sistema lê e classifica o conteúdo automaticamente (Mapa de Risco/Plano de
+  Ação/análise narrativa), sem depender da extensão do arquivo — ver
+  `camposAET`/`extrairTextoParaClassificacaoAET` em `js/app.js`.
+
+### Módulos adicionados depois do roteiro acima (28/09/2026 em diante)
+
+Além da reprodução do Sistema de Gestão Integrada descrita acima, os
+seguintes módulos foram construídos, testados (suíte automatizada em
+`jsdom`, cobrindo cada fluxo novo, sem regressão nos testes anteriores) e
+publicados em produção:
+
+- **Laudo (Emissor/Editor de Texto/Certificado de Calibração)** — geração
+  automática de PDF do Laudo (duas passadas: uma "seca" só pra descobrir em
+  que página cada seção cai, outra real que já preenche o Sumário com os
+  números certos), reaproveitando um Modelo de Texto (Editor de Texto) e uma
+  biblioteca de Certificados de Calibração — ambos **globais** (compartilhados
+  entre todas as empresas-cliente, não presos a um `EmpresaId`; ver
+  `COLECOES_GLOBAIS` em `api/src/functions/entidades.js`).
+- **Cadastro de Usuários** (tela "Usuários", só visível pra quem é
+  Administrador) — adicionar/editar/remover o acesso de cada pessoa,
+  definindo o papel dela (Administrador/Consultor/UsuarioCliente) e a quais
+  empresas-cliente ela fica vinculada.
+- **Tela de login própria** — uma tela com a identidade visual do BI
+  Ergonomia/ElevaLife aparece antes do redirecionamento para o login da
+  Microsoft (Azure AD/Entra ID, que continua sendo quem trata a senha de
+  verdade), em vez do redirecionamento silencioso de antes; e uma tela de
+  aviso clara para quem já tem conta mas ainda não foi vinculado a nenhuma
+  empresa.
+- **Cadastro ampliado de empresa** — a tela "Cliente" ganhou CNPJ, Inscrição
+  Estadual, CNAE, Grau de Risco (NR-4), telefone, endereço completo (CEP,
+  logradouro, número, complemento, bairro, cidade, UF) e logotipo, além do
+  nome e da Matriz de Risco que já existiam. Todos os campos novos são
+  opcionais, então os clientes já cadastrados antes continuam funcionando
+  sem precisar preencher nada de novo.
