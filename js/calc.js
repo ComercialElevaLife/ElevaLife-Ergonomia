@@ -614,6 +614,35 @@
     };
   }
 
+  // Indicador da trilha AET (Analise Ergonomica do Trabalho - upload externo,
+  // ver docs/bi-ergonomia-manual.md secao AET) para o dashboard "Ergo": ate
+  // este pedido do Leo (28/09/2026, "gestao visual" AEP x AET) a AET nao
+  // aparecia em NENHUM indicador do dashboard - so existia como tela de
+  // cadastro/tabela. Conta os arquivos anexados em cada registro AET
+  // (campo "Arquivos AET", 1 registro pode ter varios arquivos) por
+  // classificacao final (classificacaoConfirmada quando o ergonomista
+  // revisou, senao a classificacao automatica - mesma prioridade usada na
+  // tela de cadastro, ver js/app.js linha ~2978).
+  function distribuicaoClassificacaoAET(aetF) {
+    const contagem = {};
+    NOMES_CLASSIFICACAO_AET.forEach((n) => (contagem[n] = 0));
+    let totalArquivos = 0;
+    aetF.forEach((registro) => {
+      (registro["Arquivos AET"] || []).forEach((item) => {
+        const classificacao = item.classificacaoConfirmada || item.classificacao || "Não identificado";
+        if (!(classificacao in contagem)) contagem[classificacao] = 0;
+        contagem[classificacao] += 1;
+        totalArquivos += 1;
+      });
+    });
+    return {
+      totalRegistros: aetF.length,
+      totalArquivos,
+      labels: NOMES_CLASSIFICACAO_AET,
+      valores: NOMES_CLASSIFICACAO_AET.map((n) => contagem[n] || 0),
+    };
+  }
+
   // ------------------------------------------------------------------
   // Indicadores - Dashboard "Med Ocup"
   // Taxa de Frequencia = (nr de casos de afastamento / HHT) x 1.000.000,
@@ -785,6 +814,7 @@
     distribuicaoVencimento,
     topSetoresPorCampo,
     coberturaAvaliacao,
+    distribuicaoClassificacaoAET,
     statusPlanoAcao,
     planoAcaoPostosCriticos,
     planoAcaoPorResponsavel,

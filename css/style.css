@@ -860,6 +860,12 @@ main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1600px; margin: 0 a
 }
 .titulo-secao-grade span { font-weight: 500; text-transform: none; color: var(--cinza-quente); letter-spacing: 0; }
 
+/* Separacao visual AEP x AET (pedido do Leo, 28/09/2026) - mesma tipografia
+   de .titulo-secao-grade, so troca a cor/borda de cima pra marcar de qual
+   trilha os cartoes daquele bloco sao, sem precisar reler o rotulo. */
+.titulo-secao-grade--aep { border-top-color: var(--vinho-medio); color: var(--vinho-escuro); }
+.titulo-secao-grade--aet { border-top-color: var(--teal-escuro); color: var(--teal-escuro); margin-top: 22px; }
+
 .altura-chart { position: relative; height: 230px; }
 .altura-chart.alta { height: 300px; }
 .altura-chart.baixa { height: 150px; }
@@ -1268,6 +1274,12 @@ canvas.grafico-interativo { cursor: default; }
 .btn-acao-linha.excluir { color: var(--status-critical); border-color: var(--status-critical); }
 .btn-acao-linha.excluir:hover { background: var(--status-critical); color: #fff; }
 .btn-acao-linha:disabled { opacity: 0.35; cursor: not-allowed; background: var(--card); color: var(--texto-secundario); border-color: var(--linha); }
+/* "Baixar/Imprimir" (Laudos ja gerados - ver campoArquivoPrincipal em
+   CADASTROS_CONFIG) - preenchido, pra se destacar como a acao mais comum
+   nessa tela (nao e so mais um botao igual Editar/Excluir). */
+.btn-acao-linha-baixar { background: var(--teal-escuro); border-color: var(--teal-escuro); color: #fff; }
+.btn-acao-linha-baixar:hover { background: var(--teal); border-color: var(--teal); }
+.btn-acao-linha-baixar:disabled { background: var(--card); border-color: var(--linha); color: var(--texto-secundario); }
 
 .form-cadastro {
   border: 1px solid var(--teal);

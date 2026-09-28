@@ -195,10 +195,17 @@
       </div>
 
       <!-- Sistema de Gestao Integrada: Inventario de Riscos, Avaliacao
-           Ergonomica e Laudos - indicadores dos 3 novos cadastros de
+           Ergonomica, Laudos e AET - indicadores dos 4 cadastros de
            Registro, seguindo os mesmos filtros globais (Cliente/Unidade/
-           Setor/.../Ano/Mes) da secao do Mapa de Risco acima. -->
-      <div class="col-12 titulo-secao-grade">Inventário de Riscos, Avaliações e Laudos <span>(Sistema de Gestão Integrada)</span></div>
+           Setor/.../Ano/Mes) da secao do Mapa de Risco acima.
+
+           Pedido do Leo (28/09/2026): "gestao visual" clara entre o que e
+           AEP e o que e AET, pra ninguem se confundir olhando um indicador
+           sem saber de qual modulo ele e. Por isso 2 titulos de secao
+           separados (nunca 1 so bloco misturado) - ordem dentro de cada um
+           tambem revista: primeiro o retrato geral (graduacao/cobertura),
+           depois status/prazos, por ultimo o detalhe por setor. -->
+      <div class="col-12 titulo-secao-grade titulo-secao-grade--aep">AEP - Avaliação Ergonômica e Inventário de Riscos <span>(nativo, Sistema de Gestão Integrada)</span></div>
 
       <div class="cartao col-12">
         <div class="cartao-titulo">Inventário de Riscos - Graduação do Risco</div>
@@ -206,7 +213,13 @@
         <div class="grade-status grade-status--destaque" id="tiles-fatorrisco-graduacao"></div>
       </div>
 
-      <div class="cartao col-4">
+      <div class="cartao col-6">
+        <div class="cartao-titulo">Avaliação Ergonômica - Cobertura</div>
+        <div class="cartao-sub">Postos do Mapa de Risco com Avaliação Ergonômica registrada</div>
+        <div class="grade-totais" id="tiles-avaliacao-cobertura"></div>
+      </div>
+
+      <div class="cartao col-6">
         <div class="cartao-titulo">Inventário de Riscos - Status</div>
         <div class="cartao-sub">Distribuicao por status de tratativa</div>
         <div class="altura-chart"><canvas id="chart-fatorrisco-status"></canvas></div>
@@ -219,23 +232,27 @@
         <div class="grade-status" id="tiles-fatorrisco-prazos"></div>
       </div>
 
-      <div class="cartao col-4">
+      <div class="cartao col-8">
         <div class="cartao-titulo">Top Setores - Riscos em Aberto</div>
         <div class="cartao-sub">% de fatores de risco com status Em andamento/A validar</div>
         <div class="altura-chart"><canvas id="chart-fatorrisco-top-setores"></canvas></div>
       </div>
 
-      <div class="cartao col-6">
-        <div class="cartao-titulo">Avaliação Ergonômica - Cobertura</div>
-        <div class="cartao-sub">Postos do Mapa de Risco com Avaliação Ergonômica registrada</div>
-        <div class="grade-totais" id="tiles-avaliacao-cobertura"></div>
-      </div>
-
-      <div class="cartao col-6">
+      <div class="cartao col-12">
         <div class="cartao-titulo">Laudos e Certificados - Por Tipo</div>
-        <div class="cartao-sub">Total de laudos/certificados emitidos</div>
+        <div class="cartao-sub">Total de laudos/certificados emitidos a partir de dados da AEP</div>
         <div class="altura-chart"><canvas id="chart-laudos-tipo"></canvas></div>
         <div class="legenda" id="legenda-laudos-tipo"></div>
+      </div>
+
+      <!-- AET so ganhou indicador proprio neste pedido (28/09/2026) - antes
+           so existia como tela de cadastro/upload, sem nenhum numero aqui. -->
+      <div class="col-12 titulo-secao-grade titulo-secao-grade--aet">AET - Análise Ergonômica do Trabalho <span>(externa, anexada em Excel/PDF)</span></div>
+
+      <div class="cartao col-12">
+        <div class="cartao-titulo">AET - Arquivos Anexados por Classificação</div>
+        <div class="cartao-sub" id="tiles-aet-resumo">Classificação automática por conteúdo do arquivo (Excel/PDF), confirmada pelo ergonomista no cadastro</div>
+        <div class="grade-status" id="tiles-aet-classificacao"></div>
       </div>
 
     </div>

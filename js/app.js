@@ -1078,6 +1078,53 @@
     renderizarLegenda("legenda-laudos-tipo", labels.map((l, i) => ({ label: `${l} (${valores[i]}${total ? ", " + ((valores[i] / total) * 100).toFixed(0) + "%" : ""})`, cor: cores[i] })));
   }
 
+  // Indicador da trilha AET (pedido do Leo 28/09/2026: "gestao visual" pra
+  // nao confundir o que e AEP com o que e AET no dashboard - ate aqui a AET
+  // nao tinha NENHUM indicador, so a tela de cadastro). Mostra o total de
+  // arquivos anexados (um registro AET pode ter varios) e a distribuicao por
+  // classificacao de conteudo (ver js/calc.js/distribuicaoClassificacaoAET).
+  function renderTilesAET(dist, aetF) {
+    const cont = document.getElementById("tiles-aet-classificacao");
+    if (!cont) return;
+    cont.innerHTML = "";
+    const mapaCores = window.BI.Calc.construirMapaCores(dist.labels);
+    dist.labels.forEach((rotulo, i) => {
+      const valor = dist.valores[i];
+      if (!valor) return; // esconde classificacoes sem nenhum arquivo, pra nao poluir com zeros
+      const cor = mapaCores[rotulo];
+      const tile = document.createElement("div");
+      tile.className = "tile-status tile-clicavel";
+      tile.style.borderLeftColor = cor;
+      tile.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        abrirDrillDown(
+          `AET - ${rotulo}`, `${valor} arquivo(s)`, "aet",
+          aetF.filter((l) => (l["Arquivos AET"] || []).some((it) => (it.classificacaoConfirmada || it.classificacao || "Não identificado") === rotulo)),
+          ev
+        );
+      });
+      const rotuloEl = document.createElement("div");
+      rotuloEl.className = "rotulo";
+      const ponto = document.createElement("span");
+      ponto.className = "ponto";
+      ponto.style.background = cor;
+      rotuloEl.appendChild(ponto);
+      rotuloEl.appendChild(document.createTextNode(rotulo));
+      const valorEl = document.createElement("div");
+      valorEl.className = "valor";
+      valorEl.textContent = String(valor);
+      tile.appendChild(rotuloEl);
+      tile.appendChild(valorEl);
+      cont.appendChild(tile);
+    });
+    const resumoEl = document.getElementById("tiles-aet-resumo");
+    if (resumoEl) {
+      resumoEl.textContent = dist.totalRegistros
+        ? `${dist.totalRegistros} registro(s) de AET · ${dist.totalArquivos} arquivo(s) anexado(s)`
+        : "Nenhuma AET anexada ainda para este filtro.";
+    }
+  }
+
   // ------------------------------------------------------------------
   // Renderizadores - Dashboard "Med Ocup"
   // ------------------------------------------------------------------
@@ -1774,7 +1821,12 @@
         },
       ], "⚙️ Opções de Geração do Laudo"),
       comSecao([
-        { campo: "Texto", rotulo: "Texto do Laudo", tipo: "textarea", obrigatorio: true },
+        // Nao e mais obrigatorio (pedido do Leo 28/09/2026: "laudo nao e
+        // novo registro, ja esta registrado" - o conteudo de verdade e o
+        // PDF gerado pelo botao "Gerar Laudo" abaixo, preenchido sozinho em
+        // "Arquivo Url"; este campo de texto so serve pra quem quiser
+        // digitar/colar manualmente um laudo que nao passou pelo gerador).
+        { campo: "Texto", rotulo: "Texto do Laudo (opcional - preenchido automaticamente ao gerar o PDF; use so para digitar um laudo manual)", tipo: "textarea" },
         { campo: "Emitido Em", rotulo: "Emitido em", tipo: "data" },
         { campo: "Emitido Por", rotulo: "Emitido por", tipo: "texto" },
         {
@@ -2388,6 +2440,13 @@
         if (form._campos["Emitido Em"] && !form._campos["Emitido Em"].value) {
           form._campos["Emitido Em"].value = hojeMeiaNoite().toISOString().slice(0, 10);
         }
+        // "Texto do Laudo" nao e mais obrigatorio (ver camposLaudo), mas
+        // preenche sozinho um resumo pra quem quiser ver algo no campo/na
+        // lista - nunca obriga o usuario a digitar nada so pra conseguir
+        // salvar o registro depois de gerar o PDF.
+        if (form._campos["Texto"] && !form._campos["Texto"].value) {
+          form._campos["Texto"].value = `Laudo gerado automaticamente pela plataforma BI Ergonomia em ${hojeMeiaNoite().toLocaleDateString("pt-BR")}, a partir das Avaliações Ergonômicas e do Inventário de Riscos já registrados para ${nomeCliente}. Ver arquivo PDF anexado.`;
+        }
       } catch (erro) {
         mostrarAviso(erro && erro.message ? erro.message : "Falha ao gerar o laudo.", true);
       } finally {
@@ -2844,6 +2903,13 @@
       // Alem da cascata Cliente/Setor/Posto (comCascata), injeta o botao
       // "Gerar Laudo (PDF)" - ver ligarGeracaoLaudo.
       aoConstruir: comCascata(ligarGeracaoLaudo),
+      // Pedido do Leo (28/09/2026): "laudo nao e novo registro, ja esta
+      // registrado - so tem que dar a opcao das analises lancadas e
+      // imprimir ou baixar". Ate aqui, um Laudo ja gerado so tinha o PDF
+      // acessivel reabrindo o form inteiro em "Editar" - agora a tabela
+      // (ver renderizarListaCadastro) ganha um botao "Baixar/Imprimir"
+      // direto na linha quando ja existe um arquivo anexado.
+      campoArquivoPrincipal: "Arquivo Url",
     },
     // AET (Analise Ergonomica do Trabalho) - hoje feita fora do sistema
     // (Excel/PDF) e so anexada aqui; o cadastro le e classifica o conteudo
@@ -3803,6 +3869,29 @@
         const tdAcoes = document.createElement("td");
         tdAcoes.className = "col-acoes";
         const podeEditar = window.BI.DB.estado.disponivel && !!linha._id;
+        // "Baixar/Imprimir" direto na linha, quando este cadastro tem um
+        // campo de arquivo principal (hoje so Laudo - ver campoArquivoPrincipal
+        // em CADASTROS_CONFIG.laudo) e o registro ja tem arquivo anexado. Fica
+        // ANTES de Editar/Excluir - e a acao mais comum pra um laudo ja
+        // gerado (o usuario nao precisa reabrir o formulario inteiro so pra
+        // baixar/imprimir de novo).
+        if (cfg.campoArquivoPrincipal) {
+          const itemArquivo = linha[cfg.campoArquivoPrincipal];
+          const btnBaixar = document.createElement("button");
+          btnBaixar.type = "button";
+          btnBaixar.className = "btn-acao-linha btn-acao-linha-baixar";
+          btnBaixar.textContent = "⬇ Baixar/Imprimir";
+          btnBaixar.disabled = !(itemArquivo && itemArquivo.chave);
+          if (!btnBaixar.disabled) {
+            btnBaixar.title = "Abre o arquivo numa nova aba - dali da pra imprimir ou salvar (Ctrl+P / Ctrl+S)";
+            btnBaixar.addEventListener("click", () => {
+              window.open(window.BI.DB.urlArquivo(itemArquivo.chave), "_blank", "noopener");
+            });
+          } else {
+            btnBaixar.title = "Este registro ainda nao tem um arquivo gerado/anexado - use Editar e o botao \"Gerar Laudo (PDF)\"";
+          }
+          tdAcoes.appendChild(btnBaixar);
+        }
         const btnEditar = document.createElement("button");
         btnEditar.type = "button"; btnEditar.className = "btn-acao-linha"; btnEditar.textContent = "Editar";
         btnEditar.disabled = !podeEditar;
@@ -4382,14 +4471,19 @@
     const avaliacaoF = Calc.filtrar(window.BI.dados.avaliacaoErgonomica || [], filtros, []);
     const fatorRiscoF = Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, []);
     const laudoF = Calc.filtrar(window.BI.dados.laudo || [], filtros, []);
+    const aetF = Calc.filtrar(window.BI.dados.aet || [], filtros, []);
     const DIAS_ALERTA_PRAZO = 30;
 
+    // Trilha AEP (nativa) - ver titulo-secao-grade "AEP" no index.html.
     renderTilesFatorRiscoGraduacao(Calc.distribuicaoPorNivelRisco(fatorRiscoF, "Graduacao Risco"), fatorRiscoF);
     renderDonutFatorRiscoStatus(Calc.distribuicaoPorStatus(fatorRiscoF, "Status", STATUS_FATOR_RISCO_POOL), fatorRiscoF);
+    renderTilesAvaliacaoCobertura(Calc.coberturaAvaliacao(avaliacaoF, mapaRiscoF));
     renderTilesFatorRiscoPrazos(Calc.distribuicaoVencimento(fatorRiscoF, "Valido Ate", hoje, DIAS_ALERTA_PRAZO), fatorRiscoF, hoje, DIAS_ALERTA_PRAZO);
     renderTopSetoresFatorRisco(Calc.topSetoresPorCampo(fatorRiscoF, "Status", ["A validar", "Em andamento"], 5), fatorRiscoF);
-    renderTilesAvaliacaoCobertura(Calc.coberturaAvaliacao(avaliacaoF, mapaRiscoF));
     renderDonutLaudosTipo(laudoF);
+
+    // Trilha AET (upload externo) - ver titulo-secao-grade "AET" no index.html.
+    renderTilesAET(Calc.distribuicaoClassificacaoAET(aetF), aetF);
 
     const diasUteisF = Calc.filtrar(window.BI.dados.diasUteis, filtros, ["Ano/Mes Uteis"]);
     const absenteismoF = Calc.filtrar(window.BI.dados.absenteismo, filtros, ["Dt Afastamento"]);
