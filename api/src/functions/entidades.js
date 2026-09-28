@@ -31,6 +31,16 @@ const COLECOES = [
   "mapaRisco", "planoAcao", "absenteismo", "compativeis",
   "avaliacaoErgonomica", "fatorRisco", "laudo",
   "aet",
+  // HHT/Dias Uteis (base de calculo da Taxa de Frequencia, NBR 14280) -
+  // ate 28/09/2026 era uma "tabela de referencia" ESTATICA (data/mock_data.json),
+  // igual a Lista CID, e por isso so existiam linhas pras 3 empresas
+  // fictícias originais - qualquer empresa nova ficava com Taxa de
+  // Frequencia zerada ate alguem commitar um novo JSON (pedido do Leo
+  // 28/09/2026: "isso nao pode ficar so pra essas 3 empresas... toda vez
+  // que subir empresa nova eu tenho que ficar commitando, ai nao faz
+  // sentido"). Virou uma colecao normal, por EmpresaId, como todas as
+  // outras - ver tela "HHT / Dias Uteis" em js/app.js/CADASTROS_CONFIG.
+  "diasUteis",
   // Certificados de Calibracao e o Modelo de texto do Laudo (Emissor/Editor
   // de Texto - ver docs/bi-ergonomia-manual.md, secao Laudos) sao GLOBAIS -
   // compartilhados entre todas as empresas-cliente (a ElevaLife tem 1 so

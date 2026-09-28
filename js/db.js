@@ -15,8 +15,12 @@
       /api/usuarios) -> modo somente-leitura com o mock estatico
       (data/mock_data.json), como fallback.
 
-   Lista CID e Dias Uteis continuam estaticas em todos os modos - sao
-   tabelas de referencia, ocultas, so para consulta.
+   Lista CID continua estatica em todos os modos - e tabela de referencia,
+   oculta, so para consulta. Dias Uteis (HHT) deixou de ser estatica em
+   28/09/2026: virou colecao por EmpresaId como as demais (ver "diasUteis"
+   acima) porque uma tabela de referencia fixa so cobria as empresas
+   fictícias originais - qualquer empresa nova ficava sem Taxa de
+   Frequencia (Med Ocup) ate alguem editar o JSON e commitar de novo.
    ========================================================================== */
 
 (function (global) {
@@ -31,6 +35,10 @@
     // classificacao automatica por conteudo (ver js/calc.js/classificarTextoAET
     // e js/app.js/camposAET).
     "aet",
+    // HHT/Dias Uteis - por EmpresaId, igual as demais (ver comentario em
+    // api/src/functions/entidades.js/COLECOES). Deixou de ser tabela de
+    // referencia estatica em 28/09/2026.
+    "diasUteis",
     // Laudos (Emissor/Editor de Texto/Certificado de Calibracao - ver
     // js/app.js/gerarLaudoPDF): "certificadoCalibracao" e "modeloLaudo" sao
     // GLOBAIS (compartilhados entre todas as empresas), gravados com
@@ -54,7 +62,7 @@
     colecoes: {
       mapaRisco: [], planoAcao: [], absenteismo: [], compativeis: [],
       cliente: [], unidade: [], setor: [], cargo: [], posto: [], atividade: [],
-      avaliacaoErgonomica: [], fatorRisco: [], laudo: [], aet: [],
+      avaliacaoErgonomica: [], fatorRisco: [], laudo: [], aet: [], diasUteis: [],
       certificadoCalibracao: [], modeloLaudo: [],
     },
     inscricoes: [],

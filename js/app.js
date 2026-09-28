@@ -49,10 +49,12 @@
     "Revisao de metas de producao/ritmo de trabalho": "Administrativa",
   };
 
-  // Tabelas de referencia (estaticas, so consulta) - Lista CID e Dias Uteis
+  // Tabelas de referencia (estaticas, so consulta) - so Lista CID (Dias
+  // Uteis/HHT virou colecao de Registro normal em 28/09/2026 - ver
+  // CADASTROS_CONFIG.diasUteis abaixo - porque uma tabela de referencia
+  // fixa so cobria as empresas ficticias originais).
   const TABELAS_REFERENCIA = [
     { chave: "listaCID", titulo: "Lista CID", camposData: [] },
-    { chave: "diasUteis", titulo: "Dias Uteis", camposData: ["Ano/Mes Uteis"] },
   ];
   const estadoTabelasRef = {};
 
@@ -298,14 +300,34 @@
     sub.id = "drilldown-sub";
     titulos.appendChild(titulo);
     titulos.appendChild(sub);
+    // Botao "tela cheia" (pedido do Leo 28/09/2026: a area de visualizacao
+    // do drill-down fica ruim, cheia de scroll - alterna so a largura do
+    // painel entre 640px e 100vw, pra tabelas/graficos largos precisarem
+    // de bem menos scroll horizontal).
+    const btnExpandir = document.createElement("button");
+    btnExpandir.type = "button";
+    btnExpandir.className = "drilldown-expandir";
+    btnExpandir.setAttribute("aria-label", "Expandir para tela cheia");
+    btnExpandir.title = "Tela cheia";
+    btnExpandir.textContent = "⛶";
+    btnExpandir.addEventListener("click", () => {
+      const cheia = painel.classList.toggle("tela-cheia");
+      btnExpandir.setAttribute("aria-label", cheia ? "Sair da tela cheia" : "Expandir para tela cheia");
+      btnExpandir.title = cheia ? "Sair da tela cheia" : "Tela cheia";
+      btnExpandir.textContent = cheia ? "⤡" : "⛶";
+    });
     const btnFechar = document.createElement("button");
     btnFechar.type = "button";
     btnFechar.className = "drilldown-fechar";
     btnFechar.setAttribute("aria-label", "Fechar detalhamento");
     btnFechar.textContent = "×";
     btnFechar.addEventListener("click", fecharDrillDown);
+    const acoes = document.createElement("div");
+    acoes.className = "drilldown-acoes";
+    acoes.appendChild(btnExpandir);
+    acoes.appendChild(btnFechar);
     cab.appendChild(titulos);
-    cab.appendChild(btnFechar);
+    cab.appendChild(acoes);
     const corpo = document.createElement("div");
     corpo.className = "drilldown-corpo";
     corpo.id = "drilldown-corpo";
@@ -2252,6 +2274,14 @@
           }
           doc.setTextColor.apply(doc, PALETA.texto);
           doc.text(numeroPag, margem + larguraUtil - larguraNumero, y);
+          // Sumario clicavel (pedido do Leo 28/09/2026: "clicou la na
+          // linha, ja e, desprende para a pagina") - link interno do PDF
+          // pra pagina da secao (funciona no Adobe Reader e no viewer do
+          // Chrome/Edge; so na passada final, ja com mapaPaginas completo -
+          // na passada "seca" o documento inteiro e descartado mesmo).
+          if (!gravando && mapaPaginas[chaveSecao] != null) {
+            doc.link(margem, y - 12, larguraUtil, 16, { pageNumber: mapaPaginas[chaveSecao] });
+          }
           y += 18;
         });
 
@@ -3278,6 +3308,39 @@
       ]),
       aoConstruir: comCascata(null),
     },
+    // HHT/Dias Uteis - base de calculo da Taxa de Frequencia (NBR 14280,
+    // ver js/calc.js/hhtDaLinha e calcularTaxaFrequencia) no dashboard Med
+    // Ocup. Ate 28/09/2026 era uma tabela de referencia ESTATICA
+    // (data/mock_data.json) com linhas so pras 3 empresas ficticias
+    // originais - qualquer empresa nova cadastrada ficava com Taxa de
+    // Frequencia zerada (sem HHT nenhum) ate alguem editar o JSON a mao e
+    // commitar de novo. Pedido do Leo (28/09/2026): "isso nao pode ficar so
+    // pra essas 3 empresas... toda vez que subir empresa nova eu tenho que
+    // ficar commitando, ai nao faz sentido - precisa ficar pronto e
+    // estavel pra qualquer nova empresa". Virou colecao normal por
+    // EmpresaId (ver "diasUteis" em api/src/functions/entidades.js/
+    // COLECOES) - um Administrador/Consultor so preenche esta tela pra
+    // cada Cliente/Unidade/Setor novo, sem depender de nenhum deploy.
+    // Nivel Setor/mes (nao por Posto/Cargo/Atividade) porque e assim que
+    // taxaFrequenciaPorSetor consome ("Qtd Colaboradores" = media de
+    // colaboradores do setor naquele mes; "Qtd Dias Uteis" = dias uteis
+    // trabalhados no mes) - ver js/calc.js.
+    diasUteis: {
+      grupo: "registro", icone: "🕒", tituloMenu: "HHT / Dias Úteis",
+      titulo: "HHT / Dias Úteis (base de cálculo da Taxa de Frequência - NBR 14280)",
+      colunasTabela: ["Cliente", "Unidade", "Setor", "Ano/Mes Uteis", "Qtd Colaboradores", "Qtd Dias Uteis"],
+      colunasData: ["Ano/Mes Uteis"],
+      camposData: ["Ano/Mes Uteis"],
+      campos: [
+        { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
+        { campo: "Unidade", rotulo: "Unidade", tipo: "cascata", obrigatorio: true },
+        { campo: "Setor", rotulo: "Setor", tipo: "cascata", obrigatorio: true },
+        { campo: "Ano/Mes Uteis", rotulo: "Ano/Mês", tipo: "mes", obrigatorio: true },
+        { campo: "Qtd Colaboradores", rotulo: "Qtd Colaboradores (média do mês, no setor)", tipo: "numero", obrigatorio: true, min: 0 },
+        { campo: "Qtd Dias Uteis", rotulo: "Qtd Dias Úteis no mês", tipo: "numero", obrigatorio: true, min: 0, max: 31 },
+      ],
+      aoConstruir: comCascata(null),
+    },
     compativeis: {
       grupo: "registro", icone: "🔄", tituloMenu: "Compatíveis",
       titulo: "Compativeis (restricoes medicas)",
@@ -3901,6 +3964,14 @@
       } else if (def.tipo === "data") {
         el = document.createElement("input");
         el.type = "date";
+        el.value = valorInicial || "";
+      } else if (def.tipo === "mes") {
+        // Input nativo type="month" - o value do proprio navegador ja vem
+        // no formato "AAAA-MM" (ver <input type=month> na spec HTML), o
+        // mesmo formato usado em "Ano/Mes Uteis" (HHT) e nos demais campos
+        // Ano/Mes do sistema - nenhuma conversao extra necessaria.
+        el = document.createElement("input");
+        el.type = "month";
         el.value = valorInicial || "";
       } else if (def.tipo === "numero") {
         el = document.createElement("input");
@@ -4610,8 +4681,8 @@
   // So disponivel nas 3 abas de dashboard (Ergo / Med Ocup / Compativeis).
   // ------------------------------------------------------------------
   const TITULOS_ABA = { ergo: "Dashboard Ergo", medocup: "Dashboard Med Ocup", compativeis: "Dashboard Compativeis" };
-  const TABELAS_POR_ABA = { ergo: ["mapaRisco", "planoAcao"], medocup: ["absenteismo"], compativeis: ["compativeis"] };
-  const NOMES_PLANILHA = { mapaRisco: "Mapa Risco", planoAcao: "Plano Acao", absenteismo: "Absenteismo", compativeis: "Compativeis" };
+  const TABELAS_POR_ABA = { ergo: ["mapaRisco", "planoAcao"], medocup: ["absenteismo", "diasUteis"], compativeis: ["compativeis"] };
+  const NOMES_PLANILHA = { mapaRisco: "Mapa Risco", planoAcao: "Plano Acao", absenteismo: "Absenteismo", compativeis: "Compativeis", diasUteis: "HHT Dias Uteis" };
 
   function abaAtualChave() {
     const btn = document.querySelector('#nav-abas button[data-aba].ativa');
