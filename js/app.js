@@ -3126,6 +3126,25 @@
           el.appendChild(opt);
         });
         el.value = valorInicial != null ? valorInicial : "";
+      } else if (def.tipo === "multiselect") {
+        // Select multiplo nativo (ex.: "Empresas Vinculadas" no cadastro de
+        // Usuarios - ver camposUsuario) - mais simples que o multi-select
+        // com checkboxes usado nos filtros (criarMultiSelect), suficiente
+        // pra um campo de formulario. form._campos[def.campo] guarda o
+        // <select multiple> em si; lerValoresFormulario le
+        // Array.from(el.selectedOptions).
+        el = document.createElement("select");
+        el.multiple = true;
+        el.size = Math.min(6, Math.max(3, (typeof def.opcoes === "function" ? def.opcoes() : (def.opcoes || [])).length));
+        const opcoesMulti = typeof def.opcoes === "function" ? def.opcoes() : (def.opcoes || []);
+        const selecionados = Array.isArray(valorInicial) ? valorInicial : [];
+        opcoesMulti.forEach((op) => {
+          const opt = document.createElement("option");
+          if (op && typeof op === "object") { opt.value = op.valor; opt.textContent = op.label; }
+          else { opt.value = op; opt.textContent = op; }
+          opt.selected = selecionados.includes(opt.value);
+          el.appendChild(opt);
+        });
       } else if (def.tipo === "cascata") {
         // Select em cascata da hierarquia Cliente>Unidade>Setor>Cargo>Posto>
         // Atividade - as opcoes sao preenchidas depois por
@@ -3332,10 +3351,13 @@
         valor = el.dataset.valorReal || null;
       } else if (def.tipo === "numero") {
         valor = el.value === "" ? null : Number(el.value);
+      } else if (def.tipo === "multiselect") {
+        valor = Array.from(el.selectedOptions || []).map((o) => o.value);
       } else {
         valor = el.value === "" ? null : el.value;
       }
-      if (def.obrigatorio && (valor === null || valor === "")) {
+      const vazio = def.tipo === "multiselect" ? valor.length === 0 : (valor === null || valor === "");
+      if (def.obrigatorio && vazio) {
         erro = `Preencha o campo "${def.rotulo || def.campo}".`;
       }
       dados[def.campo] = valor;
@@ -4341,6 +4363,183 @@
   }
 
   // ------------------------------------------------------------------
+  // Usuarios (quem tem acesso ao BI e a quais empresas-cliente esta
+  // vinculado) - so Administrador ve essa aba; a API (api/src/functions/
+  // usuarios.js) ja recusa qualquer chamada de quem nao e Administrador,
+  // entao esse controle no frontend e so pra nao mostrar uma tela quebrada
+  // pra quem nao tem acesso mesmo. Tela separada do sistema generico de
+  // Cadastro (CADASTROS_CONFIG/estado.colecoes) porque "usuarios" tem sua
+  // propria rota dedicada (nao e uma das colecoes de negocio por
+  // EmpresaId, ver js/db.js/COLECOES) - mas reaproveita montarFormulario/
+  // lerValoresFormulario (que so precisam de um "cfg" com "campos", sem
+  // exigir que a colecao esteja em CADASTROS_CONFIG) e window.BI.DB.
+  // salvar/excluir (que tambem so precisam do nome da rota).
+  // ------------------------------------------------------------------
+  const PAPEIS_USUARIO = ["Administrador", "Consultor", "UsuarioCliente"];
+  const estadoUsuarios = { lista: [], formAberto: false, editandoId: null, valoresForm: null, carregando: false };
+
+  function camposUsuario() {
+    return [
+      { campo: "Email", rotulo: "E-mail", tipo: "texto", obrigatorio: true },
+      { campo: "Papel", rotulo: "Papel", tipo: "select", obrigatorio: true, opcoes: PAPEIS_USUARIO },
+      {
+        campo: "EmpresasVinculadas",
+        rotulo: "Empresas Vinculadas (Ctrl/Cmd + clique para marcar mais de uma - Administrador ve todas, independente desta lista)",
+        tipo: "multiselect",
+        opcoes: () => (window.BI.dados.cliente || []).map((c) => ({ valor: c.id || c._id, label: c.Cliente })),
+      },
+    ];
+  }
+  const CFG_USUARIOS = { campos: camposUsuario() };
+
+  async function carregarUsuarios() {
+    estadoUsuarios.carregando = true;
+    renderizarListaUsuarios();
+    try {
+      const resp = await fetch("/api/usuarios", { credentials: "same-origin" });
+      if (!resp.ok) throw new Error("Falha ao carregar usuarios (HTTP " + resp.status + ").");
+      estadoUsuarios.lista = await resp.json();
+    } catch (e) {
+      mostrarErro("Erro ao carregar usuarios: " + (e && e.message ? e.message : String(e)));
+      estadoUsuarios.lista = [];
+    } finally {
+      estadoUsuarios.carregando = false;
+      renderizarListaUsuarios();
+    }
+  }
+
+  function nomesClientesPorId(ids) {
+    const mapa = {};
+    (window.BI.dados.cliente || []).forEach((c) => { mapa[c.id || c._id] = c.Cliente; });
+    return (ids || []).map((id) => mapa[id] || id).join(", ");
+  }
+
+  function abrirFormNovoUsuario() {
+    estadoUsuarios.editandoId = null;
+    estadoUsuarios.formAberto = true;
+    estadoUsuarios.valoresForm = {};
+    renderizarFormUsuario();
+  }
+  function abrirFormEditarUsuario(id) {
+    const linha = estadoUsuarios.lista.find((u) => u.id === id);
+    if (!linha) return;
+    estadoUsuarios.editandoId = id;
+    estadoUsuarios.formAberto = true;
+    estadoUsuarios.valoresForm = linha;
+    renderizarFormUsuario();
+  }
+  function fecharFormUsuario() {
+    estadoUsuarios.formAberto = false;
+    estadoUsuarios.editandoId = null;
+    renderizarFormUsuario();
+  }
+
+  function renderizarFormUsuario() {
+    const container = document.getElementById("form-container-usuarios");
+    if (!container) return;
+    container.innerHTML = "";
+    if (!estadoUsuarios.formAberto) return;
+    const form = montarFormulario(CFG_USUARIOS, "usuarios", estadoUsuarios.valoresForm || {});
+    form._btnCancelar.addEventListener("click", () => fecharFormUsuario());
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const { dados, erro } = lerValoresFormulario(CFG_USUARIOS, form);
+      if (erro) {
+        form._erroEl.hidden = false;
+        form._erroEl.textContent = erro;
+        return;
+      }
+      dados.Email = String(dados.Email || "").trim().toLowerCase();
+      try {
+        await window.BI.DB.salvar("usuarios", estadoUsuarios.editandoId, dados);
+        fecharFormUsuario();
+        await carregarUsuarios();
+      } catch (e) {
+        form._erroEl.hidden = false;
+        form._erroEl.textContent = "Erro ao salvar: " + (e && e.message ? e.message : String(e));
+      }
+    });
+    container.appendChild(form);
+  }
+
+  function excluirUsuario(id, email) {
+    if (!window.confirm(`Remover o acesso de "${email}" ao BI Ergonomia? Essa ação não pode ser desfeita.`)) return;
+    window.BI.DB.excluir("usuarios", id).then(() => carregarUsuarios()).catch((e) => {
+      mostrarErro("Erro ao excluir usuario: " + (e && e.message ? e.message : String(e)));
+    });
+  }
+
+  function renderizarListaUsuarios() {
+    const tabela = document.getElementById("tabela-usuarios");
+    if (!tabela) return;
+    const thead = tabela.querySelector("thead");
+    const tbody = tabela.querySelector("tbody");
+    thead.innerHTML = "";
+    tbody.innerHTML = "";
+    const trHead = document.createElement("tr");
+    ["E-mail", "Papel", "Empresas Vinculadas", "Ações"].forEach((c) => {
+      const th = document.createElement("th");
+      th.textContent = c;
+      if (c === "Ações") th.className = "col-acoes";
+      trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+
+    const contagemEl = document.getElementById("contagem-usuarios");
+    if (contagemEl) contagemEl.textContent = estadoUsuarios.lista.length ? ` (${estadoUsuarios.lista.length})` : "";
+
+    if (estadoUsuarios.carregando) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 4; td.className = "sem-dados"; td.textContent = "Carregando...";
+      tr.appendChild(td); tbody.appendChild(tr);
+      return;
+    }
+    if (!estadoUsuarios.lista.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 4; td.className = "sem-dados"; td.textContent = "Nenhum usuário cadastrado ainda.";
+      tr.appendChild(td); tbody.appendChild(tr);
+      return;
+    }
+    estadoUsuarios.lista.forEach((u) => {
+      const tr = document.createElement("tr");
+      const tdEmail = document.createElement("td"); tdEmail.textContent = u.Email || "-";
+      const tdPapel = document.createElement("td"); tdPapel.textContent = u.Papel || "-";
+      const tdEmpresas = document.createElement("td"); tdEmpresas.textContent = nomesClientesPorId(u.EmpresasVinculadas) || "-";
+      const tdAcoes = document.createElement("td"); tdAcoes.className = "col-acoes";
+      const btnEditar = document.createElement("button");
+      btnEditar.type = "button"; btnEditar.className = "btn-acao-linha"; btnEditar.textContent = "Editar";
+      btnEditar.addEventListener("click", () => abrirFormEditarUsuario(u.id));
+      const btnExcluir = document.createElement("button");
+      btnExcluir.type = "button"; btnExcluir.className = "btn-acao-linha excluir"; btnExcluir.textContent = "Excluir";
+      btnExcluir.addEventListener("click", () => excluirUsuario(u.id, u.Email));
+      tdAcoes.appendChild(btnEditar); tdAcoes.appendChild(btnExcluir);
+      tr.appendChild(tdEmail); tr.appendChild(tdPapel); tr.appendChild(tdEmpresas); tr.appendChild(tdAcoes);
+      tbody.appendChild(tr);
+    });
+  }
+
+  // So chamado depois de window.BI.DB.iniciar() resolver (e so entao
+  // estado.identidade existe de verdade) - mostra o item de menu
+  // "Usuarios" so pra quem e Administrador, e carrega a lista se for o
+  // caso.
+  function configurarUsuarios() {
+    const identidade = window.BI.DB.estado.identidade;
+    const ehAdmin = !!(identidade && identidade.papel === "Administrador");
+    const btnNav = document.getElementById("nav-btn-usuarios");
+    if (btnNav) btnNav.hidden = !ehAdmin;
+    if (!ehAdmin) return;
+
+    const btnNovo = document.getElementById("btn-novo-usuario");
+    if (btnNovo && !btnNovo._ligado) {
+      btnNovo._ligado = true;
+      btnNovo.addEventListener("click", abrirFormNovoUsuario);
+    }
+    carregarUsuarios();
+  }
+
+  // ------------------------------------------------------------------
   // Banco de dados (js/db.js) - callback chamado a cada snapshot de uma
   // colecao (mapaRisco/planoAcao/absenteismo/compativeis)
   // ------------------------------------------------------------------
@@ -4396,6 +4595,10 @@
       if (!disponivel) {
         console.warn("BI Ergonomia - capacidade 'db' indisponivel nesta visualizacao; cadastros em modo somente leitura (dados ficticios de exemplo).");
       }
+      // So depois do iniciar() acima e que window.BI.DB.estado.identidade
+      // existe de verdade (preenchido so no modo API - ver js/db.js) -
+      // decide aqui se mostra o item de menu "Usuarios".
+      configurarUsuarios();
     } catch (erro) {
       console.error("BI Ergonomia - erro na inicializacao:", erro);
       mostrarErro(erro && erro.message ? erro.message : String(erro));

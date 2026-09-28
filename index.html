@@ -59,6 +59,12 @@
         </button>
         <div class="sidebar-subnav-lateral" id="sidebar-sub-cadastro" hidden></div>
       </div>
+      <!-- So Administrador ve este item (ver configurarUsuarios() em app.js -
+           fica "hidden" ate confirmar o papel do usuario logado). -->
+      <button type="button" data-aba="usuarios" id="nav-btn-usuarios" title="Usuários" hidden>
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="6.5" r="3"/><path d="M3.5 17c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/></svg></span>
+        <span class="rotulo">Usuários</span>
+      </button>
     </nav>
 
     <button type="button" id="btn-recolher-sidebar" class="btn-recolher" aria-expanded="true" aria-label="Recolher menu" title="Recolher menu">
@@ -364,6 +370,29 @@
     </div>
     <nav class="subnav-cadastro" id="subnav-registro"></nav>
     <div class="grade" id="grade-registro"></div>
+  </section>
+
+  <!-- So Administrador ve/abre esta aba (ver configurarUsuarios() em
+       app.js) - gerencia quem tem acesso ao BI e a quais empresas-cliente
+       cada pessoa esta vinculada (ver api/src/functions/usuarios.js). -->
+  <section id="aba-usuarios" hidden>
+    <p class="dados-intro">
+      Usuários com acesso ao BI Ergonomia - defina o papel de cada pessoa (Administrador vê tudo; Consultor e
+      Cliente só veem as empresas vinculadas a eles) e a quais empresas-cliente cada uma está vinculada.
+    </p>
+    <div class="cartao col-12 bloco-cadastro">
+      <div class="cadastro-cabecalho">
+        <div class="cartao-titulo">Usuários<span class="contagem-tabela" id="contagem-usuarios"></span></div>
+        <button type="button" class="btn-novo-registro" id="btn-novo-usuario">+ Novo usuário</button>
+      </div>
+      <div id="form-container-usuarios"></div>
+      <div class="tabela-scroll">
+        <table class="tabela-dados" id="tabela-usuarios">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
   </section>
 
   <section id="aba-referencia" hidden>
