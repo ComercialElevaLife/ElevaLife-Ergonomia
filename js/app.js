@@ -28,6 +28,11 @@
   const CATEGORIAS_ACAO_POOL = ["Administrativa", "Engenharia", "Treinamento", "EPI"];
   const GESTAO_ACAO_POOL = ["ElevaLife", "Cliente"];
   const GENEROS_POOL = ["Masculino", "Feminino"];
+  // UFs do Brasil (cadastro ampliado de empresa - ver camposCadastroCliente)
+  // e os 4 graus de risco da NR-4 (Quadro I), usado tambem pra dimensionar
+  // CIPA/PPRA no sistema de gestao atual da ElevaLife.
+  const ESTADOS_BR = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
+  const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // Pools do pacote "Sistema de Gestao Integrada" (Avaliacao Ergonomica,
   // Inventario de Riscos, Laudos - ver docs/bi-ergonomia-manual.md). Status
   // e Tipo de Laudo seguem o vocabulario visto no sistema legado.
@@ -1586,13 +1591,44 @@
   function camposCadastroCliente() {
     const Calc = window.BI.Calc;
     return [
-      { campo: "Cliente", rotulo: "Nome do Cliente (Empresa)", tipo: "texto", obrigatorio: true },
-      // Matriz de Risco (NR-01) usada no Inventario de Riscos (fatorRisco)
-      // desse cliente - ver ligarCascataFatorRisco/Calc.matrizDoCliente.
-      // Cada cliente pode ter uma matriz de tamanho diferente (3x3/4x4/5x5
-      // ou uma variante propria), reproduzindo o campo "Matriz para
-      // Avaliacao" do sistema de gestao atual da ElevaLife.
-      { campo: "Matriz Risco", rotulo: "Matriz de Risco (NR-01)", tipo: "select", obrigatorio: true, opcoes: Calc ? Calc.NOMES_MATRIZ_RISCO : [] },
+      ...comSecao([
+        { campo: "Cliente", rotulo: "Nome do Cliente (Empresa)", tipo: "texto", obrigatorio: true },
+        // Matriz de Risco (NR-01) usada no Inventario de Riscos (fatorRisco)
+        // desse cliente - ver ligarCascataFatorRisco/Calc.matrizDoCliente.
+        // Cada cliente pode ter uma matriz de tamanho diferente (3x3/4x4/5x5
+        // ou uma variante propria), reproduzindo o campo "Matriz para
+        // Avaliacao" do sistema de gestao atual da ElevaLife.
+        { campo: "Matriz Risco", rotulo: "Matriz de Risco (NR-01)", tipo: "select", obrigatorio: true, opcoes: Calc ? Calc.NOMES_MATRIZ_RISCO : [] },
+      ], "Identificação"),
+      // Cadastro ampliado de empresa (pedido do Leo) - todos opcionais pra
+      // nao quebrar/obrigar preencher de novo os clientes ja cadastrados
+      // antes desta tela existir (Cosmos DB nao exige schema - registros
+      // antigos simplesmente nao tem esses campos ate serem editados).
+      ...comSecao([
+        { campo: "CNPJ", rotulo: "CNPJ", tipo: "texto" },
+        { campo: "Inscricao Estadual", rotulo: "Inscrição Estadual", tipo: "texto" },
+        { campo: "CNAE", rotulo: "CNAE (atividade principal)", tipo: "texto" },
+        { campo: "Grau Risco NR4", rotulo: "Grau de Risco (NR-4)", tipo: "select", opcoes: GRAUS_RISCO_NR4 },
+      ], "Dados Fiscais"),
+      ...comSecao([
+        { campo: "Telefone", rotulo: "Telefone", tipo: "texto" },
+        { campo: "CEP", rotulo: "CEP", tipo: "texto" },
+        { campo: "Logradouro", rotulo: "Endereço (logradouro)", tipo: "texto" },
+        { campo: "Numero", rotulo: "Número", tipo: "texto" },
+        { campo: "Complemento", rotulo: "Complemento", tipo: "texto" },
+        { campo: "Bairro", rotulo: "Bairro", tipo: "texto" },
+        { campo: "Cidade", rotulo: "Cidade", tipo: "texto" },
+        { campo: "Estado", rotulo: "Estado (UF)", tipo: "select", opcoes: ESTADOS_BR },
+      ], "Contato e Endereço"),
+      // Logotipo: mesmo padrao de upload das demais telas (construirCampoArquivo/
+      // anexarArquivos), so que "auto-referenciado" - o EmpresaId de destino e
+      // o proprio Cliente sendo cadastrado/editado neste form, resolvido pelo
+      // nome digitado mesmo antes de salvar (ver resolverEmpresaIdDoForm, que
+      // cai no calculo deterministico window.BI.DB.idCliente quando ainda nao
+      // existe um registro salvo com esse nome).
+      ...comSecao([
+        { campo: "Logotipo", rotulo: "Logotipo (JPG/PNG, até 2MB)", tipo: "arquivo", multiplo: false, colecaoArquivo: "cliente", aceitaTipos: "image/jpeg,image/png" },
+      ], "Logotipo"),
     ];
   }
   function camposCadastroUnidade() {
@@ -2853,7 +2889,14 @@
     const nomeCliente = elCliente.value;
     if (!nomeCliente) return null;
     const doc = (window.BI.DB.estado.colecoes.cliente || []).find((c) => c.Cliente === nomeCliente);
-    return doc ? doc.id || doc._id : null;
+    if (doc) return doc.id || doc._id;
+    // Cadastro de Cliente propriamente dito (campo "Cliente" e texto livre,
+    // nao uma cascata pra um registro ja existente - ver
+    // camposCadastroCliente/Logotipo): o id e sempre derivado do proprio
+    // nome (idCliente/idCadastroMestre em js/db.js - o MESMO calculo usado
+    // ao salvar o registro), entao da pra resolver o EmpresaId de destino do
+    // upload mesmo antes de o Cliente novo ter sido salvo pela 1a vez.
+    return window.BI.DB.idCliente({ Cliente: nomeCliente });
   }
 
   // Campo de upload de arquivo (Fotos da Avaliacao Ergonomica, Arquivo do

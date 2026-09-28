@@ -69,6 +69,13 @@ const REGRAS_POR_COLECAO = {
     tiposAceitos: ["image/jpeg", "image/png"],
     tamanhoMaximoBytes: 5 * 1024 * 1024,
   },
+  // Logotipo do cadastro ampliado de empresa (ver js/app.js/camposCadastroCliente) -
+  // gravado com o proprio EmpresaId do Cliente (nao e global), do mesmo jeito
+  // que avaliacaoErgonomica/laudo/aet.
+  cliente: {
+    tiposAceitos: ["image/jpeg", "image/png"],
+    tamanhoMaximoBytes: 2 * 1024 * 1024,
+  },
 };
 
 function sanitizarNomeArquivo(nome) {

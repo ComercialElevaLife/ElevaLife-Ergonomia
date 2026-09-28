@@ -24,6 +24,8 @@ const CONTAINER_POR_COLECAO = {
   laudo: "laudos-arquivos",
   aet: "aet-arquivos",
   certificadoCalibracao: "certificados-calibracao",
+  // Logotipo do cadastro ampliado de empresa (ver js/app.js/camposCadastroCliente).
+  cliente: "clientes-logos",
 };
 
 let clienteBlob = null;
