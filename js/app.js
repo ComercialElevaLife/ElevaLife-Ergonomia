@@ -1645,8 +1645,8 @@
       { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
       { campo: "Unidade", rotulo: "Unidade", tipo: "cascata", obrigatorio: true },
       { campo: "Setor", rotulo: "Setor", tipo: "cascata", obrigatorio: true },
-      { campo: "Cargo", rotulo: "Cargo", tipo: "cascata", obrigatorio: true },
       { campo: "Posto Trabalho", rotulo: "Posto de Trabalho", tipo: "cascata", obrigatorio: true },
+      { campo: "Cargo", rotulo: "Cargo", tipo: "cascata", obrigatorio: true },
       { campo: "Atividade", rotulo: "Atividade", tipo: "cascata", obrigatorio: true },
     ];
   }
@@ -1706,19 +1706,19 @@
       { campo: "Unidade", rotulo: "Nome da Unidade", tipo: "texto", obrigatorio: true },
     ];
   }
+  // Setor/Posto de Trabalho/Cargo/Atividade: o proprio nivel sendo
+  // cadastrado e sempre texto (nunca mais um <select> fixo/desabilitado) -
+  // com "sugestoesDinamicas: true" pra oferecer, via <datalist>, tanto um
+  // valor ja existente (dentre o que ja foi cadastrado para os ancestrais
+  // escolhidos) quanto digitar um nome novo (pedido do Leo 02/10/2026: "ele
+  // tem que me dar a opção ou de selecionar um já existente ou incluir
+  // novo" - ver ligarSugestoesNivelProprio, ligado via aoConstruir em
+  // CADASTROS_CONFIG).
   function camposCadastroSetor() {
     return [
       { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
       { campo: "Unidade", rotulo: "Unidade", tipo: "cascata", obrigatorio: true },
-      { campo: "Setor", rotulo: "Nome do Setor", tipo: "select", obrigatorio: true, opcoes: SETORES_POOL },
-    ];
-  }
-  function camposCadastroCargo() {
-    return [
-      { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
-      { campo: "Unidade", rotulo: "Unidade", tipo: "cascata", obrigatorio: true },
-      { campo: "Setor", rotulo: "Setor", tipo: "cascata", obrigatorio: true },
-      { campo: "Cargo", rotulo: "Nome do Cargo", tipo: "texto", obrigatorio: true },
+      { campo: "Setor", rotulo: "Nome do Setor", tipo: "texto", obrigatorio: true, sugestoesLista: SETORES_POOL, sugestoesDinamicas: true },
     ];
   }
   function camposCadastroPosto() {
@@ -1726,7 +1726,16 @@
       { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
       { campo: "Unidade", rotulo: "Unidade", tipo: "cascata", obrigatorio: true },
       { campo: "Setor", rotulo: "Setor", tipo: "cascata", obrigatorio: true },
-      { campo: "Posto Trabalho", rotulo: "Nome do Posto de Trabalho", tipo: "texto", obrigatorio: true },
+      { campo: "Posto Trabalho", rotulo: "Nome do Posto de Trabalho", tipo: "texto", obrigatorio: true, sugestoesDinamicas: true },
+    ];
+  }
+  function camposCadastroCargo() {
+    return [
+      { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
+      { campo: "Unidade", rotulo: "Unidade", tipo: "cascata", obrigatorio: true },
+      { campo: "Setor", rotulo: "Setor", tipo: "cascata", obrigatorio: true },
+      { campo: "Posto Trabalho", rotulo: "Posto de Trabalho", tipo: "cascata", obrigatorio: true },
+      { campo: "Cargo", rotulo: "Nome do Cargo", tipo: "texto", obrigatorio: true, sugestoesDinamicas: true },
     ];
   }
   function camposCadastroAtividade() {
@@ -1735,7 +1744,8 @@
       { campo: "Unidade", rotulo: "Unidade", tipo: "cascata", obrigatorio: true },
       { campo: "Setor", rotulo: "Setor", tipo: "cascata", obrigatorio: true },
       { campo: "Posto Trabalho", rotulo: "Posto de Trabalho", tipo: "cascata", obrigatorio: true },
-      { campo: "Atividade", rotulo: "Nome da Atividade", tipo: "texto", obrigatorio: true },
+      { campo: "Cargo", rotulo: "Cargo", tipo: "cascata", obrigatorio: true },
+      { campo: "Atividade", rotulo: "Nome da Atividade", tipo: "texto", obrigatorio: true, sugestoesDinamicas: true },
     ];
   }
 
@@ -2614,29 +2624,33 @@
 
   // ------------------------------------------------------------------
   // Cadastro-mestre - fonte unica de verdade de Cliente > Unidade > Setor >
-  // {Cargo, Posto de Trabalho > Atividade}, normalizada em 6 tabelas (uma
+  // Posto de Trabalho > Cargo > Atividade, normalizada em 6 tabelas (uma
   // tela de cadastro por entidade - ver aba "Cadastro"). Os 4 cadastros
   // operacionais (Mapa Risco, Plano Acao, Absenteismo, Compativeis) usam
   // selects em cascata validados contra elas - nunca texto livre.
-  // Cargo e Posto de Trabalho sao IRMAOS dentro do Setor (nao se
-  // referenciam entre si - um cargo pode ocupar mais de um posto e
-  // vice-versa; essa combinacao so existe de fato numa linha operacional).
-  // Atividade e filha do Posto de Trabalho.
+  // Hierarquia revista 02/10/2026 (pedido do Leo: "o campo posto de
+  // trabalho vem antes de cargo... EMPRESA > UNIDADE > SETOR > POSTO DE
+  // TRABALHO > CARGO > ATIVIDADE AVALIADA") - Posto de Trabalho deixou de
+  // ser irmao de Cargo dentro do Setor: agora um Cargo pertence a um Posto
+  // de Trabalho especifico (Posto e ancestral de Cargo), e Atividade
+  // continua filha do par Posto de Trabalho + Cargo. Isso ja refletia o
+  // lado operacional (ver Calc.DIMENSOES em js/calc.js e idMapaRisco em
+  // js/db.js, que ja usavam essa ordem) - so o cadastro-mestre ainda
+  // estava com a ordem antiga.
   // ------------------------------------------------------------------
-  const NIVEIS_HIERARQUIA = ["Cliente", "Unidade", "Setor", "Cargo", "Posto Trabalho", "Atividade"];
+  const NIVEIS_HIERARQUIA = ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"];
 
   // Colecao do cadastro-mestre que guarda cada nivel, e os campos
   // ancestrais que identificam um registro daquele nivel (usados para
-  // filtrar em cascata). Cargo e Posto Trabalho tem os MESMOS ancestrais
-  // (Cliente/Unidade/Setor) e nao aparecem um na lista do outro.
-  const COLECAO_DO_NIVEL = { Cliente: "cliente", Unidade: "unidade", Setor: "setor", Cargo: "cargo", "Posto Trabalho": "posto", Atividade: "atividade" };
+  // filtrar em cascata).
+  const COLECAO_DO_NIVEL = { Cliente: "cliente", Unidade: "unidade", Setor: "setor", "Posto Trabalho": "posto", Cargo: "cargo", Atividade: "atividade" };
   const ANCESTRAIS_DO_NIVEL = {
     Cliente: [],
     Unidade: ["Cliente"],
     Setor: ["Cliente", "Unidade"],
-    Cargo: ["Cliente", "Unidade", "Setor"],
     "Posto Trabalho": ["Cliente", "Unidade", "Setor"],
-    Atividade: ["Cliente", "Unidade", "Setor", "Posto Trabalho"],
+    Cargo: ["Cliente", "Unidade", "Setor", "Posto Trabalho"],
+    Atividade: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"],
   };
 
   function linhasCadastroMestre(nivel) {
@@ -2677,12 +2691,8 @@
   }
 
   // Recalcula as opcoes de todo nivel estritamente posterior a
-  // `nivelAlterado` (na ordem de NIVEIS_HIERARQUIA). Cargo e Posto de
-  // Trabalho tem o mesmo indice "logico" (ambos so dependem de Setor), mas
-  // como Posto de Trabalho vem depois de Cargo em NIVEIS_HIERARQUIA, mudar
-  // Cargo tambem recalcula Posto de Trabalho (e Atividade, em cascata) -
-  // inofensivo, porque opcoesHierarquia("Posto Trabalho", ...) nao depende
-  // de Cargo, entao o resultado e o mesmo; so evita duplicar a lista aqui.
+  // `nivelAlterado` (na ordem de NIVEIS_HIERARQUIA) - ex.: mudar Setor
+  // recalcula Posto de Trabalho, Cargo e Atividade em cascata.
   function atualizarCascataDeNivel(form, nivelAlterado) {
     const idxAlterado = NIVEIS_HIERARQUIA.indexOf(nivelAlterado);
     const v = valoresAtuaisHierarquia(form);
@@ -2725,6 +2735,49 @@
     return function (form, valoresIniciais) {
       ligarCascataHierarquia(form, valoresIniciais);
       if (extra) extra(form, valoresIniciais);
+    };
+  }
+
+  // "Selecionar um ja existente OU incluir novo" para o PROPRIO nivel de
+  // cada tela do cadastro-mestre (pedido do Leo 02/10/2026: o campo do
+  // nivel sendo cadastrado - Setor/Posto de Trabalho/Cargo/Atividade - nao
+  // pode ser um <select> fixo/desabilitado; tem que aceitar tanto escolher
+  // um valor que ja existe (dentre os ancestrais escolhidos) quanto
+  // digitar um nome novo). Usa o mesmo mecanismo de <input type="text"
+  // list="..."> + <datalist> ja usado por sugestoesDe/sugestoesLista em
+  // montarFormulario, so que recalculado dinamicamente a cada mudanca de
+  // um campo ancestral (cascata) - por isso o campo precisa ser declarado
+  // com `sugestoesDinamicas: true` (forca a criacao do <datalist> mesmo
+  // sem uma sugestoesLista inicial - ver montarFormulario).
+  function ligarSugestoesNivelProprio(nivelProprio, chaveCadastro, poolBase) {
+    return function (form) {
+      const campoProprio = form._campos[nivelProprio];
+      if (!campoProprio) return;
+      const ancestrais = ANCESTRAIS_DO_NIVEL[nivelProprio] || [];
+      const listId = "dl-" + slug(chaveCadastro + "-" + nivelProprio);
+
+      function atualizarSugestoes() {
+        const dl = document.getElementById(listId);
+        if (!dl) return;
+        const valoresAtuais = {};
+        ancestrais.forEach((a) => { valoresAtuais[a] = form._campos[a] ? form._campos[a].value : ""; });
+        const existentes = linhasCadastroMestre(nivelProprio)
+          .filter((l) => ancestrais.every((a) => !valoresAtuais[a] || l[a] === valoresAtuais[a]))
+          .map((l) => l[nivelProprio])
+          .filter(Boolean);
+        const todas = Array.from(new Set((poolBase || []).concat(existentes))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+        dl.innerHTML = "";
+        todas.forEach((v) => {
+          const opt = document.createElement("option");
+          opt.value = v;
+          dl.appendChild(opt);
+        });
+      }
+
+      ancestrais.forEach((a) => {
+        if (form._campos[a]) form._campos[a].addEventListener("change", atualizarSugestoes);
+      });
+      atualizarSugestoes();
     };
   }
 
@@ -3314,15 +3367,7 @@
       colunasTabela: ["Cliente", "Unidade", "Setor"],
       colunasData: [], camposData: [],
       campos: camposCadastroSetor(),
-      aoConstruir: comCascata(null),
-    },
-    cargo: {
-      grupo: "mestre", icone: "💼", tituloMenu: "Cargo",
-      titulo: "Cadastro de Cargo",
-      colunasTabela: ["Cliente", "Unidade", "Setor", "Cargo"],
-      colunasData: [], camposData: [],
-      campos: camposCadastroCargo(),
-      aoConstruir: comCascata(null),
+      aoConstruir: comCascata(ligarSugestoesNivelProprio("Setor", "setor", SETORES_POOL)),
     },
     posto: {
       grupo: "mestre", icone: "📍", tituloMenu: "Posto de Trabalho",
@@ -3330,15 +3375,23 @@
       colunasTabela: ["Cliente", "Unidade", "Setor", "Posto Trabalho"],
       colunasData: [], camposData: [],
       campos: camposCadastroPosto(),
-      aoConstruir: comCascata(null),
+      aoConstruir: comCascata(ligarSugestoesNivelProprio("Posto Trabalho", "posto", [])),
+    },
+    cargo: {
+      grupo: "mestre", icone: "💼", tituloMenu: "Cargo",
+      titulo: "Cadastro de Cargo",
+      colunasTabela: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"],
+      colunasData: [], camposData: [],
+      campos: camposCadastroCargo(),
+      aoConstruir: comCascata(ligarSugestoesNivelProprio("Cargo", "cargo", [])),
     },
     atividade: {
       grupo: "mestre", icone: "🏷️", tituloMenu: "Atividade",
       titulo: "Cadastro de Atividade",
-      colunasTabela: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Atividade"],
+      colunasTabela: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"],
       colunasData: [], camposData: [],
       campos: camposCadastroAtividade(),
-      aoConstruir: comCascata(null),
+      aoConstruir: comCascata(ligarSugestoesNivelProprio("Atividade", "atividade", [])),
     },
     mapaRisco: {
       grupo: "registro", icone: "⚠️", tituloMenu: "Mapa de Risco",
@@ -4066,7 +4119,12 @@
         el.type = "text";
         el.value = valorInicial != null ? valorInicial : "";
         const listaSugestoes = def.sugestoesFn ? def.sugestoesFn() : (def.sugestoesDe ? sugestoes(def.sugestoesDe) : def.sugestoesLista);
-        if (listaSugestoes && listaSugestoes.length) {
+        // `sugestoesDinamicas: true` forca a criacao do <datalist> mesmo
+        // sem itens ainda (ex.: Cargo/Atividade no cadastro-mestre, cuja
+        // lista so e conhecida depois de escolher os ancestrais) - quem
+        // populares os <option> depois e o aoConstruir da tela (ver
+        // ligarSugestoesNivelProprio).
+        if ((listaSugestoes && listaSugestoes.length) || def.sugestoesDinamicas) {
           const listId = "dl-" + slug(chave + "-" + def.campo);
           el.setAttribute("list", listId);
           let dl = document.getElementById(listId);
@@ -4076,7 +4134,7 @@
             document.body.appendChild(dl);
           }
           dl.innerHTML = "";
-          listaSugestoes.forEach((v) => {
+          (listaSugestoes || []).forEach((v) => {
             const opt = document.createElement("option");
             opt.value = v;
             dl.appendChild(opt);
@@ -4272,7 +4330,10 @@
     });
 
     Object.keys(CADASTROS_CONFIG).forEach((chave) => {
-      estadoCadastro[chave] = estadoCadastro[chave] || { formAberto: false, editandoId: null, busca: "", pagina: 1, valoresForm: null, ordenarCampo: null, ordenarAsc: true };
+      // "selecionados": Set de _id marcados via checkbox (ver renderizarListaCadastro/
+      // excluirSelecionados) - pedido do Leo 02/10/2026: "estou levando muito
+      // tempo para excluir informacoes do sistema" - exclusao em bloco.
+      estadoCadastro[chave] = estadoCadastro[chave] || { formAberto: false, editandoId: null, busca: "", pagina: 1, valoresForm: null, ordenarCampo: null, ordenarAsc: true, selecionados: new Set() };
       const cfg = CADASTROS_CONFIG[chave];
       const grade = document.getElementById(GRUPOS_CADASTRO[cfg.grupo].grade);
       if (!grade) return;
@@ -4308,9 +4369,48 @@
       busca.addEventListener("input", (ev) => {
         estadoCadastro[chave].busca = ev.target.value;
         estadoCadastro[chave].pagina = 1;
+        // Uma busca nova muda o conjunto filtrado - limpa a selecao pra nao
+        // deixar marcado (e sujeito a exclusao) algo que nem aparece mais.
+        estadoCadastro[chave].selecionados.clear();
         renderizarListaCadastro(chave);
       });
       controles.appendChild(busca);
+
+      // Barra de selecao em bloco (pedido do Leo 02/10/2026 - ver comentario
+      // acima em estadoCadastro). Escondida (via CSS .barra-selecao:empty ou
+      // disabled) quando nada esta selecionado - atualizarBarraSelecao()
+      // decide o que mostrar a cada render.
+      const barraSelecao = document.createElement("div");
+      barraSelecao.className = "barra-selecao";
+      barraSelecao.id = "barra-selecao-" + chave;
+      barraSelecao.hidden = true;
+      const contagemSelecao = document.createElement("span");
+      contagemSelecao.className = "barra-selecao-contagem";
+      contagemSelecao.id = "barra-selecao-contagem-" + chave;
+      const btnSelecionarFiltrados = document.createElement("button");
+      btnSelecionarFiltrados.type = "button";
+      btnSelecionarFiltrados.className = "btn-cad-secundario";
+      btnSelecionarFiltrados.id = "btn-selecionar-filtrados-" + chave;
+      btnSelecionarFiltrados.hidden = true;
+      btnSelecionarFiltrados.addEventListener("click", () => selecionarTodosFiltrados(chave));
+      const btnLimparSelecao = document.createElement("button");
+      btnLimparSelecao.type = "button";
+      btnLimparSelecao.className = "btn-cad-secundario";
+      btnLimparSelecao.textContent = "Limpar seleção";
+      btnLimparSelecao.addEventListener("click", () => {
+        estadoCadastro[chave].selecionados.clear();
+        renderizarListaCadastro(chave);
+      });
+      const btnExcluirSelecionados = document.createElement("button");
+      btnExcluirSelecionados.type = "button";
+      btnExcluirSelecionados.className = "btn-cad-primario btn-excluir-selecionados";
+      btnExcluirSelecionados.id = "btn-excluir-selecionados-" + chave;
+      btnExcluirSelecionados.addEventListener("click", () => excluirSelecionados(chave));
+      barraSelecao.appendChild(contagemSelecao);
+      barraSelecao.appendChild(btnSelecionarFiltrados);
+      barraSelecao.appendChild(btnLimparSelecao);
+      barraSelecao.appendChild(btnExcluirSelecionados);
+      controles.appendChild(barraSelecao);
 
       const scroll = document.createElement("div");
       scroll.className = "tabela-scroll";

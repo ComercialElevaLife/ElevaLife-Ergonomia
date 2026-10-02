@@ -90,12 +90,18 @@
     return idPorCampos(dados, ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"]);
   }
 
+  // Hierarquia (02/10/2026, pedido do Leo): Cliente > Unidade > Setor >
+  // Posto de Trabalho > Cargo > Atividade - Posto de Trabalho vem ANTES de
+  // Cargo (um Cargo pertence a um Posto de Trabalho especifico, nao e mais
+  // irmao dele). idCargo/idAtividade passam a incluir os ancestrais novos
+  // na chave composta (evita 2 Cargos de mesmo nome em Postos diferentes do
+  // mesmo Setor colidirem no mesmo id, por exemplo).
   const idCliente = (dados) => idPorCampos(dados, ["Cliente"]);
   const idUnidade = (dados) => idPorCampos(dados, ["Cliente", "Unidade"]);
   const idSetor = (dados) => idPorCampos(dados, ["Cliente", "Unidade", "Setor"]);
-  const idCargo = (dados) => idPorCampos(dados, ["Cliente", "Unidade", "Setor", "Cargo"]);
   const idPosto = (dados) => idPorCampos(dados, ["Cliente", "Unidade", "Setor", "Posto Trabalho"]);
-  const idAtividade = (dados) => idPorCampos(dados, ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Atividade"]);
+  const idCargo = (dados) => idPorCampos(dados, ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"]);
+  const idAtividade = (dados) => idPorCampos(dados, ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"]);
 
   // Id de cada tabela do cadastro-mestre, indexado pelo mesmo nome de
   // colecao usado em COLECOES/CADASTROS_CONFIG - evita um switch/if grande
@@ -425,6 +431,33 @@
     await estado.db.collection(colecaoChave).doc(id).delete();
   }
 
+  // Exclusao em lote (checkboxes + "Excluir selecionados" - pedido do Leo
+  // 02/10/2026: "estou levando muito tempo para excluir informacoes do
+  // sistema"). Dispara todos os DELETE em paralelo e so recarrega a colecao
+  // UMA vez no final (excluir() sozinho recarregaria uma vez POR item, o
+  // que ficaria lento justamente pra quem esta excluindo varios registros).
+  async function excluirEmLote(colecaoChave, ids) {
+    if (!ids || !ids.length) return { total: 0, falhas: 0 };
+
+    if (estado.modoApi) {
+      const resultados = await Promise.allSettled(ids.map((id) =>
+        fetch("/api/" + encodeURIComponent(colecaoChave) + "/" + encodeURIComponent(id), {
+          method: "DELETE",
+          credentials: "same-origin",
+        }).then(async (resp) => {
+          if (!resp.ok && resp.status !== 204) throw new Error(await corpoDeErro(resp));
+        })
+      ));
+      await recarregarColecaoApi(colecaoChave);
+      return { total: ids.length, falhas: resultados.filter((r) => r.status === "rejected").length };
+    }
+
+    if (!estado.db) throw new Error("Banco de dados indisponivel nesta visualizacao.");
+    const colecao = estado.db.collection(colecaoChave);
+    const resultados = await Promise.allSettled(ids.map((id) => colecao.doc(id).delete()));
+    return { total: ids.length, falhas: resultados.filter((r) => r.status === "rejected").length };
+  }
+
   global.BI = global.BI || {};
   global.BI.DB = {
     estado,
@@ -441,6 +474,7 @@
     iniciar,
     salvar,
     excluir,
+    excluirEmLote,
     enviarArquivo,
     urlArquivo,
     fazerLogin,
