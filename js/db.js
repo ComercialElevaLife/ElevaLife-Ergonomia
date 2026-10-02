@@ -319,15 +319,27 @@
     return Object.assign({}, dados, { EmpresaId: clienteDoc.id || clienteDoc._id });
   }
 
-  async function salvar(colecaoChave, id, dados) {
+  // "forcarCriacao": usado pelas 6 tabelas do cadastro-mestre + mapaRisco
+  // (ver js/app.js/idCadastroMestre/idMapaRisco) - elas calculam o id do
+  // documento no cliente (chave composta) ANTES de chamar salvar(), mesmo
+  // quando o registro e novo. Sem esse parametro, "id" vinha sempre
+  // preenchido e a chamada virava PUT mesmo criando um registro do zero -
+  // e o PUT da API (api/src/functions/entidades.js) so atualiza um id que
+  // ja existe, devolvendo 404 "Nao encontrado" caso contrario (bug
+  // reportado pelo Leo 02/10/2026 ao cadastrar uma empresa-cliente nova).
+  // "forcarCriacao=true" manda criar (POST) mesmo com um id definido,
+  // incluindo esse id no corpo - o servidor usa o id enviado em vez de
+  // gerar um aleatorio (ver POST em entidades.js: "corpo.id || crypto.randomUUID()").
+  async function salvar(colecaoChave, id, dados, forcarCriacao) {
     if (estado.modoApi) {
       const corpo = anexarEmpresaId(colecaoChave, dados);
-      const rota = "/api/" + encodeURIComponent(colecaoChave) + (id ? "/" + encodeURIComponent(id) : "");
+      const criar = forcarCriacao || !id;
+      const rota = "/api/" + encodeURIComponent(colecaoChave) + (criar ? "" : "/" + encodeURIComponent(id));
       const resp = await fetch(rota, {
-        method: id ? "PUT" : "POST",
+        method: criar ? "POST" : "PUT",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(id ? corpo : Object.assign({ id }, corpo)),
+        body: JSON.stringify(criar ? Object.assign({ id }, corpo) : corpo),
       });
       if (!resp.ok) throw new Error(await corpoDeErro(resp));
       const salvo = await resp.json();

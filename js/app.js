@@ -4338,7 +4338,13 @@
         const geradorId = chave === "mapaRisco" ? window.BI.DB.idMapaRisco : window.BI.DB.idCadastroMestre[chave];
         if (geradorId) {
           const novoId = geradorId(dados);
-          await window.BI.DB.salvar(chave, novoId, dados);
+          // Registro novo OU edicao que mudou campo-chave (ex.: renomeou o
+          // Cliente) - o id calculado ainda nao existe no banco, entao tem
+          // que CRIAR (POST), nunca atualizar (PUT) um id inexistente (ver
+          // comentario em js/db.js/salvar - bug "Erro ao salvar: Nao
+          // encontrado" reportado pelo Leo 02/10/2026 ao cadastrar empresa nova).
+          const ehRegistroNovo = !idAtual || idAtual !== novoId;
+          await window.BI.DB.salvar(chave, novoId, dados, ehRegistroNovo);
           if (idAtual && idAtual !== novoId) await window.BI.DB.excluir(chave, idAtual);
         } else {
           await window.BI.DB.salvar(chave, idAtual, dados);
