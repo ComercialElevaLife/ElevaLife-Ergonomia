@@ -5667,6 +5667,14 @@
   // ------------------------------------------------------------------
   // Boot
   // ------------------------------------------------------------------
+  // Esconde a tela de carregamento (splash) - chamada no fim de iniciar(),
+  // tanto no caminho de sucesso quanto no catch de erro, pra nunca deixar o
+  // usuario preso nela. Ver comentario em index.html/.carregando-app no CSS.
+  function esconderCarregamento() {
+    const carregando = document.getElementById("carregando-app");
+    if (carregando) carregando.hidden = true;
+  }
+
   async function iniciar() {
     try {
       if (typeof Chart === "undefined") {
@@ -5717,9 +5725,11 @@
       configurarTelaAcesso();
       configurarUsuarios();
       configurarBotaoSair();
+      esconderCarregamento();
     } catch (erro) {
       console.error("BI Ergonomia - erro na inicializacao:", erro);
       mostrarErro(erro && erro.message ? erro.message : String(erro));
+      esconderCarregamento();
     }
   }
 

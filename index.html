@@ -6,6 +6,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Montserrat+Alternates:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 
+<!-- Tela de carregamento - cobre a tela inteira do primeiro instante (sem
+     "hidden": e' a primeira coisa que aparece, antes de qualquer JS rodar)
+     ate iniciar() em js/app.js terminar de decidir se mostra a tela de
+     acesso (login) ou o app com os dados reais. Sem isso, o navegador
+     desenha o app-shell com os dados ficticios de data/mock_data.json por
+     uma fracao de segundo antes da identidade/dos dados reais chegarem -
+     um "flash" de tela de login/dados antigos que o Leo relatou em
+     02/10/2026. Removida (helper esconderCarregamento()) no fim de
+     iniciar(), tanto no caminho de sucesso quanto no catch de erro. -->
+<div class="carregando-app" id="carregando-app">
+  <div class="logo-mark">EL</div>
+  <div class="carregando-spinner"></div>
+</div>
+
 <!-- Tela de acesso (login/bloqueado) - cobre a tela inteira quando o
      usuario ainda precisa entrar com a conta Microsoft ou ja entrou mas
      ainda nao foi vinculado a nenhuma empresa (ver estado.telaAcesso em

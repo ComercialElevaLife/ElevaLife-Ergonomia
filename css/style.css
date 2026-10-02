@@ -185,6 +185,46 @@ h1, h2, h3, .titulo-marca {
   font-family: 'Montserrat Alternates', 'Montserrat', system-ui, sans-serif;
 }
 
+/* ---------------------------- Tela de carregamento (splash inicial) ---------------------------- */
+/* Cobre a tela do primeiro instante (sem JS) ate iniciar() em js/app.js
+   decidir entre tela de acesso (login) ou app com dados reais - evita o
+   "flash" de dados ficticios/estado antigo. Ver index.html. */
+.carregando-app {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: linear-gradient(165deg, var(--vinho-escuro), var(--vinho));
+}
+.carregando-app .logo-mark {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.14);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.5px;
+}
+.carregando-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  animation: girar-carregando 0.8s linear infinite;
+}
+@keyframes girar-carregando {
+  to { transform: rotate(360deg); }
+}
+
 /* ---------------------------- Tela de acesso (login/bloqueado) ---------------------------- */
 
 .tela-acesso {
