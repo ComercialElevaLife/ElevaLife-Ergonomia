@@ -56,23 +56,25 @@ async function buscarUsuarioPorEmail(container, email) {
 // pro Administrador poder copiar/colar na mao se o e-mail nao chegar - ver
 // docs/login-email-senha.md).
 //
-// IMPORTANTE: request.url NAO traz o dominio publico em producao. No
-// Azure Static Web Apps (Managed Functions), o SWA faz proxy da chamada
-// /api/* para a Function App interna (host tipo
-// "xxxxxxxx.azurewebsites.net") - e' esse host interno (sem o front-end
-// estatico) que aparece em request.url dentro da Function, nao o dominio
-// publico (witty-sea-....azurestaticapps.net) que o navegador realmente
-// usou. Um link montado com new URL(request.url).origin aponta pra um
-// host que nao serve o index.html e quebra (bug encontrado em 02/10/2026,
-// ao testar o primeiro bootstrap em producao). O host publico real vem no
-// cabecalho "x-forwarded-host" que o SWA injeta nessa chamada proxied;
-// cai no fallback de request.url so em dev local (func start), onde nao
-// ha proxy e request.url ja e' o host certo.
+// IMPORTANTE: request.url NAO traz o dominio publico em producao, e o
+// cabecalho "x-forwarded-host" (que seria o jeito padrao de descobrir)
+// tambem NAO vem preenchido nas chamadas /api/* do Azure Static Web Apps
+// (Managed Functions) - confirmado na pratica em 02/10/2026, testando o
+// bootstrap duas vezes em producao: nos dois casos o link saiu apontando
+// pro host interno da Function App (tipo "xxxxxxxx.azurewebsites.net",
+// que nao serve o index.html/front-end), nunca pro dominio publico
+// (witty-sea-....azurestaticapps.net) que o navegador realmente usou.
+// Solucao: a URL publica fica fixa na Application Setting URL_PUBLICA
+// (nunca muda depois de configurada - e' o dominio do Static Web App).
+// Mantemos x-forwarded-host e request.url como fallback, nessa ordem,
+// soh pra nao quebrar em dev local (func start) caso URL_PUBLICA nao
+// esteja definida.
 function montarLink(request, tipo, email, tokenBruto) {
   const hostPublico = request.headers.get("x-forwarded-host");
-  const origem = hostPublico
-    ? `${request.headers.get("x-forwarded-proto") || "https"}://${hostPublico}`
-    : new URL(request.url).origin;
+  const origem =
+    (process.env.URL_PUBLICA && process.env.URL_PUBLICA.replace(/\/+$/, "")) ||
+    (hostPublico && `${request.headers.get("x-forwarded-proto") || "https"}://${hostPublico}`) ||
+    new URL(request.url).origin;
   const parametros = new URLSearchParams({ tela: tipo, email, token: tokenBruto });
   return `${origem}/index.html?${parametros.toString()}`;
 }

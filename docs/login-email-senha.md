@@ -41,6 +41,7 @@ Configurar em **Azure Portal → Static Web App (bi-ergonomia) → Configuraçã
 | `GRAPH_CLIENT_SECRET` | Idem | Gerado no mesmo registro de aplicativo, em "Certificados e segredos" |
 | `GRAPH_CAIXA_ENVIO` | De qual caixa os e-mails saem | `sige@elevalife.com.br` (caixa compartilhada — grátis dentro do plano Microsoft 365 já existente, não precisa de licença própria) |
 | `SETUP_SECRET` | Protege a rota de bootstrap (`POST /api/auth/bootstrap`) | Uma string aleatória longa, só o(s) Administrador(es) sabe(m). Não precisa ser a mesma coisa que `SESSION_JWT_SECRET`. |
+| `URL_PUBLICA` | Domínio usado para montar o link de convite/redefinição de senha que vai no e-mail (e na resposta da API) | `https://witty-sea-0b1e5c110.6.azurestaticapps.net` (o mesmo domínio público do app — **sem** barra no final). Obrigatório: descobrimos em produção (02/10/2026) que nem `request.url` nem o cabeçalho `x-forwarded-host` trazem o domínio certo dentro da Function (Azure Static Web Apps faz proxy pro host interno da Function App) — sem essa variável o link do convite sai quebrado, apontando pro host interno. |
 
 ## Passo a passo (Microsoft 365 Admin Center + Azure Portal)
 
@@ -69,7 +70,7 @@ Configurar em **Azure Portal → Static Web App (bi-ergonomia) → Configuraçã
 5. **Gerar o segredo do app** — no app registrado → Certificados e
    segredos → Novo segredo do cliente → copiar o VALOR (só aparece uma
    vez) → vira `GRAPH_CLIENT_SECRET`.
-6. **Configurar as 6 variáveis** acima em Static Web App → Configuração →
+6. **Configurar as 7 variáveis** acima em Static Web App → Configuração →
    Configurações do aplicativo → Salvar (isso reinicia a API sozinho).
 7. **Bootstrap do primeiro Administrador** — como ninguém mais consegue
    entrar pelo Azure AD depois desse deploy, o(s) Administrador(es) que já
