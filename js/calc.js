@@ -400,14 +400,28 @@
     return linhas.filter((l) => linhaPassaFiltros(l, filtros, camposData || []));
   }
 
-  // Opcoes de cada dropdown, em cascata: calculadas a partir do Mapa Risco
-  // (tabela mestre de postos) aplicando todos os OUTROS filtros selecionados.
-  function opcoesDeFiltro(mapaRisco, filtros) {
+  // Opcoes de cada dropdown (Cliente/Unidade/Setor/Posto Trabalho/Cargo/
+  // Atividade), em cascata. CADA dimensao busca seus valores na SUA PROPRIA
+  // tabela do cadastro-mestre (dadosPorNivel[dim] - ver CADASTROS_CONFIG em
+  // js/app.js: cliente/unidade/setor/posto/cargo/atividade), aplicando as
+  // OUTRAS dimensoes ja selecionadas como filtro (linhaPassaFiltros ja ignora
+  // sozinho qualquer dimensao que nao exista como coluna naquela tabela -
+  // ex.: a tabela "cliente" nao tem coluna "Setor").
+  //
+  // Bug critico relatado pelo Leo 02/10/2026 ("cliente cadastrado nao
+  // aparece no filtro"): ANTES, as 6 dimensoes eram todas calculadas a
+  // partir do Mapa de Risco (tabela de REGISTRO/operacional) - um Cliente
+  // (ou Unidade/Setor/etc.) recem-cadastrado no Cadastro-mestre so aparecia
+  // no filtro depois de ja ter pelo menos 1 posto de trabalho lancado no
+  // Mapa de Risco. Agora cada nivel aparece no filtro assim que e
+  // CADASTRADO, independente de ja ter registro operacional ou nao.
+  function opcoesDeFiltro(dadosPorNivel, filtros) {
     const resultado = {};
     for (const dim of DIMENSOES) {
+      const tabela = (dadosPorNivel && dadosPorNivel[dim]) || [];
       const filtrosSemEssaDim = Object.assign({}, filtros, { [dim]: [] });
-      const linhas = filtrar(mapaRisco, filtrosSemEssaDim, []);
-      const valores = Array.from(new Set(linhas.map((l) => l[dim]))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+      const linhas = filtrar(tabela, filtrosSemEssaDim, []);
+      const valores = Array.from(new Set(linhas.map((l) => l[dim]))).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
       resultado[dim] = valores;
     }
     return resultado;

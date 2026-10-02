@@ -695,8 +695,23 @@
     container.appendChild(chip);
   }
 
+  // Tabela do cadastro-mestre que alimenta cada dimensao do filtro (ver
+  // opcoesDeFiltro em js/calc.js) - cada nivel aparece no filtro assim que e
+  // cadastrado, mesmo sem nenhum registro operacional (Mapa de Risco/
+  // Avaliacao) lancado ainda. Bug critico relatado pelo Leo 02/10/2026.
+  function dadosCadastroPorNivelFiltro() {
+    return {
+      Cliente: window.BI.dados.cliente,
+      Unidade: window.BI.dados.unidade,
+      Setor: window.BI.dados.setor,
+      "Posto Trabalho": window.BI.dados.posto,
+      Cargo: window.BI.dados.cargo,
+      Atividade: window.BI.dados.atividade,
+    };
+  }
+
   function atualizarOpcoesFiltros() {
-    const opcoes = window.BI.Calc.opcoesDeFiltro(window.BI.dados.mapaRisco, window.BI.filtros);
+    const opcoes = window.BI.Calc.opcoesDeFiltro(dadosCadastroPorNivelFiltro(), window.BI.filtros);
     const meta = window.BI.dados._meta;
     const anos = window.BI.Calc.anosDisponiveis(meta.meses);
     const meses = window.BI.Calc.mesesDisponiveis(meta.meses);
