@@ -2843,11 +2843,28 @@
       if (el && valor && !el.value) el.value = valor;
     }
 
+    // Grau de Risco (NR-4): a API so devolve uma APROXIMACAO (por Divisao do
+    // CNAE, ver GRAU_RISCO_POR_DIVISAO em api/src/functions/cnpj.js - nao e
+    // a tabela oficial do Quadro I, que e por Classe/Subclasse) - pedido do
+    // Leo 02/10/2026, ciente do risco ("monta uma tabela e marca pra
+    // conferencia"). Por isso, alem de preencher, marca visualmente o campo
+    // (contorno laranja + title) ate alguem tocar nele confirmando/corrigindo.
+    function preencherGrauRiscoAproximado(valor) {
+      const el = form._campos["Grau Risco NR4"];
+      if (!el || !valor || el.value) return false;
+      el.value = valor;
+      el.style.outline = "2px solid #c77700";
+      el.title = "Preenchido automaticamente por aproximacao (pela Divisao do CNAE) - confirme o grau correto antes de salvar.";
+      el.addEventListener("change", () => { el.style.outline = ""; el.title = ""; }, { once: true });
+      return true;
+    }
+
     async function buscarCNPJ() {
       const numero = String(campoCNPJ.value || "").replace(/\D/g, "");
       if (numero.length !== 14) return;
       form._erroEl.hidden = true;
       campoCNPJ.disabled = true;
+      const avisos = [];
       try {
         const resp = await fetch("/api/cnpj/" + numero, { credentials: "same-origin" });
         const corpo = await resp.json().catch(() => ({}));
@@ -2866,9 +2883,15 @@
         preencherSeVazio("Bairro", corpo.Bairro);
         preencherSeVazio("Cidade", corpo.Cidade);
         preencherSeVazio("Estado", corpo.Estado);
+        if (preencherGrauRiscoAproximado(corpo.GrauRiscoNR4)) {
+          avisos.push('Grau de Risco (NR-4) preenchido por aproximacao, pela Divisao do CNAE - nao e a classificacao oficial do Quadro I (essa e por Classe/Subclasse). Confirme o grau correto antes de salvar.');
+        }
         if (corpo.situacaoAtiva === false) {
+          avisos.push(`Atencao: este CNPJ consta como "${corpo.SituacaoCadastral}" na Receita Federal (dados preenchidos mesmo assim - confira antes de salvar).`);
+        }
+        if (avisos.length) {
           form._erroEl.hidden = false;
-          form._erroEl.textContent = `Atencao: este CNPJ consta como "${corpo.SituacaoCadastral}" na Receita Federal (dados preenchidos mesmo assim - confira antes de salvar).`;
+          form._erroEl.textContent = avisos.join(" ");
         }
       } catch (e) {
         form._erroEl.hidden = false;
