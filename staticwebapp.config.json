@@ -8,5 +8,8 @@
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": ["/api/*", "/css/*", "/js/*", "/data/*", "/docs/*", "*.{css,js,json,png,jpg,jpeg,svg,ico}"]
+  },
+  "globalHeaders": {
+    "Cache-Control": "no-cache, must-revalidate"
   }
 }
