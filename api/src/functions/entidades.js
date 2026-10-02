@@ -26,6 +26,7 @@ const rotaUsuarios = require("./usuarios");
 const rotaArquivos = require("./arquivos");
 const rotaApiKeysAdmin = require("./apiKeysAdmin");
 const rotaAuth = require("./auth");
+const rotaCnpj = require("./cnpj");
 
 const COLECOES = [
   "cliente", "unidade", "setor", "cargo", "posto", "atividade",
@@ -67,6 +68,10 @@ const ROTAS_ESPECIAIS = {
   arquivos: rotaArquivos.tratar,
   apiKeys: rotaApiKeysAdmin.tratar,
   auth: rotaAuth.tratar,
+  // GET /api/cnpj/{numero} - consulta publica (BrasilAPI) usada pelo
+  // Cadastro de Cliente pra auto-preencher Razao Social/endereco/CNAE/
+  // telefone a partir do CNPJ (ver api/src/functions/cnpj.js).
+  cnpj: rotaCnpj.tratar,
 };
 
 async function lerPorId(container, id) {

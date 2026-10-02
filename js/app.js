@@ -2823,6 +2823,64 @@
     });
   }
 
+  // Consulta automatica de CNPJ no Cadastro de Cliente (pedido do Leo
+  // 02/10/2026: "eu digitei o CNPJ da empresa e ele nao fez a busca
+  // automatica com a validacao e auto preenchimento das informacoes").
+  // Ao sair do campo CNPJ (blur) com os 14 digitos, busca na BrasilAPI (via
+  // api/src/functions/cnpj.js, que espelha o cadastro da Receita Federal) e
+  // preenche Razao Social/CNAE/telefone/endereco sozinho - so em campos
+  // ainda VAZIOS, nunca sobrescrevendo algo ja digitado (nem num cliente
+  // existente sendo editado, nem se a pessoa mudar o CNPJ na mao depois).
+  // Inscricao Estadual (registro ESTADUAL - a Receita Federal nao tem esse
+  // dado) e Grau de Risco NR-4 (classificacao de Seg. do Trabalho por CNAE,
+  // nao algo que a consulta devolve) continuam so preenchimento manual.
+  function ligarConsultaCNPJ(form) {
+    const campoCNPJ = form._campos["CNPJ"];
+    if (!campoCNPJ) return;
+
+    function preencherSeVazio(nomeCampo, valor) {
+      const el = form._campos[nomeCampo];
+      if (el && valor && !el.value) el.value = valor;
+    }
+
+    async function buscarCNPJ() {
+      const numero = String(campoCNPJ.value || "").replace(/\D/g, "");
+      if (numero.length !== 14) return;
+      form._erroEl.hidden = true;
+      campoCNPJ.disabled = true;
+      try {
+        const resp = await fetch("/api/cnpj/" + numero, { credentials: "same-origin" });
+        const corpo = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          form._erroEl.hidden = false;
+          form._erroEl.textContent = (corpo && corpo.erro) || "Falha ao consultar o CNPJ.";
+          return;
+        }
+        if (corpo.RazaoSocial) preencherSeVazio("Cliente", corpo.RazaoSocial);
+        preencherSeVazio("CNAE", corpo.CNAE);
+        preencherSeVazio("Telefone", corpo.Telefone);
+        preencherSeVazio("CEP", corpo.CEP);
+        preencherSeVazio("Logradouro", corpo.Logradouro);
+        preencherSeVazio("Numero", corpo.Numero);
+        preencherSeVazio("Complemento", corpo.Complemento);
+        preencherSeVazio("Bairro", corpo.Bairro);
+        preencherSeVazio("Cidade", corpo.Cidade);
+        preencherSeVazio("Estado", corpo.Estado);
+        if (corpo.situacaoAtiva === false) {
+          form._erroEl.hidden = false;
+          form._erroEl.textContent = `Atencao: este CNPJ consta como "${corpo.SituacaoCadastral}" na Receita Federal (dados preenchidos mesmo assim - confira antes de salvar).`;
+        }
+      } catch (e) {
+        form._erroEl.hidden = false;
+        form._erroEl.textContent = "Falha ao consultar o CNPJ: " + (e && e.message ? e.message : String(e));
+      } finally {
+        campoCNPJ.disabled = false;
+      }
+    }
+
+    campoCNPJ.addEventListener("blur", buscarCNPJ);
+  }
+
   // Liga o Inventario de Riscos (Fator de Risco) as duas fontes de opcoes
   // dinamicas que nao vem mais fixas na declaracao de camposFatorRisco():
   // 1) Fator depende do Grupo escolhido (checklist ISO TS-20646 - ver
@@ -3217,6 +3275,7 @@
       colunasTabela: ["Cliente"],
       colunasData: [], camposData: [],
       campos: camposCadastroCliente(),
+      aoConstruir: ligarConsultaCNPJ,
     },
     unidade: {
       grupo: "mestre", icone: "🏭", tituloMenu: "Unidade",
