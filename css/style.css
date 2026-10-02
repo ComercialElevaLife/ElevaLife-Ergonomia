@@ -205,13 +205,9 @@ h1, h2, h3, .titulo-marca {
   height: 52px;
   border-radius: 14px;
   background: rgba(255,255,255,0.14);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 18px;
-  letter-spacing: 0.5px;
+  object-fit: contain;
+  padding: 11px;
+  box-sizing: border-box;
 }
 .carregando-spinner {
   width: 28px;
@@ -248,17 +244,9 @@ h1, h2, h3, .titulo-marca {
 }
 .tela-acesso-marca { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 28px; }
 .tela-acesso-marca .logo-mark {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: linear-gradient(165deg, var(--vinho-escuro), var(--vinho));
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 19px;
-  letter-spacing: 0.5px;
+  height: 56px;
+  width: auto;
+  object-fit: contain;
   margin-bottom: 4px;
 }
 .tela-acesso-marca .produto { font-weight: 700; font-size: 19px; color: var(--texto); }
@@ -367,13 +355,10 @@ h1, h2, h3, .titulo-marca {
   flex-shrink: 0;
   border-radius: 10px;
   background: rgba(255,255,255,0.14);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 0.5px;
   border: 1px solid rgba(255,255,255,0.35);
+  object-fit: contain;
+  padding: 7px;
+  box-sizing: border-box;
 }
 
 .sidebar .titulos { line-height: 1.25; overflow: hidden; white-space: nowrap; }
@@ -585,6 +570,27 @@ h1, h2, h3, .titulo-marca {
 .btn-icone-topo .icone svg { width: 15px; height: 15px; display: block; }
 .btn-icone-topo:hover { border-color: var(--teal-escuro); color: var(--teal-escuro); background: var(--creme); }
 .btn-icone-topo[aria-expanded="false"] { background: var(--creme); border-color: var(--cinza-quente); }
+
+/* Logo do cliente filtrado (barra superior) - ver atualizarTemaCliente em
+   js/app.js. A borda usa a mesma variavel --cor-cliente-ativa aplicada aos
+   cartoes, pra reforcar visualmente que o tema do cliente esta ativo. */
+.logo-cliente-ativo {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--cor-cliente-ativa, var(--linha));
+  background: var(--card);
+  transition: border-color .2s ease;
+}
+.logo-cliente-ativo img {
+  height: 100%;
+  width: auto;
+  max-width: 130px;
+  object-fit: contain;
+  display: block;
+}
 
 .barra-export {
   display: flex;
@@ -879,11 +885,16 @@ main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1600px; margin: 0 a
 .cartao {
   background: var(--card);
   border-radius: 12px;
-  border: 1px solid var(--linha);
+  /* --cor-cliente-ativa: definida via JS (atualizarTemaCliente, js/app.js)
+     quando exatamente 1 Cliente com Logotipo esta filtrado - lida a cor
+     dominante do logotipo e tematiza a borda dos cartoes com ela. Sem
+     cliente filtrado (ou mais de 1), cai no --linha padrao de sempre. */
+  border: 1px solid var(--cor-cliente-ativa, var(--linha));
   padding: 14px 16px 10px;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  transition: border-color .2s ease;
 }
 
 .cartao .cartao-titulo {

@@ -16,7 +16,7 @@
      02/10/2026. Removida (helper esconderCarregamento()) no fim de
      iniciar(), tanto no caminho de sucesso quanto no catch de erro. -->
 <div class="carregando-app" id="carregando-app">
-  <div class="logo-mark">EL</div>
+  <img class="logo-mark" src="img/logo-icone-branco.png" alt="ElevaLife">
   <div class="carregando-spinner"></div>
 </div>
 
@@ -28,7 +28,7 @@
 <div class="tela-acesso" id="tela-acesso" hidden>
   <div class="tela-acesso-cartao">
     <div class="tela-acesso-marca">
-      <div class="logo-mark">EL</div>
+      <img class="logo-mark" src="img/logo-icone-bordo.png" alt="ElevaLife">
       <div class="produto">S.I.G.E</div>
       <!-- Nome por extenso + simbolo de copyright, pedido do Leo 02/10/2026:
            "acho legal incluir no nome do sistema. S.I.G.E. - SISTEMA
@@ -43,7 +43,7 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-topo">
       <div class="marca">
-        <div class="logo-mark">EL</div>
+        <img class="logo-mark" src="img/logo-icone-branco.png" alt="ElevaLife">
         <div class="titulos">
           <div class="produto">S.I.G.E</div>
           <!-- Nome por extenso + simbolo de copyright, pedido do Leo
@@ -136,6 +136,14 @@
       <button type="button" id="btn-abrir-sidebar-mobile" class="btn-hamburguer" aria-label="Abrir menu">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"/></svg>
       </button>
+      <!-- Logo do cliente filtrado: so aparece quando exatamente 1 Cliente
+           esta selecionado no filtro e esse cliente tem Logotipo cadastrado
+           (ver camposCadastroCliente/Logotipo). A cor dominante do logotipo
+           e lida via canvas e aplicada as bordas dos cartoes (variavel CSS
+           --cor-cliente-ativa) - ver atualizarTemaCliente em js/app.js. -->
+      <div class="logo-cliente-ativo" id="logo-cliente-ativo" hidden title="Cliente filtrado">
+        <img id="logo-cliente-ativo-img" alt="Logo do cliente filtrado">
+      </div>
       <div class="barra-export" id="barra-export">
         <button type="button" id="btn-atualizar" class="btn-icone-topo" title="Re-renderizar com os dados e filtros atuais">
           <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10a6 6 0 1 1-1.76-4.24"/><path d="M16 3.5V7h-3.5"/></svg></span>

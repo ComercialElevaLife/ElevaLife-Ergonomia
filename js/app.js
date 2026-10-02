@@ -712,6 +712,97 @@
       }
     });
     atualizarBadgeFiltros();
+    atualizarTemaCliente();
+  }
+
+  // ------------------------------------------------------------------
+  // Tema visual por Cliente filtrado: quando o usuario filtra exatamente 1
+  // Cliente (ver filtro "Cliente" em ORDEM_FILTROS) e esse cliente tem
+  // Logotipo cadastrado (camposCadastroCliente/Logotipo), mostra o
+  // logotipo na barra superior e tematiza a borda dos cartoes (var CSS
+  // --cor-cliente-ativa) com a cor dominante lida do proprio logotipo -
+  // pedido do Leo 02/10/2026. Com 0 ou 2+ clientes filtrados, volta ao
+  // tema padrao (--linha / sem logo).
+  // ------------------------------------------------------------------
+  function corDominanteDeImagem(img) {
+    try {
+      const w = 48, h = 48; // reduz a imagem antes de ler - mais rapido e
+      // suaviza ruido de anti-aliasing nas bordas do desenho.
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      const { data } = ctx.getImageData(0, 0, w, h);
+      // Quantiza cada pixel em um "balde" (passos de 24 por canal) e acha o
+      // balde mais frequente - mais robusto que uma media simples, que
+      // tende a enlamear logotipos com mais de uma cor. Ignora pixels quase
+      // transparentes (fundo do PNG) e quase branco/quase preto (fundo
+      // solido ou contorno, raramente a cor "de marca" do cliente).
+      const passo = 24;
+      const baldes = new Map();
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+        if (a < 40) continue;
+        if (r > 240 && g > 240 && b > 240) continue;
+        if (r < 15 && g < 15 && b < 15) continue;
+        const chave = (r / passo | 0) + "," + (g / passo | 0) + "," + (b / passo | 0);
+        const atual = baldes.get(chave);
+        if (atual) { atual.r += r; atual.g += g; atual.b += b; atual.n += 1; }
+        else baldes.set(chave, { r, g, b, n: 1 });
+      }
+      let melhor = null;
+      baldes.forEach((v) => { if (!melhor || v.n > melhor.n) melhor = v; });
+      if (!melhor) return null;
+      return "rgb(" + Math.round(melhor.r / melhor.n) + ", " + Math.round(melhor.g / melhor.n) + ", " + Math.round(melhor.b / melhor.n) + ")";
+    } catch (e) {
+      // Nao deveria acontecer (arquivo servido pela nossa propria API,
+      // mesma origem - canvas nunca fica "tainted"), mas protege mesmo
+      // assim: sem cor lida, so nao tematiza, nao quebra a tela.
+      console.warn("Nao foi possivel ler a cor do logotipo do cliente:", e);
+      return null;
+    }
+  }
+
+  function aplicarTemaCliente(cor) {
+    if (cor) document.documentElement.style.setProperty("--cor-cliente-ativa", cor);
+    else document.documentElement.style.removeProperty("--cor-cliente-ativa");
+  }
+
+  function atualizarTemaCliente() {
+    const badge = document.getElementById("logo-cliente-ativo");
+    const img = document.getElementById("logo-cliente-ativo-img");
+    if (!badge || !img) return;
+
+    const selecionados = window.BI.filtros.Cliente || [];
+    if (selecionados.length !== 1) {
+      badge.hidden = true;
+      img.removeAttribute("src");
+      delete img.dataset.chaveAtual;
+      aplicarTemaCliente(null);
+      return;
+    }
+
+    const doc = (window.BI.dados.cliente || []).find((c) => c.Cliente === selecionados[0]);
+    const logo = doc && doc.Logotipo;
+    if (!logo || !logo.chave) {
+      badge.hidden = true;
+      img.removeAttribute("src");
+      delete img.dataset.chaveAtual;
+      aplicarTemaCliente(null);
+      return;
+    }
+
+    badge.hidden = false;
+    badge.title = "Cliente filtrado: " + selecionados[0];
+    img.alt = "Logo de " + selecionados[0];
+    if (img.dataset.chaveAtual !== logo.chave) {
+      img.dataset.chaveAtual = logo.chave;
+      img.onload = () => aplicarTemaCliente(corDominanteDeImagem(img));
+      img.onerror = () => aplicarTemaCliente(null);
+      img.src = window.BI.DB.urlArquivo(logo.chave);
+    }
   }
 
   function limparFiltros() {
