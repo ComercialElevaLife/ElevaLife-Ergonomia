@@ -2,17 +2,25 @@
    BI Ergonomia - ElevaLife
    Regras de multi-tenant e RBAC (Administrador / Consultor / UsuarioCliente).
 
-   Identidade vem do cabecalho x-ms-client-principal que o Static Web Apps
-   injeta automaticamente em toda requisicao autenticada para /api/* (ver
-   staticwebapp.config.json na raiz do repo, que exige "authenticated" nessa
-   rota). Aqui so decodificamos esse cabecalho e cruzamos o e-mail com o
-   container "usuarios" para saber o papel e as empresas vinculadas -
-   NUNCA confiar em nenhum filtro vindo do frontend.
+   Ate 29/09/2026 a identidade vinha do cabecalho x-ms-client-principal que
+   o Static Web Apps injetava automaticamente (login "Entrar com Microsoft" /
+   Azure AD Easy Auth). Trocado por login proprio de e-mail e senha (pedido
+   do Leo: "nao sei se o cliente usa Microsoft... e login e senha, tem que
+   ter" - ver api/src/functions/auth.js e api/src/shared/auth.js) - agora a
+   identidade vem de um cookie de sessao (JWT) que so o backend emite/le,
+   nunca do frontend. staticwebapp.config.json deixou de exigir
+   "authenticated" em /api/* por isso: cada function verifica a sessao por
+   conta propria (ver emailDaSessao em shared/auth.js).
+
+   Aqui so decodificamos esse cookie e cruzamos o e-mail com o container
+   "usuarios" para saber o papel e as empresas vinculadas - NUNCA confiar em
+   nenhum filtro vindo do frontend.
    ========================================================================== */
 
 "use strict";
 
 const { obterContainer } = require("./cosmos");
+const { emailDaSessao } = require("./auth");
 
 const PAPEIS = Object.freeze({
   ADMIN: "Administrador",
@@ -20,28 +28,14 @@ const PAPEIS = Object.freeze({
   CLIENTE: "UsuarioCliente",
 });
 
-function decodificarPrincipal(request) {
-  const cabecalho = request.headers.get("x-ms-client-principal");
-  if (!cabecalho) return null;
-  try {
-    const json = Buffer.from(cabecalho, "base64").toString("utf-8");
-    const principal = JSON.parse(json);
-    if (!principal || !principal.userId) return null;
-    return principal;
-  } catch (erro) {
-    return null;
-  }
-}
-
-// Resolve a identidade completa: e-mail (do Azure AD) + papel + empresas
-// vinculadas, consultando o container "usuarios". Um usuario autenticado no
-// Azure AD mas ainda nao cadastrado em "usuarios" volta com papel=null -
-// bloqueado ate um Administrador vincula-lo (ver docs/azure-setup.md, passo 8).
+// Resolve a identidade completa: e-mail (da sessao) + papel + empresas
+// vinculadas, consultando o container "usuarios". Um usuario com sessao
+// valida mas ainda nao cadastrado em "usuarios" (nao deveria acontecer no
+// fluxo normal, ja que so existe sessao apos login/primeiro-acesso, que por
+// sua vez exigem um documento em "usuarios") volta com papel=null - bloqueado
+// ate um Administrador vincula-lo.
 async function resolverIdentidade(request) {
-  const principal = decodificarPrincipal(request);
-  if (!principal) return null;
-
-  const email = String(principal.userDetails || "").trim().toLowerCase();
+  const email = emailDaSessao(request);
   if (!email) return null;
 
   const container = obterContainer("usuarios");
@@ -88,7 +82,6 @@ function podeVerDocumento(identidade, colecao, doc) {
 
 module.exports = {
   PAPEIS,
-  decodificarPrincipal,
   resolverIdentidade,
   empresasVisiveis,
   podeVerEmpresa,

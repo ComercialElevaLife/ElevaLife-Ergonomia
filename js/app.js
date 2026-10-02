@@ -5109,19 +5109,64 @@
 
   // ------------------------------------------------------------------
   // Usuarios (quem tem acesso ao BI e a quais empresas-cliente esta
-  // vinculado) - so Administrador ve essa aba; a API (api/src/functions/
-  // usuarios.js) ja recusa qualquer chamada de quem nao e Administrador,
-  // entao esse controle no frontend e so pra nao mostrar uma tela quebrada
-  // pra quem nao tem acesso mesmo. Tela separada do sistema generico de
-  // Cadastro (CADASTROS_CONFIG/estado.colecoes) porque "usuarios" tem sua
-  // propria rota dedicada (nao e uma das colecoes de negocio por
-  // EmpresaId, ver js/db.js/COLECOES) - mas reaproveita montarFormulario/
-  // lerValoresFormulario (que so precisam de um "cfg" com "campos", sem
-  // exigir que a colecao esteja em CADASTROS_CONFIG) e window.BI.DB.
-  // salvar/excluir (que tambem so precisam do nome da rota).
+  // vinculado) - Administrador e Consultor veem essa aba e podem convidar
+  // gente nova; so Administrador pode editar papel/empresas ou excluir o
+  // acesso de alguem (pedido do Leo, 28-29/09/2026: "eu crio o usuario...
+  // ou o administrador, ou o consultor" - ver api/src/functions/usuarios.js,
+  // que aplica essa mesma regra no backend; o frontend so espelha pra nao
+  // mostrar botao que ia dar 403). Desde 29/09/2026 nao existe mais "criar
+  // usuario sem senha" - toda criacao dispara um convite por e-mail com
+  // link de primeiro acesso (ver api/src/functions/auth.js).
+  // Tela separada do sistema generico de Cadastro (CADASTROS_CONFIG/
+  // estado.colecoes) porque "usuarios" tem sua propria rota dedicada (nao e
+  // uma das colecoes de negocio por EmpresaId, ver js/db.js/COLECOES) - mas
+  // reaproveita montarFormulario/lerValoresFormulario (que so precisam de
+  // um "cfg" com "campos", sem exigir que a colecao esteja em
+  // CADASTROS_CONFIG).
   // ------------------------------------------------------------------
   const PAPEIS_USUARIO = ["Administrador", "Consultor", "UsuarioCliente"];
   const estadoUsuarios = { lista: [], formAberto: false, editandoId: null, valoresForm: null, carregando: false };
+
+  function souAdministrador() {
+    const identidade = window.BI.DB.estado.identidade;
+    return !!(identidade && identidade.papel === "Administrador");
+  }
+
+  function limparAvisoConvite() {
+    const el = document.getElementById("aviso-convite-usuario");
+    if (el) { el.hidden = true; el.innerHTML = ""; }
+  }
+
+  // Mostra o link de convite/primeiro-acesso depois de criar um usuario ou
+  // reenviar um convite - sempre (nao so quando o e-mail falha), pra dar ao
+  // Administrador/Consultor um jeito manual de repassar o acesso mesmo se o
+  // envio automatico (Microsoft Graph) ainda nao estiver 100% configurado.
+  function mostrarAvisoConvite({ email, linkConvite, avisoEmail }) {
+    const el = document.getElementById("aviso-convite-usuario");
+    if (!el) return;
+    el.innerHTML = "";
+    el.hidden = false;
+    const titulo = document.createElement("strong");
+    titulo.textContent = avisoEmail
+      ? `Convite criado para ${email}, mas o e-mail automatico falhou:`
+      : `Convite enviado por e-mail para ${email}. Link de primeiro acesso (caso precise repassar manualmente):`;
+    el.appendChild(titulo);
+    if (avisoEmail) {
+      const pAviso = document.createElement("p");
+      pAviso.className = "aviso-convite-erro";
+      pAviso.textContent = avisoEmail;
+      el.appendChild(pAviso);
+    }
+    const pLink = document.createElement("p");
+    const link = document.createElement("a");
+    link.href = linkConvite; link.textContent = linkConvite; link.target = "_blank"; link.rel = "noopener";
+    pLink.appendChild(link);
+    el.appendChild(pLink);
+    const btnFechar = document.createElement("button");
+    btnFechar.type = "button"; btnFechar.className = "btn-fechar-aviso-convite"; btnFechar.textContent = "Fechar";
+    btnFechar.addEventListener("click", limparAvisoConvite);
+    el.appendChild(btnFechar);
+  }
 
   function camposUsuario() {
     return [
@@ -5160,6 +5205,7 @@
   }
 
   function abrirFormNovoUsuario() {
+    limparAvisoConvite();
     estadoUsuarios.editandoId = null;
     estadoUsuarios.formAberto = true;
     estadoUsuarios.valoresForm = {};
@@ -5185,6 +5231,12 @@
     container.innerHTML = "";
     if (!estadoUsuarios.formAberto) return;
     const form = montarFormulario(CFG_USUARIOS, "usuarios", estadoUsuarios.valoresForm || {});
+    // E-mail e a chave de login (identifica a sessao) - so pode ser
+    // definido na criacao (convite); editar um usuario existente nunca
+    // muda o e-mail (o backend ignora esse campo no PUT, ver usuarios.js).
+    if (estadoUsuarios.editandoId && form._campos && form._campos["Email"]) {
+      form._campos["Email"].disabled = true;
+    }
     form._btnCancelar.addEventListener("click", () => fecharFormUsuario());
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
@@ -5196,8 +5248,16 @@
       }
       dados.Email = String(dados.Email || "").trim().toLowerCase();
       try {
-        await window.BI.DB.salvar("usuarios", estadoUsuarios.editandoId, dados);
-        fecharFormUsuario();
+        if (estadoUsuarios.editandoId) {
+          await window.BI.DB.salvar("usuarios", estadoUsuarios.editandoId, dados);
+          fecharFormUsuario();
+        } else {
+          // Criar (POST) sempre dispara o convite por e-mail - ver
+          // js/db.js/criarUsuario e api/src/functions/usuarios.js.
+          const resultado = await window.BI.DB.criarUsuario(dados);
+          fecharFormUsuario();
+          mostrarAvisoConvite({ email: resultado.Email, linkConvite: resultado.linkConvite, avisoEmail: resultado.avisoEmail });
+        }
         await carregarUsuarios();
       } catch (e) {
         form._erroEl.hidden = false;
@@ -5214,15 +5274,29 @@
     });
   }
 
+  function reenviarConviteUsuario(email, botao) {
+    botao.disabled = true;
+    botao.textContent = "Reenviando...";
+    window.BI.DB.reenviarConvite(email).then((resultado) => {
+      mostrarAvisoConvite({ email, linkConvite: resultado.linkConvite, avisoEmail: resultado.avisoEmail });
+    }).catch((e) => {
+      mostrarErro("Erro ao reenviar convite: " + (e && e.message ? e.message : String(e)));
+    }).finally(() => {
+      botao.disabled = false;
+      botao.textContent = "Reenviar convite";
+    });
+  }
+
   function renderizarListaUsuarios() {
     const tabela = document.getElementById("tabela-usuarios");
     if (!tabela) return;
+    const ehAdmin = souAdministrador();
     const thead = tabela.querySelector("thead");
     const tbody = tabela.querySelector("tbody");
     thead.innerHTML = "";
     tbody.innerHTML = "";
     const trHead = document.createElement("tr");
-    ["E-mail", "Papel", "Empresas Vinculadas", "Ações"].forEach((c) => {
+    ["E-mail", "Papel", "Empresas Vinculadas", "Status", "Ações"].forEach((c) => {
       const th = document.createElement("th");
       th.textContent = c;
       if (c === "Ações") th.className = "col-acoes";
@@ -5236,14 +5310,14 @@
     if (estadoUsuarios.carregando) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 4; td.className = "sem-dados"; td.textContent = "Carregando...";
+      td.colSpan = 5; td.className = "sem-dados"; td.textContent = "Carregando...";
       tr.appendChild(td); tbody.appendChild(tr);
       return;
     }
     if (!estadoUsuarios.lista.length) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 4; td.className = "sem-dados"; td.textContent = "Nenhum usuário cadastrado ainda.";
+      td.colSpan = 5; td.className = "sem-dados"; td.textContent = "Nenhum usuário cadastrado ainda.";
       tr.appendChild(td); tbody.appendChild(tr);
       return;
     }
@@ -5252,30 +5326,261 @@
       const tdEmail = document.createElement("td"); tdEmail.textContent = u.Email || "-";
       const tdPapel = document.createElement("td"); tdPapel.textContent = u.Papel || "-";
       const tdEmpresas = document.createElement("td"); tdEmpresas.textContent = nomesClientesPorId(u.EmpresasVinculadas) || "-";
+      const statusConta = u.StatusConta || "Convidado";
+      const tdStatus = document.createElement("td");
+      const badgeStatus = document.createElement("span");
+      badgeStatus.className = "badge-status-conta " + (statusConta === "Ativo" ? "badge-status-ativo" : "badge-status-convidado");
+      badgeStatus.textContent = statusConta === "Ativo" ? "Ativo" : "Convite pendente";
+      tdStatus.appendChild(badgeStatus);
       const tdAcoes = document.createElement("td"); tdAcoes.className = "col-acoes";
-      const btnEditar = document.createElement("button");
-      btnEditar.type = "button"; btnEditar.className = "btn-acao-linha"; btnEditar.textContent = "Editar";
-      btnEditar.addEventListener("click", () => abrirFormEditarUsuario(u.id));
-      const btnExcluir = document.createElement("button");
-      btnExcluir.type = "button"; btnExcluir.className = "btn-acao-linha excluir"; btnExcluir.textContent = "Excluir";
-      btnExcluir.addEventListener("click", () => excluirUsuario(u.id, u.Email));
-      tdAcoes.appendChild(btnEditar); tdAcoes.appendChild(btnExcluir);
-      tr.appendChild(tdEmail); tr.appendChild(tdPapel); tr.appendChild(tdEmpresas); tr.appendChild(tdAcoes);
+      if (statusConta !== "Ativo") {
+        const btnReenviar = document.createElement("button");
+        btnReenviar.type = "button"; btnReenviar.className = "btn-acao-linha"; btnReenviar.textContent = "Reenviar convite";
+        btnReenviar.addEventListener("click", () => reenviarConviteUsuario(u.Email, btnReenviar));
+        tdAcoes.appendChild(btnReenviar);
+      }
+      if (ehAdmin) {
+        const btnEditar = document.createElement("button");
+        btnEditar.type = "button"; btnEditar.className = "btn-acao-linha"; btnEditar.textContent = "Editar";
+        btnEditar.addEventListener("click", () => abrirFormEditarUsuario(u.id));
+        const btnExcluir = document.createElement("button");
+        btnExcluir.type = "button"; btnExcluir.className = "btn-acao-linha excluir"; btnExcluir.textContent = "Excluir";
+        btnExcluir.addEventListener("click", () => excluirUsuario(u.id, u.Email));
+        tdAcoes.appendChild(btnEditar); tdAcoes.appendChild(btnExcluir);
+      }
+      tr.appendChild(tdEmail); tr.appendChild(tdPapel); tr.appendChild(tdEmpresas); tr.appendChild(tdStatus); tr.appendChild(tdAcoes);
       tbody.appendChild(tr);
     });
   }
 
+  // Helpers de DOM compartilhados pelas 3 telas abaixo (login, primeiro
+  // acesso/redefinicao de senha, bloqueado).
+  function criarBotaoAcesso(id, texto, classe, aoClicar) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = id;
+    btn.className = classe;
+    btn.textContent = texto;
+    btn.addEventListener("click", aoClicar);
+    return btn;
+  }
+
+  function criarCampoAcesso(id, rotulo, tipo) {
+    const wrap = document.createElement("div");
+    wrap.className = "campo-acesso";
+    const label = document.createElement("label");
+    label.setAttribute("for", id);
+    label.textContent = rotulo;
+    const input = document.createElement("input");
+    input.type = tipo;
+    input.id = id;
+    input.name = id;
+    input.required = true;
+    input.autocomplete = tipo === "password" ? "new-password" : tipo === "email" ? "email" : "off";
+    wrap.append(label, input);
+    return { wrap, input };
+  }
+
+  function criarErroAcesso() {
+    const p = document.createElement("p");
+    p.className = "erro-acesso";
+    p.hidden = true;
+    return p;
+  }
+
+  function mostrarErroAcesso(elErro, mensagem) {
+    elErro.textContent = mensagem;
+    elErro.hidden = false;
+  }
+
+  // Formulario de login (e-mail + senha) - substitui o antigo "Entrar com
+  // Microsoft" (pedido do Leo, 28-29/09/2026: "nao sei se o cliente usa
+  // Microsoft... e login e senha, tem que ter"). Inclui o link "Esqueci
+  // minha senha", que troca pra um mini-formulario de recuperacao no lugar.
+  function renderizarFormLogin(conteudo) {
+    const h2 = document.createElement("h2");
+    h2.textContent = "Bem-vindo(a)";
+    const p = document.createElement("p");
+    p.textContent = "Entre com seu e-mail e senha para acessar o S.I.G.E.";
+
+    const form = document.createElement("form");
+    form.className = "form-acesso";
+    form.noValidate = true;
+    const campoEmail = criarCampoAcesso("login-email", "E-mail", "email");
+    const campoSenha = criarCampoAcesso("login-senha", "Senha", "password");
+    const erro = criarErroAcesso();
+    const btnEntrar = document.createElement("button");
+    btnEntrar.type = "submit";
+    btnEntrar.className = "btn-entrar-microsoft";
+    btnEntrar.textContent = "Entrar";
+    form.append(campoEmail.wrap, campoSenha.wrap, erro, btnEntrar);
+
+    const btnEsqueci = criarBotaoAcesso("btn-esqueci-senha", "Esqueci minha senha", "link-esqueci-senha", () => {
+      conteudo.innerHTML = "";
+      renderizarFormRecuperacao(conteudo);
+    });
+
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      erro.hidden = true;
+      btnEntrar.disabled = true;
+      btnEntrar.textContent = "Entrando...";
+      try {
+        await window.BI.DB.fazerLogin(campoEmail.input.value.trim(), campoSenha.input.value);
+        window.location.reload();
+      } catch (e) {
+        mostrarErroAcesso(erro, (e && e.message) || "Falha ao entrar.");
+        btnEntrar.disabled = false;
+        btnEntrar.textContent = "Entrar";
+      }
+    });
+
+    conteudo.append(h2, p, form, btnEsqueci);
+  }
+
+  // Mini-formulario "Esqueci minha senha" - sempre responde com a mesma
+  // mensagem de confirmacao (o backend nunca revela se o e-mail existe ou
+  // nao, ver api/src/functions/auth.js/esqueci-senha).
+  function renderizarFormRecuperacao(conteudo) {
+    const h2 = document.createElement("h2");
+    h2.textContent = "Esqueci minha senha";
+    const p = document.createElement("p");
+    p.textContent = "Informe seu e-mail. Se ele estiver cadastrado, você vai receber um link para redefinir a senha.";
+
+    const form = document.createElement("form");
+    form.className = "form-acesso";
+    form.noValidate = true;
+    const campoEmail = criarCampoAcesso("recuperar-email", "E-mail", "email");
+    const erro = criarErroAcesso();
+    const btnEnviar = document.createElement("button");
+    btnEnviar.type = "submit";
+    btnEnviar.className = "btn-entrar-microsoft";
+    btnEnviar.textContent = "Enviar link";
+    form.append(campoEmail.wrap, erro, btnEnviar);
+
+    const btnVoltar = criarBotaoAcesso("btn-voltar-login", "Voltar para o login", "btn-trocar-conta", () => {
+      conteudo.innerHTML = "";
+      renderizarFormLogin(conteudo);
+    });
+
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      erro.hidden = true;
+      btnEnviar.disabled = true;
+      btnEnviar.textContent = "Enviando...";
+      try {
+        await window.BI.DB.pedirRecuperacaoSenha(campoEmail.input.value.trim());
+        conteudo.innerHTML = "";
+        const h2ok = document.createElement("h2");
+        h2ok.textContent = "Verifique seu e-mail";
+        const pok = document.createElement("p");
+        pok.textContent = "Se o e-mail informado estiver cadastrado, um link para redefinir a senha foi enviado.";
+        conteudo.append(h2ok, pok, criarBotaoAcesso("btn-voltar-login-2", "Voltar para o login", "btn-trocar-conta", () => {
+          conteudo.innerHTML = "";
+          renderizarFormLogin(conteudo);
+        }));
+      } catch (e) {
+        mostrarErroAcesso(erro, (e && e.message) || "Falha ao enviar o link.");
+        btnEnviar.disabled = false;
+        btnEnviar.textContent = "Enviar link";
+      }
+    });
+
+    conteudo.append(h2, p, form, btnVoltar);
+  }
+
+  // Tela de "primeiro acesso" (link do e-mail de convite) ou "redefinir
+  // senha" (link do e-mail de recuperacao) - mesmo formulario (nova senha +
+  // confirmacao), so muda o titulo/texto e qual acao da API e chamada.
+  function renderizarFormDefinirSenha(conteudo, { tipo, email, token }) {
+    const ehPrimeiroAcesso = tipo === "primeiro-acesso";
+    const h2 = document.createElement("h2");
+    h2.textContent = ehPrimeiroAcesso ? "Defina sua senha" : "Redefinir senha";
+    const p = document.createElement("p");
+    p.appendChild(document.createTextNode(ehPrimeiroAcesso ? "Crie uma senha para acessar o S.I.G.E. com o e-mail " : "Crie uma nova senha para o e-mail "));
+    const spanEmail = document.createElement("span");
+    spanEmail.className = "tela-acesso-email";
+    spanEmail.textContent = email;
+    p.appendChild(spanEmail);
+    p.appendChild(document.createTextNode("."));
+
+    const form = document.createElement("form");
+    form.className = "form-acesso";
+    form.noValidate = true;
+    const campoSenha = criarCampoAcesso("nova-senha", "Nova senha (mínimo 8 caracteres)", "password");
+    const campoConfirma = criarCampoAcesso("confirma-senha", "Confirmar senha", "password");
+    const erro = criarErroAcesso();
+    const btnSalvar = document.createElement("button");
+    btnSalvar.type = "submit";
+    btnSalvar.className = "btn-entrar-microsoft";
+    btnSalvar.textContent = ehPrimeiroAcesso ? "Criar senha e entrar" : "Redefinir senha e entrar";
+    form.append(campoSenha.wrap, campoConfirma.wrap, erro, btnSalvar);
+
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      erro.hidden = true;
+      if (campoSenha.input.value.length < 8) {
+        mostrarErroAcesso(erro, "A senha precisa ter pelo menos 8 caracteres.");
+        return;
+      }
+      if (campoSenha.input.value !== campoConfirma.input.value) {
+        mostrarErroAcesso(erro, "As senhas não conferem.");
+        return;
+      }
+      btnSalvar.disabled = true;
+      btnSalvar.textContent = "Salvando...";
+      try {
+        if (ehPrimeiroAcesso) {
+          await window.BI.DB.concluirPrimeiroAcesso(email, token, campoSenha.input.value);
+        } else {
+          await window.BI.DB.concluirRedefinicaoSenha(email, token, campoSenha.input.value);
+        }
+        // Limpa o token da URL antes de recarregar - o link do e-mail so
+        // deve funcionar uma vez, e nao queremos deixar o token visivel no
+        // historico do navegador depois de usado.
+        window.location.href = window.location.pathname;
+      } catch (e) {
+        mostrarErroAcesso(erro, (e && e.message) || "Falha ao salvar a senha.");
+        btnSalvar.disabled = false;
+        btnSalvar.textContent = ehPrimeiroAcesso ? "Criar senha e entrar" : "Redefinir senha e entrar";
+      }
+    });
+
+    const btnVoltar = criarBotaoAcesso("btn-voltar-login-3", "Link inválido ou expirado? Voltar para o login", "btn-trocar-conta", () => {
+      window.location.href = window.location.pathname;
+    });
+
+    conteudo.append(h2, p, form, btnVoltar);
+  }
+
   // So chamado depois de window.BI.DB.iniciar() resolver - mostra a tela de
-  // acesso (login com Microsoft, ou aviso de acesso ainda nao liberado) no
-  // lugar do app inteiro, conforme window.BI.DB.estado.telaAcesso ("login" /
-  // "bloqueado" / null). So acontece na versao publicada (producao); no
-  // preview/mock (Cowork ou index.html aberto direto) telaAcesso fica null e
-  // esta funcao nao faz nada.
+  // acesso (login, primeiro acesso/redefinicao de senha, ou aviso de acesso
+  // ainda nao liberado) no lugar do app inteiro, conforme
+  // window.BI.DB.estado.telaAcesso ("login" / "bloqueado" / null) e a
+  // querystring da URL (link de convite/recuperacao clicado no e-mail). So
+  // acontece na versao publicada (producao); no preview/mock (Cowork ou
+  // index.html aberto direto) telaAcesso fica null e a querystring nunca
+  // traz "token", entao esta funcao nao faz nada.
   function configurarTelaAcesso() {
     const tela = document.getElementById("tela-acesso");
     const shell = document.getElementById("app-shell");
     const conteudo = document.getElementById("tela-acesso-conteudo");
     if (!tela || !shell || !conteudo) return;
+
+    // Link de e-mail (primeiro acesso / redefinicao de senha) tem
+    // prioridade sobre qualquer outro estado - a pessoa pode estar clicando
+    // o link sem nenhuma sessao (ou com uma sessao antiga de outra conta).
+    const parametros = new URLSearchParams(window.location.search);
+    const telaParam = parametros.get("tela");
+    const emailParam = parametros.get("email");
+    const tokenParam = parametros.get("token");
+    if ((telaParam === "primeiro-acesso" || telaParam === "redefinir-senha") && emailParam && tokenParam) {
+      shell.hidden = true;
+      tela.hidden = false;
+      conteudo.innerHTML = "";
+      renderizarFormDefinirSenha(conteudo, { tipo: telaParam, email: emailParam, token: tokenParam });
+      return;
+    }
 
     const modo = window.BI.DB.estado.telaAcesso;
     if (!modo) {
@@ -5288,27 +5593,8 @@
     tela.hidden = false;
     conteudo.innerHTML = "";
 
-    function criarBotao(id, texto, classe, aoClicar) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.id = id;
-      btn.className = classe;
-      btn.textContent = texto;
-      btn.addEventListener("click", aoClicar);
-      return btn;
-    }
-
     if (modo === "login") {
-      const h2 = document.createElement("h2");
-      h2.textContent = "Bem-vindo(a)";
-      const p = document.createElement("p");
-      p.textContent = "Entre com a sua conta Microsoft da ElevaLife para acessar o S.I.G.E.";
-      const btnEntrar = criarBotao("btn-entrar-microsoft", "Entrar com Microsoft", "btn-entrar-microsoft", () => {
-        btnEntrar.disabled = true;
-        btnEntrar.textContent = "Redirecionando...";
-        window.BI.DB.entrarComMicrosoft();
-      });
-      conteudo.append(h2, p, btnEntrar);
+      renderizarFormLogin(conteudo);
       return;
     }
 
@@ -5324,8 +5610,8 @@
       spanEmail.textContent = email;
       p.appendChild(spanEmail);
       p.appendChild(document.createTextNode(", mas ainda não foi vinculado a nenhuma empresa. Peça a um Administrador do S.I.G.E para liberar o seu acesso."));
-      const btnNovamente = criarBotao("btn-tentar-novamente-acesso", "Já fui liberado, tentar novamente", "btn-entrar-microsoft", () => window.location.reload());
-      const btnTrocar = criarBotao("btn-trocar-conta", "Trocar de conta", "btn-trocar-conta", () => window.BI.DB.sairDaConta());
+      const btnNovamente = criarBotaoAcesso("btn-tentar-novamente-acesso", "Já fui liberado, tentar novamente", "btn-entrar-microsoft", () => window.location.reload());
+      const btnTrocar = criarBotaoAcesso("btn-trocar-conta", "Trocar de conta", "btn-trocar-conta", () => window.BI.DB.sairDaConta());
       conteudo.append(h2, p, btnNovamente, btnTrocar);
     }
   }
@@ -5336,10 +5622,13 @@
   // caso.
   function configurarUsuarios() {
     const identidade = window.BI.DB.estado.identidade;
-    const ehAdmin = !!(identidade && identidade.papel === "Administrador");
+    // Administrador e Consultor podem convidar gente nova (ver comentario
+    // no topo desta secao); so Administrador ve Editar/Excluir por linha
+    // (renderizarListaUsuarios/souAdministrador).
+    const podeGerenciar = !!(identidade && (identidade.papel === "Administrador" || identidade.papel === "Consultor"));
     const btnNav = document.getElementById("nav-btn-usuarios");
-    if (btnNav) btnNav.hidden = !ehAdmin;
-    if (!ehAdmin) return;
+    if (btnNav) btnNav.hidden = !podeGerenciar;
+    if (!podeGerenciar) return;
 
     const btnNovo = document.getElementById("btn-novo-usuario");
     if (btnNovo && !btnNovo._ligado) {
@@ -5347,6 +5636,22 @@
       btnNovo.addEventListener("click", abrirFormNovoUsuario);
     }
     carregarUsuarios();
+  }
+
+  // Botao "Sair" do menu lateral - so aparece em producao (modoApi), depois
+  // de confirmado que ha sessao de verdade (login por e-mail/senha, ver
+  // js/db.js/sairDaConta). Antes disso o sistema so tinha "Trocar de
+  // conta" na tela de bloqueio; agora que login e senha sao de verdade,
+  // faz sentido ter um jeito explicito de encerrar a sessao no app inteiro.
+  function configurarBotaoSair() {
+    const btn = document.getElementById("btn-sair");
+    if (!btn) return;
+    const ativo = !!(window.BI.DB.estado.modoApi && window.BI.DB.estado.identidade);
+    btn.hidden = !ativo;
+    if (ativo && !btn._ligado) {
+      btn._ligado = true;
+      btn.addEventListener("click", () => window.BI.DB.sairDaConta());
+    }
   }
 
   // ------------------------------------------------------------------
@@ -5411,6 +5716,7 @@
       // o app inteiro) e/ou o item de menu "Usuarios".
       configurarTelaAcesso();
       configurarUsuarios();
+      configurarBotaoSair();
     } catch (erro) {
       console.error("BI Ergonomia - erro na inicializacao:", erro);
       mostrarErro(erro && erro.message ? erro.message : String(erro));

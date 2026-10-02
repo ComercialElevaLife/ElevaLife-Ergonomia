@@ -611,13 +611,21 @@ Nova coleção `usuarios` (sem `EmpresaId` — não pertence a nenhum tenant):
 
 | Campo | Descrição |
 | --- | --- |
-| `Email` | E-mail do usuário (chave de busca, vem do Azure AD) |
+| `Email` | E-mail do usuário (chave de busca) |
 | `Papel` | `Administrador`, `Consultor` ou `UsuarioCliente` |
 | `EmpresasVinculadas` | Lista de `EmpresaId` — vazia para Administrador (não se aplica, ele vê tudo), 1 item para UsuarioCliente, 1+ para Consultor |
+| `SenhaHash` | Hash bcrypt da senha (nunca texto puro) — só existe depois que a pessoa conclui o primeiro acesso |
+| `StatusConta` | `Convidado` (ainda não definiu senha) ou `Ativo` |
+| `TokenConviteHash`/`TokenConviteExpira` | Hash (SHA-256) do token de convite pendente e sua validade (7 dias) |
+| `TokenResetHash`/`TokenResetExpira` | Idem, para um pedido de redefinição de senha em andamento (2 horas) |
 
-Um usuário autenticado pelo Azure AD mas ainda sem documento em `usuarios`
-(ou sem `Papel` reconhecido) recebe `403` em toda rota — precisa ser
-cadastrado por um Administrador primeiro (ver passo 8 abaixo).
+Desde 29/09/2026 (pedido do Leo — ver docs/login-email-senha.md) o login é
+por e-mail e senha, não mais Azure AD: um documento em `usuarios` sem
+`SenhaHash`/`StatusConta` (criado antes dessa data) precisa passar pelo
+fluxo de "bootstrap" (`POST /api/auth/bootstrap`) ou receber um convite
+normal para conseguir entrar. Uma pessoa sem `Papel` reconhecido recebe
+`403` em toda rota — precisa ser cadastrada por um Administrador ou
+Consultor primeiro (tela "Usuários", que dispara o convite automaticamente).
 
 ### API (código já implementado em 16/09/2026)
 
@@ -633,14 +641,19 @@ frontend, a cada push):
 - `GET /api/me` — devolve e-mail, papel e empresas vinculadas do usuário
   logado, para o frontend adaptar a UI (travar seletor de empresa para
   UsuarioCliente, esconder "nova empresa" para quem não é Administrador).
-- `GET/POST/PUT/DELETE /api/usuarios/{id?}` — gestão de usuários/papéis,
-  restrita a Administrador.
-- Identidade e RBAC ficam em `api/src/shared/tenant.js` (lê o cabeçalho
-  `x-ms-client-principal` que o Static Web Apps injeta automaticamente em
-  toda chamada autenticada) e o acesso ao banco em
+- `GET/POST/PUT/DELETE /api/usuarios/{id?}` — gestão de usuários/papéis;
+  listar/criar (convidar) é Administrador OU Consultor, editar papel/
+  empresas e excluir é só Administrador (ver docs/login-email-senha.md).
+- `POST /api/auth/{acao}` — login por e-mail/senha, convite de primeiro
+  acesso e redefinição de senha (ver docs/login-email-senha.md para a
+  lista completa de ações e as variáveis de ambiente necessárias).
+- Identidade e RBAC ficam em `api/src/shared/tenant.js` (lê um cookie de
+  sessão — JWT assinado em `api/src/shared/auth.js` — em vez do antigo
+  cabeçalho `x-ms-client-principal` do Azure AD) e o acesso ao banco em
   `api/src/shared/cosmos.js`.
-- `staticwebapp.config.json` (raiz do repo) já exige login (`authenticated`)
-  em `/api/*` e redireciona para `/.auth/login/aad` quando não autenticado.
+- `staticwebapp.config.json` (raiz do repo) deixou de exigir
+  `authenticated`/Azure AD em `/api/*` desde 29/09/2026 — cada function
+  verifica a sessão por conta própria via esse cookie.
 - **Importante (descoberto em produção em 16/09/2026)**: `/api/me` e
   `/api/usuarios` não podem ter seu próprio `app.http()` separado — no
   plano Free do Static Web Apps, o proxy nunca reconheceu essas rotas
@@ -673,15 +686,21 @@ rodando e escolher a camada de dados automaticamente, sem precisar tocar em
    ao computador de Léo, commitar por ali, e publicar com `git push`
    usando as credenciais do Windows já salvas (script `publicar.bat`) —
    documentado na skill `publicar-elevai-cockpit`.
-2. **Login/autenticação**: ✅ feito, usando o provedor **multi-tenant
-   padrão** do próprio Static Web App (`/.auth/login/aad`, sem precisar
-   registrar um App Registration próprio da ElevaLife). O controle de quem
-   entra não é feito pelo Azure AD, e sim pela camada de RBAC da API (ver
-   passo 8): só quem estiver cadastrado no contêiner `usuarios` do Cosmos
-   DB tem `acessoLiberado = true`; os demais logam mas caem em modo
-   "acesso não liberado". Registrar um App Registration próprio (para
-   restringir o login em si a domínios específicos, antes mesmo de checar
-   o RBAC) fica como melhoria futura opcional, não bloqueia o uso real.
+2. **Login/autenticação**: ✅ feito com e-mail e senha próprios (desde
+   29/09/2026 — pedido do Leo: "não sei se o cliente usa Microsoft, é
+   login e senha, tem que ter"). Substitui o antigo `/.auth/login/aad`
+   (Azure AD Easy Auth) por um login de verdade: Administrador ou
+   Consultor convida alguém pela tela "Usuários" (e-mail + papel +
+   empresas), a pessoa recebe um e-mail (via Microsoft Graph, caixa
+   compartilhada `sige@elevalife.com.br`) com um link de primeiro acesso
+   para criar a própria senha. Sessão fica num cookie (JWT) - ver
+   `docs/login-email-senha.md` para a arquitetura completa e as variáveis
+   de ambiente necessárias (`SESSION_JWT_SECRET`, `GRAPH_TENANT_ID`,
+   `GRAPH_CLIENT_ID`, `GRAPH_CLIENT_SECRET`, `GRAPH_CAIXA_ENVIO`,
+   `SETUP_SECRET`). O controle de QUEM PODE VER O QUE continua na mesma
+   camada de RBAC da API: só quem estiver cadastrado no contêiner
+   `usuarios` do Cosmos DB com `Papel` reconhecido tem `acessoLiberado =
+   true`.
 3. **Provisionar o banco de dados**: ✅ feito — Cosmos DB Serverless
    (`cosmos-bi-ergonomia`, grupo de recursos `rg-elevalife-ergonomia`,
    banco `bi-ergonomia`), com os 12 contêineres (10 coleções de negócio

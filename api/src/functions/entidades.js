@@ -25,6 +25,7 @@ const rotaMe = require("./me");
 const rotaUsuarios = require("./usuarios");
 const rotaArquivos = require("./arquivos");
 const rotaApiKeysAdmin = require("./apiKeysAdmin");
+const rotaAuth = require("./auth");
 
 const COLECOES = [
   "cliente", "unidade", "setor", "cargo", "posto", "atividade",
@@ -65,6 +66,7 @@ const ROTAS_ESPECIAIS = {
   usuarios: rotaUsuarios.tratar,
   arquivos: rotaArquivos.tratar,
   apiKeys: rotaApiKeysAdmin.tratar,
+  auth: rotaAuth.tratar,
 };
 
 async function lerPorId(container, id) {

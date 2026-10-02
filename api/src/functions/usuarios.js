@@ -1,20 +1,27 @@
 /* ==========================================================================
    BI Ergonomia - ElevaLife
-   Gestao de usuarios/papeis - somente Administrador. Nao faz parte das 10
-   colecoes de negocio (entidades.js) de proposito: aqui a regra de acesso e
-   fixa (so Administrador), nao depende de EmpresaId.
+   Gestao de usuarios/papeis. Nao faz parte das 10 colecoes de negocio
+   (entidades.js) de proposito: aqui a regra de acesso e fixa, nao depende
+   de EmpresaId.
 
-   GET    /api/usuarios          -> lista todos os usuarios cadastrados
-   POST   /api/usuarios          -> cria { Email, Papel, EmpresasVinculadas }
-   PUT    /api/usuarios/{id}     -> atualiza papel/empresas vinculadas
-   DELETE /api/usuarios/{id}     -> remove o acesso de um usuario
+   Desde 29/09/2026 (login por e-mail/senha, ver api/src/functions/auth.js):
+   Administrador OU Consultor podem listar/criar (convidar) - pedido do Leo
+   ("eu crio o usuario... ou o administrador, ou o consultor"); so
+   Administrador pode mudar o papel/empresas de alguem ou excluir o acesso
+   (evita um Consultor se promover a Administrador).
+
+   GET    /api/usuarios              -> lista todos os usuarios cadastrados
+   POST   /api/usuarios              -> cria/convida { Email, Papel, EmpresasVinculadas }
+                                         (sempre envia e-mail de convite - ver auth.js)
+   PUT    /api/usuarios/{id}         -> atualiza papel/empresas vinculadas (so Administrador)
+   DELETE /api/usuarios/{id}         -> remove o acesso de um usuario (so Administrador)
    ========================================================================== */
 
 "use strict";
 
-const crypto = require("crypto");
 const { obterContainer } = require("../shared/cosmos");
 const { resolverIdentidade, PAPEIS } = require("../shared/tenant");
+const { criarOuConvidarUsuario } = require("./auth");
 
 const PAPEIS_VALIDOS = new Set(Object.values(PAPEIS));
 
@@ -27,8 +34,9 @@ async function tratar(request, context) {
     return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissoes." } };
   }
   if (!identidade) return { status: 401, jsonBody: { erro: "Nao autenticado." } };
-  if (identidade.papel !== PAPEIS.ADMIN) {
-    return { status: 403, jsonBody: { erro: "So Administrador pode gerenciar usuarios." } };
+  const podeGerenciar = identidade.papel === PAPEIS.ADMIN || identidade.papel === PAPEIS.CONSULTOR;
+  if (!podeGerenciar) {
+    return { status: 403, jsonBody: { erro: "So Administrador ou Consultor podem gerenciar usuarios." } };
   }
 
   const container = obterContainer("usuarios");
@@ -38,27 +46,27 @@ async function tratar(request, context) {
     switch (request.method) {
       case "GET": {
         const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
-        return { jsonBody: resources };
+        // Nunca devolver os hashes/tokens pro frontend - so o necessario pra
+        // tela de Usuarios (e-mail, papel, empresas, status da conta).
+        const semSegredos = resources.map((u) => ({
+          id: u.id, Email: u.Email, Papel: u.Papel, EmpresasVinculadas: u.EmpresasVinculadas,
+          StatusConta: u.StatusConta || (u.SenhaHash ? "Ativo" : "Convidado"),
+        }));
+        return { jsonBody: semSegredos };
       }
 
       case "POST": {
         const corpo = await request.json();
-        const email = String(corpo.Email || "").trim().toLowerCase();
-        if (!email) return { status: 400, jsonBody: { erro: "Email e obrigatorio." } };
-        if (!PAPEIS_VALIDOS.has(corpo.Papel)) {
-          return { status: 400, jsonBody: { erro: `Papel invalido. Use um de: ${Array.from(PAPEIS_VALIDOS).join(", ")}.` } };
-        }
-        const doc = {
-          id: corpo.id || crypto.randomUUID(),
-          Email: email,
-          Papel: corpo.Papel,
-          EmpresasVinculadas: Array.isArray(corpo.EmpresasVinculadas) ? corpo.EmpresasVinculadas : [],
-        };
-        const { resource } = await container.items.upsert(doc);
-        return { status: 201, jsonBody: resource };
+        const resultado = await criarOuConvidarUsuario(request, container, corpo);
+        if (resultado.erro) return resultado.erro;
+        const { doc, link, avisoEmail } = resultado;
+        return { status: 201, jsonBody: { id: doc.id, Email: doc.Email, Papel: doc.Papel, EmpresasVinculadas: doc.EmpresasVinculadas, StatusConta: doc.StatusConta, linkConvite: link, avisoEmail } };
       }
 
       case "PUT": {
+        if (identidade.papel !== PAPEIS.ADMIN) {
+          return { status: 403, jsonBody: { erro: "So Administrador pode alterar papel/empresas de um usuario." } };
+        }
         if (!id) return { status: 400, jsonBody: { erro: "Id e obrigatorio para atualizar." } };
         const corpo = await request.json();
         if (corpo.Papel && !PAPEIS_VALIDOS.has(corpo.Papel)) {
@@ -66,12 +74,17 @@ async function tratar(request, context) {
         }
         const { resource: existente } = await container.item(id, id).read();
         if (!existente) return { status: 404, jsonBody: { erro: "Nao encontrado." } };
-        const doc = Object.assign({}, existente, corpo, { id });
+        // Nunca deixar o corpo da requisicao sobrescrever SenhaHash/tokens -
+        // essa rota so mexe em Papel/EmpresasVinculadas.
+        const doc = Object.assign({}, existente, { Papel: corpo.Papel || existente.Papel, EmpresasVinculadas: Array.isArray(corpo.EmpresasVinculadas) ? corpo.EmpresasVinculadas : existente.EmpresasVinculadas, id });
         const { resource } = await container.item(id, id).replace(doc);
-        return { jsonBody: resource };
+        return { jsonBody: { id: resource.id, Email: resource.Email, Papel: resource.Papel, EmpresasVinculadas: resource.EmpresasVinculadas, StatusConta: resource.StatusConta } };
       }
 
       case "DELETE": {
+        if (identidade.papel !== PAPEIS.ADMIN) {
+          return { status: 403, jsonBody: { erro: "So Administrador pode excluir o acesso de um usuario." } };
+        }
         if (!id) return { status: 400, jsonBody: { erro: "Id e obrigatorio para excluir." } };
         await container.item(id, id).delete().catch(() => null);
         return { status: 204 };

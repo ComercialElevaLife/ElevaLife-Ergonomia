@@ -255,6 +255,39 @@ h1, h2, h3, .titulo-marca {
 }
 .btn-trocar-conta:hover { background: var(--creme); }
 
+/* Formulario de login/primeiro-acesso/redefinicao de senha (substitui o
+   antigo "Entrar com Microsoft" - pedido do Leo, 28-29/09/2026). */
+.form-acesso { text-align: left; }
+.campo-acesso { margin-bottom: 14px; }
+.campo-acesso label { display: block; font-size: 12.5px; font-weight: 600; color: var(--texto-secundario); margin-bottom: 5px; }
+.campo-acesso input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--linha);
+  background: var(--creme);
+  color: var(--texto);
+  font-family: inherit;
+  font-size: 14px;
+}
+.campo-acesso input:focus { outline: none; border-color: var(--vinho); background: var(--card); }
+.erro-acesso { color: var(--status-critical); font-size: 13px; line-height: 1.5; margin: -4px 0 14px; }
+.link-esqueci-senha {
+  display: block;
+  width: 100%;
+  text-align: center;
+  background: none;
+  border: none;
+  color: var(--vinho);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 14px;
+  padding: 4px;
+}
+.link-esqueci-senha:hover { text-decoration: underline; }
+
 /* ---------------------------- Layout geral (shell + menu lateral) ---------------------------- */
 
 .app-shell {
@@ -1569,6 +1602,51 @@ canvas.grafico-interativo { cursor: default; }
   line-height: 1.5;
 }
 .aviso-erro strong { display: block; margin-bottom: 4px; }
+
+/* Aviso de convite (tela de Usuarios) - aparece depois de criar um usuario
+   ou reenviar um convite, com o link de primeiro acesso pra repassar na mao
+   se o e-mail automatico (Microsoft Graph) nao chegar - ver
+   mostrarAvisoConvite em js/app.js. */
+.aviso-convite {
+  position: relative;
+  margin: 0 0 16px;
+  padding: 14px 44px 14px 16px;
+  border-radius: 10px;
+  background: var(--creme);
+  border: 1px solid var(--linha);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--texto);
+}
+.aviso-convite strong { display: block; margin-bottom: 6px; }
+.aviso-convite a { color: var(--teal-escuro); word-break: break-all; }
+.aviso-convite-erro { color: var(--status-critical); margin: 0 0 6px; }
+.btn-fechar-aviso-convite {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--texto-secundario);
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.btn-fechar-aviso-convite:hover { color: var(--texto); }
+
+/* Badge de Status da Conta (tela de Usuarios) - "Ativo" (ja concluiu o
+   primeiro acesso) vs "Convite pendente" (ainda nao definiu senha). */
+.badge-status-conta {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge-status-ativo { background: var(--status-good); color: #fff; }
+.badge-status-convidado { background: var(--status-warning); color: #fff; }
 
 footer.rodape {
   text-align: center;

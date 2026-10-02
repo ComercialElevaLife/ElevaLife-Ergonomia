@@ -112,19 +112,19 @@
   // Modo 2: API multi-tenant (Azure Static Web App + Functions em /api)
   // --------------------------------------------------------------------
 
-  // redirect:"manual" evita que o fetch siga sozinho o 302 configurado em
-  // staticwebapp.config.json (401 em /api/* -> /.auth/login/aad) e caia
-  // sem querer na pagina de login como se fosse uma resposta normal - assim
-  // conseguimos distinguir "API nao existe aqui" (Cowork/preview) de
-  // "API existe mas precisa logar" (producao, usuario ainda nao autenticado).
+  // /api/me devolve 401 (JSON simples, nao redireciona mais - desde
+  // 29/09/2026 o login e por e-mail/senha, nao Azure AD, ver
+  // api/src/functions/auth.js) quando nao ha sessao valida (cookie
+  // "sige_sessao" ausente/expirado/invalido) - isso e o que distingue
+  // "API nao existe aqui" (Cowork/preview) de "API existe mas precisa
+  // logar" (producao, usuario ainda sem sessao).
   async function detectarApi() {
     try {
       const resp = await fetch("/api/me", {
         credentials: "same-origin",
         headers: { Accept: "application/json" },
-        redirect: "manual",
       });
-      if (resp.type === "opaqueredirect" || resp.status === 0 || resp.status === 401) {
+      if (resp.status === 401) {
         return { existe: true, identidade: null, precisaLogin: true };
       }
       if (!resp.ok) return { existe: false, identidade: null };
@@ -137,23 +137,72 @@
     }
   }
 
-  // Manda o usuario pro login da Microsoft (Azure AD, gerenciado pelo Static
-  // Web App - nunca lidamos com senha aqui). So e chamada quando o proprio
-  // usuario clica em "Entrar com Microsoft" na tela de acesso (ver
-  // configurarTelaAcesso em app.js) - iniciar() abaixo so PREPARA o estado
-  // (estado.telaAcesso = "login"), nunca redireciona sozinho.
-  function irParaLoginMicrosoft() {
-    const destino = global.location.pathname + global.location.search;
-    global.location.href = "/.auth/login/aad?post_login_redirect_uri=" + encodeURIComponent(destino);
+  async function corpoJsonOuErro(resp) {
+    let corpo = null;
+    try { corpo = await resp.json(); } catch (e) { /* resposta sem corpo (ex.: 204) */ }
+    if (!resp.ok) throw new Error((corpo && corpo.erro) || `Falha na API (${resp.status}).`);
+    return corpo;
   }
 
-  // Encerra a sessao AAD atual (usado no botao "Trocar de conta" da tela de
-  // acesso, quando o usuario autenticado ainda nao foi vinculado a nenhuma
-  // empresa) - volta pra mesma pagina, que vai detectar de novo e mostrar a
-  // tela de login.
-  function irParaLogout() {
-    const destino = global.location.pathname;
-    global.location.href = "/.auth/logout?post_logout_redirect_uri=" + encodeURIComponent(destino);
+  async function chamarAuth(acao, dados) {
+    const resp = await fetch("/api/auth/" + encodeURIComponent(acao), {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados || {}),
+    });
+    return corpoJsonOuErro(resp);
+  }
+
+  // Login por e-mail/senha (substitui o antigo "Entrar com Microsoft" -
+  // pedido do Leo, 28-29/09/2026). Devolve a identidade em caso de sucesso;
+  // quem chama (configurarTelaAcesso em app.js) decide recarregar a pagina.
+  async function fazerLogin(email, senha) {
+    return chamarAuth("login", { Email: email, Senha: senha });
+  }
+
+  // Conclui um convite (primeiro acesso) OU uma redefinicao de senha - as
+  // duas telas usam o mesmo formulario (e-mail + token vem da URL, so a
+  // pessoa digita a nova senha), so muda a acao chamada.
+  async function concluirPrimeiroAcesso(email, token, novaSenha) {
+    return chamarAuth("primeiro-acesso", { Email: email, Token: token, NovaSenha: novaSenha });
+  }
+  async function concluirRedefinicaoSenha(email, token, novaSenha) {
+    return chamarAuth("redefinir-senha", { Email: email, Token: token, NovaSenha: novaSenha });
+  }
+  async function pedirRecuperacaoSenha(email) {
+    return chamarAuth("esqueci-senha", { Email: email });
+  }
+
+  // Encerra a sessao atual (usado no botao "Trocar de conta"/"Sair" da tela
+  // de acesso) - limpa o cookie no servidor e recarrega a pagina, que volta
+  // a detectar (sem sessao) e mostra a tela de login de novo.
+  async function sairDaConta() {
+    try { await chamarAuth("logout", {}); } catch (e) { /* mesmo se falhar, recarrega */ }
+    global.location.href = global.location.pathname;
+  }
+
+  // Criar um usuario (POST /api/usuarios) sempre dispara um convite por
+  // e-mail agora (ver api/src/functions/usuarios.js) - ao contrario de
+  // salvar()/generico, aqui devolvemos a resposta INTEIRA (nao so o id),
+  // porque a tela de Usuarios (app.js) precisa mostrar o link de convite e
+  // um eventual aviso de falha no envio do e-mail (ver renderizarListaUsuarios/
+  // abrirFormNovoUsuario em app.js).
+  async function criarUsuario(dados) {
+    const resp = await fetch("/api/usuarios", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados),
+    });
+    return corpoJsonOuErro(resp);
+  }
+
+  // Administrador/Consultor reenviando um convite (usuario ainda nao
+  // concluiu o primeiro acesso) - ver botao "Reenviar convite" na tela de
+  // Usuarios.
+  async function reenviarConvite(email) {
+    return chamarAuth("reenviar-convite", { Email: email });
   }
 
   async function recarregarColecaoApi(chave) {
@@ -382,7 +431,12 @@
     excluir,
     enviarArquivo,
     urlArquivo,
-    entrarComMicrosoft: irParaLoginMicrosoft,
-    sairDaConta: irParaLogout,
+    fazerLogin,
+    concluirPrimeiroAcesso,
+    concluirRedefinicaoSenha,
+    pedirRecuperacaoSenha,
+    sairDaConta,
+    criarUsuario,
+    reenviarConvite,
   };
 })(window);
