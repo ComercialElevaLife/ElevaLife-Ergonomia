@@ -712,7 +712,18 @@
       }
     });
     atualizarBadgeFiltros();
-    atualizarTemaCliente();
+    // Protegido com try/catch: tema por Cliente e cosmetico (logo + cor da
+    // borda) - um erro inesperado aqui (ex.: formato de Logotipo que ainda
+    // nao previ) NUNCA pode impedir o resto dos filtros de funcionar.
+    // Bug critico relatado pelo Leo 02/10/2026: selecionar um Cliente
+    // "travava" o filtro - causa raiz ainda em investigacao, mas esse
+    // try/catch garante que o filtro em si nunca quebra de novo por causa
+    // desta funcao, mesmo que a causa raiz nao tenha sido 100% replicada.
+    try {
+      atualizarTemaCliente();
+    } catch (e) {
+      console.error("Tema por cliente falhou (filtros continuam funcionando normalmente):", e);
+    }
   }
 
   // ------------------------------------------------------------------
