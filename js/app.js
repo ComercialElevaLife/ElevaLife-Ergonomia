@@ -4548,18 +4548,32 @@
     });
   }
 
-  function renderizarListaCadastro(chave) {
-    const Calc = window.BI.Calc;
+  // Linhas de `chave` depois dos filtros globais do topo + a busca local da
+  // tela de cadastro - fatorado pra fora de renderizarListaCadastro porque
+  // selecionarTodosFiltrados() (selecao em bloco) precisa do MESMO conjunto
+  // (nao so a pagina atual de 10) sem duplicar a logica de filtro/busca.
+  function linhasFiltradasCadastro(chave) {
     const cfg = CADASTROS_CONFIG[chave];
     const estado = estadoCadastro[chave];
-    const hoje = hojeMeiaNoite();
     const linhasBrutas = window.BI.dados[chave] || [];
-    let linhas = Calc.filtrar(linhasBrutas, window.BI.filtros, cfg.camposData);
+    let linhas = window.BI.Calc.filtrar(linhasBrutas, window.BI.filtros, cfg.camposData);
     const totalFiltrado = linhas.length;
     if (estado.busca) {
       const termo = estado.busca.toLowerCase();
       linhas = linhas.filter((l) => cfg.colunasTabela.some((c) => String(l[c] || "").toLowerCase().includes(termo)));
     }
+    return { linhasBrutas, linhas, totalFiltrado };
+  }
+
+  function renderizarListaCadastro(chave) {
+    const Calc = window.BI.Calc;
+    const cfg = CADASTROS_CONFIG[chave];
+    const estado = estadoCadastro[chave];
+    const hoje = hojeMeiaNoite();
+    const filtradas = linhasFiltradasCadastro(chave);
+    const linhasBrutas = filtradas.linhasBrutas;
+    const totalFiltrado = filtradas.totalFiltrado;
+    let linhas = filtradas.linhas;
 
     // Ordenacao por coluna (clicar no cabecalho) - pedido do Leo: A-Z/Z-A
     // pra texto, mais antigo->mais novo pra data. "Status Acao" e coluna
@@ -4593,6 +4607,29 @@
     const thead = tabela.querySelector("thead");
     thead.innerHTML = "";
     const trHead = document.createElement("tr");
+
+    // Coluna de selecao em bloco (pedido do Leo 02/10/2026) - checkbox no
+    // cabecalho marca/desmarca todos os _id da PAGINA atual de uma vez
+    // (selecionarTodosFiltrados, abaixo, cobre os filtrados fora da
+    // pagina). Indeterminado quando so parte da pagina esta marcada.
+    const thSelecao = document.createElement("th");
+    thSelecao.className = "col-selecao";
+    const idsPaginaSelecionaveis = paginaAtual.filter((l) => !!l._id).map((l) => l._id);
+    const cbSelecionarPagina = document.createElement("input");
+    cbSelecionarPagina.type = "checkbox";
+    cbSelecionarPagina.title = "Selecionar todos desta pagina";
+    cbSelecionarPagina.disabled = !window.BI.DB.estado.disponivel || idsPaginaSelecionaveis.length === 0;
+    const todaPaginaMarcada = idsPaginaSelecionaveis.length > 0 && idsPaginaSelecionaveis.every((id) => estado.selecionados.has(id));
+    cbSelecionarPagina.checked = todaPaginaMarcada;
+    cbSelecionarPagina.indeterminate = !todaPaginaMarcada && idsPaginaSelecionaveis.some((id) => estado.selecionados.has(id));
+    cbSelecionarPagina.addEventListener("change", () => {
+      if (cbSelecionarPagina.checked) idsPaginaSelecionaveis.forEach((id) => estado.selecionados.add(id));
+      else idsPaginaSelecionaveis.forEach((id) => estado.selecionados.delete(id));
+      renderizarListaCadastro(chave);
+    });
+    thSelecao.appendChild(cbSelecionarPagina);
+    trHead.appendChild(thSelecao);
+
     colunas.forEach((c) => {
       const th = document.createElement("th");
       th.textContent = c;
@@ -4622,7 +4659,7 @@
     if (!paginaAtual.length) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = colunas.length + 1;
+      td.colSpan = colunas.length + 2;
       td.className = "sem-dados";
       td.textContent = "Nenhum registro para os filtros/busca atuais.";
       tr.appendChild(td);
@@ -4630,6 +4667,20 @@
     } else {
       paginaAtual.forEach((linha) => {
         const tr = document.createElement("tr");
+        const tdSelecao = document.createElement("td");
+        tdSelecao.className = "col-selecao";
+        const podeSelecionar = window.BI.DB.estado.disponivel && !!linha._id;
+        const cbLinha = document.createElement("input");
+        cbLinha.type = "checkbox";
+        cbLinha.disabled = !podeSelecionar;
+        cbLinha.checked = podeSelecionar && estado.selecionados.has(linha._id);
+        cbLinha.addEventListener("change", () => {
+          if (cbLinha.checked) estado.selecionados.add(linha._id);
+          else estado.selecionados.delete(linha._id);
+          renderizarListaCadastro(chave);
+        });
+        tdSelecao.appendChild(cbLinha);
+        tr.appendChild(tdSelecao);
         cfg.colunasTabela.forEach((c) => {
           const td = document.createElement("td");
           td.appendChild(noCelula(c, linha, cfg.colunasData || []));
@@ -4713,10 +4764,94 @@
     pagCont.appendChild(info);
     pagCont.appendChild(btnAnt);
     pagCont.appendChild(btnProx);
+
+    atualizarBarraSelecao(chave, linhas, paginaAtual);
   }
 
   function renderizarTodosCadastros() {
     Object.keys(CADASTROS_CONFIG).forEach(renderizarListaCadastro);
+  }
+
+  // Sincroniza a barra de selecao em bloco (contador, botao "Excluir
+  // selecionados" e o botao "Selecionar todos os N filtrados") com
+  // estadoCadastro[chave].selecionados - chamada ao final de todo
+  // renderizarListaCadastro. `linhasFiltradas` e o conjunto completo (todas
+  // as paginas) depois de filtros+busca; `linhasPagina` e so a pagina atual.
+  function atualizarBarraSelecao(chave, linhasFiltradas, linhasPagina) {
+    const estado = estadoCadastro[chave];
+
+    // Poda ids que nao fazem mais parte do conjunto filtrado atual (ex.: o
+    // usuario trocou um filtro global do topo, nao so a busca local desta
+    // tela, ou o registro foi excluido por outra via) - evita contar/excluir
+    // algo que nem aparece mais na tela.
+    const idsFiltrados = new Set(linhasFiltradas.map((l) => l._id).filter(Boolean));
+    Array.from(estado.selecionados).forEach((id) => {
+      if (!idsFiltrados.has(id)) estado.selecionados.delete(id);
+    });
+
+    const barra = document.getElementById("barra-selecao-" + chave);
+    const contagemEl = document.getElementById("barra-selecao-contagem-" + chave);
+    const btnSelFiltrados = document.getElementById("btn-selecionar-filtrados-" + chave);
+    const btnExcluir = document.getElementById("btn-excluir-selecionados-" + chave);
+    if (!barra || !contagemEl || !btnSelFiltrados || !btnExcluir) return;
+
+    const qtd = estado.selecionados.size;
+    barra.hidden = qtd === 0;
+    if (qtd === 0) return;
+
+    contagemEl.textContent = qtd === 1 ? "1 selecionado" : `${qtd} selecionados`;
+    btnExcluir.textContent = qtd === 1 ? "🗑 Excluir selecionado" : `🗑 Excluir ${qtd} selecionados`;
+
+    // So oferece "selecionar todos os filtrados" quando a pagina atual ja
+    // esta 100% marcada e existe mais coisa fora dela (senao o botao nao
+    // faria nada diferente do que ja esta marcado).
+    const idsPagina = linhasPagina.map((l) => l._id).filter(Boolean);
+    const paginaToda = idsPagina.length > 0 && idsPagina.every((id) => estado.selecionados.has(id));
+    btnSelFiltrados.hidden = !(paginaToda && qtd < idsFiltrados.size);
+    if (!btnSelFiltrados.hidden) {
+      btnSelFiltrados.textContent = `Selecionar todos os ${idsFiltrados.size} filtrados`;
+    }
+  }
+
+  // Marca TODOS os registros do conjunto filtrado atual (nao so a pagina) -
+  // ligado ao botao "Selecionar todos os N filtrados" da barra de selecao.
+  function selecionarTodosFiltrados(chave) {
+    const estado = estadoCadastro[chave];
+    const { linhas } = linhasFiltradasCadastro(chave);
+    linhas.forEach((l) => { if (l._id) estado.selecionados.add(l._id); });
+    renderizarListaCadastro(chave);
+  }
+
+  // Exclusao em bloco (pedido do Leo 02/10/2026: "Inclua caixas de selecao
+  // e a opcao de excluir dados em bloco... estou levando muito tempo para
+  // excluir informacoes do sistema"). Confirma uma unica vez com a
+  // contagem, chama window.BI.DB.excluirEmLote (ver js/db.js) e reporta
+  // falhas parciais em vez de um erro generico - uma falha isolada (rede,
+  // permissao) nao deve mascarar que o resto foi excluido com sucesso.
+  async function excluirSelecionados(chave) {
+    const estado = estadoCadastro[chave];
+    const ids = Array.from(estado.selecionados);
+    if (!ids.length || !window.BI.DB.estado.disponivel) return;
+    const cfg = CADASTROS_CONFIG[chave];
+    const mensagem = ids.length === 1
+      ? `Excluir o registro selecionado de "${cfg.titulo}"? Essa acao nao pode ser desfeita.`
+      : `Excluir os ${ids.length} registros selecionados de "${cfg.titulo}"? Essa acao nao pode ser desfeita.`;
+    if (!window.confirm(mensagem)) return;
+
+    const btnExcluir = document.getElementById("btn-excluir-selecionados-" + chave);
+    if (btnExcluir) btnExcluir.disabled = true;
+    try {
+      const resultado = await window.BI.DB.excluirEmLote(chave, ids);
+      estado.selecionados.clear();
+      if (resultado && resultado.falhas) {
+        mostrarErro(`Excluidos ${resultado.total - resultado.falhas} de ${resultado.total} registros selecionados - ${resultado.falhas} falharam (tente novamente ou exclua um por um).`);
+      }
+      renderizarListaCadastro(chave);
+    } catch (e) {
+      mostrarErro("Erro ao excluir em lote: " + (e && e.message ? e.message : String(e)));
+    } finally {
+      if (btnExcluir) btnExcluir.disabled = false;
+    }
   }
 
   // ------------------------------------------------------------------

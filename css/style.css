@@ -1156,6 +1156,47 @@ table.tabela-dados th.col-acoes, table.tabela-dados td.col-acoes {
 table.tabela-dados thead th.col-acoes { background: var(--creme); z-index: 2; cursor: default; }
 table.tabela-dados tbody tr:hover td.col-acoes { background: var(--creme); }
 
+/* Coluna de checkbox (selecao em bloco) - mesma ideia da col-acoes, so que
+   fixa na borda ESQUERDA (pedido do Leo 02/10/2026: "Inclua caixas de
+   selecao e a opcao de excluir dados em bloco... estou levando muito tempo
+   para excluir informacoes do sistema"). */
+table.tabela-dados th.col-selecao, table.tabela-dados td.col-selecao {
+  position: sticky;
+  left: 0;
+  background: var(--card);
+  box-shadow: 8px 0 8px -8px rgba(0,0,0,0.25);
+  width: 1%;
+  white-space: nowrap;
+  cursor: default;
+  text-align: center;
+}
+table.tabela-dados thead th.col-selecao { background: var(--creme); z-index: 2; }
+table.tabela-dados tbody tr:hover td.col-selecao { background: var(--creme); }
+table.tabela-dados td.col-selecao input[type="checkbox"],
+table.tabela-dados th.col-selecao input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+table.tabela-dados td.col-selecao input[type="checkbox"]:disabled { cursor: not-allowed; opacity: 0.4; }
+
+/* Barra de selecao em bloco - some quando nada esta marcado
+   (barraSelecao.hidden, ver renderizarListaCadastro/atualizarBarraSelecao). */
+.barra-selecao {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: var(--creme);
+  border: 1px solid var(--linha);
+}
+.barra-selecao-contagem { font-size: 12.5px; font-weight: 700; color: var(--texto); margin-right: 2px; }
+.btn-excluir-selecionados { background: var(--status-critical) !important; }
+.btn-excluir-selecionados:hover { filter: brightness(0.92); }
+
 /* ---------------------------- Drill-down (clique nos graficos) ---------------------------- */
 
 /* Painel de detalhamento (drill-down) - pedido do Leo: em vez do popover
