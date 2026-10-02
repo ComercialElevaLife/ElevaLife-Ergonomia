@@ -2219,7 +2219,7 @@
         doc.setFontSize(11.5);
         doc.setFont("Montserrat", "bold");
         doc.setTextColor.apply(doc, PALETA.branco);
-        doc.text("S.I.G.E - Sistema Integrado de Gestão da Ergonomia", margem, 98);
+        doc.text("S.I.G.E - Sistema Integrado de Gestão ElevaLife", margem, 98);
         y = 190;
         doc.setFont("MontserratAlternates", "bold");
         doc.setFontSize(24);
@@ -2481,7 +2481,7 @@
       doc.setFont("Montserrat", "normal");
       doc.setFontSize(9);
       doc.setTextColor.apply(doc, PALETA.cinzaQuente);
-      doc.text("ElevaLife - S.I.G.E (Sistema Integrado de Gestão da Ergonomia)", margem, y);
+      doc.text("S.I.G.E - Sistema Integrado de Gestão ElevaLife", margem, y);
 
       // ---------------- Rodape (so na passada final) ----------------
       if (!gravando) {
@@ -2595,7 +2595,7 @@
         // lista - nunca obriga o usuario a digitar nada so pra conseguir
         // salvar o registro depois de gerar o PDF.
         if (form._campos["Texto"] && !form._campos["Texto"].value) {
-          form._campos["Texto"].value = `Laudo gerado automaticamente pela plataforma S.I.G.E (Sistema Integrado de Gestão da Ergonomia) em ${hojeMeiaNoite().toLocaleDateString("pt-BR")}, a partir das Avaliações Ergonômicas e do Inventário de Riscos já registrados para ${nomeCliente}. Ver arquivo PDF anexado.`;
+          form._campos["Texto"].value = `Laudo gerado automaticamente pela plataforma S.I.G.E (Sistema Integrado de Gestão ElevaLife) em ${hojeMeiaNoite().toLocaleDateString("pt-BR")}, a partir das Avaliações Ergonômicas e do Inventário de Riscos já registrados para ${nomeCliente}. Ver arquivo PDF anexado.`;
         }
       } catch (erro) {
         mostrarAviso(erro && erro.message ? erro.message : "Falha ao gerar o laudo.", true);
