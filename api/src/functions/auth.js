@@ -54,10 +54,25 @@ async function buscarUsuarioPorEmail(container, email) {
 
 // Monta o link que vai no e-mail (e que a resposta da API tambem devolve,
 // pro Administrador poder copiar/colar na mao se o e-mail nao chegar - ver
-// docs/login-email-senha.md). request.url ja traz o host certo (o mesmo
-// dominio do Static Web App), nunca hardcoded.
+// docs/login-email-senha.md).
+//
+// IMPORTANTE: request.url NAO traz o dominio publico em producao. No
+// Azure Static Web Apps (Managed Functions), o SWA faz proxy da chamada
+// /api/* para a Function App interna (host tipo
+// "xxxxxxxx.azurewebsites.net") - e' esse host interno (sem o front-end
+// estatico) que aparece em request.url dentro da Function, nao o dominio
+// publico (witty-sea-....azurestaticapps.net) que o navegador realmente
+// usou. Um link montado com new URL(request.url).origin aponta pra um
+// host que nao serve o index.html e quebra (bug encontrado em 02/10/2026,
+// ao testar o primeiro bootstrap em producao). O host publico real vem no
+// cabecalho "x-forwarded-host" que o SWA injeta nessa chamada proxied;
+// cai no fallback de request.url so em dev local (func start), onde nao
+// ha proxy e request.url ja e' o host certo.
 function montarLink(request, tipo, email, tokenBruto) {
-  const origem = new URL(request.url).origin;
+  const hostPublico = request.headers.get("x-forwarded-host");
+  const origem = hostPublico
+    ? `${request.headers.get("x-forwarded-proto") || "https"}://${hostPublico}`
+    : new URL(request.url).origin;
   const parametros = new URLSearchParams({ tela: tipo, email, token: tokenBruto });
   return `${origem}/index.html?${parametros.toString()}`;
 }
