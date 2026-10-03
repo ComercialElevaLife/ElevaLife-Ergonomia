@@ -28,7 +28,7 @@ const rotaApiKeysAdmin = require("./apiKeysAdmin");
 const rotaAuth = require("./auth");
 const rotaCnpj = require("./cnpj");
 const rotaJobs = require("./lembretesPlanoAcao");
-const { enviarEmail, modeloPlanoAcao } = require("../shared/email");
+const { enviarEmail, modeloPlanoAcao, ESTAGIOS_PLANO_ACAO } = require("../shared/email");
 
 const NOME_APP = "S.I.G.E";
 
@@ -184,7 +184,7 @@ async function tratar(request, context) {
             try {
               await enviarEmail({
                 para: paraEmail,
-                assunto: `Nova acao sob sua responsabilidade - ${resource.Cliente || ""}`,
+                assunto: ESTAGIOS_PLANO_ACAO.atribuida.assunto(resource),
                 htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio: "atribuida", acao: resource }),
               });
             } catch (erro) {
