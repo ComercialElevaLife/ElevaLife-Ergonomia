@@ -49,14 +49,18 @@
    os 7 modelos de e-mail (atribuida, antes30, vencimento, atraso, atraso30,
    semanal + copia de Administrador) com uma acao FICTICIA, so para esses
    enderecos - nao le nem grava nada no banco e nao toca nos responsaveis
-   reais. Aceita no maximo 5 enderecos, todos @elevalife.com.br.
+   reais. Aceita no maximo 5 enderecos, todos @elevalife.com.br. Tambem
+   envia os outros 2 e-mails automaticos do sistema (convite de primeiro
+   acesso e redefinicao de senha), com link ficticio.
+
+   MODO SIMULACAO: ?simular=1&dias=N - ver executarSimulacao().
    ========================================================================== */
 
 "use strict";
 
 const crypto = require("crypto");
 const { obterContainer } = require("../shared/cosmos");
-const { enviarEmail, modeloPlanoAcao, ESTAGIOS_PLANO_ACAO } = require("../shared/email");
+const { enviarEmail, modeloPlanoAcao, modeloConvite, modeloRedefinicao, ESTAGIOS_PLANO_ACAO } = require("../shared/email");
 
 const NOME_APP = "S.I.G.E";
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
@@ -117,7 +121,12 @@ async function enviarEstagio({ estagio, acao, paraResponsavel, emailsAdmin, ehEs
   await Promise.allSettled(envios);
 }
 
-async function processarAcao(container, acao, hojeMs, emailsAdmin, context) {
+// opcoes.enviar: troca o envio real (usado pela simulacao, que so registra);
+// opcoes.gravar=false: nao grava "_notif" no banco - o estado fica so em
+// memoria, no proprio objeto "acao" (a simulacao trabalha numa copia).
+async function processarAcao(container, acao, hojeMs, emailsAdmin, context, opcoes = {}) {
+  const enviar = opcoes.enviar || enviarEstagio;
+  const gravar = opcoes.gravar !== false;
   const dtProgramadaMs = paraDataUTC(acao["Dt Programada"]);
   if (dtProgramadaMs === null) return false;
 
@@ -128,35 +137,36 @@ async function processarAcao(container, acao, hojeMs, emailsAdmin, context) {
   let mudou = false;
 
   if (diffDias <= -1 && diffDias >= -30 && !notif.antes30) {
-    await enviarEstagio({ estagio: "antes30", acao, paraResponsavel, emailsAdmin, ehEstagioDeAtraso: false });
+    await enviar({ estagio: "antes30", acao, paraResponsavel, emailsAdmin, ehEstagioDeAtraso: false });
     notif.antes30 = true;
     mudou = true;
   }
   if (diffDias === 0 && !notif.vencimento) {
-    await enviarEstagio({ estagio: "vencimento", acao, paraResponsavel, emailsAdmin, ehEstagioDeAtraso: false });
+    await enviar({ estagio: "vencimento", acao, paraResponsavel, emailsAdmin, ehEstagioDeAtraso: false });
     notif.vencimento = true;
     mudou = true;
   }
   if (diffDias >= 1 && !notif.atraso) {
-    await enviarEstagio({ estagio: "atraso", acao, paraResponsavel, emailsAdmin, ehEstagioDeAtraso: true });
+    await enviar({ estagio: "atraso", acao, paraResponsavel, emailsAdmin, ehEstagioDeAtraso: true });
     notif.atraso = true;
     mudou = true;
   }
   if (diffDias >= 30 && !notif.atraso30) {
-    await enviarEstagio({ estagio: "atraso30", acao, paraResponsavel, emailsAdmin, ehEstagioDeAtraso: true });
+    await enviar({ estagio: "atraso30", acao, paraResponsavel, emailsAdmin, ehEstagioDeAtraso: true });
     notif.atraso30 = true;
     notif.semanalUltimoEnvio = new Date(hojeMs).toISOString().slice(0, 10);
     mudou = true;
   } else if (diffDias > 30 && atraso30JaEnviadoAntes) {
     const ultimoMs = paraDataUTC(notif.semanalUltimoEnvio) ?? dtProgramadaMs;
     if (diasEntre(ultimoMs, hojeMs) >= 7) {
-      await enviarEstagio({ estagio: "semanal", acao, paraResponsavel, emailsAdmin, ehEstagioDeAtraso: true });
+      await enviar({ estagio: "semanal", acao, paraResponsavel, emailsAdmin, ehEstagioDeAtraso: true });
       notif.semanalUltimoEnvio = new Date(hojeMs).toISOString().slice(0, 10);
       mudou = true;
     }
   }
 
-  if (mudou) {
+  if (mudou && !gravar) acao._notif = notif;
+  if (mudou && gravar) {
     const doc = Object.assign({}, acao, { _notif: notif });
     try {
       await container.item(acao.id, acao.EmpresaId).replace(doc);
@@ -217,8 +227,31 @@ async function executarTeste(destinatarios, context) {
     }
     envios.push({ para, estagio: "atraso", paraAdmin: true });
   }
+  // Os outros 2 e-mails automaticos do sistema (fora do Plano de Acao):
+  // convite de primeiro acesso e redefinicao de senha - mesmo modelo/assunto
+  // de api/src/functions/auth.js, com link ficticio (nao cria token nenhum).
+  const base = (process.env.URL_PUBLICA || "").replace(/\/+$/, "") || "https://exemplo.invalid";
+  const linkFicticio = `${base}/#teste-link-ficticio`;
+  for (const para of destinatarios) {
+    envios.push({ para, especial: "convite" });
+    envios.push({ para, especial: "redefinicao" });
+  }
   const resultados = [];
   for (const e of envios) {
+    if (e.especial) {
+      const assunto = e.especial === "convite" ? `[TESTE] Convite para o ${NOME_APP}` : `[TESTE] Redefinicao de senha - ${NOME_APP}`;
+      const htmlCorpo = e.especial === "convite"
+        ? modeloConvite({ nomeApp: NOME_APP, link: linkFicticio })
+        : modeloRedefinicao({ nomeApp: NOME_APP, link: linkFicticio });
+      try {
+        await enviarEmail({ para: e.para, assunto, htmlCorpo });
+        resultados.push({ para: e.para, assunto, ok: true });
+      } catch (erro) {
+        context.error(`Falha no envio de teste para ${e.para} (${e.especial})`, erro);
+        resultados.push({ para: e.para, assunto, ok: false, erro: String(erro.message || erro).slice(0, 200) });
+      }
+      continue;
+    }
     const assuntoBase = ESTAGIOS_PLANO_ACAO[e.estagio].assunto(acao);
     const assunto = `[TESTE] ${e.paraAdmin ? "[Admin] " : ""}${assuntoBase}`;
     try {
@@ -251,6 +284,64 @@ async function lerDestinatariosTeste(request) {
   return { lista: limpos };
 }
 
+// SIMULACAO (03/10/2026): POST .../lembretes-plano-acao?simular=1&dias=N
+// roda a mesma regra do job dia a dia, de hoje ate hoje+N (max 365), sobre
+// as acoes REAIS em aberto - sem enviar nenhum e-mail e sem gravar nada
+// (estado "_notif" so em memoria, numa copia). Pressupoe que nenhuma acao
+// seja concluida no periodo. Devolve o calendario de quem receberia o que.
+const EMAIL_VALIDO = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+async function executarSimulacao(dias, context) {
+  const container = obterContainer("planoAcao");
+  const [acoesReais, emailsAdmin] = await Promise.all([buscarAcoesAbertas(container), buscarEmailsAdmin()]);
+  const acoes = acoesReais.map((a) => JSON.parse(JSON.stringify(a)));
+  const hoje = new Date();
+  const inicioMs = Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate());
+  const eventos = [];
+
+  for (let d = 0; d <= dias; d++) {
+    const diaMs = inicioMs + d * UM_DIA_MS;
+    const data = new Date(diaMs).toISOString().slice(0, 10);
+    for (const acao of acoes) {
+      const registrar = async ({ estagio, acao: a, paraResponsavel, emailsAdmin: adms, ehEstagioDeAtraso }) => {
+        eventos.push({
+          data,
+          estagio,
+          assunto: ESTAGIOS_PLANO_ACAO[estagio].assunto(a),
+          acaoId: a.id,
+          cliente: a.Cliente || "",
+          unidade: a.Unidade || "",
+          setor: a.Setor || "",
+          posto: a["Posto Trabalho"] || "",
+          acaoRecomendada: a["Acao Recomendada"] || "",
+          dtProgramada: String(a["Dt Programada"] || "").slice(0, 10),
+          responsavel: a["Responsavel Acao"] || "",
+          emailResponsavel: paraResponsavel || "",
+          emailResponsavelValido: !!(paraResponsavel && EMAIL_VALIDO.test(paraResponsavel)),
+          copiaAdmins: ehEstagioDeAtraso ? adms : [],
+        });
+      };
+      await processarAcao(null, acao, diaMs, emailsAdmin, context, { enviar: registrar, gravar: false });
+    }
+  }
+
+  const porEstagio = {};
+  eventos.forEach((e) => { porEstagio[e.estagio] = (porEstagio[e.estagio] || 0) + 1; });
+  const totalEmails = eventos.reduce((n, e) => n + (e.emailResponsavel ? 1 : 0) + e.copiaAdmins.length, 0);
+  const semEmail = acoesReais.filter((a) => !a["E-mail Responsavel"]).map((a) => ({ acaoId: a.id, cliente: a.Cliente || "", responsavel: a["Responsavel Acao"] || "" }));
+  return {
+    modo: "simulacao",
+    periodo: { de: new Date(inicioMs).toISOString().slice(0, 10), ate: new Date(inicioMs + dias * UM_DIA_MS).toISOString().slice(0, 10), dias },
+    acoesEmAberto: acoesReais.length,
+    administradores: emailsAdmin,
+    totalNotificacoes: eventos.length,
+    totalEmails,
+    porEstagio,
+    acoesSemEmailResponsavel: semEmail,
+    eventos,
+  };
+}
+
 // POST /api/jobs/lembretes-plano-acao (despachado por entidades.js).
 async function tratar(request, context) {
   if (request.params.id !== "lembretes-plano-acao") {
@@ -265,6 +356,15 @@ async function tratar(request, context) {
   }
   if (!chaveConfere(request.headers.get("x-job-key"), esperada)) {
     return { status: 401, jsonBody: { erro: "Chave do job invalida." } };
+  }
+  if (request.query && request.query.get("simular") === "1") {
+    const dias = Math.min(Math.max(parseInt(request.query.get("dias"), 10) || 90, 0), 365);
+    try {
+      return { status: 200, jsonBody: await executarSimulacao(dias, context) };
+    } catch (erro) {
+      context.error("Falha na simulacao de lembretes", erro);
+      return { status: 500, jsonBody: { erro: "Falha na simulacao." } };
+    }
   }
   if (request.query && request.query.get("teste") === "1") {
     const { lista, erro } = await lerDestinatariosTeste(request);
@@ -281,4 +381,4 @@ async function tratar(request, context) {
   }
 }
 
-module.exports = { tratar, executarLembretes };
+module.exports = { tratar, executarLembretes, executarSimulacao };

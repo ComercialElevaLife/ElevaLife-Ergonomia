@@ -1310,4 +1310,10 @@ publicados em produção:
   modelos — atribuição, 30 dias antes, vencimento, atraso, 30 dias de
   atraso, semanal e cópia de Administrador — com uma ação fictícia e
   assunto `[TESTE]`, só para os endereços informados (até 5, todos
-  `@elevalife.com.br`), sem ler nem gravar nada no banco.
+  `@elevalife.com.br`), sem ler nem gravar nada no banco — junto com os
+  outros 2 e-mails automáticos do sistema (convite de primeiro acesso e
+  redefinição de senha, com link fictício). **Simulação**: `?simular=1&dias=N`
+  (até 365) roda a regra do job dia a dia sobre as ações reais em aberto,
+  sem enviar e sem gravar nada, e devolve o calendário de quem receberia
+  qual lembrete e quando (pressupondo que nenhuma ação seja concluída no
+  período).
