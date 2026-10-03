@@ -43,6 +43,13 @@
    mesmo nome, LEMBRETES_JOB_KEY). Sem a Application Setting configurada a
    rota responde 503; chave errada/ausente responde 401. Rodar 2x no mesmo
    dia nao duplica e-mail: cada estagio fica marcado em "_notif".
+
+   MODO TESTE (03/10/2026): POST .../lembretes-plano-acao?teste=1 com corpo
+   {"para": ["fulano@elevalife.com.br", ...]} (mesma chave x-job-key) envia
+   os 7 modelos de e-mail (atribuida, antes30, vencimento, atraso, atraso30,
+   semanal + copia de Administrador) com uma acao FICTICIA, so para esses
+   enderecos - nao le nem grava nada no banco e nao toca nos responsaveis
+   reais. Aceita no maximo 5 enderecos, todos @elevalife.com.br.
    ========================================================================== */
 
 "use strict";
@@ -186,6 +193,64 @@ function chaveConfere(recebida, esperada) {
   return crypto.timingSafeEqual(a, b);
 }
 
+const DOMINIO_TESTE = "@elevalife.com.br";
+const ESTAGIOS_TESTE = ["atribuida", "antes30", "vencimento", "atraso", "atraso30", "semanal"];
+
+function acaoFicticia() {
+  const hoje = new Date().toISOString().slice(0, 10);
+  return {
+    Cliente: "Cliente Teste (ficticio)",
+    Setor: "Setor Teste",
+    "Posto Trabalho": "Posto Teste",
+    "Acao Recomendada": "Acao ficticia para teste dos e-mails do S.I.G.E",
+    "Responsavel Acao": "Responsavel Teste",
+    "Dt Programada": hoje,
+  };
+}
+
+async function executarTeste(destinatarios, context) {
+  const acao = acaoFicticia();
+  const envios = [];
+  for (const para of destinatarios) {
+    for (const estagio of ESTAGIOS_TESTE) {
+      envios.push({ para, estagio, paraAdmin: false });
+    }
+    envios.push({ para, estagio: "atraso", paraAdmin: true });
+  }
+  const resultados = [];
+  for (const e of envios) {
+    const assuntoBase = ESTAGIOS_PLANO_ACAO[e.estagio].assunto(acao);
+    const assunto = `[TESTE] ${e.paraAdmin ? "[Admin] " : ""}${assuntoBase}`;
+    try {
+      await enviarEmail({
+        para: e.para,
+        assunto,
+        htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio: e.estagio, acao, paraAdmin: e.paraAdmin }),
+      });
+      resultados.push({ para: e.para, assunto, ok: true });
+    } catch (erro) {
+      context.error(`Falha no envio de teste para ${e.para} (${e.estagio})`, erro);
+      resultados.push({ para: e.para, assunto, ok: false, erro: String(erro.message || erro).slice(0, 200) });
+    }
+  }
+  return { modo: "teste", enviados: resultados.filter((r) => r.ok).length, falhas: resultados.filter((r) => !r.ok).length, resultados };
+}
+
+async function lerDestinatariosTeste(request) {
+  let corpo = {};
+  try {
+    corpo = await request.json();
+  } catch (_) {
+    corpo = {};
+  }
+  const lista = Array.isArray(corpo.para) ? corpo.para : [];
+  const limpos = [...new Set(lista.map((x) => String(x || "").trim().toLowerCase()).filter(Boolean))];
+  if (limpos.length === 0 || limpos.length > 5) return { erro: "Informe de 1 a 5 enderecos em \"para\"." };
+  const invalidos = limpos.filter((x) => !/^[^@\s]+@elevalife\.com\.br$/.test(x));
+  if (invalidos.length) return { erro: `So enderecos ${DOMINIO_TESTE} sao aceitos no modo teste: ${invalidos.join(", ")}` };
+  return { lista: limpos };
+}
+
 // POST /api/jobs/lembretes-plano-acao (despachado por entidades.js).
 async function tratar(request, context) {
   if (request.params.id !== "lembretes-plano-acao") {
@@ -200,6 +265,12 @@ async function tratar(request, context) {
   }
   if (!chaveConfere(request.headers.get("x-job-key"), esperada)) {
     return { status: 401, jsonBody: { erro: "Chave do job invalida." } };
+  }
+  if (request.query && request.query.get("teste") === "1") {
+    const { lista, erro } = await lerDestinatariosTeste(request);
+    if (erro) return { status: 400, jsonBody: { erro } };
+    const resumoTeste = await executarTeste(lista, context);
+    return { status: resumoTeste.falhas ? 502 : 200, jsonBody: resumoTeste };
   }
   try {
     const resumo = await executarLembretes(context);

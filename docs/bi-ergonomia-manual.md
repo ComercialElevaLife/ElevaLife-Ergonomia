@@ -1305,4 +1305,9 @@ publicados em produção:
   chave errada, `401`. Dá para rodar na mão pelo botão "Run workflow" da aba
   Actions do GitHub. Observação: o GitHub pausa workflows agendados depois de
   60 dias sem nenhum commit no repositório — se isso acontecer, basta
-  reativar na aba Actions.
+  reativar na aba Actions. **Teste de e-mail**: a mesma rota com `?teste=1`
+  e corpo `{"para": ["fulano@elevalife.com.br"]}` (mesma chave) envia os 7
+  modelos — atribuição, 30 dias antes, vencimento, atraso, 30 dias de
+  atraso, semanal e cópia de Administrador — com uma ação fictícia e
+  assunto `[TESTE]`, só para os endereços informados (até 5, todos
+  `@elevalife.com.br`), sem ler nem gravar nada no banco.
