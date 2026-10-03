@@ -5404,6 +5404,99 @@
     }
   }
 
+  // Sino de notificacoes do Plano de Acao (pedido do Leo 02/10/2026):
+  // calcula, ao vivo e a partir de window.BI.dados.planoAcao (TODAS as
+  // empresas visiveis, independente do filtro global atual - e um aviso
+  // persistente, nao algo que devia sumir so porque o usuario filtrou por
+  // outro cliente), quais acoes vencem em ate 30 dias ou ja estao em
+  // atraso (sem Dt Conclusao). So leitura/visualizacao - sem estado de
+  // lido/nao lido por enquanto. O envio por e-mail dos mesmos avisos e
+  // feito pela API (ver api/src/functions/lembretesPlanoAcao.js).
+  function atualizarSinoNotificacoes() {
+    const badge = document.getElementById("badge-sino-notificacoes");
+    const lista = document.getElementById("painel-sino-lista");
+    if (!badge || !lista) return;
+    try {
+      const planos = window.BI.dados.planoAcao || [];
+      const hoje = new Date();
+      const hojeMs = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+
+      const itens = planos
+        .filter((p) => p["Dt Programada"] && !p["Dt Conclusao"])
+        .map((p) => {
+          const partes = String(p["Dt Programada"]).slice(0, 10).split("-").map(Number);
+          if (partes.length !== 3 || partes.some((n) => Number.isNaN(n))) return null;
+          const dtMs = Date.UTC(partes[0], partes[1] - 1, partes[2]);
+          const diffDias = Math.round((hojeMs - dtMs) / 86400000);
+          if (diffDias < -30) return null; // falta mais de 30 dias - ainda nao e um aviso
+          return { plano: p, diffDias, atrasada: diffDias >= 1 };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.diffDias - a.diffDias);
+
+      badge.hidden = itens.length === 0;
+      badge.textContent = itens.length > 99 ? "99+" : String(itens.length);
+
+      lista.innerHTML = "";
+      if (itens.length === 0) {
+        const vazio = document.createElement("div");
+        vazio.className = "painel-sino-vazio";
+        vazio.textContent = "Nenhuma ação vencendo em breve ou atrasada.";
+        lista.appendChild(vazio);
+        return;
+      }
+      itens.forEach(({ plano, diffDias, atrasada }) => {
+        const item = document.createElement("div");
+        item.className = "painel-sino-item" + (atrasada ? " painel-sino-item--atraso" : "");
+
+        const acao = document.createElement("div");
+        acao.className = "painel-sino-item-acao";
+        acao.textContent = plano["Acao Recomendada"] || "Ação";
+
+        const meta = document.createElement("div");
+        meta.className = "painel-sino-item-meta";
+        meta.textContent = [plano.Cliente, plano.Setor, plano["Responsavel Acao"] || "sem responsável"].filter(Boolean).join(" · ");
+
+        const prazo = document.createElement("div");
+        prazo.className = "painel-sino-item-prazo";
+        prazo.textContent = atrasada
+          ? (diffDias === 1 ? "Atrasada há 1 dia" : `Atrasada há ${diffDias} dias`)
+          : (diffDias === 0 ? "Vence hoje" : `Vence em ${-diffDias} dia(s)`);
+
+        item.appendChild(acao);
+        item.appendChild(meta);
+        item.appendChild(prazo);
+        lista.appendChild(item);
+      });
+    } catch (e) {
+      console.error("Sino de notificacoes (Plano de Acao) falhou:", e);
+    }
+  }
+
+  function configurarSinoNotificacoes() {
+    const btn = document.getElementById("btn-sino-notificacoes");
+    const painel = document.getElementById("painel-sino-notificacoes");
+    if (!btn || !painel) return;
+
+    function abrir() {
+      painel.hidden = false;
+      btn.setAttribute("aria-expanded", "true");
+    }
+    function fechar() {
+      painel.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+    }
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      if (painel.hidden) abrir(); else fechar();
+    });
+    painel.addEventListener("click", (ev) => ev.stopPropagation());
+    document.addEventListener("click", () => { if (!painel.hidden) fechar(); });
+    document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !painel.hidden) fechar(); });
+
+    atualizarSinoNotificacoes();
+  }
+
   // Painel de Filtros: aberto pelo botao "Filtros" do menu lateral (pedido
   // do Leo, igual ao padrao mais novo do menu do Cockpit Comercial) - um
   // overlay escurece o resto da tela pra focar a atencao no painel, em vez
@@ -6102,6 +6195,9 @@
     window.BI.dados[chave] = window.BI.DB.estado.colecoes[chave];
     atualizarOpcoesFiltros();
     renderizarTudo();
+    if (chave === "planoAcao") {
+      try { atualizarSinoNotificacoes(); } catch (e) { console.error("Sino de notificacoes (Plano de Acao) falhou:", e); }
+    }
   }
 
   // ------------------------------------------------------------------
@@ -6151,6 +6247,7 @@
       configurarExportacao();
       configurarBarraSuperior();
       configurarPainelFiltros();
+      configurarSinoNotificacoes();
       renderizarTudo();
 
       const disponivel = await window.BI.DB.iniciar(aoAtualizarColecaoDB);

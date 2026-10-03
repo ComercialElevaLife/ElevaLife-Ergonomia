@@ -592,6 +592,68 @@ h1, h2, h3, .titulo-marca {
   display: block;
 }
 
+/* Sino de notificacoes do Plano de Acao (ver atualizarSinoNotificacoes em
+   js/app.js) - mesmo visual de .btn-icone-topo, com um badge vermelho
+   quando ha pelo menos 1 acao vencendo/atrasada. */
+.sino-notificacoes { position: relative; }
+.sino-notificacoes .badge-sino {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--status-critical);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.painel-sino {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  max-height: 420px;
+  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--linha);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.16);
+  z-index: 200;
+}
+.painel-sino-titulo {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  padding: 12px 14px;
+  font-weight: 700;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--linha);
+}
+.painel-sino-lista { padding: 4px; }
+.painel-sino-vazio { padding: 18px 14px; color: var(--texto-secundario); font-size: 13px; text-align: center; }
+.painel-sino-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 7px;
+  border-left: 3px solid var(--status-warning);
+  margin-bottom: 3px;
+}
+.painel-sino-item--atraso { border-left-color: var(--status-critical); }
+.painel-sino-item-acao { font-size: 13px; font-weight: 600; color: var(--texto); }
+.painel-sino-item-meta { font-size: 11.5px; color: var(--texto-secundario); margin-top: 2px; }
+.painel-sino-item-prazo { font-size: 11.5px; font-weight: 600; margin-top: 3px; }
+.painel-sino-item--atraso .painel-sino-item-prazo { color: var(--status-critical); }
+.painel-sino-item:not(.painel-sino-item--atraso) .painel-sino-item-prazo { color: var(--status-warning); }
+
 .barra-export {
   display: flex;
   gap: 8px;

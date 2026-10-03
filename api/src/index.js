@@ -8,8 +8,13 @@
    Functions, plano Free), registrar "me"/"usuarios" como functions HTTP
    separadas nunca teve suas rotas reconhecidas pelo proxy do SWA, entao
    um unico entry point evita esse problema por completo.
+
+   lembretesPlanoAcao.js registra um app.timer() (nao HTTP - roda sozinho,
+   1x por dia) com os lembretes periodicos do Plano de Acao - ver comentario
+   no topo daquele arquivo.
    ========================================================================== */
 
 "use strict";
 
 require("./functions/entidades");
+require("./functions/lembretesPlanoAcao");

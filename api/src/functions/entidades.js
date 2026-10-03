@@ -27,6 +27,9 @@ const rotaArquivos = require("./arquivos");
 const rotaApiKeysAdmin = require("./apiKeysAdmin");
 const rotaAuth = require("./auth");
 const rotaCnpj = require("./cnpj");
+const { enviarEmail, modeloPlanoAcao } = require("../shared/email");
+
+const NOME_APP = "S.I.G.E";
 
 const COLECOES = [
   "cliente", "unidade", "setor", "cargo", "posto", "atividade",
@@ -164,6 +167,26 @@ async function tratar(request, context) {
         }
         const doc = Object.assign({}, corpo, { id: corpo.id || crypto.randomUUID(), EmpresaId: empresaId });
         const { resource } = await container.items.upsert(doc);
+        if (colecao === "planoAcao") {
+          // Notificacao "atribuida" (pedido do Leo 02/10/2026): assim que uma
+          // acao e cadastrada com um Responsavel + E-mail Responsavel, avisa a
+          // pessoa na hora - as demais notificacoes (30 dias antes, no
+          // vencimento, atraso, 30 dias de atraso, semanal) sao tratadas pelo
+          // job diario em functions/lembretesPlanoAcao.js. Best-effort: nunca
+          // deve derrubar a criacao do registro por causa de e-mail.
+          const paraEmail = resource["E-mail Responsavel"];
+          if (paraEmail) {
+            try {
+              await enviarEmail({
+                para: paraEmail,
+                assunto: `Nova acao sob sua responsabilidade - ${resource.Cliente || ""}`,
+                htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio: "atribuida", acao: resource }),
+              });
+            } catch (erro) {
+              context.error("Falha ao enviar e-mail de acao atribuida (Plano de Acao)", erro);
+            }
+          }
+        }
         return { status: 201, jsonBody: resource };
       }
 

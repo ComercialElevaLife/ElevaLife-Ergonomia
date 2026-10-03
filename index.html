@@ -144,6 +144,24 @@
       <div class="logo-cliente-ativo" id="logo-cliente-ativo" hidden title="Cliente filtrado">
         <img id="logo-cliente-ativo-img" alt="Logo do cliente filtrado">
       </div>
+      <!-- Sino de notificacoes do Plano de Acao (pedido do Leo 02/10/2026):
+           lista, sempre visivel (independente da aba atual), as acoes que
+           vencem em ate 30 dias e as que estao em atraso - calculado ao
+           vivo a partir de window.BI.dados.planoAcao (ver
+           atualizarSinoNotificacoes em js/app.js). O envio por e-mail dos
+           mesmos avisos e feito pela API (ver api/src/functions/
+           lembretesPlanoAcao.js) - este sino e so a visualizacao, sem
+           estado de lido/nao lido. -->
+      <div class="sino-notificacoes" id="sino-notificacoes">
+        <button type="button" id="btn-sino-notificacoes" class="btn-icone-topo" title="Avisos do Plano de Acao" aria-expanded="false">
+          <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5c-2.2 0-4 1.8-4 4v2.3c0 .5-.2 1-.5 1.4l-1.2 1.5c-.5.6 0 1.5.8 1.5h9.8c.8 0 1.3-.9.8-1.5l-1.2-1.5c-.3-.4-.5-.9-.5-1.4V6.5c0-2.2-1.8-4-4-4Z"/><path d="M8.2 15.5a1.8 1.8 0 0 0 3.6 0"/></svg></span>
+          <span class="badge-sino" id="badge-sino-notificacoes" hidden>0</span>
+        </button>
+        <div class="painel-sino" id="painel-sino-notificacoes" hidden>
+          <div class="painel-sino-titulo">Plano de Ação · avisos</div>
+          <div class="painel-sino-lista" id="painel-sino-lista"></div>
+        </div>
+      </div>
       <div class="barra-export" id="barra-export">
         <button type="button" id="btn-atualizar" class="btn-icone-topo" title="Re-renderizar com os dados e filtros atuais">
           <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10a6 6 0 1 1-1.76-4.24"/><path d="M16 3.5V7h-3.5"/></svg></span>
