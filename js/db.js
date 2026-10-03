@@ -292,7 +292,7 @@
 
     if (deteccao.existe && deteccao.identidade && !deteccao.identidade.acessoLiberado) {
       estado.identidade = deteccao.identidade;
-      estado.mensagemAcesso = "Seu acesso ainda nao foi liberado. Peca a um Administrador para te vincular a uma empresa.";
+      estado.mensagemAcesso = "Seu acesso ainda não foi liberado. Peça a um Administrador para vincular você a uma empresa.";
       estado.telaAcesso = "bloqueado";
       console.warn("BI Ergonomia - " + estado.mensagemAcesso);
     }
@@ -353,7 +353,7 @@
       return salvo.id;
     }
 
-    if (!estado.db) throw new Error("Banco de dados indisponivel nesta visualizacao.");
+    if (!estado.db) throw new Error("Banco de dados indisponível nesta visualização.");
     const colecao = estado.db.collection(colecaoChave);
     if (id) {
       await colecao.doc(id).set(dados);
@@ -386,7 +386,7 @@
 
   async function enviarArquivo(colecaoChave, empresaId, arquivo) {
     if (!estado.modoApi) {
-      throw new Error("Upload de arquivo so esta disponivel na versao publicada (producao).");
+      throw new Error("Upload de arquivo só está disponível na versão publicada (produção).");
     }
     if (!empresaId) {
       throw new Error("Selecione o Cliente antes de anexar um arquivo.");
@@ -427,7 +427,7 @@
       return;
     }
 
-    if (!estado.db) throw new Error("Banco de dados indisponivel nesta visualizacao.");
+    if (!estado.db) throw new Error("Banco de dados indisponível nesta visualização.");
     await estado.db.collection(colecaoChave).doc(id).delete();
   }
 
@@ -452,7 +452,7 @@
       return { total: ids.length, falhas: resultados.filter((r) => r.status === "rejected").length };
     }
 
-    if (!estado.db) throw new Error("Banco de dados indisponivel nesta visualizacao.");
+    if (!estado.db) throw new Error("Banco de dados indisponível nesta visualização.");
     const colecao = estado.db.collection(colecaoChave);
     const resultados = await Promise.allSettled(ids.map((id) => colecao.doc(id).delete()));
     return { total: ids.length, falhas: resultados.filter((r) => r.status === "rejected").length };

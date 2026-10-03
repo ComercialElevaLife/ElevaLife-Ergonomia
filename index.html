@@ -66,17 +66,17 @@
         <span class="badge-filtros" id="badge-filtros" hidden>0</span>
       </button>
       <div class="sidebar-nav-divisor" aria-hidden="true"></div>
-      <button type="button" data-aba="ergo" class="ativa" title="Gestao de Risco">
+      <button type="button" data-aba="ergo" class="ativa" title="Gestão de Risco">
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17V10"/><path d="M9.5 17V6"/><path d="M16 17V13"/><path d="M2.5 17h15"/></svg></span>
-        <span class="rotulo">Gestao de Risco</span>
+        <span class="rotulo">Gestão de Risco</span>
       </button>
-      <button type="button" data-aba="medocup" title="Gestao de Absenteismo">
+      <button type="button" data-aba="medocup" title="Gestão de Absenteísmo">
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 11h3l2-4 3 7 2-5.5 1.5 2.5h3.5"/></svg></span>
-        <span class="rotulo">Gestao de Absenteismo</span>
+        <span class="rotulo">Gestão de Absenteísmo</span>
       </button>
-      <button type="button" data-aba="compativeis" title="Gestao de Restritos">
+      <button type="button" data-aba="compativeis" title="Gestão de Restritos">
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h11"/><path d="M12 4l3 3-3 3"/><path d="M16 13H5"/><path d="M8 16l-3-3 3-3"/></svg></span>
-        <span class="rotulo">Gestao de Restritos</span>
+        <span class="rotulo">Gestão de Restritos</span>
       </button>
       <div class="sidebar-nav-grupo" data-grupo-nav="registro">
         <button type="button" data-aba="registro" class="sidebar-nav-pai" title="Registro">
@@ -153,7 +153,7 @@
            lembretesPlanoAcao.js) - este sino e so a visualizacao, sem
            estado de lido/nao lido. -->
       <div class="sino-notificacoes" id="sino-notificacoes">
-        <button type="button" id="btn-sino-notificacoes" class="btn-icone-topo" title="Avisos do Plano de Acao" aria-expanded="false">
+        <button type="button" id="btn-sino-notificacoes" class="btn-icone-topo" title="Avisos do Plano de Ação" aria-expanded="false">
           <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5c-2.2 0-4 1.8-4 4v2.3c0 .5-.2 1-.5 1.4l-1.2 1.5c-.5.6 0 1.5.8 1.5h9.8c.8 0 1.3-.9.8-1.5l-1.2-1.5c-.3-.4-.5-.9-.5-1.4V6.5c0-2.2-1.8-4-4-4Z"/><path d="M8.2 15.5a1.8 1.8 0 0 0 3.6 0"/></svg></span>
           <span class="badge-sino" id="badge-sino-notificacoes" hidden>0</span>
         </button>
@@ -167,7 +167,7 @@
           <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10a6 6 0 1 1-1.76-4.24"/><path d="M16 3.5V7h-3.5"/></svg></span>
           <span class="rotulo-topo">Atualizar</span>
         </button>
-        <button type="button" id="btn-exportar-pdf" class="btn-exportar" title="Exportar a tela atual (KPIs e graficos) em PDF, respeitando os filtros ativos">⬇ PDF</button>
+        <button type="button" id="btn-exportar-pdf" class="btn-exportar" title="Exportar a tela atual (KPIs e gráficos) em PDF, respeitando os filtros ativos">⬇ PDF</button>
         <button type="button" id="btn-exportar-excel" class="btn-exportar" title="Exportar os dados brutos filtrados da tela atual em Excel">⬇ Excel</button>
       </div>
     </div>
@@ -180,28 +180,28 @@
            mais espaco/respiro que dividido em col-4 (ficava achatado) -->
       <div class="cartao col-12">
         <div class="cartao-titulo">Mapa de Risco Global</div>
-        <div class="cartao-sub">Postos avaliados por nivel de risco</div>
+        <div class="cartao-sub">Postos avaliados por nível de risco</div>
         <div class="grade-status grade-status--destaque" id="tiles-risco-global"></div>
       </div>
 
       <!-- 2. Top 3 Setores -->
       <div class="cartao col-4">
-        <div class="cartao-titulo">Top 3 Setores criticos</div>
+        <div class="cartao-titulo">Top 3 Setores críticos</div>
         <div class="cartao-sub">% de postos em risco Alto/Muito Alto</div>
         <div class="altura-chart"><canvas id="chart-top-setores"></canvas></div>
       </div>
 
       <!-- 3. Plano Acao Global -->
       <div class="cartao col-4">
-        <div class="cartao-titulo">Plano de Acao - Global</div>
-        <div class="cartao-sub">Distribuicao por status</div>
+        <div class="cartao-titulo">Plano de Ação - Global</div>
+        <div class="cartao-sub">Distribuição por status</div>
         <div class="altura-chart"><canvas id="chart-plano-global"></canvas></div>
         <div class="legenda" id="legenda-plano-global"></div>
       </div>
 
       <!-- 4. Plano Acao Postos Criticos -->
       <div class="cartao col-4">
-        <div class="cartao-titulo">Plano de Acao - Postos Criticos</div>
+        <div class="cartao-titulo">Plano de Ação - Postos Críticos</div>
         <div class="cartao-sub">Risco = Alto ou Muito Alto</div>
         <div class="altura-chart"><canvas id="chart-plano-criticos"></canvas></div>
         <div class="legenda" id="legenda-plano-criticos"></div>
@@ -209,30 +209,30 @@
 
       <!-- 6. Acoes previstas -->
       <div class="cartao col-6">
-        <div class="cartao-titulo">Acoes previstas no periodo</div>
-        <div class="cartao-sub">Por Ano/Mes Programado</div>
+        <div class="cartao-titulo">Ações previstas no período</div>
+        <div class="cartao-sub">Por Ano/Mês Programado</div>
         <div class="altura-chart alta"><canvas id="chart-acoes-previstas"></canvas></div>
       </div>
 
       <!-- 7. Acoes concluidas -->
       <div class="cartao col-6">
-        <div class="cartao-titulo">Acoes concluidas no periodo</div>
-        <div class="cartao-sub">Por Ano/Mes Concluida</div>
+        <div class="cartao-titulo">Ações concluídas no período</div>
+        <div class="cartao-sub">Por Ano/Mês Concluída</div>
         <div class="altura-chart alta"><canvas id="chart-acoes-concluidas"></canvas></div>
       </div>
 
       <!-- 5. Plano de Acao por Responsavel -->
       <div class="cartao col-6">
-        <div class="cartao-titulo">Plano de Acao por Responsavel</div>
-        <div class="cartao-sub">Contagem de acoes por status</div>
+        <div class="cartao-titulo">Plano de Ação por Responsável</div>
+        <div class="cartao-sub">Contagem de ações por status</div>
         <div class="altura-chart alta"><canvas id="chart-por-responsavel"></canvas></div>
         <div class="legenda" id="legenda-por-responsavel"></div>
       </div>
 
       <!-- 9. Status Plano Acao por Setor -->
       <div class="cartao col-6">
-        <div class="cartao-titulo">Status do Plano de Acao por Setor</div>
-        <div class="cartao-sub">Contagem de acoes por status</div>
+        <div class="cartao-titulo">Status do Plano de Ação por Setor</div>
+        <div class="cartao-sub">Contagem de ações por status</div>
         <div class="altura-chart alta"><canvas id="chart-status-por-setor"></canvas></div>
         <div class="legenda" id="legenda-status-por-setor"></div>
       </div>
@@ -240,7 +240,7 @@
       <!-- 8. Mapa Risco por Setor -->
       <div class="cartao col-12">
         <div class="cartao-titulo">Mapa de Risco por Setor</div>
-        <div class="cartao-sub">Contagem de postos por nivel de risco</div>
+        <div class="cartao-sub">Contagem de postos por nível de risco</div>
         <div class="altura-chart alta"><canvas id="chart-risco-por-setor"></canvas></div>
         <div class="legenda" id="legenda-risco-por-setor"></div>
       </div>
@@ -250,7 +250,7 @@
            Registro, seguindo os mesmos filtros globais (Cliente/Unidade/
            Setor/.../Ano/Mes) da secao do Mapa de Risco acima.
 
-           Pedido do Leo (28/09/2026): "gestao visual" clara entre o que e
+           Pedido do Leo (28/09/2026): "gestão visual" clara entre o que e
            AEP e o que e AET, pra ninguem se confundir olhando um indicador
            sem saber de qual modulo ele e. Por isso 2 titulos de secao
            separados (nunca 1 so bloco misturado) - ordem dentro de cada um
@@ -260,7 +260,7 @@
 
       <div class="cartao col-12">
         <div class="cartao-titulo">Inventário de Riscos - Graduação do Risco</div>
-        <div class="cartao-sub">Fatores de risco cadastrados, por nivel</div>
+        <div class="cartao-sub">Fatores de risco cadastrados, por nível</div>
         <div class="grade-status grade-status--destaque" id="tiles-fatorrisco-graduacao"></div>
       </div>
 
@@ -272,7 +272,7 @@
 
       <div class="cartao col-6">
         <div class="cartao-titulo">Inventário de Riscos - Status</div>
-        <div class="cartao-sub">Distribuicao por status de tratativa</div>
+        <div class="cartao-sub">Distribuição por status de tratativa</div>
         <div class="altura-chart"><canvas id="chart-fatorrisco-status"></canvas></div>
         <div class="legenda" id="legenda-fatorrisco-status"></div>
       </div>
@@ -314,37 +314,37 @@
 
       <!-- 1. Cards de totais -->
       <div class="cartao col-12">
-        <div class="cartao-titulo">Totais do periodo filtrado</div>
-        <div class="cartao-sub">Colaboradores, dias perdidos e taxa de frequencia (NBR 14280)</div>
+        <div class="cartao-titulo">Totais do período filtrado</div>
+        <div class="cartao-sub">Colaboradores, dias perdidos e taxa de frequência (NBR 14280)</div>
         <div class="grade-totais" id="tiles-totais-medocup"></div>
       </div>
 
       <!-- 2. Evolucao da Taxa de Frequencia -->
       <div class="cartao col-7">
-        <div class="cartao-titulo">Evolucao da Taxa de Frequencia</div>
-        <div class="cartao-sub">Por Ano/Mes - passe o mouse para ver atestados e dias perdidos</div>
+        <div class="cartao-titulo">Evolução da Taxa de Frequência</div>
+        <div class="cartao-sub">Por Ano/Mês - passe o mouse para ver atestados e dias perdidos</div>
         <div class="altura-chart alta"><canvas id="chart-evolucao-taxa"></canvas></div>
       </div>
 
       <!-- 3. Taxa de Frequencia por Setor -->
       <div class="cartao col-5">
-        <div class="cartao-titulo">Taxa de Frequencia por Setor</div>
-        <div class="cartao-sub">Casos de afastamento por milhao de HHT</div>
+        <div class="cartao-titulo">Taxa de Frequência por Setor</div>
+        <div class="cartao-sub">Casos de afastamento por milhão de HHT</div>
         <div class="altura-chart alta"><canvas id="chart-taxa-por-setor"></canvas></div>
       </div>
 
       <!-- 4. Diagrama corporal - dias perdidos -->
       <div class="cartao col-6">
-        <div class="cartao-titulo">Dias perdidos por regiao - Frente</div>
-        <div class="cartao-sub">Soma de "Qtd Dias" de afastamento por regiao corporal</div>
+        <div class="cartao-titulo">Dias perdidos por região - Frente</div>
+        <div class="cartao-sub">Soma de "Qtd Dias" de afastamento por região corporal</div>
         <figure class="figura-diagrama">
           <div id="diagrama-medocup-frente"></div>
           <figcaption>Silhueta vista de frente; lado Direito da pessoa aparece a esquerda da imagem.</figcaption>
         </figure>
       </div>
       <div class="cartao col-6">
-        <div class="cartao-titulo">Dias perdidos por regiao - Costas</div>
-        <div class="cartao-sub">Soma de "Qtd Dias" de afastamento por regiao corporal</div>
+        <div class="cartao-titulo">Dias perdidos por região - Costas</div>
+        <div class="cartao-sub">Soma de "Qtd Dias" de afastamento por região corporal</div>
         <figure class="figura-diagrama">
           <div id="diagrama-medocup-costas"></div>
           <figcaption>Silhueta vista de costas; lado Direito da pessoa aparece a direita da imagem.</figcaption>
@@ -362,8 +362,8 @@
 
       <!-- 1. Genero -->
       <div class="cartao col-3">
-        <div class="cartao-titulo">Genero</div>
-        <div class="cartao-sub">Colaboradores em restricao/acompanhamento</div>
+        <div class="cartao-titulo">Gênero</div>
+        <div class="cartao-sub">Colaboradores em restrição/acompanhamento</div>
         <div class="altura-chart"><canvas id="chart-compat-genero"></canvas></div>
         <div class="legenda" id="legenda-compat-genero"></div>
       </div>
@@ -371,14 +371,14 @@
       <!-- 2. Idade -->
       <div class="cartao col-5">
         <div class="cartao-titulo">Idade</div>
-        <div class="cartao-sub">Distribuicao por faixa etaria</div>
+        <div class="cartao-sub">Distribuição por faixa etária</div>
         <div class="altura-chart"><canvas id="chart-compat-idade"></canvas></div>
       </div>
 
       <!-- 6. Em Atividade Compativel -->
       <div class="cartao col-4">
-        <div class="cartao-titulo">Em Atividade Compativel</div>
-        <div class="cartao-sub">Recolocado em atividade compativel com a restricao</div>
+        <div class="cartao-titulo">Em Atividade Compatível</div>
+        <div class="cartao-sub">Recolocado em atividade compatível com a restrição</div>
         <div class="altura-chart"><canvas id="chart-compat-atividade"></canvas></div>
         <div class="legenda" id="legenda-compat-atividade"></div>
       </div>
@@ -386,38 +386,38 @@
       <!-- 3. Status por Setor -->
       <div class="cartao col-6">
         <div class="cartao-titulo">Status por Setor</div>
-        <div class="cartao-sub">Contagem por status de restricao</div>
+        <div class="cartao-sub">Contagem por status de restrição</div>
         <div class="altura-chart alta"><canvas id="chart-compat-status-setor"></canvas></div>
         <div class="legenda" id="legenda-compat-status-setor"></div>
       </div>
 
       <!-- 4. Restricao por Turno -->
       <div class="cartao col-6">
-        <div class="cartao-titulo">Restricao por Turno</div>
-        <div class="cartao-sub">Contagem por status de restricao</div>
+        <div class="cartao-titulo">Restrição por Turno</div>
+        <div class="cartao-sub">Contagem por status de restrição</div>
         <div class="altura-chart alta"><canvas id="chart-compat-restricao-turno"></canvas></div>
         <div class="legenda" id="legenda-compat-restricao-turno"></div>
       </div>
 
       <!-- 7. Compativel por Setor -->
       <div class="cartao col-12">
-        <div class="cartao-titulo">Compativel por Setor</div>
-        <div class="cartao-sub">Colaboradores em atividade compativel = "Sim", por setor</div>
+        <div class="cartao-titulo">Compatível por Setor</div>
+        <div class="cartao-sub">Colaboradores em atividade compatível = "Sim", por setor</div>
         <div class="altura-chart"><canvas id="chart-compat-compativel-setor"></canvas></div>
       </div>
 
       <!-- 5. Diagrama corporal - restricoes -->
       <div class="cartao col-6">
-        <div class="cartao-titulo">Restricoes por regiao - Frente</div>
-        <div class="cartao-sub">Contagem de restricoes por regiao corporal</div>
+        <div class="cartao-titulo">Restrições por região - Frente</div>
+        <div class="cartao-sub">Contagem de restrições por região corporal</div>
         <figure class="figura-diagrama">
           <div id="diagrama-compat-frente"></div>
           <figcaption>Silhueta vista de frente; lado Direito da pessoa aparece a esquerda da imagem.</figcaption>
         </figure>
       </div>
       <div class="cartao col-6">
-        <div class="cartao-titulo">Restricoes por regiao - Costas</div>
-        <div class="cartao-sub">Contagem de restricoes por regiao corporal</div>
+        <div class="cartao-titulo">Restrições por região - Costas</div>
+        <div class="cartao-sub">Contagem de restrições por região corporal</div>
         <figure class="figura-diagrama">
           <div id="diagrama-compat-costas"></div>
           <figcaption>Silhueta vista de costas; lado Direito da pessoa aparece a direita da imagem.</figcaption>
@@ -431,11 +431,11 @@
     <p class="dados-intro">
       Cadastro-mestre (setup): a estrutura organizacional valida do cliente - Cliente (Empresa) > Unidade > Setor >
       Cargo / Posto de Trabalho > Atividade. E a partir daqui que os 4 formularios da aba Registro validam suas
-      opcoes em cascata - nunca texto livre. Faca esse cadastro antes de lancar registros na aba Registro.
+      opções em cascata - nunca texto livre. Faca esse cadastro antes de lancar registros na aba Registro.
     </p>
     <div class="aviso-somente-leitura" id="aviso-somente-leitura-cadastro" hidden>
-      Banco de dados indisponivel nesta visualizacao (modo somente leitura) - o cadastro abaixo mostra a
-      estrutura ficticia de exemplo, mas novos lancamentos nao podem ser salvos por aqui agora.
+      Banco de dados indisponível nesta visualização (modo somente leitura) - o cadastro abaixo mostra a
+      estrutura fictícia de exemplo, mas novos lançamentos não podem ser salvos por aqui agora.
     </div>
     <nav class="subnav-cadastro" id="subnav-cadastro-mestre"></nav>
     <div class="grade" id="grade-cadastro-mestre"></div>
@@ -443,14 +443,14 @@
 
   <section id="aba-registro" hidden>
     <p class="dados-intro">
-      Registro (input do dia a dia): lancamento real nas 4 tabelas operacionais do S.I.G.E - Mapa de Risco,
-      Plano de Acao, Absenteismo e Compativeis. O que voce salvar aqui fica gravado de verdade neste BI - qualquer
-      pessoa que abrir este link ve os mesmos dados. Lista CID e Dias Uteis sao tabelas de referencia (fixas) e
-      ficam disponiveis so para consulta no rodape da pagina.
+      Registro (input do dia a dia): lançamento real nas 4 tabelas operacionais do S.I.G.E - Mapa de Risco,
+      Plano de Ação, Absenteísmo e Compatíveis. O que você salvar aqui fica gravado de verdade neste BI - qualquer
+      pessoa que abrir este link vê os mesmos dados. Lista CID e Dias Úteis são tabelas de referência (fixas) e
+      ficam disponíveis só para consulta no rodapé da página.
     </p>
     <div class="aviso-somente-leitura" id="aviso-somente-leitura-registro" hidden>
-      Banco de dados indisponivel nesta visualizacao (modo somente leitura) - os registros abaixo mostram os
-      dados ficticios de exemplo, mas novos lancamentos nao podem ser salvos por aqui agora.
+      Banco de dados indisponível nesta visualização (modo somente leitura) - os registros abaixo mostram os
+      dados fictícios de exemplo, mas novos lançamentos não podem ser salvos por aqui agora.
     </div>
     <nav class="subnav-cadastro" id="subnav-registro"></nav>
     <div class="grade" id="grade-registro"></div>
@@ -482,16 +482,16 @@
 
   <section id="aba-referencia" hidden>
     <p class="dados-intro">
-      Tabelas de referencia (estaticas, so para consulta) - alimentam calculos como CID de afastamento e
-      contagem de dias uteis/colaboradores por Ano/Mes.
+      Tabelas de referência (estáticas, só para consulta) – alimentam cálculos como CID de afastamento e
+      contagem de dias úteis/colaboradores por Ano/Mês.
     </p>
     <div class="grade" id="grade-referencia"></div>
   </section>
     </main>
 
     <footer class="rodape">
-      S.I.G.E - Sistema Integrado de Gestão ElevaLife © · Produto ElevaLife, dados ficticios nesta fase de validacao · Gerado em <span id="data-geracao"></span>
-      · <button type="button" class="link-referencia" id="btn-toggle-referencia">Ver tabelas de referencia</button>
+      S.I.G.E - Sistema Integrado de Gestão ElevaLife © · Produto ElevaLife, dados fictícios nesta fase de validação · Gerado em <span id="data-geracao"></span>
+      · <button type="button" class="link-referencia" id="btn-toggle-referencia">Ver tabelas de referência</button>
     </footer>
   </div>
 </div>
@@ -511,6 +511,7 @@
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   }
 </script>
+<script src="js/rotulos.js"></script>
 <script src="js/calc.js"></script>
 <script src="js/db.js"></script>
 <script src="js/diagramas.js"></script>

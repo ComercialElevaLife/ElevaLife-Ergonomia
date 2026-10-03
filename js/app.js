@@ -9,9 +9,13 @@
 (function () {
   "use strict";
 
+  // Texto de EXIBICAO com acentuacao correta (ver js/rotulos.js). Nunca usar
+  // em chave de dado (nome de campo/valor gravado) - so no que vai pra tela.
+  const T = (s) => (window.BI && window.BI.Rotulos ? window.BI.Rotulos.texto(s) : s);
+
   const ORDEM_FILTROS = ["Ano", "Mes", "Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"];
   const LABELS_FILTRO = {
-    "Ano": "Ano", "Mes": "Mes", "Cliente": "Cliente", "Unidade": "Unidade", "Setor": "Setor",
+    "Ano": "Ano", "Mes": "Mês", "Cliente": "Cliente", "Unidade": "Unidade", "Setor": "Setor",
     "Posto Trabalho": "Posto de Trabalho", "Cargo": "Cargo", "Atividade": "Atividade",
   };
 
@@ -112,7 +116,7 @@
     if (tooltip.title && tooltip.title.length) {
       const t = document.createElement("div");
       t.className = "tt-titulo";
-      t.textContent = tooltip.title.join(" ");
+      t.textContent = T(tooltip.title.join(" "));
       el.appendChild(t);
     }
     const dataPoints = tooltip.dataPoints || [];
@@ -137,7 +141,7 @@
 
       const nomeSerie = dp.dataset && dp.dataset.label ? dp.dataset.label : (dp.label || "");
       const rotulo = document.createElement("span");
-      rotulo.textContent = nomeSerie;
+      rotulo.textContent = T(nomeSerie);
 
       const valor = document.createElement("span");
       valor.className = "tt-valor";
@@ -184,6 +188,15 @@
     Chart.defaults.plugins.tooltip.external = tooltipExterno;
     Chart.defaults.interaction.mode = "index";
     Chart.defaults.interaction.intersect = false;
+    // Rotulos dos eixos com acentuacao (so exibicao; os dados continuam
+    // com as chaves originais, usadas no clique/drill-down).
+    if (Chart.defaults.scales && Chart.defaults.scales.category) {
+      Chart.defaults.scales.category.ticks = Chart.defaults.scales.category.ticks || {};
+      Chart.defaults.scales.category.ticks.callback = function (valor) {
+        const rotulo = this.getLabelForValue(valor);
+        return Array.isArray(rotulo) ? rotulo.map(T) : T(rotulo);
+      };
+    }
 
     // Rotulos de dados sempre visiveis nos graficos (pedido do Leo: nao so
     // no hover). Registrado globalmente e ligado por padrao so em barra e
@@ -366,7 +379,7 @@
     let v = linha[col];
     if (colunasData.includes(col)) v = formatarDataBR(v);
     else if ((col === "Risco Global" || col === "Graduacao Risco") && v) v = window.BI.Calc.rotuloNivel(v);
-    return v === null || v === undefined || v === "" ? "-" : String(v);
+    return v === null || v === undefined || v === "" ? "-" : T(String(v));
   }
 
   // Mesma celula de cima, mas devolvendo um NO pronto pra por na tabela: se o
@@ -401,7 +414,7 @@
     ponto.className = "ponto";
     ponto.style.background = window.BI.Calc.corStatus(statusCalculado);
     span.appendChild(ponto);
-    span.appendChild(document.createTextNode(statusCalculado));
+    span.appendChild(document.createTextNode(T(statusCalculado)));
     return span;
   }
 
@@ -409,7 +422,7 @@
 
   function abrirDrillDown(campoOuTitulo, subtitulo, chave, linhas) {
     const painel = obterPainelDrillDown();
-    document.getElementById("drilldown-titulo").textContent = campoOuTitulo;
+    document.getElementById("drilldown-titulo").textContent = T(campoOuTitulo);
     document.getElementById("drilldown-sub").textContent = subtitulo;
 
     const corpo = document.getElementById("drilldown-corpo");
@@ -418,7 +431,7 @@
     if (!linhas.length) {
       const vazio = document.createElement("div");
       vazio.className = "drilldown-vazio";
-      vazio.textContent = "Nenhum registro para esta selecao.";
+      vazio.textContent = "Nenhum registro para esta seleção.";
       corpo.appendChild(vazio);
     } else {
       const { colunas, colunasData } = colunasDrillDown(chave);
@@ -429,7 +442,7 @@
       tabela.className = "tabela-dados";
       const thead = document.createElement("thead");
       const trHead = document.createElement("tr");
-      colunas.forEach((c) => { const th = document.createElement("th"); th.textContent = c; trHead.appendChild(th); });
+      colunas.forEach((c) => { const th = document.createElement("th"); th.textContent = T(c); trHead.appendChild(th); });
       thead.appendChild(trHead);
       const tbody = document.createElement("tbody");
       linhas.slice(0, LIMITE_LINHAS_DRILLDOWN).forEach((linha) => {
@@ -478,7 +491,7 @@
       const regiao = g.getAttribute("data-regiao");
       const abrir = (ev) => {
         abrirDrillDown(
-          `Regiao corporal - ${regiao}`, "Registros desta regiao", chave,
+          `Região corporal - ${regiao}`, "Registros desta região", chave,
           linhasFonte.filter((l) => l[campoRegiao] === regiao), ev
         );
       };
@@ -517,7 +530,7 @@
       marca.className = it.tipo === "linha" ? "marca-linha" : "marca-cor";
       marca.style.background = it.cor;
       const texto = document.createElement("span");
-      texto.textContent = it.label;
+      texto.textContent = T(it.label);
       item.appendChild(marca);
       item.appendChild(texto);
       el.appendChild(item);
@@ -555,7 +568,7 @@
     div.className = "campo-filtro campo-filtro-multi";
 
     const label = document.createElement("label");
-    label.textContent = rotuloCampo;
+    label.textContent = T(rotuloCampo);
     label.setAttribute("for", "botao-" + campoId);
     div.appendChild(label);
 
@@ -651,14 +664,14 @@
         div._aoMudar();
       });
       const texto = document.createElement("span");
-      texto.textContent = formatarOpcao ? formatarOpcao(v) : v;
+      texto.textContent = T(formatarOpcao ? formatarOpcao(v) : v);
       item.appendChild(cb);
       item.appendChild(texto);
       lista.appendChild(item);
     });
 
     if (!selecionadosValidos.length) textoBotao.textContent = "Todos";
-    else if (selecionadosValidos.length === 1) textoBotao.textContent = formatarOpcao ? formatarOpcao(selecionadosValidos[0]) : selecionadosValidos[0];
+    else if (selecionadosValidos.length === 1) textoBotao.textContent = T(formatarOpcao ? formatarOpcao(selecionadosValidos[0]) : selecionadosValidos[0]);
     else textoBotao.textContent = `${selecionadosValidos.length} selecionados`;
   }
 
@@ -786,7 +799,7 @@
       // Nao deveria acontecer (arquivo servido pela nossa propria API,
       // mesma origem - canvas nunca fica "tainted"), mas protege mesmo
       // assim: sem cor lida, so nao tematiza, nao quebra a tela.
-      console.warn("Nao foi possivel ler a cor do logotipo do cliente:", e);
+      console.warn("Não foi possível ler a cor do logotipo do cliente:", e);
       return null;
     }
   }
@@ -903,7 +916,7 @@
         },
       }, (el) => {
         const setor = labels[el.index];
-        return { titulo: `Top Setores criticos - ${setor}`, subtitulo: "Postos deste setor", chave: "mapaRisco", linhas: mapaRiscoF.filter((l) => l.Setor === setor) };
+        return { titulo: `Top Setores críticos - ${setor}`, subtitulo: "Postos deste setor", chave: "mapaRisco", linhas: mapaRiscoF.filter((l) => l.Setor === setor) };
       }),
     });
   }
@@ -922,7 +935,7 @@
       }, (el) => {
         const status = labels[el.index];
         return {
-          titulo: `Plano de Acao - ${status}`, subtitulo: `${valores[el.index]} acao(oes)`, chave: "planoAcao",
+          titulo: `Plano de Ação - ${status}`, subtitulo: `${valores[el.index]} ${valores[el.index] === 1 ? "ação" : "ações"}`, chave: "planoAcao",
           linhas: linhasFonte.filter((l) => window.BI.Calc.calcularStatusAcao(l["Dt Programada"], l["Dt Conclusao"], hoje) === status),
         };
       }),
@@ -977,7 +990,7 @@
         const responsavel = labels[el.index];
         const status = window.BI.Calc.STATUS_ACAO_ORDEM[el.datasetIndex];
         return {
-          titulo: `${responsavel} - ${status}`, subtitulo: "Acoes do Plano de Acao", chave: "planoAcao",
+          titulo: `${responsavel} - ${status}`, subtitulo: "Ações do Plano de Ação", chave: "planoAcao",
           linhas: planoAcaoF.filter((l) => l["Responsavel Acao"] === responsavel && window.BI.Calc.calcularStatusAcao(l["Dt Programada"], l["Dt Conclusao"], hoje) === status),
         };
       }),
@@ -1001,7 +1014,7 @@
         const setor = labels[el.index];
         const status = window.BI.Calc.STATUS_ACAO_ORDEM[el.datasetIndex];
         return {
-          titulo: `${setor} - ${status}`, subtitulo: "Acoes do Plano de Acao", chave: "planoAcao",
+          titulo: `${setor} - ${status}`, subtitulo: "Ações do Plano de Ação", chave: "planoAcao",
           linhas: planoAcaoF.filter((l) => l.Setor === setor && window.BI.Calc.calcularStatusAcao(l["Dt Programada"], l["Dt Conclusao"], hoje) === status),
         };
       }),
@@ -1273,9 +1286,9 @@
     if (!cont) return;
     cont.innerHTML = "";
     const itens = [
-      { rotulo: "Qtd Colaboradores", valor: String(totais.qtdColaboradores), sub: "media do periodo filtrado" },
+      { rotulo: "Qtd Colaboradores", valor: String(totais.qtdColaboradores), sub: "média do período filtrado" },
       { rotulo: "Qtd Dias Perdidos", valor: String(totais.qtdDiasPerdidos), sub: "soma de dias de afastamento" },
-      { rotulo: "Taxa de Frequencia", valor: totais.taxaFrequencia.toFixed(2), sub: "casos por milhao de HHT (NBR 14280)" },
+      { rotulo: "Taxa de Frequência", valor: totais.taxaFrequencia.toFixed(2), sub: "casos por milhão de HHT (NBR 14280)" },
     ];
     itens.forEach((it) => {
       const tile = document.createElement("div");
@@ -1311,18 +1324,18 @@
         labels,
         datasets: [
           {
-            label: "Taxa de Frequencia", data: serie.map((s) => Number(s.taxaFrequencia.toFixed(2))),
+            label: "Taxa de Frequência", data: serie.map((s) => Number(s.taxaFrequencia.toFixed(2))),
             yAxisID: "y", borderColor: corTaxa, backgroundColor: hexParaRgba(corTaxa, 0.12),
             fill: true, borderWidth: 2, tension: 0.25,
             pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: corTaxa, pointBorderColor: corSurfaceCard(), pointBorderWidth: 2,
           },
           {
-            label: "Evolucao de Atestados", data: serie.map((s) => s.qtdAtestados),
+            label: "Evolução de Atestados", data: serie.map((s) => s.qtdAtestados),
             yAxisID: "y1", borderColor: corAtestados, backgroundColor: corAtestados,
             borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: false,
           },
           {
-            label: "Evolucao de Dias Perdidos", data: serie.map((s) => s.qtdDiasPerdidos),
+            label: "Evolução de Dias Perdidos", data: serie.map((s) => s.qtdDiasPerdidos),
             yAxisID: "y1", borderColor: corDiasPerdidos, backgroundColor: corDiasPerdidos,
             borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: false,
           },
@@ -1337,7 +1350,7 @@
       }, (el) => {
         const mes = serie[el.index].mes;
         return {
-          titulo: `Absenteismo - ${window.BI.Calc.formatarMesLabel(mes)}`, subtitulo: "Registros de afastamento no mes", chave: "absenteismo",
+          titulo: `Absenteísmo - ${window.BI.Calc.formatarMesLabel(mes)}`, subtitulo: "Registros de afastamento no mês", chave: "absenteismo",
           linhas: absenteismoF.filter((l) => l["Dt Afastamento"] && String(l["Dt Afastamento"]).slice(0, 7) === mes),
         };
       }),
@@ -1361,7 +1374,7 @@
         },
       }, (el) => {
         const setor = labels[el.index];
-        return { titulo: `Absenteismo - ${setor}`, subtitulo: "Registros de afastamento", chave: "absenteismo", linhas: absenteismoF.filter((l) => l.Setor === setor) };
+        return { titulo: `Absenteísmo - ${setor}`, subtitulo: "Registros de afastamento", chave: "absenteismo", linhas: absenteismoF.filter((l) => l.Setor === setor) };
       }),
     });
   }
@@ -1371,12 +1384,12 @@
     window.BI.Diagramas.renderizar(
       "diagrama-medocup-frente", "frente",
       window.BI.Calc.somaDiasPorRegiao(absenteismoF, meta.regioes_frente),
-      { formatarValor: (v) => `${v} dia${v === 1 ? "" : "s"}`, titulo: "Dias perdidos por regiao - vista frontal" }
+      { formatarValor: (v) => `${v} dia${v === 1 ? "" : "s"}`, titulo: "Dias perdidos por região - vista frontal" }
     );
     window.BI.Diagramas.renderizar(
       "diagrama-medocup-costas", "costas",
       window.BI.Calc.somaDiasPorRegiao(absenteismoF, meta.regioes_tras),
-      { formatarValor: (v) => `${v} dia${v === 1 ? "" : "s"}`, titulo: "Dias perdidos por regiao - vista posterior" }
+      { formatarValor: (v) => `${v} dia${v === 1 ? "" : "s"}`, titulo: "Dias perdidos por região - vista posterior" }
     );
     ligarCliqueDiagrama("diagrama-medocup-frente", absenteismoF, "Regiao Corporal", "absenteismo");
     ligarCliqueDiagrama("diagrama-medocup-costas", absenteismoF, "Regiao Corporal", "absenteismo");
@@ -1409,7 +1422,7 @@
     const btnLimpar = document.createElement("button");
     btnLimpar.type = "button";
     btnLimpar.className = "btn-limpar-filtros";
-    btnLimpar.textContent = "Limpar filtros da pagina";
+    btnLimpar.textContent = "Limpar filtros da página";
     btnLimpar.addEventListener("click", limparFiltrosPagina);
     container.appendChild(btnLimpar);
   }
@@ -1464,7 +1477,7 @@
     const valores = itens.map((i) => i.qtd);
     const mapaCores = window.BI.Calc.construirMapaCores(labels);
     renderDonutGenerico("chart-compat-genero", "legenda-compat-genero", labels, valores, labels.map((l) => mapaCores[l]), (genero) => ({
-      titulo: `Genero - ${genero}`, subtitulo: "Colaboradores em restricao/acompanhamento", chave: "compativeis",
+      titulo: `Gênero - ${genero}`, subtitulo: "Colaboradores em restrição/acompanhamento", chave: "compativeis",
       linhas: compativeisF.filter((l) => l.Genero === genero),
     }));
   }
@@ -1484,7 +1497,7 @@
       }, (el) => {
         const faixa = faixas[el.index];
         return {
-          titulo: `Idade - ${faixa.label}`, subtitulo: "Colaboradores nesta faixa etaria", chave: "compativeis",
+          titulo: `Idade - ${faixa.label}`, subtitulo: "Colaboradores nesta faixa etária", chave: "compativeis",
           linhas: compativeisF.filter((l) => { const idade = Number(l.Idade) || 0; return idade >= faixa.min && idade <= faixa.max; }),
         };
       }),
@@ -1497,7 +1510,7 @@
     const valores = itens.map((i) => i.qtd);
     const cores = labels.map((l) => window.BI.Calc.resolverCorCSS(l === "Sim" ? "var(--status-good)" : "var(--status-critical)"));
     renderDonutGenerico("chart-compat-atividade", "legenda-compat-atividade", labels, valores, cores, (valor) => ({
-      titulo: `Em Atividade Compativel - ${valor}`, subtitulo: "Colaboradores em restricao/acompanhamento", chave: "compativeis",
+      titulo: `Em Atividade Compatível - ${valor}`, subtitulo: "Colaboradores em restrição/acompanhamento", chave: "compativeis",
       linhas: compativeisF.filter((l) => l["Atividade Compativel"] === valor),
     }));
   }
@@ -1518,7 +1531,7 @@
         const setor = labels[el.index];
         const status = window.BI.Calc.STATUS_RESTRICAO_ORDEM[el.datasetIndex];
         return {
-          titulo: `${setor} - ${status}`, subtitulo: "Restricoes medicas", chave: "compativeis",
+          titulo: `${setor} - ${status}`, subtitulo: "Restrições médicas", chave: "compativeis",
           linhas: compativeisF.filter((l) => l.Setor === setor && l["Status Restricao"] === status),
         };
       }),
@@ -1542,7 +1555,7 @@
         const turno = labels[el.index];
         const status = window.BI.Calc.STATUS_RESTRICAO_ORDEM[el.datasetIndex];
         return {
-          titulo: `${turno} - ${status}`, subtitulo: "Restricoes medicas", chave: "compativeis",
+          titulo: `${turno} - ${status}`, subtitulo: "Restrições médicas", chave: "compativeis",
           linhas: compativeisF.filter((l) => l["Turno Trabalho"] === turno && l["Status Restricao"] === status),
         };
       }),
@@ -1566,7 +1579,7 @@
       }, (el) => {
         const setor = labels[el.index];
         return {
-          titulo: `Compativel por Setor - ${setor}`, subtitulo: 'Atividade Compativel = "Sim"', chave: "compativeis",
+          titulo: `Compatível por Setor - ${setor}`, subtitulo: 'Atividade Compatível = "Sim"', chave: "compativeis",
           linhas: compativeisF.filter((l) => l.Setor === setor && l["Atividade Compativel"] === "Sim"),
         };
       }),
@@ -1578,12 +1591,12 @@
     window.BI.Diagramas.renderizar(
       "diagrama-compat-frente", "frente",
       window.BI.Calc.contagemPorRegiao(compativeisF, meta.regioes_frente),
-      { formatarValor: (v) => `${v} restr.`, titulo: "Restricoes por regiao - vista frontal" }
+      { formatarValor: (v) => `${v} restr.`, titulo: "Restrições por região - vista frontal" }
     );
     window.BI.Diagramas.renderizar(
       "diagrama-compat-costas", "costas",
       window.BI.Calc.contagemPorRegiao(compativeisF, meta.regioes_tras),
-      { formatarValor: (v) => `${v} restr.`, titulo: "Restricoes por regiao - vista posterior" }
+      { formatarValor: (v) => `${v} restr.`, titulo: "Restrições por região - vista posterior" }
     );
     ligarCliqueDiagrama("diagrama-compat-frente", compativeisF, "Segmento Corporal", "compativeis");
     ligarCliqueDiagrama("diagrama-compat-costas", compativeisF, "Segmento Corporal", "compativeis");
@@ -1684,7 +1697,7 @@
     const trHead = document.createElement("tr");
     colunas.forEach((col) => {
       const th = document.createElement("th");
-      th.appendChild(document.createTextNode(col));
+      th.appendChild(document.createTextNode(T(col)));
       if (estado.ordCampo === col) {
         const seta = document.createElement("span");
         seta.className = "seta";
@@ -1737,7 +1750,7 @@
     btnAnt.type = "button"; btnAnt.textContent = "< Anterior"; btnAnt.disabled = estado.pagina <= 1;
     btnAnt.addEventListener("click", () => { estado.pagina -= 1; renderizarTabelaReferencia(cfg); });
     const btnProx = document.createElement("button");
-    btnProx.type = "button"; btnProx.textContent = "Proxima >"; btnProx.disabled = estado.pagina >= totalPaginas;
+    btnProx.type = "button"; btnProx.textContent = "Próxima >"; btnProx.disabled = estado.pagina >= totalPaginas;
     btnProx.addEventListener("click", () => { estado.pagina += 1; renderizarTabelaReferencia(cfg); });
     pagCont.appendChild(info);
     pagCont.appendChild(btnAnt);
@@ -1975,7 +1988,7 @@
         // PDF gerado pelo botao "Gerar Laudo" abaixo, preenchido sozinho em
         // "Arquivo Url"; este campo de texto so serve pra quem quiser
         // digitar/colar manualmente um laudo que nao passou pelo gerador).
-        { campo: "Texto", rotulo: "Texto do Laudo (opcional - preenchido automaticamente ao gerar o PDF; use so para digitar um laudo manual)", tipo: "textarea" },
+        { campo: "Texto", rotulo: "Texto do Laudo (opcional: preenchido automaticamente ao gerar o PDF; use só para digitar um laudo manual)", tipo: "textarea" },
         { campo: "Emitido Em", rotulo: "Emitido em", tipo: "data" },
         { campo: "Emitido Por", rotulo: "Emitido por", tipo: "texto" },
         {
@@ -2703,7 +2716,7 @@
         const campoArquivo = form._campos["Arquivo Url"];
         if (campoArquivo && campoArquivo.anexarArquivos) {
           if (!window.BI.DB.estado.modoApi) {
-            mostrarAviso("Laudo gerado - upload automatico so na versao publicada (producao). Baixando o PDF...");
+            mostrarAviso("Laudo gerado. O upload automático só funciona na versão publicada (produção). Baixando o PDF...");
             const url = URL.createObjectURL(new Blob([bufferPDF], { type: "application/pdf" }));
             const link = document.createElement("a");
             link.href = url; link.download = nomeArquivo;
@@ -2790,12 +2803,12 @@
     el.innerHTML = "";
     const optBranco = document.createElement("option");
     optBranco.value = "";
-    optBranco.textContent = opcoes.length ? "-" : "(selecione o nivel anterior)";
+    optBranco.textContent = opcoes.length ? "-" : "(selecione o nível anterior)";
     el.appendChild(optBranco);
     opcoes.forEach((v) => {
       const opt = document.createElement("option");
       opt.value = v;
-      opt.textContent = v;
+      opt.textContent = T(v);
       el.appendChild(opt);
     });
     el.value = opcoes.includes(atual) ? atual : "";
@@ -2917,10 +2930,10 @@
   // referencia, entao a arvore e so um agrupamento em cima dela - nenhuma
   // duplicacao de dado.
   const CAPITULOS_CID = {
-    M: "M - Doencas do sistema osteomuscular e do tecido conjuntivo",
-    S: "S - Lesoes, envenenamentos e outras consequencias de causas externas",
+    M: "M - Doenças do sistema osteomuscular e do tecido conjuntivo",
+    S: "S - Lesões, envenenamentos e outras consequências de causas externas",
     F: "F - Transtornos mentais e comportamentais",
-    G: "G - Doencas do sistema nervoso",
+    G: "G - Doenças do sistema nervoso",
   };
   const ORDEM_CAPITULOS_CID = ["M", "S", "F", "G"];
 
@@ -3024,7 +3037,7 @@
       if (!el || !valor || el.value) return false;
       el.value = valor;
       el.style.outline = "2px solid #c77700";
-      el.title = "Preenchido automaticamente por aproximacao (pela Divisao do CNAE) - confirme o grau correto antes de salvar.";
+      el.title = "Preenchido automaticamente por aproximação (pela Divisão do CNAE) - confirme o grau correto antes de salvar.";
       el.addEventListener("change", () => { el.style.outline = ""; el.title = ""; }, { once: true });
       return true;
     }
@@ -3054,10 +3067,10 @@
         preencherSeVazio("Cidade", corpo.Cidade);
         preencherSeVazio("Estado", corpo.Estado);
         if (preencherGrauRiscoAproximado(corpo.GrauRiscoNR4)) {
-          avisos.push('Grau de Risco (NR-4) preenchido por aproximacao, pela Divisao do CNAE - nao e a classificacao oficial do Quadro I (essa e por Classe/Subclasse). Confirme o grau correto antes de salvar.');
+          avisos.push('Grau de Risco (NR-4) preenchido por aproximação, pela Divisão do CNAE – não é a classificação oficial do Quadro I (essa é por Classe/Subclasse). Confirme o grau correto antes de salvar.');
         }
         if (corpo.situacaoAtiva === false) {
-          avisos.push(`Atencao: este CNPJ consta como "${corpo.SituacaoCadastral}" na Receita Federal (dados preenchidos mesmo assim - confira antes de salvar).`);
+          avisos.push(`Atenção: este CNPJ consta como "${corpo.SituacaoCadastral}" na Receita Federal (dados preenchidos mesmo assim - confira antes de salvar).`);
         }
         if (avisos.length) {
           form._erroEl.hidden = false;
@@ -3186,7 +3199,7 @@
     const btnFechar = document.createElement("button");
     btnFechar.type = "button";
     btnFechar.className = "drilldown-fechar";
-    btnFechar.setAttribute("aria-label", "Fechar checklist de inventario de riscos");
+    btnFechar.setAttribute("aria-label", "Fechar checklist de inventário de riscos");
     btnFechar.textContent = "×";
     btnFechar.addEventListener("click", fecharPainelChecklist);
     cab.appendChild(titulos);
@@ -3207,7 +3220,7 @@
     btnCancelar.type = "button"; btnCancelar.className = "btn-cad-secundario"; btnCancelar.textContent = "Cancelar";
     btnCancelar.addEventListener("click", fecharPainelChecklist);
     const btnSalvar = document.createElement("button");
-    btnSalvar.type = "button"; btnSalvar.className = "btn-cad-primario"; btnSalvar.textContent = "Salvar Inventario de Riscos";
+    btnSalvar.type = "button"; btnSalvar.className = "btn-cad-primario"; btnSalvar.textContent = "Salvar Inventário de Riscos";
     rodape.appendChild(btnCancelar);
     rodape.appendChild(btnSalvar);
     painel.rodapeBotaoSalvar = btnSalvar;
@@ -3372,7 +3385,7 @@
       const semClassificacao = linhasChecklist.find((l) => l.checkbox.checked && (!l.selCriticidade.value || !l.selProbabilidade.value));
       if (semClassificacao) {
         erroEl.hidden = false;
-        erroEl.textContent = `Preencha Criticidade e Probabilidade do fator "${semClassificacao.fator}" (marcado, mas sem classificacao).`;
+        erroEl.textContent = `Preencha Criticidade e Probabilidade do fator "${semClassificacao.fator}" (marcado, mas sem classificação).`;
         semClassificacao.linha.classList.add("checklist-fator-com-erro");
         if (typeof semClassificacao.linha.scrollIntoView === "function") {
           semClassificacao.linha.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -3446,7 +3459,7 @@
         fecharPainelChecklist();
       } catch (e) {
         erroEl.hidden = false;
-        erroEl.textContent = "Erro ao salvar o inventario de riscos: " + (e && e.message ? e.message : String(e));
+        erroEl.textContent = "Erro ao salvar o inventário de riscos: " + (e && e.message ? e.message : String(e));
       } finally {
         btnSalvar.disabled = !podeEditar;
         btnSalvar.textContent = textoOriginal;
@@ -3524,7 +3537,7 @@
     },
     planoAcao: {
       grupo: "registro", icone: "🛠️", tituloMenu: "Plano de Ação",
-      titulo: "Plano de Acao",
+      titulo: "Plano de Ação",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Acao Recomendada", "Responsavel Acao", "Dt Programada", "Dt Conclusao"],
       colunasData: ["Dt Programada", "Dt Conclusao"],
       camposData: ["Dt Programada", "Dt Conclusao"],
@@ -3547,7 +3560,7 @@
     },
     absenteismo: {
       grupo: "registro", icone: "🩺", tituloMenu: "Absenteísmo",
-      titulo: "Absenteismo",
+      titulo: "Absenteísmo",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cod CID", "Dt Afastamento", "Qtd Dias", "Regiao Corporal"],
       colunasData: ["Dt Afastamento"],
       camposData: ["Dt Afastamento"],
@@ -3595,7 +3608,7 @@
     },
     compativeis: {
       grupo: "registro", icone: "🔄", tituloMenu: "Compatíveis",
-      titulo: "Compativeis (restricoes medicas)",
+      titulo: "Compatíveis (restrições médicas)",
       colunasTabela: ["Cliente", "Setor", "Funcionario", "Status Restricao", "Turno Trabalho", "Segmento Corporal", "Inicio Restricao"],
       colunasData: ["Inicio Restricao"],
       camposData: ["Inicio Restricao"],
@@ -3809,7 +3822,7 @@
           (window.BI.Calc.NOMES_CLASSIFICACAO_AET || []).forEach((rotulo) => {
             const opt = document.createElement("option");
             opt.value = rotulo;
-            opt.textContent = rotulo;
+            opt.textContent = T(rotulo);
             selClassificacao.appendChild(opt);
           });
           selClassificacao.value = item.classificacaoConfirmada || item.classificacao || "Não identificado";
@@ -3915,7 +3928,7 @@
     campoFake.anexarArquivos = anexarArquivos;
 
     if (!window.BI.DB.estado.modoApi) {
-      mostrarAviso("Upload de arquivo disponivel so na versao publicada (producao).");
+      mostrarAviso("Upload de arquivo disponível só na versão publicada (produção).");
       return wrap;
     }
 
@@ -4037,7 +4050,7 @@
       const campoDiv = document.createElement("div");
       campoDiv.className = "campo-form";
       const label = document.createElement("label");
-      label.textContent = def.rotulo || def.campo;
+      label.textContent = T(def.rotulo || def.campo);
       campoDiv.appendChild(label);
 
       let el;
@@ -4056,8 +4069,8 @@
         el.appendChild(optBranco);
         opcoes.forEach((op) => {
           const opt = document.createElement("option");
-          if (op && typeof op === "object") { opt.value = op.valor; opt.textContent = op.label; }
-          else { opt.value = op; opt.textContent = window.BI.Calc.rotuloNivel(op); }
+          if (op && typeof op === "object") { opt.value = op.valor; opt.textContent = T(op.label); }
+          else { opt.value = op; opt.textContent = T(window.BI.Calc.rotuloNivel(op)); }
           el.appendChild(opt);
         });
         el.value = valorInicial != null ? valorInicial : "";
@@ -4075,8 +4088,8 @@
         const selecionados = Array.isArray(valorInicial) ? valorInicial : [];
         opcoesMulti.forEach((op) => {
           const opt = document.createElement("option");
-          if (op && typeof op === "object") { opt.value = op.valor; opt.textContent = op.label; }
-          else { opt.value = op; opt.textContent = op; }
+          if (op && typeof op === "object") { opt.value = op.valor; opt.textContent = T(op.label); }
+          else { opt.value = op; opt.textContent = T(op); }
           opt.selected = selecionados.includes(opt.value);
           el.appendChild(opt);
         });
@@ -4134,7 +4147,7 @@
         function popularCategorias(cap, grupo, codigoDesejado) {
           selCategoria.innerHTML = "";
           const optBranco2 = document.createElement("option");
-          optBranco2.value = ""; optBranco2.textContent = "Codigo CID...";
+          optBranco2.value = ""; optBranco2.textContent = "Código CID...";
           selCategoria.appendChild(optBranco2);
           selCategoria.disabled = !cap || !grupo;
           if (!cap || !grupo || !arvore[cap][grupo]) return;
@@ -4162,7 +4175,7 @@
           // visivel num "Outro" pra nao sumir/quebrar ao abrir um registro
           // antigo pra editar, mesmo sem aparecer na arvore nova.
           const optOutroCap = document.createElement("option");
-          optOutroCap.value = "_legado"; optOutroCap.textContent = "Outro (codigo legado)";
+          optOutroCap.value = "_legado"; optOutroCap.textContent = "Outro (código legado)";
           selCapitulo.appendChild(optOutroCap);
           selCapitulo.value = "_legado";
           selGrupo.innerHTML = "";
@@ -4309,7 +4322,7 @@
       }
       const vazio = def.tipo === "multiselect" ? valor.length === 0 : (valor === null || valor === "");
       if (def.obrigatorio && vazio && !erro) {
-        erro = `Preencha o campo "${def.rotulo || def.campo}".`;
+        erro = `Preencha o campo “${T(def.rotulo || def.campo)}”.`;
         campoComErro = def.campo;
       }
       dados[def.campo] = valor;
@@ -4381,7 +4394,7 @@
         icone.textContent = cfg.icone || "";
         const rotulo = document.createElement("span");
         rotulo.className = "rotulo";
-        rotulo.textContent = cfg.tituloMenu || cfg.titulo;
+        rotulo.textContent = T(cfg.tituloMenu || cfg.titulo);
         btn.appendChild(icone);
         btn.appendChild(rotulo);
         btn.addEventListener("click", (ev) => {
@@ -4432,7 +4445,7 @@
       icone.textContent = cfg.icone || "";
       const rotulo = document.createElement("span");
       rotulo.className = "rotulo";
-      rotulo.textContent = cfg.tituloMenu || cfg.titulo;
+      rotulo.textContent = T(cfg.tituloMenu || cfg.titulo);
       btn.appendChild(icone);
       btn.appendChild(rotulo);
       btn.addEventListener("click", () => selecionarSubAbaCadastro(grupo, chave));
@@ -4611,7 +4624,7 @@
       ev.preventDefault();
       if (!window.BI.DB.estado.disponivel) {
         form._erroEl.hidden = false;
-        form._erroEl.textContent = "Banco de dados indisponivel nesta visualizacao - nao e possivel salvar agora.";
+        form._erroEl.textContent = "Banco de dados indisponível nesta visualização. Não é possível salvar agora.";
         return;
       }
       const { dados, erro, campoComErro } = lerValoresFormulario(cfg, form);
@@ -4659,7 +4672,7 @@
 
   function excluirRegistro(chave, id) {
     if (!window.BI.DB.estado.disponivel) return;
-    if (!window.confirm("Excluir este registro definitivamente? Essa acao nao pode ser desfeita.")) return;
+    if (!window.confirm("Excluir este registro definitivamente? Essa ação não pode ser desfeita.")) return;
     window.BI.DB.excluir(chave, id).catch((e) => {
       mostrarErro("Erro ao excluir registro: " + (e && e.message ? e.message : String(e)));
     });
@@ -4734,7 +4747,7 @@
     const idsPaginaSelecionaveis = paginaAtual.filter((l) => !!l._id).map((l) => l._id);
     const cbSelecionarPagina = document.createElement("input");
     cbSelecionarPagina.type = "checkbox";
-    cbSelecionarPagina.title = "Selecionar todos desta pagina";
+    cbSelecionarPagina.title = "Selecionar todos desta página";
     cbSelecionarPagina.disabled = !window.BI.DB.estado.disponivel || idsPaginaSelecionaveis.length === 0;
     const todaPaginaMarcada = idsPaginaSelecionaveis.length > 0 && idsPaginaSelecionaveis.every((id) => estado.selecionados.has(id));
     cbSelecionarPagina.checked = todaPaginaMarcada;
@@ -4749,7 +4762,7 @@
 
     colunas.forEach((c) => {
       const th = document.createElement("th");
-      th.textContent = c;
+      th.textContent = T(c);
       th.title = "Clique para ordenar";
       if (estado.ordenarCampo === c) {
         th.classList.add("ordenada-por");
@@ -4766,7 +4779,7 @@
       trHead.appendChild(th);
     });
     const thAcoes = document.createElement("th");
-    thAcoes.textContent = "Acoes";
+    thAcoes.textContent = "Ações";
     thAcoes.className = "col-acoes";
     trHead.appendChild(thAcoes);
     thead.appendChild(trHead);
@@ -4825,12 +4838,12 @@
           btnBaixar.textContent = "⬇ Baixar/Imprimir";
           btnBaixar.disabled = !(itemArquivo && itemArquivo.chave);
           if (!btnBaixar.disabled) {
-            btnBaixar.title = "Abre o arquivo numa nova aba - dali da pra imprimir ou salvar (Ctrl+P / Ctrl+S)";
+            btnBaixar.title = "Abre o arquivo numa nova aba - de lá dá para imprimir ou salvar (Ctrl+P / Ctrl+S)";
             btnBaixar.addEventListener("click", () => {
               window.open(window.BI.DB.urlArquivo(itemArquivo.chave), "_blank", "noopener");
             });
           } else {
-            btnBaixar.title = "Este registro ainda nao tem um arquivo gerado/anexado - use Editar e o botao \"Gerar Laudo (PDF)\"";
+            btnBaixar.title = "Este registro ainda não tem um arquivo gerado/anexado - use Editar e o botão \"Gerar Laudo (PDF)\"";
           }
           tdAcoes.appendChild(btnBaixar);
         }
@@ -4876,7 +4889,7 @@
     btnAnt.type = "button"; btnAnt.textContent = "< Anterior"; btnAnt.disabled = estado.pagina <= 1;
     btnAnt.addEventListener("click", () => { estado.pagina -= 1; renderizarListaCadastro(chave); });
     const btnProx = document.createElement("button");
-    btnProx.type = "button"; btnProx.textContent = "Proxima >"; btnProx.disabled = estado.pagina >= totalPaginas;
+    btnProx.type = "button"; btnProx.textContent = "Próxima >"; btnProx.disabled = estado.pagina >= totalPaginas;
     btnProx.addEventListener("click", () => { estado.pagina += 1; renderizarListaCadastro(chave); });
     pagCont.appendChild(info);
     pagCont.appendChild(btnAnt);
@@ -4951,8 +4964,8 @@
     if (!ids.length || !window.BI.DB.estado.disponivel) return;
     const cfg = CADASTROS_CONFIG[chave];
     const mensagem = ids.length === 1
-      ? `Excluir o registro selecionado de "${cfg.titulo}"? Essa acao nao pode ser desfeita.`
-      : `Excluir os ${ids.length} registros selecionados de "${cfg.titulo}"? Essa acao nao pode ser desfeita.`;
+      ? `Excluir o registro selecionado de "${cfg.titulo}"? Essa ação não pode ser desfeita.`
+      : `Excluir os ${ids.length} registros selecionados de "${cfg.titulo}"? Essa ação não pode ser desfeita.`;
     if (!window.confirm(mensagem)) return;
 
     const btnExcluir = document.getElementById("btn-excluir-selecionados-" + chave);
@@ -4961,7 +4974,7 @@
       const resultado = await window.BI.DB.excluirEmLote(chave, ids);
       estado.selecionados.clear();
       if (resultado && resultado.falhas) {
-        mostrarErro(`Excluidos ${resultado.total - resultado.falhas} de ${resultado.total} registros selecionados - ${resultado.falhas} falharam (tente novamente ou exclua um por um).`);
+        mostrarErro(`Excluídos ${resultado.total - resultado.falhas} de ${resultado.total} registros selecionados - ${resultado.falhas} falharam (tente novamente ou exclua um por um).`);
       }
       renderizarListaCadastro(chave);
     } catch (e) {
@@ -5062,7 +5075,7 @@
       sec.hidden = sec.id !== alvo;
     });
     const btnRef = document.getElementById("btn-toggle-referencia");
-    if (btnRef) btnRef.textContent = "Ver tabelas de referencia";
+    if (btnRef) btnRef.textContent = "Ver tabelas de referência";
     atualizarEstadoExportacao();
     expandirGrupoSidebar(GRUPO_DA_ABA[aba] ? aba : null);
   }
@@ -5097,7 +5110,7 @@
       const estaAberta = !secReferencia.hidden;
       if (estaAberta) {
         secReferencia.hidden = true;
-        btn.textContent = "Ver tabelas de referencia";
+        btn.textContent = "Ver tabelas de referência";
         document.querySelectorAll('main > section[id^="aba-"]').forEach((sec) => {
           sec.hidden = sec.id !== abaVisivelAntesDeReferencia;
         });
@@ -5107,7 +5120,7 @@
         document.querySelectorAll('main > section[id^="aba-"]').forEach((sec) => {
           sec.hidden = sec.id !== "aba-referencia";
         });
-        btn.textContent = "Fechar tabelas de referencia";
+        btn.textContent = "Fechar tabelas de referência";
         renderizarAbaReferencia();
       }
       atualizarEstadoExportacao();
@@ -5120,9 +5133,9 @@
   // da aba aberta; Excel = tabela(s) de dados brutos filtrados dessa aba.
   // So disponivel nas 3 abas de dashboard (Ergo / Med Ocup / Compativeis).
   // ------------------------------------------------------------------
-  const TITULOS_ABA = { ergo: "Dashboard Ergo", medocup: "Dashboard Med Ocup", compativeis: "Dashboard Compativeis" };
+  const TITULOS_ABA = { ergo: "Dashboard Ergo", medocup: "Dashboard Med Ocup", compativeis: "Dashboard Compatíveis" };
   const TABELAS_POR_ABA = { ergo: ["mapaRisco", "planoAcao"], medocup: ["absenteismo", "diasUteis"], compativeis: ["compativeis"] };
-  const NOMES_PLANILHA = { mapaRisco: "Mapa Risco", planoAcao: "Plano Acao", absenteismo: "Absenteismo", compativeis: "Compativeis", diasUteis: "HHT Dias Uteis" };
+  const NOMES_PLANILHA = { mapaRisco: "Mapa Risco", planoAcao: "Plano Ação", absenteismo: "Absenteísmo", compativeis: "Compatíveis", diasUteis: "HHT Dias Úteis" };
 
   function abaAtualChave() {
     const btn = document.querySelector('#nav-abas button[data-aba].ativa');
@@ -5133,7 +5146,7 @@
     const partes = [];
     ORDEM_FILTROS.forEach((campo) => {
       const vals = (window.BI.filtros || {})[campo];
-      if (vals && vals.length) partes.push(`${LABELS_FILTRO[campo] || campo}: ${vals.join(", ")}`);
+      if (vals && vals.length) partes.push(`${T(LABELS_FILTRO[campo] || campo)}: ${vals.map(T).join(", ")}`);
     });
     const fp = window.BI.filtrosPagina || {};
     Object.keys(fp).forEach((campo) => {
@@ -5169,14 +5182,17 @@
     const chavesTabela = TABELAS_POR_ABA[chave];
     if (!chavesTabela) return;
     if (typeof XLSX === "undefined") {
-      mostrarErro("A biblioteca de exportacao Excel nao carregou (script externo bloqueado ou indisponivel).");
+      mostrarErro("A biblioteca de exportação Excel não carregou (script externo bloqueado ou indisponível).");
       return;
     }
     const wb = XLSX.utils.book_new();
     chavesTabela.forEach((chaveTabela) => {
       const linhas = linhasFiltradasParaExportar(chaveTabela).map((l) => {
-        const copia = Object.assign({}, l);
-        delete copia._id;
+        const copia = {};
+        Object.keys(l).forEach((k) => {
+          if (k === "_id" || k === "_notif") return;
+          copia[T(k)] = l[k];
+        });
         return copia;
       });
       const ws = XLSX.utils.json_to_sheet(linhas);
@@ -5266,7 +5282,7 @@
     if (!TITULOS_ABA[chave]) return;
     const jsPDFCtor = window.jspdf && window.jspdf.jsPDF;
     if (!jsPDFCtor) {
-      mostrarErro("A biblioteca de exportacao PDF nao carregou (script externo bloqueado ou indisponivel).");
+      mostrarErro("A biblioteca de exportação PDF não carregou (script externo bloqueado ou indisponível).");
       return;
     }
     const secao = document.getElementById("aba-" + chave);
@@ -5461,7 +5477,7 @@
         prazo.className = "painel-sino-item-prazo";
         prazo.textContent = atrasada
           ? (diffDias === 1 ? "Atrasada há 1 dia" : `Atrasada há ${diffDias} dias`)
-          : (diffDias === 0 ? "Vence hoje" : `Vence em ${-diffDias} dia(s)`);
+          : (diffDias === 0 ? "Vence hoje" : `Vence em ${-diffDias} ${-diffDias === 1 ? "dia" : "dias"}`);
 
         item.appendChild(acao);
         item.appendChild(meta);
@@ -5469,7 +5485,7 @@
         lista.appendChild(item);
       });
     } catch (e) {
-      console.error("Sino de notificacoes (Plano de Acao) falhou:", e);
+      console.error("Sino de notificações (Plano de Ação) falhou:", e);
     }
   }
 
@@ -5556,7 +5572,7 @@
     }
     el.innerHTML = "";
     const forte = document.createElement("strong");
-    forte.textContent = "Nao foi possivel carregar o S.I.G.E:";
+    forte.textContent = "Não foi possível carregar o S.I.G.E:";
     const texto = document.createElement("span");
     texto.textContent = mensagem;
     el.appendChild(forte);
@@ -5594,8 +5610,8 @@
     renderTopSetores(Calc.topSetores(mapaRiscoF, 3), mapaRiscoF);
     renderDonutStatus("chart-plano-global", "legenda-plano-global", Calc.statusPlanoAcao(planoAcaoF, hoje), planoAcaoF, hoje);
     renderDonutStatus("chart-plano-criticos", "legenda-plano-criticos", Calc.planoAcaoPostosCriticos(planoAcaoF, hoje), planoAcaoFCriticos, hoje);
-    renderLinhaMensal("chart-acoes-previstas", Calc.serieMensal(planoAcaoFPrevistas, "Dt Programada"), "Acoes previstas", Calc.resolverCorCSS("var(--teal)"), planoAcaoFPrevistas, "Dt Programada");
-    renderLinhaMensal("chart-acoes-concluidas", Calc.serieMensal(planoAcaoFConcluidas, "Dt Conclusao"), "Acoes concluidas", Calc.resolverCorCSS("var(--vinho-medio)"), planoAcaoFConcluidas, "Dt Conclusao");
+    renderLinhaMensal("chart-acoes-previstas", Calc.serieMensal(planoAcaoFPrevistas, "Dt Programada"), "Ações previstas", Calc.resolverCorCSS("var(--teal)"), planoAcaoFPrevistas, "Dt Programada");
+    renderLinhaMensal("chart-acoes-concluidas", Calc.serieMensal(planoAcaoFConcluidas, "Dt Conclusao"), "Ações concluídas", Calc.resolverCorCSS("var(--vinho-medio)"), planoAcaoFConcluidas, "Dt Conclusao");
     renderPorResponsavel(Calc.planoAcaoPorResponsavel(planoAcaoF, hoje), planoAcaoF, hoje);
     renderStatusPorSetor(Calc.statusPlanoAcaoPorSetor(planoAcaoF, hoje), planoAcaoF, hoje);
     renderRiscoPorSetor(Calc.mapaRiscoPorSetor(mapaRiscoF), mapaRiscoF);
@@ -5681,7 +5697,7 @@
     el.hidden = false;
     const titulo = document.createElement("strong");
     titulo.textContent = avisoEmail
-      ? `Convite criado para ${email}, mas o e-mail automatico falhou:`
+      ? `Convite criado para ${email}, mas o e-mail automático falhou:`
       : `Convite enviado por e-mail para ${email}. Link de primeiro acesso (caso precise repassar manualmente):`;
     el.appendChild(titulo);
     if (avisoEmail) {
@@ -5707,7 +5723,7 @@
       { campo: "Papel", rotulo: "Papel", tipo: "select", obrigatorio: true, opcoes: PAPEIS_USUARIO },
       {
         campo: "EmpresasVinculadas",
-        rotulo: "Empresas Vinculadas (Ctrl/Cmd + clique para marcar mais de uma - Administrador ve todas, independente desta lista)",
+        rotulo: "Empresas Vinculadas (Ctrl/Cmd + clique para marcar mais de uma - Administrador vê todas, independente desta lista)",
         tipo: "multiselect",
         opcoes: () => (window.BI.dados.cliente || []).map((c) => ({ valor: c.id || c._id, label: c.Cliente })),
       },
@@ -5720,10 +5736,10 @@
     renderizarListaUsuarios();
     try {
       const resp = await fetch("/api/usuarios", { credentials: "same-origin" });
-      if (!resp.ok) throw new Error("Falha ao carregar usuarios (HTTP " + resp.status + ").");
+      if (!resp.ok) throw new Error("Falha ao carregar usuários (HTTP " + resp.status + ").");
       estadoUsuarios.lista = await resp.json();
     } catch (e) {
-      mostrarErro("Erro ao carregar usuarios: " + (e && e.message ? e.message : String(e)));
+      mostrarErro("Erro ao carregar usuários: " + (e && e.message ? e.message : String(e)));
       estadoUsuarios.lista = [];
     } finally {
       estadoUsuarios.carregando = false;
@@ -5803,7 +5819,7 @@
   function excluirUsuario(id, email) {
     if (!window.confirm(`Remover o acesso de "${email}" ao S.I.G.E? Essa ação não pode ser desfeita.`)) return;
     window.BI.DB.excluir("usuarios", id).then(() => carregarUsuarios()).catch((e) => {
-      mostrarErro("Erro ao excluir usuario: " + (e && e.message ? e.message : String(e)));
+      mostrarErro("Erro ao excluir usuário: " + (e && e.message ? e.message : String(e)));
     });
   }
 
@@ -6196,7 +6212,7 @@
     atualizarOpcoesFiltros();
     renderizarTudo();
     if (chave === "planoAcao") {
-      try { atualizarSinoNotificacoes(); } catch (e) { console.error("Sino de notificacoes (Plano de Acao) falhou:", e); }
+      try { atualizarSinoNotificacoes(); } catch (e) { console.error("Sino de notificações (Plano de Ação) falhou:", e); }
     }
   }
 
@@ -6214,7 +6230,7 @@
   async function iniciar() {
     try {
       if (typeof Chart === "undefined") {
-        throw new Error("A biblioteca Chart.js nao carregou (script externo bloqueado ou indisponivel).");
+        throw new Error("A biblioteca Chart.js não carregou (script externo bloqueado ou indisponível).");
       }
 
       const resp = await fetch("data/mock_data.json");
@@ -6232,7 +6248,7 @@
       window.BI.filtrosPagina = { "Status Restricao": [], "Turno Trabalho": [] };
 
       const spanData = document.getElementById("data-geracao");
-      if (spanData) spanData.textContent = formatarDataBR(dados._meta.gerado_em) + ` (referencia de calculo: ${formatarDataBR(hojeMeiaNoite().toISOString().slice(0, 10))})`;
+      if (spanData) spanData.textContent = formatarDataBR(dados._meta.gerado_em) + ` (referência de calculo: ${formatarDataBR(hojeMeiaNoite().toISOString().slice(0, 10))})`;
 
       configurarChartDefaults();
       montarBarraFiltros();
@@ -6253,7 +6269,7 @@
       const disponivel = await window.BI.DB.iniciar(aoAtualizarColecaoDB);
       atualizarBotoesSomenteLeitura();
       if (!disponivel) {
-        console.warn("BI Ergonomia - capacidade 'db' indisponivel nesta visualizacao; cadastros em modo somente leitura (dados ficticios de exemplo).");
+        console.warn("BI Ergonomia - capacidade 'db' indisponível nesta visualização; cadastros em modo somente leitura (dados fictícios de exemplo).");
       }
       // So depois do iniciar() acima e que window.BI.DB.estado.identidade/
       // telaAcesso existem de verdade (preenchidos so no modo API - ver
@@ -6264,7 +6280,7 @@
       configurarBotaoSair();
       esconderCarregamento();
     } catch (erro) {
-      console.error("BI Ergonomia - erro na inicializacao:", erro);
+      console.error("BI Ergonomia - erro na inicialização:", erro);
       mostrarErro(erro && erro.message ? erro.message : String(erro));
       esconderCarregamento();
     }

@@ -1317,3 +1317,15 @@ publicados em produção:
   sem enviar e sem gravar nada, e devolve o calendário de quem receberia
   qual lembrete e quando (pressupondo que nenhuma ação seja concluída no
   período).
+- **Português correto na tela** (03/10/2026) — todo texto exibido (títulos,
+  cabeçalhos de tabela, rótulos de formulário, opções de lista, legendas,
+  eixos dos gráficos, sino, mensagens, planilha exportada e e-mails) passa
+  a sair com acentuação e pontuação. Os nomes de campo e os valores fixos
+  gravados no banco (ex.: `Acao Recomendada`, `Dt Conclusao`,
+  `Em Avaliacao`) continuam sem acento **de propósito**, porque são chaves
+  usadas em filtros, cálculos, API pública e registros já gravados. A
+  correção é só na exibição, pela função `BI.Rotulos.texto()`
+  (`js/rotulos.js`), que acentua palavra por palavra a partir de um
+  dicionário sem palavras ambíguas (ex.: "esta"/"está" ficam de fora).
+  Palavra nova que apareça sem acento na tela: basta incluí-la no
+  dicionário de `js/rotulos.js`.
