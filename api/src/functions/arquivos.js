@@ -101,23 +101,23 @@ async function tratarUpload(request, identidade) {
 
   const regra = REGRAS_POR_COLECAO[Colecao];
   if (!regra) {
-    return { status: 400, jsonBody: { erro: `Colecao sem upload de arquivo: ${Colecao}` } };
+    return { status: 400, jsonBody: { erro: `Coleção sem upload de arquivo: ${Colecao}` } };
   }
   if (!EmpresaId || !podeAcessarEmpresaOuGlobal(identidade, EmpresaId)) {
-    return { status: 403, jsonBody: { erro: "Sem permissao para gravar arquivo nesta empresa." } };
+    return { status: 403, jsonBody: { erro: "Sem permissão para gravar arquivo nesta empresa." } };
   }
   if (!ConteudoBase64) {
-    return { status: 400, jsonBody: { erro: "ConteudoBase64 e obrigatorio." } };
+    return { status: 400, jsonBody: { erro: "ConteudoBase64 é obrigatório." } };
   }
   if (!regra.tiposAceitos.includes(TipoConteudo)) {
-    return { status: 400, jsonBody: { erro: `Tipo de arquivo nao aceito para esta colecao: ${TipoConteudo}` } };
+    return { status: 400, jsonBody: { erro: `Tipo de arquivo não aceito para esta coleção: ${TipoConteudo}` } };
   }
 
   let buffer;
   try {
     buffer = Buffer.from(ConteudoBase64, "base64");
   } catch (erro) {
-    return { status: 400, jsonBody: { erro: "ConteudoBase64 invalido." } };
+    return { status: 400, jsonBody: { erro: "ConteudoBase64 inválido." } };
   }
   if (buffer.length === 0) {
     return { status: 400, jsonBody: { erro: "Arquivo vazio." } };
@@ -139,21 +139,21 @@ async function tratarUpload(request, identidade) {
 
 async function tratarDownload(request, identidade) {
   const chave = request.query.get("chave");
-  if (!chave) return { status: 400, jsonBody: { erro: "Parametro 'chave' e obrigatorio." } };
+  if (!chave) return { status: 400, jsonBody: { erro: "Parâmetro “chave” é obrigatório." } };
 
   const partes = chave.split("/");
   const empresaId = partes[0];
   const colecao = partes[1];
   const regra = REGRAS_POR_COLECAO[colecao];
-  if (!empresaId || !regra) return { status: 404, jsonBody: { erro: "Arquivo nao encontrado." } };
+  if (!empresaId || !regra) return { status: 404, jsonBody: { erro: "Arquivo não encontrado." } };
   if (!podeAcessarEmpresaOuGlobal(identidade, empresaId)) {
-    return { status: 403, jsonBody: { erro: "Sem permissao para ver este arquivo." } };
+    return { status: 403, jsonBody: { erro: "Sem permissão para ver este arquivo." } };
   }
 
   const containerCliente = obterContainerCliente(colecao);
   const blocoCliente = containerCliente.getBlockBlobClient(chave);
   const existe = await blocoCliente.exists();
-  if (!existe) return { status: 404, jsonBody: { erro: "Arquivo nao encontrado." } };
+  if (!existe) return { status: 404, jsonBody: { erro: "Arquivo não encontrado." } };
 
   const download = await blocoCliente.download();
   const buffer = await streamParaBuffer(download.readableStreamBody);
@@ -173,20 +173,20 @@ async function tratar(request, context) {
     identidade = await resolverIdentidade(request);
   } catch (erro) {
     context.error("Falha ao resolver identidade", erro);
-    return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissoes." } };
+    return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissões." } };
   }
-  if (!identidade) return { status: 401, jsonBody: { erro: "Nao autenticado." } };
+  if (!identidade) return { status: 401, jsonBody: { erro: "Não autenticado." } };
   if (!identidade.papel) {
     return {
       status: 403,
-      jsonBody: { erro: "Seu acesso ainda nao foi liberado. Peca a um Administrador para te vincular a uma empresa." },
+      jsonBody: { erro: "Seu acesso ainda não foi liberado. Peça a um Administrador para vincular você a uma empresa." },
     };
   }
 
   try {
     if (request.method === "POST") return await tratarUpload(request, identidade);
     if (request.method === "GET") return await tratarDownload(request, identidade);
-    return { status: 405, jsonBody: { erro: "Metodo nao suportado." } };
+    return { status: 405, jsonBody: { erro: "Método não suportado." } };
   } catch (erro) {
     context.error("Erro em /api/arquivos", erro);
     return { status: 500, jsonBody: { erro: "Erro interno." } };

@@ -25,10 +25,10 @@ async function tratar(request, context) {
     identidade = await resolverIdentidade(request);
   } catch (erro) {
     context.error("Falha ao resolver identidade em /api/me", erro);
-    return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissoes." } };
+    return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissões." } };
   }
   if (!identidade) {
-    return { status: 401, jsonBody: { erro: "Nao autenticado." } };
+    return { status: 401, jsonBody: { erro: "Não autenticado." } };
   }
   return {
     jsonBody: {

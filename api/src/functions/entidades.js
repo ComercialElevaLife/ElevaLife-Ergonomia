@@ -119,7 +119,7 @@ async function tratar(request, context) {
   }
 
   if (!COLECOES.includes(colecao)) {
-    return { status: 404, jsonBody: { erro: `Colecao desconhecida: ${colecao}` } };
+    return { status: 404, jsonBody: { erro: `Coleção desconhecida: ${colecao}` } };
   }
 
   let identidade;
@@ -127,15 +127,15 @@ async function tratar(request, context) {
     identidade = await resolverIdentidade(request);
   } catch (erro) {
     context.error("Falha ao resolver identidade", erro);
-    return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissoes." } };
+    return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissões." } };
   }
   if (!identidade) {
-    return { status: 401, jsonBody: { erro: "Nao autenticado." } };
+    return { status: 401, jsonBody: { erro: "Não autenticado." } };
   }
   if (!identidade.papel) {
     return {
       status: 403,
-      jsonBody: { erro: "Seu acesso ainda nao foi liberado. Peca a um Administrador para te vincular a uma empresa." },
+      jsonBody: { erro: "Seu acesso ainda não foi liberado. Peça a um Administrador para vincular você a uma empresa." },
     };
   }
 
@@ -149,7 +149,7 @@ async function tratar(request, context) {
           const item = await lerPorId(container, id);
           const visivel = item && (COLECOES_GLOBAIS.includes(colecao) || podeVerDocumento(identidade, colecao, item));
           if (!visivel) {
-            return { status: 404, jsonBody: { erro: "Nao encontrado." } };
+            return { status: 404, jsonBody: { erro: "Não encontrado." } };
           }
           return { jsonBody: item };
         }
@@ -159,16 +159,16 @@ async function tratar(request, context) {
       case "POST": {
         const corpo = await request.json();
         if (colecao === "cliente" && identidade.papel !== "Administrador") {
-          return { status: 403, jsonBody: { erro: "So Administrador pode cadastrar uma nova empresa-cliente." } };
+          return { status: 403, jsonBody: { erro: "Só Administrador pode cadastrar uma nova empresa-cliente." } };
         }
         const empresaId = colecao === "cliente"
           ? corpo.EmpresaId || crypto.randomUUID()
           : COLECOES_GLOBAIS.includes(colecao) ? EMPRESA_GLOBAL : corpo.EmpresaId;
         if (!empresaId) {
-          return { status: 400, jsonBody: { erro: "EmpresaId e obrigatorio." } };
+          return { status: 400, jsonBody: { erro: "EmpresaId é obrigatório." } };
         }
         if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerEmpresa(identidade, empresaId)) {
-          return { status: 403, jsonBody: { erro: "Sem permissao para gravar nesta empresa." } };
+          return { status: 403, jsonBody: { erro: "Sem permissão para gravar nesta empresa." } };
         }
         const doc = Object.assign({}, corpo, { id: corpo.id || crypto.randomUUID(), EmpresaId: empresaId });
         const { resource } = await container.items.upsert(doc);
@@ -196,18 +196,18 @@ async function tratar(request, context) {
       }
 
       case "PUT": {
-        if (!id) return { status: 400, jsonBody: { erro: "Id e obrigatorio para atualizar." } };
+        if (!id) return { status: 400, jsonBody: { erro: "Id é obrigatório para atualizar." } };
         const existente = await lerPorId(container, id);
-        if (!existente) return { status: 404, jsonBody: { erro: "Nao encontrado." } };
+        if (!existente) return { status: 404, jsonBody: { erro: "Não encontrado." } };
         if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerDocumento(identidade, colecao, existente)) {
-          return { status: 403, jsonBody: { erro: "Sem permissao." } };
+          return { status: 403, jsonBody: { erro: "Sem permissão." } };
         }
         const corpo = await request.json();
         const empresaIdFinal = colecao === "cliente"
           ? empresaIdDoDocumento(colecao, existente)
           : COLECOES_GLOBAIS.includes(colecao) ? EMPRESA_GLOBAL : corpo.EmpresaId || existente.EmpresaId;
         if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerEmpresa(identidade, empresaIdFinal)) {
-          return { status: 403, jsonBody: { erro: "Sem permissao para gravar nesta empresa." } };
+          return { status: 403, jsonBody: { erro: "Sem permissão para gravar nesta empresa." } };
         }
         const doc = Object.assign({}, existente, corpo, { id, EmpresaId: empresaIdFinal });
         const { resource } = await container.item(id, empresaIdDoDocumento(colecao, doc)).replace(doc);
@@ -215,21 +215,21 @@ async function tratar(request, context) {
       }
 
       case "DELETE": {
-        if (!id) return { status: 400, jsonBody: { erro: "Id e obrigatorio para excluir." } };
+        if (!id) return { status: 400, jsonBody: { erro: "Id é obrigatório para excluir." } };
         const existente = await lerPorId(container, id);
         if (!existente) return { status: 204 };
         if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerDocumento(identidade, colecao, existente)) {
-          return { status: 403, jsonBody: { erro: "Sem permissao." } };
+          return { status: 403, jsonBody: { erro: "Sem permissão." } };
         }
         if (colecao === "cliente" && identidade.papel !== "Administrador") {
-          return { status: 403, jsonBody: { erro: "So Administrador pode excluir uma empresa-cliente." } };
+          return { status: 403, jsonBody: { erro: "Só Administrador pode excluir uma empresa-cliente." } };
         }
         await container.item(id, empresaIdDoDocumento(colecao, existente)).delete();
         return { status: 204 };
       }
 
       default:
-        return { status: 405, jsonBody: { erro: "Metodo nao suportado." } };
+        return { status: 405, jsonBody: { erro: "Método não suportado." } };
     }
   } catch (erro) {
     context.error(`Erro em /api/${colecao}`, erro);

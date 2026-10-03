@@ -118,21 +118,21 @@ async function tratar(request, context) {
     identidade = await resolverIdentidade(request);
   } catch (erro) {
     context.error("Falha ao resolver identidade em /api/cnpj", erro);
-    return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissoes." } };
+    return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissões." } };
   }
   if (!identidade) {
-    return { status: 401, jsonBody: { erro: "Nao autenticado." } };
+    return { status: 401, jsonBody: { erro: "Não autenticado." } };
   }
   if (!identidade.papel) {
     return {
       status: 403,
-      jsonBody: { erro: "Seu acesso ainda nao foi liberado. Peca a um Administrador para te vincular a uma empresa." },
+      jsonBody: { erro: "Seu acesso ainda não foi liberado. Peça a um Administrador para vincular você a uma empresa." },
     };
   }
 
   const numero = String(request.params.id || "").replace(/\D/g, "");
   if (numero.length !== 14) {
-    return { status: 400, jsonBody: { erro: "CNPJ invalido - precisa ter 14 digitos." } };
+    return { status: 400, jsonBody: { erro: "CNPJ inválido: precisa ter 14 dígitos." } };
   }
 
   let resp;
@@ -140,11 +140,11 @@ async function tratar(request, context) {
     resp = await consultarBrasilApi(numero);
   } catch (erro) {
     context.error("Falha ao consultar BrasilAPI (CNPJ)", erro);
-    return { status: 502, jsonBody: { erro: "Falha ao consultar o CNPJ - tente novamente em instantes." } };
+    return { status: 502, jsonBody: { erro: "Falha ao consultar o CNPJ. Tente novamente em instantes." } };
   }
 
   if (resp.status === 404) {
-    return { status: 404, jsonBody: { erro: "CNPJ nao encontrado na Receita Federal." } };
+    return { status: 404, jsonBody: { erro: "CNPJ não encontrado na Receita Federal." } };
   }
   if (!resp.ok) {
     const texto = await resp.text().catch(() => "");

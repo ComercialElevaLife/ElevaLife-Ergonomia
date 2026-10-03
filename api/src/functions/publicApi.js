@@ -55,10 +55,10 @@ async function tratar(request, context) {
   const { identidade, rateLimitRestante } = auth;
 
   if (!COLECOES_PUBLICAS.includes(colecao)) {
-    return { status: 404, jsonBody: { erro: `Colecao desconhecida ou nao disponivel na API publica: ${colecao}` } };
+    return { status: 404, jsonBody: { erro: `Coleção desconhecida ou não disponível na API pública: ${colecao}` } };
   }
   if (!colecaoPermitidaParaChave(identidade, colecao)) {
-    return { status: 403, jsonBody: { erro: `Esta chave de API nao tem acesso a colecao '${colecao}'.` } };
+    return { status: 403, jsonBody: { erro: `Esta chave de API não tem acesso à coleção “${colecao}”.` } };
   }
 
   const container = obterContainer(colecao);
@@ -68,12 +68,12 @@ async function tratar(request, context) {
     switch (request.method) {
       case "GET": {
         if (!identidade.podeLer) {
-          return { status: 403, jsonBody: { erro: "Esta chave de API nao tem permissao de leitura." } };
+          return { status: 403, jsonBody: { erro: "Esta chave de API não tem permissão de leitura." } };
         }
         if (id) {
           const item = await lerPorId(container, id);
           if (!item || !podeVerDocumento(identidade, colecao, item)) {
-            return { status: 404, jsonBody: { erro: "Nao encontrado." } };
+            return { status: 404, jsonBody: { erro: "Não encontrado." } };
           }
           return comCabecalhosPadrao({ jsonBody: item }, rateLimitRestante);
         }
@@ -83,7 +83,7 @@ async function tratar(request, context) {
 
       case "POST": {
         if (!identidade.podeEscrever) {
-          return { status: 403, jsonBody: { erro: "Esta chave de API nao tem permissao de escrita." } };
+          return { status: 403, jsonBody: { erro: "Esta chave de API não tem permissão de escrita." } };
         }
         const corpo = await request.json();
         // Chave escopada a uma empresa sempre grava naquela empresa, mesmo
@@ -92,10 +92,10 @@ async function tratar(request, context) {
         const empresaFixa = identidade.empresasVinculadas.length === 1 ? identidade.empresasVinculadas[0] : null;
         const empresaId = empresaFixa || corpo.EmpresaId;
         if (!empresaId) {
-          return { status: 400, jsonBody: { erro: "EmpresaId e obrigatorio." } };
+          return { status: 400, jsonBody: { erro: "EmpresaId é obrigatório." } };
         }
         if (!podeVerEmpresa(identidade, empresaId)) {
-          return { status: 403, jsonBody: { erro: "Sem permissao para gravar nesta empresa." } };
+          return { status: 403, jsonBody: { erro: "Sem permissão para gravar nesta empresa." } };
         }
         const doc = Object.assign({}, corpo, { id: corpo.id || crypto.randomUUID(), EmpresaId: empresaId });
         const { resource } = await container.items.upsert(doc);
@@ -103,7 +103,7 @@ async function tratar(request, context) {
       }
 
       default:
-        return { status: 405, jsonBody: { erro: "Metodo nao suportado nesta rota." } };
+        return { status: 405, jsonBody: { erro: "Método não suportado nesta rota." } };
     }
   } catch (erro) {
     context.error(`Erro em /api/public/v1/${colecao}`, erro);

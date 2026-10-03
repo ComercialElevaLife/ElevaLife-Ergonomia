@@ -136,7 +136,7 @@ async function autenticarRequisicaoPublica(request) {
 
   const chaveDoc = await buscarChavePorHash(hashChave(chaveTextoPuro));
   if (!chaveDoc) {
-    return { erro: { status: 401, jsonBody: { erro: "Chave de API invalida ou revogada." } } };
+    return { erro: { status: 401, jsonBody: { erro: "Chave de API inválida ou revogada." } } };
   }
 
   const { permitido, restante } = await verificarRateLimit(chaveDoc);
@@ -144,7 +144,7 @@ async function autenticarRequisicaoPublica(request) {
     return {
       erro: {
         status: 429,
-        jsonBody: { erro: "Limite de requisicoes excedido. Tente novamente em instantes." },
+        jsonBody: { erro: "Limite de requisições excedido. Tente novamente em instantes." },
         headers: { "Retry-After": "60" },
       },
     };

@@ -35,11 +35,11 @@ async function tratar(request, context) {
     identidade = await resolverIdentidade(request);
   } catch (erro) {
     context.error("Falha ao resolver identidade em /api/apiKeys", erro);
-    return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissoes." } };
+    return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissões." } };
   }
-  if (!identidade) return { status: 401, jsonBody: { erro: "Nao autenticado." } };
+  if (!identidade) return { status: 401, jsonBody: { erro: "Não autenticado." } };
   if (identidade.papel !== PAPEIS.ADMIN) {
-    return { status: 403, jsonBody: { erro: "So Administrador pode gerenciar chaves de API." } };
+    return { status: 403, jsonBody: { erro: "Só Administrador pode gerenciar chaves de API." } };
   }
 
   const container = obterContainer("apiKeys");
@@ -55,7 +55,7 @@ async function tratar(request, context) {
       case "POST": {
         const corpo = await request.json();
         const nome = String(corpo.Nome || "").trim();
-        if (!nome) return { status: 400, jsonBody: { erro: "Nome e obrigatorio (ex.: 'Integracao SOC - Cliente X')." } };
+        if (!nome) return { status: 400, jsonBody: { erro: "Nome é obrigatório (ex.: “Integração SOC – Cliente X”)." } };
 
         const chaveTextoPuro = gerarChaveTextoPuro();
         const doc = {
@@ -88,9 +88,9 @@ async function tratar(request, context) {
       }
 
       case "PUT": {
-        if (!id) return { status: 400, jsonBody: { erro: "Id e obrigatorio." } };
+        if (!id) return { status: 400, jsonBody: { erro: "Id é obrigatório." } };
         const { resource: existente } = await container.item(id, id).read().catch(() => ({ resource: null }));
-        if (!existente) return { status: 404, jsonBody: { erro: "Nao encontrado." } };
+        if (!existente) return { status: 404, jsonBody: { erro: "Não encontrado." } };
         const corpo = await request.json();
         const doc = Object.assign({}, existente, {
           RevogadoEm: corpo.RevogadoEm ? new Date().toISOString() : existente.RevogadoEm,
@@ -100,13 +100,13 @@ async function tratar(request, context) {
       }
 
       case "DELETE": {
-        if (!id) return { status: 400, jsonBody: { erro: "Id e obrigatorio." } };
+        if (!id) return { status: 400, jsonBody: { erro: "Id é obrigatório." } };
         await container.item(id, id).delete().catch(() => null);
         return { status: 204 };
       }
 
       default:
-        return { status: 405, jsonBody: { erro: "Metodo nao suportado." } };
+        return { status: 405, jsonBody: { erro: "Método não suportado." } };
     }
   } catch (erro) {
     context.error("Erro em /api/apiKeys", erro);

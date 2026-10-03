@@ -95,7 +95,7 @@ async function enviarConvite(request, container, doc, { reenvio }) {
       htmlCorpo: modeloConvite({ nomeApp: NOME_APP, link }),
     });
   } catch (erro) {
-    avisoEmail = `Nao foi possivel enviar o e-mail automaticamente (${erro.message}). Copie o link abaixo e envie manualmente para ${doc.Email}.`;
+    avisoEmail = `Não foi possível enviar o e-mail automaticamente (${erro.message}). Copie o link abaixo e envie manualmente para ${doc.Email}.`;
   }
   return { link, avisoEmail };
 }
@@ -107,9 +107,9 @@ async function enviarConvite(request, container, doc, { reenvio }) {
 async function criarOuConvidarUsuario(request, container, { Email, Papel, EmpresasVinculadas, id }) {
   const crypto = require("crypto");
   const email = normalizarEmail(Email);
-  if (!email) return { erro: { status: 400, jsonBody: { erro: "Email e obrigatorio." } } };
+  if (!email) return { erro: { status: 400, jsonBody: { erro: "E-mail é obrigatório." } } };
   if (!PAPEIS_VALIDOS.has(Papel)) {
-    return { erro: { status: 400, jsonBody: { erro: `Papel invalido. Use um de: ${Array.from(PAPEIS_VALIDOS).join(", ")}.` } } };
+    return { erro: { status: 400, jsonBody: { erro: `Papel inválido. Use um de: ${Array.from(PAPEIS_VALIDOS).join(", ")}.` } } };
   }
   const existente = await buscarUsuarioPorEmail(container, email);
   const doc = existente || { id: id || crypto.randomUUID(), Email: email };
@@ -136,10 +136,10 @@ async function tratar(request, context) {
         const doc = await buscarUsuarioPorEmail(container, email);
         // Mensagem generica (nao revela se o e-mail existe) - so muda entre
         // "sem conta"/"senha errada" internamente pros logs, nunca na resposta.
-        const erroGenerico = { status: 401, jsonBody: { erro: "E-mail ou senha invalidos." } };
+        const erroGenerico = { status: 401, jsonBody: { erro: "E-mail ou senha inválidos." } };
         if (!doc || !doc.SenhaHash) return erroGenerico;
         if (doc.StatusConta && doc.StatusConta !== "Ativo") {
-          return { status: 403, jsonBody: { erro: "Sua conta ainda nao concluiu o primeiro acesso. Verifique o e-mail de convite." } };
+          return { status: 403, jsonBody: { erro: "Sua conta ainda não concluiu o primeiro acesso. Verifique o e-mail de convite." } };
         }
         const ok = await conferirSenha(senha, doc.SenhaHash);
         if (!ok) return erroGenerico;
@@ -163,9 +163,9 @@ async function tratar(request, context) {
       // Papel/EmpresasVinculadas de alguem depois (ver usuarios.js).
       case "convidar": {
         const identidade = await resolverIdentidade(request);
-        if (!identidade) return { status: 401, jsonBody: { erro: "Nao autenticado." } };
+        if (!identidade) return { status: 401, jsonBody: { erro: "Não autenticado." } };
         if (identidade.papel !== PAPEIS.ADMIN && identidade.papel !== PAPEIS.CONSULTOR) {
-          return { status: 403, jsonBody: { erro: "So Administrador ou Consultor podem convidar usuarios." } };
+          return { status: 403, jsonBody: { erro: "Só Administradores ou Consultores podem convidar usuários." } };
         }
         const corpo = await request.json();
         const resultado = await criarOuConvidarUsuario(request, container, corpo);
@@ -177,16 +177,16 @@ async function tratar(request, context) {
       // --------------------------------------------------------------
       case "reenviar-convite": {
         const identidade = await resolverIdentidade(request);
-        if (!identidade) return { status: 401, jsonBody: { erro: "Nao autenticado." } };
+        if (!identidade) return { status: 401, jsonBody: { erro: "Não autenticado." } };
         if (identidade.papel !== PAPEIS.ADMIN && identidade.papel !== PAPEIS.CONSULTOR) {
-          return { status: 403, jsonBody: { erro: "So Administrador ou Consultor podem reenviar convites." } };
+          return { status: 403, jsonBody: { erro: "Só Administradores ou Consultores podem reenviar convites." } };
         }
         const corpo = await request.json();
         const email = normalizarEmail(corpo.Email);
         const doc = await buscarUsuarioPorEmail(container, email);
-        if (!doc) return { status: 404, jsonBody: { erro: "Usuario nao encontrado." } };
+        if (!doc) return { status: 404, jsonBody: { erro: "Usuário não encontrado." } };
         if (doc.StatusConta === "Ativo") {
-          return { status: 400, jsonBody: { erro: "Este usuario ja concluiu o primeiro acesso - use 'Esqueci minha senha' na tela de login em vez de reenviar convite." } };
+          return { status: 400, jsonBody: { erro: "Este usuário já concluiu o primeiro acesso. Use “Esqueci minha senha” na tela de login em vez de reenviar convite." } };
         }
         const { link, avisoEmail } = await enviarConvite(request, container, doc, { reenvio: true });
         return { status: 200, jsonBody: { linkConvite: link, avisoEmail } };
@@ -198,13 +198,13 @@ async function tratar(request, context) {
         const email = normalizarEmail(corpo.Email);
         const tokenBruto = String(corpo.Token || "");
         const novaSenha = String(corpo.NovaSenha || "");
-        if (!email || !tokenBruto) return { status: 400, jsonBody: { erro: "Link invalido." } };
+        if (!email || !tokenBruto) return { status: 400, jsonBody: { erro: "Link inválido." } };
         if (!senhaValida(novaSenha)) return { status: 400, jsonBody: { erro: "A senha precisa ter pelo menos 8 caracteres." } };
 
         const doc = await buscarUsuarioPorEmail(container, email);
-        if (!doc || !doc.TokenConviteHash) return { status: 400, jsonBody: { erro: "Link invalido ou ja utilizado." } };
-        if (tokenExpirado(doc.TokenConviteExpira)) return { status: 400, jsonBody: { erro: "Este link expirou. Peca a um Administrador para reenviar o convite." } };
-        if (!tokensIguais(hashToken(tokenBruto), doc.TokenConviteHash)) return { status: 400, jsonBody: { erro: "Link invalido ou ja utilizado." } };
+        if (!doc || !doc.TokenConviteHash) return { status: 400, jsonBody: { erro: "Link inválido ou já utilizado." } };
+        if (tokenExpirado(doc.TokenConviteExpira)) return { status: 400, jsonBody: { erro: "Este link expirou. Peça a um Administrador para reenviar o convite." } };
+        if (!tokensIguais(hashToken(tokenBruto), doc.TokenConviteHash)) return { status: 400, jsonBody: { erro: "Link inválido ou já utilizado." } };
 
         doc.SenhaHash = await gerarHashSenha(novaSenha);
         doc.StatusConta = "Ativo";
@@ -226,7 +226,7 @@ async function tratar(request, context) {
       case "esqueci-senha": {
         const corpo = await request.json();
         const email = normalizarEmail(corpo.Email);
-        const respostaGenerica = { status: 200, jsonBody: { ok: true, mensagem: "Se este e-mail estiver cadastrado, voce vai receber um link para redefinir a senha." } };
+        const respostaGenerica = { status: 200, jsonBody: { ok: true, mensagem: "Se este e-mail estiver cadastrado, você vai receber um link para redefinir a senha." } };
         if (!email) return respostaGenerica;
 
         const doc = await buscarUsuarioPorEmail(container, email);
@@ -239,7 +239,7 @@ async function tratar(request, context) {
 
         const link = montarLink(request, "redefinir-senha", doc.Email, reset.tokenBruto);
         try {
-          await enviarEmail({ para: doc.Email, assunto: `Redefinicao de senha - ${NOME_APP}`, htmlCorpo: modeloRedefinicao({ nomeApp: NOME_APP, link }) });
+          await enviarEmail({ para: doc.Email, assunto: `Redefinição de senha – ${NOME_APP}`, htmlCorpo: modeloRedefinicao({ nomeApp: NOME_APP, link }) });
         } catch (erro) {
           context.error("Falha ao enviar e-mail de redefinicao de senha", erro);
         }
@@ -252,13 +252,13 @@ async function tratar(request, context) {
         const email = normalizarEmail(corpo.Email);
         const tokenBruto = String(corpo.Token || "");
         const novaSenha = String(corpo.NovaSenha || "");
-        if (!email || !tokenBruto) return { status: 400, jsonBody: { erro: "Link invalido." } };
+        if (!email || !tokenBruto) return { status: 400, jsonBody: { erro: "Link inválido." } };
         if (!senhaValida(novaSenha)) return { status: 400, jsonBody: { erro: "A senha precisa ter pelo menos 8 caracteres." } };
 
         const doc = await buscarUsuarioPorEmail(container, email);
-        if (!doc || !doc.TokenResetHash) return { status: 400, jsonBody: { erro: "Link invalido ou ja utilizado." } };
-        if (tokenExpirado(doc.TokenResetExpira)) return { status: 400, jsonBody: { erro: "Este link expirou. Peca um novo em 'Esqueci minha senha'." } };
-        if (!tokensIguais(hashToken(tokenBruto), doc.TokenResetHash)) return { status: 400, jsonBody: { erro: "Link invalido ou ja utilizado." } };
+        if (!doc || !doc.TokenResetHash) return { status: 400, jsonBody: { erro: "Link inválido ou já utilizado." } };
+        if (tokenExpirado(doc.TokenResetExpira)) return { status: 400, jsonBody: { erro: "Este link expirou. Peça um novo em “Esqueci minha senha”." } };
+        if (!tokensIguais(hashToken(tokenBruto), doc.TokenResetHash)) return { status: 400, jsonBody: { erro: "Link inválido ou já utilizado." } };
 
         doc.SenhaHash = await gerarHashSenha(novaSenha);
         delete doc.TokenResetHash;
@@ -283,25 +283,25 @@ async function tratar(request, context) {
       case "bootstrap": {
         const segredoEsperado = process.env.SETUP_SECRET;
         if (!segredoEsperado) {
-          return { status: 500, jsonBody: { erro: "SETUP_SECRET nao configurado nas Configuracoes do aplicativo." } };
+          return { status: 500, jsonBody: { erro: "SETUP_SECRET não configurado nas Configurações do aplicativo." } };
         }
         const corpo = await request.json();
         const email = normalizarEmail(corpo.Email);
         const segredoRecebido = String(corpo.SegredoConfiguracao || "");
         if (!tokensIguais(hashToken(segredoRecebido), hashToken(segredoEsperado))) {
-          return { status: 403, jsonBody: { erro: "Segredo de configuracao invalido." } };
+          return { status: 403, jsonBody: { erro: "Segredo de configuração inválido." } };
         }
         const doc = await buscarUsuarioPorEmail(container, email);
-        if (!doc) return { status: 404, jsonBody: { erro: `Nenhum usuario com o e-mail ${email} encontrado em 'usuarios'. Cadastre-o primeiro (Cosmos DB) ou peca pro Claude te ajudar.` } };
+        if (!doc) return { status: 404, jsonBody: { erro: `Nenhum usuário com o e-mail ${email} encontrado na coleção “usuarios”. Cadastre-o primeiro (Cosmos DB) ou peça ajuda ao Claude.` } };
         if (doc.SenhaHash) {
-          return { status: 400, jsonBody: { erro: "Este usuario ja tem senha definida - use 'Esqueci minha senha' na tela de login em vez do bootstrap." } };
+          return { status: 400, jsonBody: { erro: "Este usuário já tem senha definida. Use “Esqueci minha senha” na tela de login em vez do bootstrap." } };
         }
         const { link, avisoEmail } = await enviarConvite(request, container, doc, { reenvio: false });
         return { status: 200, jsonBody: { linkConvite: link, avisoEmail } };
       }
 
       default:
-        return { status: 404, jsonBody: { erro: `Acao de autenticacao desconhecida: ${acao}` } };
+        return { status: 404, jsonBody: { erro: `Ação de autenticação desconhecida: ${acao}` } };
     }
   } catch (erro) {
     context.error(`Erro em /api/auth/${acao}`, erro);

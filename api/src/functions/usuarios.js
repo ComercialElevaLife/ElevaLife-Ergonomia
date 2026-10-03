@@ -31,12 +31,12 @@ async function tratar(request, context) {
     identidade = await resolverIdentidade(request);
   } catch (erro) {
     context.error("Falha ao resolver identidade em /api/usuarios", erro);
-    return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissoes." } };
+    return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissões." } };
   }
-  if (!identidade) return { status: 401, jsonBody: { erro: "Nao autenticado." } };
+  if (!identidade) return { status: 401, jsonBody: { erro: "Não autenticado." } };
   const podeGerenciar = identidade.papel === PAPEIS.ADMIN || identidade.papel === PAPEIS.CONSULTOR;
   if (!podeGerenciar) {
-    return { status: 403, jsonBody: { erro: "So Administrador ou Consultor podem gerenciar usuarios." } };
+    return { status: 403, jsonBody: { erro: "Só Administradores ou Consultores podem gerenciar usuários." } };
   }
 
   const container = obterContainer("usuarios");
@@ -65,15 +65,15 @@ async function tratar(request, context) {
 
       case "PUT": {
         if (identidade.papel !== PAPEIS.ADMIN) {
-          return { status: 403, jsonBody: { erro: "So Administrador pode alterar papel/empresas de um usuario." } };
+          return { status: 403, jsonBody: { erro: "Só Administrador pode alterar papel/empresas de um usuário." } };
         }
-        if (!id) return { status: 400, jsonBody: { erro: "Id e obrigatorio para atualizar." } };
+        if (!id) return { status: 400, jsonBody: { erro: "Id é obrigatório para atualizar." } };
         const corpo = await request.json();
         if (corpo.Papel && !PAPEIS_VALIDOS.has(corpo.Papel)) {
-          return { status: 400, jsonBody: { erro: `Papel invalido. Use um de: ${Array.from(PAPEIS_VALIDOS).join(", ")}.` } };
+          return { status: 400, jsonBody: { erro: `Papel inválido. Use um de: ${Array.from(PAPEIS_VALIDOS).join(", ")}.` } };
         }
         const { resource: existente } = await container.item(id, id).read();
-        if (!existente) return { status: 404, jsonBody: { erro: "Nao encontrado." } };
+        if (!existente) return { status: 404, jsonBody: { erro: "Não encontrado." } };
         // Nunca deixar o corpo da requisicao sobrescrever SenhaHash/tokens -
         // essa rota so mexe em Papel/EmpresasVinculadas.
         const doc = Object.assign({}, existente, { Papel: corpo.Papel || existente.Papel, EmpresasVinculadas: Array.isArray(corpo.EmpresasVinculadas) ? corpo.EmpresasVinculadas : existente.EmpresasVinculadas, id });
@@ -83,15 +83,15 @@ async function tratar(request, context) {
 
       case "DELETE": {
         if (identidade.papel !== PAPEIS.ADMIN) {
-          return { status: 403, jsonBody: { erro: "So Administrador pode excluir o acesso de um usuario." } };
+          return { status: 403, jsonBody: { erro: "Só Administrador pode excluir o acesso de um usuário." } };
         }
-        if (!id) return { status: 400, jsonBody: { erro: "Id e obrigatorio para excluir." } };
+        if (!id) return { status: 400, jsonBody: { erro: "Id é obrigatório para excluir." } };
         await container.item(id, id).delete().catch(() => null);
         return { status: 204 };
       }
 
       default:
-        return { status: 405, jsonBody: { erro: "Metodo nao suportado." } };
+        return { status: 405, jsonBody: { erro: "Método não suportado." } };
     }
   } catch (erro) {
     context.error("Erro em /api/usuarios", erro);

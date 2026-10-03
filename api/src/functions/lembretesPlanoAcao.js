@@ -209,11 +209,11 @@ const ESTAGIOS_TESTE = ["atribuida", "antes30", "vencimento", "atraso", "atraso3
 function acaoFicticia() {
   const hoje = new Date().toISOString().slice(0, 10);
   return {
-    Cliente: "Cliente Teste (ficticio)",
+    Cliente: "Cliente Teste (fictício)",
     Setor: "Setor Teste",
     "Posto Trabalho": "Posto Teste",
-    "Acao Recomendada": "Acao ficticia para teste dos e-mails do S.I.G.E",
-    "Responsavel Acao": "Responsavel Teste",
+    "Acao Recomendada": "Ação fictícia para teste dos e-mails do S.I.G.E.",
+    "Responsavel Acao": "Responsável Teste",
     "Dt Programada": hoje,
   };
 }
@@ -239,7 +239,7 @@ async function executarTeste(destinatarios, context) {
   const resultados = [];
   for (const e of envios) {
     if (e.especial) {
-      const assunto = e.especial === "convite" ? `[TESTE] Convite para o ${NOME_APP}` : `[TESTE] Redefinicao de senha - ${NOME_APP}`;
+      const assunto = e.especial === "convite" ? `[TESTE] Convite para o ${NOME_APP}` : `[TESTE] Redefinição de senha – ${NOME_APP}`;
       const htmlCorpo = e.especial === "convite"
         ? modeloConvite({ nomeApp: NOME_APP, link: linkFicticio })
         : modeloRedefinicao({ nomeApp: NOME_APP, link: linkFicticio });
@@ -278,9 +278,9 @@ async function lerDestinatariosTeste(request) {
   }
   const lista = Array.isArray(corpo.para) ? corpo.para : [];
   const limpos = [...new Set(lista.map((x) => String(x || "").trim().toLowerCase()).filter(Boolean))];
-  if (limpos.length === 0 || limpos.length > 5) return { erro: "Informe de 1 a 5 enderecos em \"para\"." };
+  if (limpos.length === 0 || limpos.length > 5) return { erro: "Informe de 1 a 5 endereços em \"para\"." };
   const invalidos = limpos.filter((x) => !/^[^@\s]+@elevalife\.com\.br$/.test(x));
-  if (invalidos.length) return { erro: `So enderecos ${DOMINIO_TESTE} sao aceitos no modo teste: ${invalidos.join(", ")}` };
+  if (invalidos.length) return { erro: `Só endereços ${DOMINIO_TESTE} são aceitos no modo teste: ${invalidos.join(", ")}` };
   return { lista: limpos };
 }
 
@@ -352,10 +352,10 @@ async function tratar(request, context) {
   }
   const esperada = process.env.LEMBRETES_JOB_KEY;
   if (!esperada) {
-    return { status: 503, jsonBody: { erro: "LEMBRETES_JOB_KEY nao configurada no Static Web App." } };
+    return { status: 503, jsonBody: { erro: "LEMBRETES_JOB_KEY não configurada no Static Web App." } };
   }
   if (!chaveConfere(request.headers.get("x-job-key"), esperada)) {
-    return { status: 401, jsonBody: { erro: "Chave do job invalida." } };
+    return { status: 401, jsonBody: { erro: "Chave do job inválida." } };
   }
   if (request.query && request.query.get("simular") === "1") {
     const dias = Math.min(Math.max(parseInt(request.query.get("dias"), 10) || 90, 0), 365);
@@ -363,7 +363,7 @@ async function tratar(request, context) {
       return { status: 200, jsonBody: await executarSimulacao(dias, context) };
     } catch (erro) {
       context.error("Falha na simulacao de lembretes", erro);
-      return { status: 500, jsonBody: { erro: "Falha na simulacao." } };
+      return { status: 500, jsonBody: { erro: "Falha na simulação." } };
     }
   }
   if (request.query && request.query.get("teste") === "1") {

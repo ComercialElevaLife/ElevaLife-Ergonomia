@@ -39,7 +39,7 @@ function variaveisObrigatorias() {
   if (!clientSecret) faltando.push("GRAPH_CLIENT_SECRET");
   if (!caixaEnvio) faltando.push("GRAPH_CAIXA_ENVIO");
   if (faltando.length) {
-    throw new Error(`Envio de e-mail nao configurado - falta(m) ${faltando.join(", ")} nas Configuracoes do aplicativo.`);
+    throw new Error(`Envio de e-mail não configurado: falta(m) ${faltando.join(", ")} nas Configurações do aplicativo.`);
   }
   return { tenantId, clientId, clientSecret, caixaEnvio };
 }
@@ -138,7 +138,7 @@ function modeloRedefinicao({ nomeApp, link }) {
           <a href="${link}" style="background:#5c1a2b;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:14.5px;display:inline-block">Redefinir minha senha</a>
         </p>
         <p style="font-size:12.5px;color:#7a6a6a;line-height:1.6">Se o botão não funcionar, copie e cole este link no navegador:<br>${link}</p>
-        <p style="font-size:12.5px;color:#7a6a6a;line-height:1.6">Este link expira em 2 horas. Se você não pediu essa redefinição, pode ignorar este e-mail - sua senha continua a mesma.</p>
+        <p style="font-size:12.5px;color:#7a6a6a;line-height:1.6">Este link expira em 2 horas. Se você não pediu essa redefinição, pode ignorar este e-mail; sua senha continua a mesma.</p>
       </div>
     </div>`;
 }
@@ -170,46 +170,46 @@ function formatarDataBR(isoOuData) {
 const ESTAGIOS_PLANO_ACAO = {
   atribuida: {
     cor: "#5c1a2b",
-    assunto: (a) => `Nova acao sob sua responsabilidade - ${a.Cliente}`,
-    titulo: "Nova acao do Plano de Acao atribuida a voce",
-    mensagem: (a) => `Voce foi definido(a) como responsavel por uma nova acao no Plano de Acao de <strong>${a.Cliente}</strong>.`,
+    assunto: (a) => `Nova ação sob sua responsabilidade – ${a.Cliente}`,
+    titulo: "Nova ação do Plano de Ação atribuída a você",
+    mensagem: (a) => `Você foi definido(a) como responsável por uma nova ação no Plano de Ação de <strong>${a.Cliente}</strong>.`,
   },
   antes30: {
     cor: "#8a6d1a",
-    assunto: (a) => `Lembrete: acao vence em breve - ${a.Cliente}`,
-    titulo: "Uma acao sob sua responsabilidade vence em ate 30 dias",
-    mensagem: (a) => `A acao abaixo, do Plano de Acao de <strong>${a.Cliente}</strong>, tem prazo programado para <strong>${formatarDataBR(a["Dt Programada"])}</strong>.`,
+    assunto: (a) => `Lembrete: ação vence em breve – ${a.Cliente}`,
+    titulo: "Uma ação sob sua responsabilidade vence em até 30 dias",
+    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, tem prazo programado para <strong>${formatarDataBR(a["Dt Programada"])}</strong>.`,
   },
   vencimento: {
     cor: "#8a6d1a",
-    assunto: (a) => `Vence hoje: acao do Plano de Acao - ${a.Cliente}`,
-    titulo: "Uma acao sob sua responsabilidade vence hoje",
-    mensagem: (a) => `A Dt Programada da acao abaixo, do Plano de Acao de <strong>${a.Cliente}</strong>, e <strong>hoje (${formatarDataBR(a["Dt Programada"])})</strong>.`,
+    assunto: (a) => `Vence hoje: ação do Plano de Ação – ${a.Cliente}`,
+    titulo: "Uma ação sob sua responsabilidade vence hoje",
+    mensagem: (a) => `A data programada da ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, é <strong>hoje (${formatarDataBR(a["Dt Programada"])})</strong>.`,
   },
   atraso: {
     cor: "#a32020",
-    assunto: (a) => `Acao em atraso - ${a.Cliente}`,
-    titulo: "Uma acao sob sua responsabilidade esta em atraso",
-    mensagem: (a) => `A acao abaixo, do Plano de Acao de <strong>${a.Cliente}</strong>, passou da Dt Programada (${formatarDataBR(a["Dt Programada"])}) sem Dt Conclusao registrada.`,
+    assunto: (a) => `Ação em atraso – ${a.Cliente}`,
+    titulo: "Uma ação sob sua responsabilidade está em atraso",
+    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, passou da data programada (${formatarDataBR(a["Dt Programada"])}) sem data de conclusão registrada.`,
   },
   atraso30: {
     cor: "#a32020",
-    assunto: (a) => `Acao com 30 dias de atraso - ${a.Cliente}`,
-    titulo: "Uma acao sob sua responsabilidade esta ha 30 dias em atraso",
-    mensagem: (a) => `A acao abaixo, do Plano de Acao de <strong>${a.Cliente}</strong>, completou 30 dias de atraso (Dt Programada: ${formatarDataBR(a["Dt Programada"])}).`,
+    assunto: (a) => `Ação com 30 dias de atraso – ${a.Cliente}`,
+    titulo: "Uma ação sob sua responsabilidade está há 30 dias em atraso",
+    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, completou 30 dias de atraso (data programada: ${formatarDataBR(a["Dt Programada"])}).`,
   },
   semanal: {
     cor: "#a32020",
-    assunto: (a) => `[Lembrete semanal] Acao em atraso - ${a.Cliente}`,
-    titulo: "Lembrete semanal: acao continua em atraso",
-    mensagem: (a) => `A acao abaixo, do Plano de Acao de <strong>${a.Cliente}</strong>, continua em atraso (Dt Programada: ${formatarDataBR(a["Dt Programada"])}).`,
+    assunto: (a) => `[Lembrete semanal] Ação em atraso – ${a.Cliente}`,
+    titulo: "Lembrete semanal: ação continua em atraso",
+    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, continua em atraso (data programada: ${formatarDataBR(a["Dt Programada"])}).`,
   },
 };
 
 function modeloPlanoAcao({ nomeApp, estagio, acao, paraAdmin }) {
   const cfg = ESTAGIOS_PLANO_ACAO[estagio];
   const linhaAdmin = paraAdmin
-    ? `<p style="font-size:12.5px;color:#7a6a6a;line-height:1.6">Copia enviada a voce como Administrador do ${nomeApp}, porque esta acao esta em atraso.</p>`
+    ? `<p style="font-size:12.5px;color:#7a6a6a;line-height:1.6">Cópia enviada a você como Administrador do ${nomeApp}, porque esta ação está em atraso.</p>`
     : "";
   return `
     <div style="font-family:Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#2a1a1a">
@@ -223,12 +223,12 @@ function modeloPlanoAcao({ nomeApp, estagio, acao, paraAdmin }) {
         <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px">
           <tr><td style="padding:4px 0;color:#7a6a6a">Cliente</td><td style="padding:4px 0">${acao.Cliente || "-"}</td></tr>
           <tr><td style="padding:4px 0;color:#7a6a6a">Setor / Posto</td><td style="padding:4px 0">${acao.Setor || "-"} / ${acao["Posto Trabalho"] || "-"}</td></tr>
-          <tr><td style="padding:4px 0;color:#7a6a6a">Acao Recomendada</td><td style="padding:4px 0">${acao["Acao Recomendada"] || "-"}</td></tr>
-          <tr><td style="padding:4px 0;color:#7a6a6a">Responsavel</td><td style="padding:4px 0">${acao["Responsavel Acao"] || "-"}</td></tr>
-          <tr><td style="padding:4px 0;color:#7a6a6a">Dt Programada</td><td style="padding:4px 0">${formatarDataBR(acao["Dt Programada"])}</td></tr>
+          <tr><td style="padding:4px 0;color:#7a6a6a">Ação recomendada</td><td style="padding:4px 0">${acao["Acao Recomendada"] || "-"}</td></tr>
+          <tr><td style="padding:4px 0;color:#7a6a6a">Responsável</td><td style="padding:4px 0">${acao["Responsavel Acao"] || "-"}</td></tr>
+          <tr><td style="padding:4px 0;color:#7a6a6a">Data programada</td><td style="padding:4px 0">${formatarDataBR(acao["Dt Programada"])}</td></tr>
         </table>
         ${linhaAdmin}
-        <p style="font-size:12.5px;color:#7a6a6a;line-height:1.6">Acesse o ${nomeApp} (aba Registro &gt; Plano de Acao) para ver o historico completo e marcar a Dt Conclusao quando a acao for concluida.</p>
+        <p style="font-size:12.5px;color:#7a6a6a;line-height:1.6">Acesse o ${nomeApp} (aba Registro &gt; Plano de Ação) para ver o histórico completo e registrar a data de conclusão quando a ação for concluída.</p>
       </div>
     </div>`;
 }
