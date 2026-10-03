@@ -1288,3 +1288,21 @@ publicados em produção:
   nome e da Matriz de Risco que já existiam. Todos os campos novos são
   opcionais, então os clientes já cadastrados antes continuam funcionando
   sem precisar preencher nada de novo.
+- **Notificações do Plano de Ação** (02–03/10/2026) — e-mail ao responsável
+  no momento em que uma ação é atribuída (POST de `planoAcao`), sino de
+  avisos no topo do app (calculado no front) e lembretes periódicos por
+  e-mail: até 30 dias antes da Dt Programada, no dia do vencimento, ao
+  entrar em atraso, com 30 dias de atraso e, a partir daí, semanalmente —
+  os três estágios de atraso também vão, em cópia, para os Administradores.
+  Cada estágio é enviado uma vez só (controle no campo interno `_notif`).
+  **Como o lembrete diário é disparado**: as Functions gerenciadas do
+  Static Web App só aceitam gatilho HTTP (não rodam `app.timer()`), então o
+  job é a rota `POST /api/jobs/lembretes-plano-acao`, protegida pelo
+  cabeçalho `x-job-key` (= Application Setting `LEMBRETES_JOB_KEY` do Static
+  Web App), e quem chama todo dia às 08:00 (Brasília) é o workflow
+  `.github/workflows/lembretes-plano-acao.yml`, com um segredo de mesmo nome
+  no repositório. Sem a Application Setting a rota responde `503`; com
+  chave errada, `401`. Dá para rodar na mão pelo botão "Run workflow" da aba
+  Actions do GitHub. Observação: o GitHub pausa workflows agendados depois de
+  60 dias sem nenhum commit no repositório — se isso acontecer, basta
+  reativar na aba Actions.

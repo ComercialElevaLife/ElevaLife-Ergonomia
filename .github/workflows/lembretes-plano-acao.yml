@@ -1,0 +1,39 @@
+# S.I.G.E - dispara 1x por dia o job de lembretes do Plano de Acao.
+# As Functions gerenciadas do Static Web App so aceitam gatilho HTTP (nao
+# rodam app.timer), entao o agendamento fica aqui. Ver
+# api/src/functions/lembretesPlanoAcao.js.
+#
+# Precisa de:
+#   - segredo do repositorio LEMBRETES_JOB_KEY (mesmo valor da Application
+#     Setting LEMBRETES_JOB_KEY do Static Web App)
+#   - opcional: variavel do repositorio SIGE_URL (ex.: quando o dominio
+#     proprio entrar no ar); sem ela, usa o endereco atual do Azure.
+#
+# Rodar 2x no mesmo dia nao duplica e-mail (controle por "_notif").
+
+name: Lembretes do Plano de Acao
+
+on:
+  schedule:
+    - cron: "0 11 * * *" # 11:00 UTC = 08:00 Brasilia
+  workflow_dispatch: {}
+
+jobs:
+  disparar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Chamar POST /api/jobs/lembretes-plano-acao
+        env:
+          SIGE_URL: ${{ vars.SIGE_URL || 'https://witty-sea-0b1e5c110.6.azurestaticapps.net' }}
+          LEMBRETES_JOB_KEY: ${{ secrets.LEMBRETES_JOB_KEY }}
+        run: |
+          if [ -z "$LEMBRETES_JOB_KEY" ]; then
+            echo "::error::Segredo LEMBRETES_JOB_KEY nao configurado no repositorio."
+            exit 1
+          fi
+          curl --fail-with-body -sS -X POST \
+            --retry 3 --retry-delay 20 --retry-all-errors --max-time 240 \
+            -H "x-job-key: $LEMBRETES_JOB_KEY" \
+            "$SIGE_URL/api/jobs/lembretes-plano-acao"
+          echo

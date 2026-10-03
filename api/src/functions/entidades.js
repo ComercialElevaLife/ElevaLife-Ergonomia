@@ -27,6 +27,7 @@ const rotaArquivos = require("./arquivos");
 const rotaApiKeysAdmin = require("./apiKeysAdmin");
 const rotaAuth = require("./auth");
 const rotaCnpj = require("./cnpj");
+const rotaJobs = require("./lembretesPlanoAcao");
 const { enviarEmail, modeloPlanoAcao } = require("../shared/email");
 
 const NOME_APP = "S.I.G.E";
@@ -75,6 +76,10 @@ const ROTAS_ESPECIAIS = {
   // Cadastro de Cliente pra auto-preencher Razao Social/endereco/CNAE/
   // telefone a partir do CNPJ (ver api/src/functions/cnpj.js).
   cnpj: rotaCnpj.tratar,
+  // POST /api/jobs/lembretes-plano-acao - job diario de lembretes do Plano
+  // de Acao, chamado pelo GitHub Actions com cabecalho x-job-key (ver
+  // api/src/functions/lembretesPlanoAcao.js).
+  jobs: rotaJobs.tratar,
 };
 
 async function lerPorId(container, id) {

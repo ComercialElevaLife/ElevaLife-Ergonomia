@@ -233,4 +233,4 @@ function modeloPlanoAcao({ nomeApp, estagio, acao, paraAdmin }) {
     </div>`;
 }
 
-module.exports = { enviarEmail, modeloConvite, modeloRedefinicao, modeloPlanoAcao, formatarDataBR };
+module.exports = { enviarEmail, modeloConvite, modeloRedefinicao, modeloPlanoAcao, formatarDataBR, ESTAGIOS_PLANO_ACAO };

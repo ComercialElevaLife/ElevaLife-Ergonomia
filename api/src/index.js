@@ -9,12 +9,12 @@
    separadas nunca teve suas rotas reconhecidas pelo proxy do SWA, entao
    um unico entry point evita esse problema por completo.
 
-   lembretesPlanoAcao.js registra um app.timer() (nao HTTP - roda sozinho,
-   1x por dia) com os lembretes periodicos do Plano de Acao - ver comentario
-   no topo daquele arquivo.
+   Os lembretes periodicos do Plano de Acao (lembretesPlanoAcao.js) tambem
+   passam por esse entry point (POST /api/jobs/lembretes-plano-acao) - as
+   Functions gerenciadas do SWA nao rodam app.timer(); quem dispara 1x por
+   dia e o GitHub Actions. Ver comentario no topo daquele arquivo.
    ========================================================================== */
 
 "use strict";
 
 require("./functions/entidades");
-require("./functions/lembretesPlanoAcao");

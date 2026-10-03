@@ -1,6 +1,6 @@
 /* ==========================================================================
    BI Ergonomia - ElevaLife
-   Job diario (timer trigger) de notificacoes do Plano de Acao. Pedido do
+   Job diario de notificacoes do Plano de Acao. Pedido do
    Leo 02/10/2026: alem do e-mail de "acao atribuida" (disparado na hora,
    ver entidades.js), o Plano de Acao precisa de lembretes periodicos:
 
@@ -27,13 +27,29 @@
    generico simplesmente ignora/preserva esse campo ao salvar).
    Acao concluida (Dt Conclusao preenchida) para de receber qualquer
    lembrete - ver filtro da query abaixo.
+
+   COMO E DISPARADO (correcao 03/10/2026): a versao anterior usava
+   app.timer(), mas as Functions GERENCIADAS do Static Web App so aceitam
+   gatilho HTTP (doc. Microsoft "API support in Azure Static Web Apps with
+   Azure Functions" > Constraints) - o deploy passava, mas o timer nunca
+   rodava. Agora o job e uma rota HTTP, despachada por entidades.js/
+   ROTAS_ESPECIAIS (mesmo mecanismo de "me"/"cnpj" - um unico app.http()):
+
+     POST /api/jobs/lembretes-plano-acao
+     cabecalho  x-job-key: <valor da Application Setting LEMBRETES_JOB_KEY>
+
+   e quem chama 1x por dia (08:00 Brasilia) e o workflow agendado do GitHub
+   Actions .github/workflows/lembretes-plano-acao.yml (segredo do repo com o
+   mesmo nome, LEMBRETES_JOB_KEY). Sem a Application Setting configurada a
+   rota responde 503; chave errada/ausente responde 401. Rodar 2x no mesmo
+   dia nao duplica e-mail: cada estagio fica marcado em "_notif".
    ========================================================================== */
 
 "use strict";
 
-const { app } = require("@azure/functions");
+const crypto = require("crypto");
 const { obterContainer } = require("../shared/cosmos");
-const { enviarEmail, modeloPlanoAcao } = require("../shared/email");
+const { enviarEmail, modeloPlanoAcao, ESTAGIOS_PLANO_ACAO } = require("../shared/email");
 
 const NOME_APP = "S.I.G.E";
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
@@ -73,7 +89,7 @@ async function enviarEstagio({ estagio, acao, paraResponsavel, emailsAdmin, ehEs
     envios.push(
       enviarEmail({
         para: paraResponsavel,
-        assunto: `${acao.Cliente || ""} - ${estagio}`.trim(),
+        assunto: ESTAGIOS_PLANO_ACAO[estagio].assunto(acao),
         htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio, acao, paraAdmin: false }),
       })
     );
@@ -83,7 +99,7 @@ async function enviarEstagio({ estagio, acao, paraResponsavel, emailsAdmin, ehEs
       envios.push(
         enviarEmail({
           para: email,
-          assunto: `[Admin] ${acao.Cliente || ""} - acao em atraso`,
+          assunto: `[Admin] ${ESTAGIOS_PLANO_ACAO[estagio].assunto(acao)}`,
           htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio, acao, paraAdmin: true }),
         })
       );
@@ -96,7 +112,7 @@ async function enviarEstagio({ estagio, acao, paraResponsavel, emailsAdmin, ehEs
 
 async function processarAcao(container, acao, hojeMs, emailsAdmin, context) {
   const dtProgramadaMs = paraDataUTC(acao["Dt Programada"]);
-  if (dtProgramadaMs === null) return;
+  if (dtProgramadaMs === null) return false;
 
   const diffDias = diasEntre(dtProgramadaMs, hojeMs);
   const notif = Object.assign({}, acao._notif);
@@ -141,38 +157,57 @@ async function processarAcao(container, acao, hojeMs, emailsAdmin, context) {
       context.error(`Falha ao gravar _notif do Plano de Acao ${acao.id}`, erro);
     }
   }
+  return mudou;
 }
 
-async function tratar(myTimer, context) {
+async function executarLembretes(context) {
   const container = obterContainer("planoAcao");
   const hojeMs = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
 
-  let acoes = [];
-  let emailsAdmin = [];
-  try {
-    [acoes, emailsAdmin] = await Promise.all([buscarAcoesAbertas(container), buscarEmailsAdmin()]);
-  } catch (erro) {
-    context.error("Falha ao buscar Plano de Acao/Administradores para lembretes", erro);
-    return;
-  }
-
+  const [acoes, emailsAdmin] = await Promise.all([buscarAcoesAbertas(container), buscarEmailsAdmin()]);
   context.log(`Lembretes Plano de Acao: ${acoes.length} acao(oes) em aberto, ${emailsAdmin.length} administrador(es) ativo(s).`);
 
+  const resumo = { data: new Date(hojeMs).toISOString().slice(0, 10), acoesEmAberto: acoes.length, administradores: emailsAdmin.length, acoesNotificadas: 0, falhas: 0 };
   for (const acao of acoes) {
     try {
-      await processarAcao(container, acao, hojeMs, emailsAdmin, context);
+      if (await processarAcao(container, acao, hojeMs, emailsAdmin, context)) resumo.acoesNotificadas += 1;
     } catch (erro) {
+      resumo.falhas += 1;
       context.error(`Falha ao processar lembretes do Plano de Acao ${acao.id}`, erro);
     }
   }
+  return resumo;
 }
 
-// Agendamento NCRONTAB (6 campos: segundo minuto hora dia mes dia-semana) -
-// roda 1x por dia, 11:00 UTC = 08:00 (Brasilia, sem horario de verao desde
-// 2019). Horario comercial, antes do inicio do expediente.
-app.timer("lembretesPlanoAcao", {
-  schedule: "0 0 11 * * *",
-  handler: tratar,
-});
+// Comparacao em tempo constante (hash dos dois lados -> mesmo tamanho).
+function chaveConfere(recebida, esperada) {
+  const a = crypto.createHash("sha256").update(String(recebida || "")).digest();
+  const b = crypto.createHash("sha256").update(String(esperada)).digest();
+  return crypto.timingSafeEqual(a, b);
+}
 
-module.exports = { tratar };
+// POST /api/jobs/lembretes-plano-acao (despachado por entidades.js).
+async function tratar(request, context) {
+  if (request.params.id !== "lembretes-plano-acao") {
+    return { status: 404, jsonBody: { erro: "Job desconhecido." } };
+  }
+  if (request.method !== "POST") {
+    return { status: 405, jsonBody: { erro: "Use POST." } };
+  }
+  const esperada = process.env.LEMBRETES_JOB_KEY;
+  if (!esperada) {
+    return { status: 503, jsonBody: { erro: "LEMBRETES_JOB_KEY nao configurada no Static Web App." } };
+  }
+  if (!chaveConfere(request.headers.get("x-job-key"), esperada)) {
+    return { status: 401, jsonBody: { erro: "Chave do job invalida." } };
+  }
+  try {
+    const resumo = await executarLembretes(context);
+    return { status: 200, jsonBody: resumo };
+  } catch (erro) {
+    context.error("Falha ao executar lembretes do Plano de Acao", erro);
+    return { status: 500, jsonBody: { erro: "Falha ao executar lembretes." } };
+  }
+}
+
+module.exports = { tratar, executarLembretes };
