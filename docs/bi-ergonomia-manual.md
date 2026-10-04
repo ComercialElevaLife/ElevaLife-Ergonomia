@@ -1329,3 +1329,12 @@ publicados em produção:
   dicionário sem palavras ambíguas (ex.: "esta"/"está" ficam de fora).
   Palavra nova que apareça sem acento na tela: basta incluí-la no
   dicionário de `js/rotulos.js`.
+- **App instalável (PWA), passo 1** (04/10/2026) — o S.I.G.E. pode ser
+  instalado no celular ou tablet pelo Chrome ("Adicionar à tela inicial" /
+  "Instalar app") e abre em tela cheia, com ícone próprio
+  (`manifest.webmanifest`, ícones em `img/pwa/`). O `sw.js` guarda os
+  arquivos do site para abrir mesmo sem rede, mas sempre busca a versão nova
+  primeiro (deploy chega na hora); `/api/*` nunca passa pelo cache. Sem
+  internet, o app mostra a tela "Sem conexão com a internet" em vez dos
+  dados de exemplo. Coleta offline de dados (AEP em campo) é o passo 2; APK
+  (TWA) é o passo 4, depois do domínio próprio.

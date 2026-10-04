@@ -139,7 +139,13 @@
       const identidade = await resp.json();
       return { existe: true, identidade };
     } catch (e) {
-      return { existe: false, identidade: null };
+      // Falha de REDE (sem internet / sinal ruim em campo): no app publicado
+      // isso nunca pode cair nos dados ficticios de exemplo - vira a tela
+      // "Sem conexao" (ver configurarTelaAcesso em app.js). Fora da producao
+      // (preview/arquivo local) continua o comportamento antigo.
+      const producao = /azurestaticapps\.net$|elevalife/i.test(global.location ? global.location.hostname : "");
+      const semRede = global.navigator && global.navigator.onLine === false;
+      return { existe: false, identidade: null, offline: producao || semRede };
     }
   }
 
@@ -303,6 +309,10 @@
     // Microsoft") e configurarTelaAcesso() em app.js.
     if (deteccao.existe && deteccao.precisaLogin) {
       estado.telaAcesso = "login";
+    }
+
+    if (deteccao.offline) {
+      estado.telaAcesso = "offline";
     }
 
     estado.disponivel = false;

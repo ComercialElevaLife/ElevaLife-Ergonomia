@@ -2,14 +2,36 @@
   "routes": [
     {
       "route": "/api/*",
-      "allowedRoles": ["anonymous"]
+      "allowedRoles": [
+        "anonymous"
+      ]
+    },
+    {
+      "route": "/sw.js",
+      "headers": {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Service-Worker-Allowed": "/"
+      }
     }
   ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/api/*", "/css/*", "/js/*", "/data/*", "/docs/*", "*.{css,js,json,png,jpg,jpeg,svg,ico}"]
+    "exclude": [
+      "/api/*",
+      "/css/*",
+      "/js/*",
+      "/data/*",
+      "/docs/*",
+      "*.{css,js,json,png,jpg,jpeg,svg,ico}",
+      "/sw.js",
+      "/manifest.webmanifest",
+      "/img/*"
+    ]
   },
   "globalHeaders": {
     "Cache-Control": "no-cache, must-revalidate"
+  },
+  "mimeTypes": {
+    ".webmanifest": "application/manifest+json"
   }
 }

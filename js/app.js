@@ -6147,6 +6147,20 @@
       return;
     }
 
+    // Sem internet (ex.: tablet em campo sem sinal). O app abre (PWA, ver
+    // sw.js), mas os dados vêm da API - então avisa em vez de mostrar dados
+    // de exemplo. Coleta offline de verdade é o passo 2 do app.
+    if (modo === "offline") {
+      const h2 = document.createElement("h2");
+      h2.textContent = "Sem conexão com a internet";
+      const p = document.createElement("p");
+      p.textContent = "O S.I.G.E. precisa de internet para carregar e salvar os dados. Verifique o Wi-Fi ou os dados móveis e tente novamente.";
+      const btnNovamente = criarBotaoAcesso("btn-tentar-novamente-conexao", "Tentar novamente", "btn-entrar-microsoft", () => window.location.reload());
+      conteudo.append(h2, p, btnNovamente);
+      window.addEventListener("online", () => window.location.reload(), { once: true });
+      return;
+    }
+
     if (modo === "bloqueado") {
       const identidade = window.BI.DB.estado.identidade;
       const email = (identidade && identidade.email) || "";

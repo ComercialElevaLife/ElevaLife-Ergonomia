@@ -5,6 +5,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Montserrat+Alternates:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<!-- App instalável (PWA) - ver sw.js e manifest.webmanifest -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#5E2A30">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="S.I.G.E">
+<link rel="icon" type="image/png" sizes="192x192" href="img/pwa/icone-192.png">
+<link rel="apple-touch-icon" href="img/pwa/apple-touch-icon.png">
 
 <!-- Tela de carregamento - cobre a tela inteira do primeiro instante (sem
      "hidden": e' a primeira coisa que aparece, antes de qualquer JS rodar)
@@ -522,3 +531,11 @@
      relacao com a identidade visual dos 15 anos da ElevaLife. -->
 <script src="js/pdf-fonts.js"></script>
 <script src="js/app.js"></script>
+<script>
+  // App instalável (PWA): registra o service worker (ver sw.js).
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js").catch((e) => console.warn("Service worker não registrado:", e));
+    });
+  }
+</script>
