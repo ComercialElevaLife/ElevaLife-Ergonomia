@@ -59,6 +59,15 @@
     // em "Entrar com Microsoft") ou "bloqueado" (autenticado mas sem papel
     // liberado em /api/usuarios ainda). null = opera normalmente.
     telaAcesso: null,
+    // Coleta offline (passo 2 do app - ver js/offline.js e o bloco "Coleta
+    // offline" abaixo). offlineAgora = o app esta rodando sem internet (com a
+    // copia local dos dados); pendentes/problemas = itens na fila de envio.
+    offlineAgora: false,
+    sincronizando: false,
+    sessaoExpirada: false,
+    pendentes: 0,
+    problemas: 0,
+    cacheEm: null,
     colecoes: {
       mapaRisco: [], planoAcao: [], absenteismo: [], compativeis: [],
       cliente: [], unidade: [], setor: [], cargo: [], posto: [], atividade: [],
@@ -126,10 +135,20 @@
   // logar" (producao, usuario ainda sem sessao).
   async function detectarApi() {
     try {
-      const resp = await fetch("/api/me", {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
-      });
+      // Limite de 15 s: sinal ruim em campo nao pode deixar a tela de
+      // carregamento girando para sempre - estourou, trata como sem conexao.
+      const controle = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const relogio = controle ? setTimeout(() => controle.abort(), 15000) : null;
+      let resp;
+      try {
+        resp = await fetch("/api/me", {
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+          signal: controle ? controle.signal : undefined,
+        });
+      } finally {
+        if (relogio) clearTimeout(relogio);
+      }
       if (resp.status === 401) {
         return { existe: true, identidade: null, precisaLogin: true };
       }
@@ -190,6 +209,11 @@
   // de acesso) - limpa o cookie no servidor e recarrega a pagina, que volta
   // a detectar (sem sessao) e mostra a tela de login de novo.
   async function sairDaConta() {
+    if (filaCache.length && !global.confirm(
+      "Há " + filaCache.length + (filaCache.length === 1 ? " item" : " itens") +
+      " ainda não enviado(s) para o servidor. Eles continuam guardados neste aparelho e serão enviados quando você entrar de novo. Sair mesmo assim?"
+    )) return;
+    await limparCopiaLocal();
     try { await chamarAuth("logout", {}); } catch (e) { /* mesmo se falhar, recarrega */ }
     global.location.href = global.location.pathname;
   }
@@ -230,7 +254,8 @@
       // Os documentos que voltam da API usam "id" (minusculo, nativo do
       // Cosmos DB) - sem normalizar aqui, linha._id fica undefined e os
       // botoes Editar/Excluir ficam sempre desabilitados em producao.
-      estado.colecoes[chave] = documentos.map((doc) => Object.assign({ _id: doc.id }, doc));
+      estado.colecoes[chave] = sobreporPendentes(chave, documentos.map((doc) => Object.assign({ _id: doc.id }, doc)));
+      guardarCopiaLocal(chave, documentos);
       if (callbackAtualizacao) callbackAtualizacao(chave);
     } catch (erro) {
       console.error("BI Ergonomia - falha de rede ao carregar " + chave + ":", erro);
@@ -247,11 +272,405 @@
   }
 
   // --------------------------------------------------------------------
+  // Coleta offline (passo 2 do app Android/PWA - 04/10/2026)
+  //
+  // Objetivo: o tecnico coleta a AEP no tablet, em campo, SEM sinal.
+  //  - Copia local: toda vez que uma colecao e carregada da API, ela e
+  //    guardada no aparelho (IndexedDB - ver js/offline.js). Sem internet o
+  //    app abre com essa copia (inclusive o cadastro-mestre, que alimenta as
+  //    listas Cliente > Unidade > Setor > ...).
+  //  - Fila de envio: so a AEP (avaliacaoErgonomica + fatorRisco) grava sem
+  //    internet. O registro vai para a fila (com id gerado no aparelho) e
+  //    aparece na lista na hora, marcado "_pendente". Fotos anexadas offline
+  //    ficam no aparelho ("local:<id>") e sobem junto.
+  //  - Envio: automatico quando a internet volta (evento "online", a cada
+  //    30 s, ao abrir o app, botao "Enviar agora"), sempre na ordem em que
+  //    foi gravado. POST e idempotente (upsert por id) - reenviar nao duplica.
+  //  - Conflito (edicao de registro que ja existia): se o registro mudou no
+  //    servidor depois da copia que o aparelho tinha (_ts maior), NAO
+  //    sobrescreve sozinho: fica "conflito" e quem usa decide ("Enviar minha
+  //    versao" ou "Descartar"). Registro novo nunca tem conflito.
+  //  - Todo o resto (cadastros, usuarios, laudos, exclusoes) continua
+  //    exigindo internet e avisa com mensagem clara.
+  // --------------------------------------------------------------------
+
+  const OFFLINE_COLECOES = ["avaliacaoErgonomica", "fatorRisco"];
+  const MSG_PRECISA_INTERNET = "Sem conexão com a internet. Esta ação só funciona online — a Avaliação Ergonômica (AEP) e o Inventário de Riscos podem ser preenchidos sem internet.";
+
+  let filaCache = []; // espelho em memoria da fila (a verdade fica no IndexedDB)
+  const ouvintesFila = [];
+  const urlsLocais = new Map(); // id da foto local -> URL temporaria para exibir
+  let monitorIniciado = false;
+  let temporizadorSync = null;
+  let sincronizandoAgora = false;
+
+  function avisarFila() {
+    ouvintesFila.forEach((fn) => { try { fn(); } catch (e) { /* ouvinte nao pode derrubar o resto */ } });
+  }
+
+  function atualizarContagens() {
+    estado.pendentes = filaCache.length;
+    estado.problemas = filaCache.filter((e) => e.estado === "conflito" || e.estado === "erro").length;
+    avisarFila();
+  }
+
+  const offlineDisponivel = () => !!(global.BI && global.BI.Offline && global.BI.Offline.disponivel());
+
+  function semInternetAgora() {
+    return !!estado.offlineAgora || !!(global.navigator && global.navigator.onLine === false);
+  }
+
+  // fetch() so rejeita (TypeError) quando nao ha rede; erro HTTP nao conta.
+  function ehErroDeRede(erro) {
+    return !!erro && (erro instanceof TypeError || erro.name === "AbortError");
+  }
+
+  async function carregarFila() {
+    filaCache = [];
+    if (!offlineDisponivel()) return;
+    try {
+      filaCache = await global.BI.Offline.fila.listar();
+      const arquivos = await global.BI.Offline.todos("arquivos");
+      (arquivos || []).forEach((reg) => {
+        if (reg && reg.id && reg.blob && !urlsLocais.has(reg.id)) urlsLocais.set(reg.id, URL.createObjectURL(reg.blob));
+      });
+      global.BI.Offline.pedirPersistencia();
+    } catch (e) {
+      console.warn("S.I.G.E. - armazenamento local indisponível:", e);
+      filaCache = [];
+    }
+    atualizarContagens();
+  }
+
+  // Mostra por cima da lista da colecao os registros que ainda estao na fila.
+  function sobreporPendentes(chave, lista) {
+    const pend = filaCache.filter((e) => e.colecao === chave);
+    if (!pend.length) return lista;
+    const res = lista.slice();
+    pend.forEach((e) => {
+      const linha = Object.assign({}, e.dados, { id: e.id, _id: e.id, _pendente: true });
+      const i = res.findIndex((l) => l._id === e.id);
+      if (i >= 0) res[i] = Object.assign({}, res[i], linha);
+      else res.push(linha);
+    });
+    return res;
+  }
+
+  function guardarCopiaLocal(chave, documentos) {
+    if (!offlineDisponivel() || !estado.identidade || !estado.identidade.email) return;
+    global.BI.Offline.gravar("cache", estado.identidade.email + "|" + chave, { ts: Date.now(), docs: documentos }).catch(() => {});
+  }
+
+  function guardarIdentidadeLocal(identidade) {
+    if (!offlineDisponivel()) return;
+    global.BI.Offline.gravar("meta", "identidade", identidade).catch(() => {});
+  }
+
+  async function limparCopiaLocal() {
+    if (!offlineDisponivel()) return;
+    try {
+      await global.BI.Offline.limpar("cache");
+      await global.BI.Offline.apagar("meta", "identidade");
+    } catch (e) { /* tudo bem */ }
+  }
+
+  // Abre o app SEM internet usando a copia guardada da ultima vez que o
+  // aparelho esteve online e logado. Devolve false se nao houver copia.
+  async function abrirOfflineComCopia() {
+    if (!offlineDisponivel()) return false;
+    try {
+      const identidade = await global.BI.Offline.ler("meta", "identidade");
+      if (!identidade || !identidade.acessoLiberado || !identidade.email) return false;
+      const copias = {};
+      let achou = false;
+      let maisAntiga = null;
+      for (const chave of COLECOES) {
+        const c = await global.BI.Offline.ler("cache", identidade.email + "|" + chave);
+        if (c && Array.isArray(c.docs)) {
+          copias[chave] = c.docs;
+          achou = true;
+          maisAntiga = maisAntiga === null ? c.ts : Math.min(maisAntiga, c.ts);
+        }
+      }
+      if (!achou) return false;
+      estado.disponivel = true;
+      estado.somenteLeitura = false;
+      estado.modoApi = true;
+      estado.db = null;
+      estado.identidade = identidade;
+      estado.mensagemAcesso = null;
+      estado.offlineAgora = true;
+      estado.cacheEm = maisAntiga;
+      COLECOES.forEach((chave) => {
+        const docs = (copias[chave] || []).map((doc) => Object.assign({ _id: doc.id }, doc));
+        estado.colecoes[chave] = sobreporPendentes(chave, docs);
+        if (callbackAtualizacao) callbackAtualizacao(chave);
+      });
+      atualizarContagens();
+      return true;
+    } catch (e) {
+      console.warn("S.I.G.E. - não foi possível abrir com a cópia local:", e);
+      return false;
+    }
+  }
+
+  // ---- fotos/arquivos guardados no aparelho ----
+
+  function novoIdLocal() {
+    if (global.crypto && typeof global.crypto.randomUUID === "function") return global.crypto.randomUUID();
+    return "l" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  }
+
+  async function guardarArquivoLocal(colecaoChave, empresaId, arquivo) {
+    if (!offlineDisponivel()) throw new Error(MSG_PRECISA_INTERNET);
+    const idLocal = novoIdLocal();
+    try {
+      await global.BI.Offline.gravar("arquivos", idLocal, {
+        id: idLocal, blob: arquivo, nome: arquivo.name, tipo: arquivo.type, colecao: colecaoChave, empresaId,
+      });
+    } catch (e) {
+      throw new Error("Não foi possível guardar a foto neste aparelho (sem espaço?). Libere espaço e tente de novo.");
+    }
+    urlsLocais.set(idLocal, URL.createObjectURL(arquivo));
+    return { chave: "local:" + idLocal, nomeArquivo: arquivo.name, tamanho: arquivo.size };
+  }
+
+  function coletarArquivosLocais(no, saida) {
+    saida = saida || [];
+    if (Array.isArray(no)) no.forEach((x) => coletarArquivosLocais(x, saida));
+    else if (no && typeof no === "object") {
+      if (typeof no.chave === "string" && no.chave.indexOf("local:") === 0) saida.push(no);
+      Object.keys(no).forEach((k) => { if (k !== "chave") coletarArquivosLocais(no[k], saida); });
+    }
+    return saida;
+  }
+
+  async function apagarArquivoLocal(idLocal) {
+    try { await global.BI.Offline.apagar("arquivos", idLocal); } catch (e) { /* ok */ }
+    const url = urlsLocais.get(idLocal);
+    if (url) { try { URL.revokeObjectURL(url); } catch (e) { /* ok */ } urlsLocais.delete(idLocal); }
+  }
+
+  // ---- fila ----
+
+  async function enfileirar(colecaoChave, id, dados, forcarCriacao) {
+    if (!offlineDisponivel()) throw new Error(MSG_PRECISA_INTERNET);
+    const corpo = Object.assign({}, anexarEmpresaId(colecaoChave, dados));
+    delete corpo._id; delete corpo._pendente;
+    const criar = !!(forcarCriacao || !id);
+    const idFinal = id || novoIdLocal();
+    const existente = filaCache.find((e) => e.colecao === colecaoChave && e.id === idFinal);
+    try {
+      if (existente) {
+        // Editou de novo antes de enviar: so vale a ultima versao.
+        existente.dados = corpo;
+        existente.estado = "pendente";
+        existente.mensagem = null;
+        existente.forcar = false;
+        await global.BI.Offline.fila.atualizar(existente);
+      } else {
+        const linha = (estado.colecoes[colecaoChave] || []).find((l) => l._id === idFinal);
+        const nova = {
+          colecao: colecaoChave, id: idFinal, dados: corpo, criar,
+          baseTs: criar ? null : (linha && linha._ts) || null,
+          estado: "pendente", tentativas: 0, criadoEm: Date.now(),
+        };
+        nova.seq = await global.BI.Offline.fila.adicionar(nova);
+        filaCache.push(nova);
+      }
+    } catch (e) {
+      throw new Error("Não foi possível guardar neste aparelho (sem espaço?). Libere espaço e tente de novo.");
+    }
+    estado.colecoes[colecaoChave] = sobreporPendentes(colecaoChave, estado.colecoes[colecaoChave] || []);
+    if (callbackAtualizacao) callbackAtualizacao(colecaoChave);
+    atualizarContagens();
+    agendarSincronizacao(estado.offlineAgora ? 30000 : 2000);
+    return idFinal;
+  }
+
+  async function descartarEntrada(entrada) {
+    if (!entrada) return;
+    try {
+      coletarArquivosLocais(entrada.dados).forEach((item) => apagarArquivoLocal(item.chave.slice(6)));
+      await global.BI.Offline.fila.remover(entrada.seq);
+    } catch (e) { /* segue */ }
+    filaCache = filaCache.filter((e) => e.seq !== entrada.seq);
+    if (entrada.criar) {
+      estado.colecoes[entrada.colecao] = (estado.colecoes[entrada.colecao] || []).filter((l) => !(l._pendente && l._id === entrada.id));
+      if (callbackAtualizacao) callbackAtualizacao(entrada.colecao);
+    } else if (!semInternetAgora()) {
+      await recarregarColecaoApi(entrada.colecao);
+    }
+    atualizarContagens();
+  }
+
+  async function reenviarEntrada(seq, forcar) {
+    const entrada = filaCache.find((e) => e.seq === seq);
+    if (!entrada) return;
+    entrada.estado = "pendente";
+    entrada.mensagem = null;
+    entrada.forcar = !!forcar;
+    try { await global.BI.Offline.fila.atualizar(entrada); } catch (e) { /* segue */ }
+    atualizarContagens();
+    await sincronizar(true);
+  }
+
+  function agendarSincronizacao(ms) {
+    if (temporizadorSync) clearTimeout(temporizadorSync);
+    temporizadorSync = setTimeout(() => { temporizadorSync = null; sincronizar(false); }, ms == null ? 3000 : ms);
+  }
+
+  // Envia UMA entrada da fila. Devolve "ok", "problema" (segue para a
+  // proxima) ou "parar" (sem rede/sessao/servidor fora - tenta depois).
+  async function enviarEntrada(entrada) {
+    const O = global.BI.Offline;
+    const salvarEntrada = () => O.fila.atualizar(entrada).catch(() => {});
+    try {
+      // 1) Fotos feitas offline sobem primeiro e trocam "local:..." pela chave real.
+      for (const item of coletarArquivosLocais(entrada.dados)) {
+        const idLocal = item.chave.slice(6);
+        const reg = await O.ler("arquivos", idLocal);
+        if (!reg) {
+          entrada.estado = "erro";
+          entrada.mensagem = "uma foto guardada neste aparelho não foi encontrada. Remova a foto do registro e anexe de novo.";
+          await salvarEntrada();
+          return "problema";
+        }
+        const empresaId = entrada.dados.EmpresaId || reg.empresaId;
+        const r = await enviarArquivoRede(reg.colecao, empresaId, reg.blob, reg.nome, reg.tipo);
+        item.chave = r.chave;
+        if (r.tamanho) item.tamanho = r.tamanho;
+        await salvarEntrada(); // nao sobe a mesma foto duas vezes se cair depois
+        await apagarArquivoLocal(idLocal);
+      }
+
+      // 2) Conflito: registro existente alterado no servidor depois da copia do aparelho.
+      const rota = "/api/" + encodeURIComponent(entrada.colecao) + "/" + encodeURIComponent(entrada.id);
+      if (!entrada.criar && !entrada.forcar && entrada.baseTs) {
+        const rg = await fetch(rota, { credentials: "same-origin", headers: { Accept: "application/json" } });
+        if (rg.status === 401) { estado.sessaoExpirada = true; return "parar"; }
+        if (rg.status === 404) {
+          entrada.estado = "conflito";
+          entrada.mensagem = "este registro foi excluído no servidor enquanto você estava sem internet.";
+          await salvarEntrada();
+          return "problema";
+        }
+        if (rg.ok) {
+          const servidor = await rg.json();
+          if (servidor && servidor._ts && servidor._ts > entrada.baseTs) {
+            entrada.estado = "conflito";
+            entrada.mensagem = "este registro foi alterado por outra pessoa em " + new Date(servidor._ts * 1000).toLocaleString("pt-BR") + ", depois da cópia que este aparelho tinha.";
+            await salvarEntrada();
+            return "problema";
+          }
+        } else if (rg.status >= 500) { return "parar"; }
+      }
+
+      // 3) Envio (POST = upsert por id; PUT atualiza um id existente).
+      const corpo = anexarEmpresaId(entrada.colecao, entrada.dados);
+      const rotaBase = "/api/" + encodeURIComponent(entrada.colecao);
+      const enviar = (metodo) => fetch(metodo === "POST" ? rotaBase : rota, {
+        method: metodo,
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(metodo === "POST" ? Object.assign({ id: entrada.id }, corpo) : corpo),
+      });
+      let resp = await enviar(entrada.criar ? "POST" : "PUT");
+      if (resp.status === 404 && !entrada.criar && entrada.forcar) resp = await enviar("POST");
+
+      if (resp.ok) {
+        await O.fila.remover(entrada.seq);
+        filaCache = filaCache.filter((e) => e.seq !== entrada.seq);
+        return "ok";
+      }
+      if (resp.status === 401) { estado.sessaoExpirada = true; return "parar"; }
+      if (resp.status >= 500) {
+        entrada.tentativas = (entrada.tentativas || 0) + 1;
+        await salvarEntrada();
+        return "parar";
+      }
+      entrada.estado = "erro";
+      entrada.mensagem = await corpoDeErro(resp);
+      await salvarEntrada();
+      return "problema";
+    } catch (erro) {
+      if (ehErroDeRede(erro)) { estado.offlineAgora = true; return "parar"; }
+      entrada.estado = "erro";
+      entrada.mensagem = (erro && erro.message) || "falha inesperada ao enviar.";
+      await salvarEntrada();
+      return "problema";
+    }
+  }
+
+  // Confere se a internet voltou e envia a fila; depois atualiza as telas.
+  async function sincronizar(manual) {
+    if (sincronizandoAgora || !estado.modoApi || !offlineDisponivel()) return;
+    if (!estado.offlineAgora && !filaCache.length) return;
+    sincronizandoAgora = true;
+    estado.sincronizando = true;
+    avisarFila();
+    try {
+      const det = await detectarApi();
+      if (det.existe && det.precisaLogin) { estado.sessaoExpirada = true; return; }
+      if (!det.existe || !det.identidade || !det.identidade.acessoLiberado) return; // ainda sem conexao
+      estado.sessaoExpirada = false;
+      guardarIdentidadeLocal(det.identidade);
+      const estavaOffline = estado.offlineAgora;
+      estado.offlineAgora = false;
+
+      const tocadas = new Set();
+      for (const entrada of filaCache.slice()) {
+        if (entrada.estado === "conflito" || entrada.estado === "erro") continue;
+        const r = await enviarEntrada(entrada);
+        tocadas.add(entrada.colecao);
+        if (r === "parar") break;
+      }
+      atualizarContagens();
+
+      if (estavaOffline && !estado.offlineAgora) {
+        await Promise.all(COLECOES.map((chave) => recarregarColecaoApi(chave)));
+        estado.cacheEm = null;
+      } else {
+        await Promise.all(Array.from(tocadas).map((chave) => recarregarColecaoApi(chave)));
+      }
+    } catch (erro) {
+      console.warn("S.I.G.E. - sincronização falhou:", erro);
+    } finally {
+      sincronizandoAgora = false;
+      estado.sincronizando = false;
+      atualizarContagens();
+      if (filaCache.some((e) => e.estado === "pendente")) agendarSincronizacao(30000);
+    }
+  }
+
+  function iniciarMonitorOffline() {
+    if (monitorIniciado) return;
+    monitorIniciado = true;
+    global.addEventListener("online", () => agendarSincronizacao(1500));
+    global.addEventListener("offline", () => { estado.offlineAgora = true; avisarFila(); });
+    if (global.document) {
+      global.document.addEventListener("visibilitychange", () => {
+        if (global.document.visibilityState === "visible") agendarSincronizacao(1000);
+      });
+    }
+    // Rede de seguranca: enquanto estiver "offline" ou com fila, tenta a cada 30 s.
+    setInterval(() => {
+      if (estado.offlineAgora || filaCache.some((e) => e.estado === "pendente")) sincronizar(false);
+    }, 30000);
+    global.BI = global.BI || {};
+    if (global.BI.Offline && global.document) {
+      const montar = () => global.BI.Offline.montarIndicador(global.BI.DB);
+      if (global.document.body) montar(); else global.document.addEventListener("DOMContentLoaded", montar);
+    }
+  }
+
+  // --------------------------------------------------------------------
   // Escolha de modo
   // --------------------------------------------------------------------
 
   async function iniciar(aoAtualizar) {
     callbackAtualizacao = aoAtualizar;
+    await carregarFila();
 
     let db = null;
     try {
@@ -292,7 +711,10 @@
       estado.db = null;
       estado.identidade = deteccao.identidade;
       estado.mensagemAcesso = null;
+      guardarIdentidadeLocal(deteccao.identidade);
       await Promise.all(COLECOES.map((chave) => recarregarColecaoApi(chave)));
+      iniciarMonitorOffline();
+      if (filaCache.length) agendarSincronizacao(1500);
       return true;
     }
 
@@ -312,6 +734,13 @@
     }
 
     if (deteccao.offline) {
+      // Sem internet: se este aparelho ja abriu o sistema antes (tem a copia
+      // dos dados e a identidade guardadas), abre mesmo assim para a coleta
+      // da AEP em campo. Senao, tela "Sem conexao".
+      if (await abrirOfflineComCopia()) {
+        iniciarMonitorOffline();
+        return true;
+      }
       estado.telaAcesso = "offline";
     }
 
@@ -350,13 +779,31 @@
     if (estado.modoApi) {
       const corpo = anexarEmpresaId(colecaoChave, dados);
       const criar = forcarCriacao || !id;
+      const capaz = OFFLINE_COLECOES.indexOf(colecaoChave) !== -1;
+      // AEP (avaliacao + inventario de riscos) grava no aparelho quando nao
+      // ha internet e envia depois (fila - ver bloco "Coleta offline").
+      if (capaz && semInternetAgora()) return enfileirar(colecaoChave, id, dados, forcarCriacao);
+      if (!capaz && semInternetAgora()) throw new Error(MSG_PRECISA_INTERNET);
       const rota = "/api/" + encodeURIComponent(colecaoChave) + (criar ? "" : "/" + encodeURIComponent(id));
-      const resp = await fetch(rota, {
-        method: criar ? "POST" : "PUT",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(criar ? Object.assign({ id }, corpo) : corpo),
-      });
+      let resp;
+      try {
+        resp = await fetch(rota, {
+          method: criar ? "POST" : "PUT",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(criar ? Object.assign({ id }, corpo) : corpo),
+        });
+      } catch (erroRede) {
+        if (!ehErroDeRede(erroRede)) throw erroRede;
+        estado.offlineAgora = true;
+        avisarFila();
+        if (capaz) return enfileirar(colecaoChave, id, dados, forcarCriacao);
+        throw new Error(MSG_PRECISA_INTERNET);
+      }
+      if (resp.status === 401 && capaz) {
+        estado.sessaoExpirada = true;
+        return enfileirar(colecaoChave, id, dados, forcarCriacao);
+      }
       if (!resp.ok) throw new Error(await corpoDeErro(resp));
       const salvo = await resp.json();
       await recarregarColecaoApi(colecaoChave);
@@ -394,13 +841,7 @@
     });
   }
 
-  async function enviarArquivo(colecaoChave, empresaId, arquivo) {
-    if (!estado.modoApi) {
-      throw new Error("Upload de arquivo só está disponível na versão publicada (produção).");
-    }
-    if (!empresaId) {
-      throw new Error("Selecione o Cliente antes de anexar um arquivo.");
-    }
+  async function enviarArquivoRede(colecaoChave, empresaId, arquivo, nome, tipo) {
     const conteudoBase64 = await lerArquivoComoBase64(arquivo);
     const resp = await fetch("/api/arquivos", {
       method: "POST",
@@ -409,13 +850,37 @@
       body: JSON.stringify({
         EmpresaId: empresaId,
         Colecao: colecaoChave,
-        NomeArquivo: arquivo.name,
-        TipoConteudo: arquivo.type,
+        NomeArquivo: nome || arquivo.name,
+        TipoConteudo: tipo || arquivo.type,
         ConteudoBase64: conteudoBase64,
       }),
     });
+    if (resp.status === 401) { estado.sessaoExpirada = true; }
     if (!resp.ok) throw new Error(await corpoDeErro(resp));
     return resp.json(); // { chave, nomeArquivo, tamanho }
+  }
+
+  async function enviarArquivo(colecaoChave, empresaId, arquivo) {
+    if (!estado.modoApi) {
+      throw new Error("Upload de arquivo só está disponível na versão publicada (produção).");
+    }
+    if (!empresaId) {
+      throw new Error("Selecione o Cliente antes de anexar um arquivo.");
+    }
+    const capaz = OFFLINE_COLECOES.indexOf(colecaoChave) !== -1;
+    // Foto da AEP sem internet: fica guardada no aparelho (chave "local:...")
+    // e sobe sozinha junto com o registro quando o sinal voltar.
+    if (capaz && semInternetAgora()) return guardarArquivoLocal(colecaoChave, empresaId, arquivo);
+    if (!capaz && semInternetAgora()) throw new Error(MSG_PRECISA_INTERNET);
+    try {
+      return await enviarArquivoRede(colecaoChave, empresaId, arquivo);
+    } catch (erro) {
+      if (!ehErroDeRede(erro)) throw erro;
+      estado.offlineAgora = true;
+      avisarFila();
+      if (capaz) return guardarArquivoLocal(colecaoChave, empresaId, arquivo);
+      throw new Error(MSG_PRECISA_INTERNET);
+    }
   }
 
   // Monta a URL de leitura de um arquivo ja enviado (ver GET /api/arquivos
@@ -423,11 +888,16 @@
   // de autenticacao do Static Web Apps num <img src>/<a href> normal, sem
   // precisar buscar o arquivo manualmente por fetch.
   function urlArquivo(chave) {
+    if (String(chave).indexOf("local:") === 0) return urlsLocais.get(String(chave).slice(6)) || "";
     return "/api/arquivos?chave=" + encodeURIComponent(chave);
   }
 
   async function excluir(colecaoChave, id) {
     if (estado.modoApi) {
+      // Registro criado offline e ainda nao enviado: basta tirar da fila.
+      const pendente = filaCache.find((e) => e.colecao === colecaoChave && e.id === id);
+      if (pendente && pendente.criar) { await descartarEntrada(pendente); return; }
+      if (semInternetAgora()) throw new Error(MSG_PRECISA_INTERNET);
       const resp = await fetch("/api/" + encodeURIComponent(colecaoChave) + "/" + encodeURIComponent(id), {
         method: "DELETE",
         credentials: "same-origin",
@@ -450,6 +920,7 @@
     if (!ids || !ids.length) return { total: 0, falhas: 0 };
 
     if (estado.modoApi) {
+      if (semInternetAgora()) throw new Error(MSG_PRECISA_INTERNET);
       const resultados = await Promise.allSettled(ids.map((id) =>
         fetch("/api/" + encodeURIComponent(colecaoChave) + "/" + encodeURIComponent(id), {
           method: "DELETE",
@@ -494,5 +965,13 @@
     sairDaConta,
     criarUsuario,
     reenviarConvite,
+    fila: {
+      listar: () => (global.BI.Offline ? global.BI.Offline.fila.listar() : Promise.resolve([])),
+      descartar: (seq) => descartarEntrada(filaCache.find((e) => e.seq === seq)),
+      reenviar: reenviarEntrada,
+      sincronizar,
+      aoMudar: (fn) => { ouvintesFila.push(fn); },
+    },
+    montarIndicadorOffline: () => { if (global.BI.Offline) global.BI.Offline.montarIndicador(global.BI.DB); },
   };
 })(window);

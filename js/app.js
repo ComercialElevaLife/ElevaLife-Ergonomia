@@ -5739,7 +5739,10 @@
       if (!resp.ok) throw new Error("Falha ao carregar usuários (HTTP " + resp.status + ").");
       estadoUsuarios.lista = await resp.json();
     } catch (e) {
-      mostrarErro("Erro ao carregar usuários: " + (e && e.message ? e.message : String(e)));
+      // Sem internet (coleta offline em campo) não é erro do sistema: a
+      // lista de usuários só existe online e o indicador na tela já avisa.
+      const semRede = window.BI.DB.estado.offlineAgora || (navigator && navigator.onLine === false) || e instanceof TypeError;
+      if (!semRede) mostrarErro("Erro ao carregar usuários: " + (e && e.message ? e.message : String(e)));
       estadoUsuarios.lista = [];
     } finally {
       estadoUsuarios.carregando = false;

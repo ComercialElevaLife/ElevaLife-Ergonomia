@@ -10,8 +10,9 @@
      usa a cópia guardada se estiver sem internet.
    - Bibliotecas externas (Chart.js, jsPDF, xlsx, pdf.js, fontes): guarda uma
      cópia e atualiza em segundo plano.
-   - /api/* (dados, login): NUNCA passa pelo cache - vai direto para a rede.
-     Coleta offline de dados é o passo 2, ainda não implementado.
+   - /api/* (dados, login): NUNCA passa pelo cache do service worker - vai direto para a rede.
+     A coleta offline da AEP (passo 2) é feita em js/offline.js + js/db.js,
+     com armazenamento próprio (IndexedDB), não por este cache.
 
    Para forçar todos os aparelhos a descartarem o cache antigo, basta trocar
    VERSAO abaixo.
@@ -19,7 +20,7 @@
 
 "use strict";
 
-const VERSAO = "sige-v1";
+const VERSAO = "sige-v2";
 const CACHE_SITE = `${VERSAO}-site`;
 const CACHE_EXTERNO = `${VERSAO}-externo`;
 
@@ -29,6 +30,7 @@ const ARQUIVOS_BASE = [
   "/css/style.css",
   "/js/rotulos.js",
   "/js/calc.js",
+  "/js/offline.js",
   "/js/db.js",
   "/js/diagramas.js",
   "/js/pdf-fonts.js",

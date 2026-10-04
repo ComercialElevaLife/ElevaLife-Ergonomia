@@ -1338,3 +1338,38 @@ publicados em produção:
   internet, o app mostra a tela "Sem conexão com a internet" em vez dos
   dados de exemplo. Coleta offline de dados (AEP em campo) é o passo 2; APK
   (TWA) é o passo 4, depois do domínio próprio.
+- **Coleta offline da AEP, passo 2** (04/10/2026) — o tablet agora abre e
+  grava a AEP **sem internet**. Como funciona (`js/offline.js` +
+  bloco "Coleta offline" de `js/db.js`):
+  - **Cópia local.** Toda coleção carregada da API é guardada no aparelho
+    (IndexedDB), junto com a identidade da sessão. Sem sinal o app abre com
+    essa cópia, inclusive o cadastro-mestre que alimenta as listas Cliente >
+    Unidade > Setor > Posto > Cargo > Atividade. **O aparelho precisa ter
+    aberto o sistema online pelo menos uma vez** (de preferência no Wi-Fi,
+    antes de ir a campo) e a sessão vale 7 dias; sem cópia aparece a tela
+    "Sem conexão".
+  - **Fila de envio.** Só a AEP grava sem internet: *Avaliação Ergonômica* e
+    *Inventário de Riscos*. O registro entra na fila com id gerado no
+    tablet, aparece na lista na hora e sobe sozinho quando o sinal volta
+    (evento "online", a cada 30 s, ao abrir/voltar ao app, ou botão "Enviar
+    agora"). Envio em ordem e sem duplicar (o POST é upsert por id).
+  - **Fotos.** Foto anexada offline fica guardada no aparelho e sobe junto
+    com o registro, uma única vez.
+  - **Conflito.** Edição de um registro que já existia: se alguém alterou o
+    mesmo registro no servidor depois da cópia do aparelho (`_ts` maior), o
+    sistema **não sobrescreve sozinho** — o item fica "em conflito" e quem
+    usa escolhe "Enviar minha versão" ou "Descartar". Registro novo nunca
+    dá conflito. Erro do servidor (ex.: sem permissão) marca só aquele item
+    como "não foi enviado" (com "Tentar de novo"/"Descartar") e não trava os
+    outros. Sessão expirada: nada se perde; o indicador pede para entrar de
+    novo.
+  - **Indicador** no canto da tela: "Sem internet", "N itens a enviar",
+    "Enviando…", "⚠ N com problema". Toque nele para ver a lista de
+    pendências.
+  - **Continua exigindo internet:** cadastros, usuários, laudos, AET,
+    Plano de Ação, exclusões. A tela avisa com mensagem clara.
+  - **Sair da conta** com itens pendentes pede confirmação (eles continuam
+    guardados no aparelho e sobem no próximo login).
+  - **Atenção:** os dados ficam no aparelho; se o tablet for compartilhado,
+    use o botão Sair ao terminar (apaga a cópia dos dados; a fila de envios
+    pendentes é mantida).
