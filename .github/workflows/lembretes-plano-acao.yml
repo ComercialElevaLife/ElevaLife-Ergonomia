@@ -7,7 +7,7 @@
 #   - segredo do repositorio LEMBRETES_JOB_KEY (mesmo valor da Application
 #     Setting LEMBRETES_JOB_KEY do Static Web App)
 #   - opcional: variavel do repositorio SIGE_URL (ex.: quando o dominio
-#     proprio entrar no ar); sem ela, usa o endereco atual do Azure.
+#     proprio entrar no ar); sem ela, usa https://sige-ergo.elevalife.com.br.
 #
 # Rodar 2x no mesmo dia nao duplica e-mail (controle por "_notif").
 
@@ -25,7 +25,7 @@ jobs:
     steps:
       - name: Chamar POST /api/jobs/lembretes-plano-acao
         env:
-          SIGE_URL: ${{ vars.SIGE_URL || 'https://witty-sea-0b1e5c110.6.azurestaticapps.net' }}
+          SIGE_URL: ${{ vars.SIGE_URL || 'https://sige-ergo.elevalife.com.br' }}
           LEMBRETES_JOB_KEY: ${{ secrets.LEMBRETES_JOB_KEY }}
         run: |
           if [ -z "$LEMBRETES_JOB_KEY" ]; then

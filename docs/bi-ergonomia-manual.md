@@ -1410,9 +1410,11 @@ publicados em produção:
     "teste") ainda estão no Storage e podem ser removidos.
 - **Backlog — publicação na Google Play (aguarda validação da diretoria)**
   (04/10/2026): empacotar o S.I.G.E. como app Android (TWA) e publicar na Play
-  Store. Pré-requisitos: (1) domínio próprio `elevalife-sige.com.br`
-  (Registro.br, em nome da ElevaLife) apontando para o site, com atualização
-  de `URL_PUBLICA` e da variável `SIGE_URL` do GitHub; (2) conta de
+  Store. Pré-requisitos: (1) domínio próprio — **já resolvido**: o site responde em
+  `https://sige-ergo.elevalife.com.br` (domínio personalizado do Static Web
+  App, status Ready; `URL_PUBLICA` e o disparo diário dos lembretes já usam
+  esse endereço desde 04/10/2026; o endereço `witty-sea-…azurestaticapps.net`
+  continua funcionando); (2) conta de
   desenvolvedor Google Play da ElevaLife (taxa única; contas de empresa pedem
   verificação, e contas novas podem exigir período de teste fechado antes da
   publicação — confirmar regras vigentes no Play Console); (3) chave de
