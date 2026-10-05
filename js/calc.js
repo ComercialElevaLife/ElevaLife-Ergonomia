@@ -339,6 +339,15 @@
     return "Concluida";
   }
 
+  // V 1.2: o status exibido leva em conta a "Status Execucao" informada pela
+  // pessoa (Nao iniciada / Em andamento / Concluida). "Em andamento" marcado
+  // antes do prazo aparece como Em Andamento; prazo vencido continua Atrasada.
+  function statusDaLinhaAcao(linha, hoje) {
+    const base = calcularStatusAcao(linha["Dt Programada"], linha["Dt Conclusao"], hoje);
+    if (base === "Nao Iniciado" && linha["Status Execucao"] === "Em andamento") return "Em Andamento";
+    return base;
+  }
+
   // ------------------------------------------------------------------
   // Risco Global - calculado a partir da MEDIA das 12 dimensoes (nunca do
   // maximo), mesma regra usada na geracao dos dados ficticios.
@@ -473,7 +482,7 @@
     const contagem = {};
     STATUS_ACAO_ORDEM.forEach((s) => (contagem[s] = 0));
     planoAcaoF.forEach((a) => {
-      const st = calcularStatusAcao(a["Dt Programada"], a["Dt Conclusao"], hoje);
+      const st = statusDaLinhaAcao(a, hoje);
       contagem[st] = (contagem[st] || 0) + 1;
     });
     return STATUS_ACAO_ORDEM.map((s) => ({ status: s, qtd: contagem[s] }));
@@ -488,7 +497,7 @@
     const porResp = {};
     planoAcaoF.forEach((a) => {
       const resp = a["Responsavel Acao"] || "Sem responsavel";
-      const st = calcularStatusAcao(a["Dt Programada"], a["Dt Conclusao"], hoje);
+      const st = statusDaLinhaAcao(a, hoje);
       porResp[resp] = porResp[resp] || { responsavel: resp, total: 0 };
       STATUS_ACAO_ORDEM.forEach((s) => { if (!(s in porResp[resp])) porResp[resp][s] = 0; });
       porResp[resp][st] += 1;
@@ -533,7 +542,7 @@
       const linha = { setor };
       STATUS_ACAO_ORDEM.forEach((s) => (linha[s] = 0));
       planoAcaoF.filter((l) => l.Setor === setor).forEach((l) => {
-        const st = calcularStatusAcao(l["Dt Programada"], l["Dt Conclusao"], hoje);
+        const st = statusDaLinhaAcao(l, hoje);
         linha[st] += 1;
       });
       return linha;
@@ -818,6 +827,7 @@
     rotuloNivel,
     construirMapaCores,
     calcularStatusAcao,
+    statusDaLinhaAcao,
     calcularRiscoGlobal,
     nivelCanonico,
     nivelReduzido,

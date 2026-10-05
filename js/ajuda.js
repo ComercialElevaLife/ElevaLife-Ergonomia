@@ -221,6 +221,18 @@
 
   const HISTORICO = [
     {
+      versao: "1.2", data: "05/10/2026",
+      itens: [
+        "Inventário de Riscos: cada fator passa a ter uma lista de ações (no lugar de \"Ação para Eliminação\" e \"Ação Organizacional\" em texto aberto). Cada ação tem tipo, descrição (com sugestões), segmento corporal, \"reduz o risco de X para Y\", complexidade, responsável, prazo e status.",
+        "O risco após a melhoria agora é calculado: por segmento corporal vale a ação que leva ao menor nível; o fator fica no maior nível entre os segmentos. Mostra o previsto (todas as ações) e o realizado (só as concluídas).",
+        "Tipos de ação (Eliminação, Engenharia / Adequação, Organizacional) com nomes editáveis pelo Administrador em Configurações, valendo para todos os clientes.",
+        "O responsável recebe e-mail ao ser designado (só na criação da ação ou ao trocar o e-mail do responsável — sem reenvio a cada gravação).",
+        "Evidência obrigatória (foto ou PDF) para concluir uma ação, conferida no servidor. O Administrador pode concluir sem evidência informando justificativa e data-limite; ele e o responsável são lembrados até a evidência entrar.",
+        "Registros anteriores continuam como estavam; os textos antigos podem virar ações com um clique, e ações já concluídas continuam editáveis sem evidência.",
+        "Correção: o histórico não mostra mais alteração falsa quando só muda o tipo do valor (9 e \"9\").",
+      ],
+    },
+    {
       versao: "1.1", data: "05/10/2026",
       itens: [
         "Filtros Ano e Mês passam a vir só das datas lançadas e só trazem registros com data (Mapa de Risco, Avaliação, Inventário e Restritos ganharam campo de data).",
