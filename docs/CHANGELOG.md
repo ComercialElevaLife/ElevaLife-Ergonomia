@@ -2,6 +2,13 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.4 — 05/10/2026
+
+- **Laudo:** formulário enxuto (12 campos visíveis); `Texto`, `Emitido Por`, `Hash Documento`, `Registro Responsavel` e `Registro Executor` ficam ocultos e são gravados na geração. Revisão inicial "00", Tipo "Laudo" e Emitido em (hoje) por padrão; certificado de calibração só aparece com "Incluir = Sim".
+- **Rodapé:** botão primário "Gerar Laudo" (gera, anexa e salva em um clique; exige Cliente e Responsável técnico) ao lado de "Salvar sem gerar" e "Cancelar".
+- **Menus:** Ergonomistas, Certificado Calibração e Editor de Texto movidos para Cadastro; "Compatíveis" → "Restritos (Compatíveis)" no menu Registro. Sem mudança de dados.
+- Service worker: cache `sige-v7`.
+
 ## V 1.3 — 05/10/2026
 
 - **Laudo (AEP) oficial:** gerador novo (`js/laudo.js`), A4 retrato, capa com logotipo do cliente, sumário clicável (links internos + marcadores do PDF), cabeçalho/rodapé corridos com "Página X de Y" e código do documento. Seções: apresentação, a ElevaLife, responsabilidade técnica, demanda, dados da empresa, fundamentação (ergonomia, cinco pilares, NR-17, NR-01/GRO/PGR), métodos (cinco etapas, PDCA, técnicas, ISO/TS 20646, guias de graduação, interfaces), classificação do risco (gravidade, probabilidade, matriz do cliente, tipos de ação, risco residual), avaliações por posto (fotos numeradas, descrição, panorama, grupos, fatores com ações e risco previsto/realizado), plano de ação, risco residual por fator, referências e conclusão.

@@ -14,7 +14,7 @@
   "use strict";
 
   const BI = (global.BI = global.BI || {});
-  BI.VERSAO = "1.3"; // versao do sistema - exibida no rodape e em Ajuda > Versao (ver docs/CHANGELOG.md)
+  BI.VERSAO = "1.4"; // versao do sistema - exibida no rodape e em Ajuda > Versao (ver docs/CHANGELOG.md)
 
   const FILTROS_GLOBAIS = "Cliente, Unidade, Setor, Posto, Cargo e Atividade";
   // Ano/Mes filtra pela data lancada no proprio registro; registro sem essa
@@ -220,7 +220,7 @@
     {
       id: "chart-compat-genero", aba: "compativeis", grupo: "Restritos", titulo: "Gênero",
       mostra: "Gênero dos colaboradores em restrição ou acompanhamento.",
-      fonte: "Registro › Compatíveis.",
+      fonte: "Registro › Restritos (Compatíveis).",
       calculo: "Contagem de registros por gênero.",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página: Status Restrição e Turno de Trabalho.",
       cuidado: "Conta registros de restrição; um colaborador com duas restrições conta duas vezes.",
@@ -228,7 +228,7 @@
     {
       id: "chart-compat-idade", aba: "compativeis", grupo: "Restritos", titulo: "Idade",
       mostra: "Distribuição por faixa etária.",
-      fonte: "Registro › Compatíveis (campo Idade).",
+      fonte: "Registro › Restritos (Compatíveis) (campo Idade).",
       calculo: "Contagem de registros nas faixas: até 24, 25-34, 35-44, 45-54 e 55+.",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "Idade vazia não entra em nenhuma faixa.",
@@ -236,7 +236,7 @@
     {
       id: "chart-compat-atividade", aba: "compativeis", grupo: "Restritos", titulo: "Em Atividade Compatível",
       mostra: "Quantos colaboradores já foram recolocados em atividade compatível.",
-      fonte: "Registro › Compatíveis (campo Atividade Compatível).",
+      fonte: "Registro › Restritos (Compatíveis) (campo Atividade Compatível).",
       calculo: "Contagem de registros por valor de Atividade Compatível (Sim/Não).",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "",
@@ -244,7 +244,7 @@
     {
       id: "chart-compat-status-setor", aba: "compativeis", grupo: "Restritos", titulo: "Status por Setor",
       mostra: "Situação das restrições em cada setor.",
-      fonte: "Registro › Compatíveis (Status Restrição: Ativa, Em Avaliação, Encerrada).",
+      fonte: "Registro › Restritos (Compatíveis) (Status Restrição: Ativa, Em Avaliação, Encerrada).",
       calculo: "Barras empilhadas: contagem de registros por status, por setor.",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "",
@@ -252,7 +252,7 @@
     {
       id: "chart-compat-restricao-turno", aba: "compativeis", grupo: "Restritos", titulo: "Restrição por Turno",
       mostra: "Situação das restrições em cada turno de trabalho.",
-      fonte: "Registro › Compatíveis (Turno Trabalho).",
+      fonte: "Registro › Restritos (Compatíveis) (Turno Trabalho).",
       calculo: "Barras empilhadas: contagem de registros por status, por turno.",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "",
@@ -260,7 +260,7 @@
     {
       id: "chart-compat-compativel-setor", aba: "compativeis", grupo: "Restritos", titulo: "Compatível por Setor",
       mostra: "Quantos colaboradores em atividade compatível existem em cada setor.",
-      fonte: "Registro › Compatíveis.",
+      fonte: "Registro › Restritos (Compatíveis).",
       calculo: "Contagem de registros com Atividade Compatível = Sim, por setor.",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "",
@@ -268,7 +268,7 @@
     {
       id: "diagrama-compat-frente", aba: "compativeis", grupo: "Restritos", titulo: "Restrições por região (frente)",
       mostra: "Quantidade de restrições por região do corpo, vista frontal.",
-      fonte: "Registro › Compatíveis (Segmento Corporal).",
+      fonte: "Registro › Restritos (Compatíveis) (Segmento Corporal).",
       calculo: "Contagem de restrições por Segmento Corporal. Silhueta de frente: lado Direito da pessoa à esquerda da imagem.",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "",
@@ -276,7 +276,7 @@
     {
       id: "diagrama-compat-costas", aba: "compativeis", grupo: "Restritos", titulo: "Restrições por região (costas)",
       mostra: "Quantidade de restrições por região do corpo, vista posterior.",
-      fonte: "Registro › Compatíveis (Segmento Corporal).",
+      fonte: "Registro › Restritos (Compatíveis) (Segmento Corporal).",
       calculo: "Contagem de restrições por Segmento Corporal. Silhueta de costas: lado Direito da pessoa à direita da imagem.",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "",

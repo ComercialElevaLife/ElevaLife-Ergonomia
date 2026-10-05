@@ -1994,54 +1994,43 @@
     );
   }
 
+  // V 1.4: formulario enxuto. Campos que o sistema preenche sozinho (Texto, Emitido Por,
+  // impressao digital e registros profissionais) continuam gravados no registro, mas ficam
+  // ocultos (ver ligarGeracaoLaudo). O botao "Gerar Laudo" fica no rodape do formulario.
   function camposLaudo() {
     return comSecao([
       { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
       { campo: "Tipo", rotulo: "Tipo", tipo: "select", obrigatorio: true, opcoes: TIPOS_LAUDO_POOL },
-      // Setor/Posto de Trabalho aqui sao OPCIONAIS (por isso fora de
-      // camposChave/camposAvaliacaoErgonomica) - so servem pra restringir
-      // quais Postos entram no laudo GERADO (ver gerarLaudoPDF); deixados em
-      // branco, o laudo cobre todos os Postos com Avaliacao Ergonomica
-      // cadastrada para o Cliente escolhido acima.
-      { campo: "Setor", rotulo: "Setor (opcional - restringe o laudo gerado)", tipo: "cascata" },
-      { campo: "Posto Trabalho", rotulo: "Posto de Trabalho (opcional - restringe o laudo gerado)", tipo: "cascata" },
+      // Setor/Posto sao OPCIONAIS (fora de camposChave): so restringem os Postos que entram
+      // no laudo gerado. Em branco, o laudo cobre todos os Postos com Avaliacao Ergonomica.
+      { campo: "Setor", rotulo: "Setor (opcional)", tipo: "cascata" },
+      { campo: "Posto Trabalho", rotulo: "Posto de Trabalho (opcional)", tipo: "cascata" },
     ], "🏢 Identificação").concat(
       comSecao([
-        {
-          campo: "Apenas Paginas Avaliacao", rotulo: "Gerar somente as páginas de avaliação (sem capa/metodologia/introdução)",
-          tipo: "select", opcoes: SIM_NAO,
-        },
-        {
-          campo: "Incluir Certificado Calibracao", rotulo: "Incluir Certificado de Calibração no laudo?",
-          tipo: "select", opcoes: SIM_NAO,
-        },
-        {
-          campo: "Certificado Calibracao", rotulo: "Certificado de Calibração",
-          tipo: "select", opcoes: () => (window.BI.dados.certificadoCalibracao || []).map((c) => c.Nome),
-        },
-      ], "⚙️ Opções de Geração do Laudo"),
-      comSecao([
-        // Nao e mais obrigatorio (pedido do Leo 28/09/2026: "laudo nao e
-        // novo registro, ja esta registrado" - o conteudo de verdade e o
-        // PDF gerado pelo botao "Gerar Laudo" abaixo, preenchido sozinho em
-        // "Arquivo Url"; este campo de texto so serve pra quem quiser
-        // digitar/colar manualmente um laudo que nao passou pelo gerador).
-        { campo: "Texto", rotulo: "Texto do Laudo (opcional: preenchido automaticamente ao gerar o PDF; use só para digitar um laudo manual)", tipo: "textarea" },
-        { campo: "Emitido Em", rotulo: "Emitido em", tipo: "data" },
-        { campo: "Responsavel Tecnico", rotulo: "Responsável técnico (cadastro de Ergonomistas)", tipo: "select", opcoes: () => (window.BI.dados.ergonomista || []).map((e) => e.Nome) },
+        { campo: "Responsavel Tecnico", rotulo: "Responsável técnico", tipo: "select", opcoes: () => (window.BI.dados.ergonomista || []).map((e) => e.Nome) },
         { campo: "Ergonomista Executor", rotulo: "Ergonomista executor (opcional)", tipo: "select", opcoes: () => (window.BI.dados.ergonomista || []).map((e) => e.Nome) },
-        { campo: "Emitido Por", rotulo: "Emitido por (texto; preenchido pelo Responsável técnico)", tipo: "texto", sugestoesFn: () => Array.from(new Set((window.BI.dados.laudo || []).map((l) => l["Emitido Por"]).filter(Boolean))).sort() },
-        { campo: "Revisao", rotulo: "Revisão do documento (ex.: 00, 01)", tipo: "texto" },
-        { campo: "Codigo Verificacao", rotulo: "Código de verificação (gerado)", tipo: "calculado" },
-        { campo: "Hash Documento", rotulo: "Impressão digital SHA-256 do arquivo (gerada)", tipo: "calculado" },
-        { campo: "Registro Responsavel", rotulo: "Registro do responsável (gerado)", tipo: "calculado" },
-        { campo: "Registro Executor", rotulo: "Registro do executor (gerado)", tipo: "calculado" },
+        { campo: "Emitido Em", rotulo: "Emitido em", tipo: "data", padraoHoje: true },
+        { campo: "Revisao", rotulo: "Revisão", tipo: "texto" },
+      ], "✍️ Emissão"),
+      comSecao([
+        { campo: "Apenas Paginas Avaliacao", rotulo: "Somente as páginas de avaliação (sem capa e metodologia)", tipo: "select", opcoes: SIM_NAO },
+        { campo: "Incluir Certificado Calibracao", rotulo: "Incluir certificado de calibração?", tipo: "select", opcoes: SIM_NAO },
+        { campo: "Certificado Calibracao", rotulo: "Certificado de calibração", tipo: "select", opcoes: () => (window.BI.dados.certificadoCalibracao || []).map((c) => c.Nome) },
+      ], "⚙️ Opções do documento"),
+      comSecao([
+        { campo: "Codigo Verificacao", rotulo: "Código de verificação", tipo: "calculado" },
         {
-          campo: "Arquivo Url", rotulo: "Arquivo do Laudo (PDF ou imagem, até 15MB)", tipo: "arquivo", multiplo: false,
+          campo: "Arquivo Url", rotulo: "Arquivo do Laudo (gerado automaticamente; envio manual de PDF ou imagem, até 15MB)", tipo: "arquivo", multiplo: false,
           colecaoArquivo: "laudo", aceitaTipos: "application/pdf,image/jpeg,image/png",
           tamanhoMaximoBytes: 15 * 1024 * 1024,
         },
-      ], "📄 Conteúdo do Laudo")
+        // Ocultos: preenchidos pelo gerador.
+        { campo: "Texto", rotulo: "Texto do Laudo", tipo: "textarea" },
+        { campo: "Emitido Por", rotulo: "Emitido por", tipo: "texto", sugestoesFn: () => Array.from(new Set((window.BI.dados.laudo || []).map((l) => l["Emitido Por"]).filter(Boolean))).sort() },
+        { campo: "Hash Documento", rotulo: "Impressão digital SHA-256 do arquivo", tipo: "calculado" },
+        { campo: "Registro Responsavel", rotulo: "Registro do responsável", tipo: "calculado" },
+        { campo: "Registro Executor", rotulo: "Registro do executor", tipo: "calculado" },
+      ], "📄 Documento gerado")
     );
   }
 
@@ -2765,20 +2754,35 @@
   // - reaproveitando o MESMO caminho de upload usado pelo <input
   // type="file"> manual (ver campoFake.anexarArquivos em
   // construirCampoArquivo), sem duplicar a logica de envio.
-  function ligarGeracaoLaudo(form) {
-    const corpo = form.querySelector(".form-cadastro-corpo") || form;
-    const wrapBotao = document.createElement("div");
-    wrapBotao.className = "campo-form campo-form-largo";
+  function ligarGeracaoLaudo(form, valoresIniciais) {
+    const novoRegistro = !(valoresIniciais && valoresIniciais._id);
+    // V 1.4: campos que o gerador preenche sozinho ficam ocultos (continuam no registro).
+    ["Texto", "Emitido Por", "Hash Documento", "Registro Responsavel", "Registro Executor"].forEach((nome) => {
+      const el = form._campos[nome];
+      const caixa = el && el.closest ? el.closest(".campo-form") : null;
+      if (caixa) caixa.hidden = true;
+    });
+    if (novoRegistro && form._campos["Revisao"] && !form._campos["Revisao"].value) form._campos["Revisao"].value = "00";
+    if (novoRegistro && form._campos["Tipo"] && !form._campos["Tipo"].value) form._campos["Tipo"].value = "Laudo";
+    // Certificado de calibracao so aparece quando "Incluir" = Sim.
+    const selIncluir = form._campos["Incluir Certificado Calibracao"];
+    const caixaCert = form._campos["Certificado Calibracao"] && form._campos["Certificado Calibracao"].closest(".campo-form");
+    const atualizarCert = () => { if (caixaCert && selIncluir) caixaCert.hidden = selIncluir.value !== "Sim"; };
+    if (selIncluir) { selIncluir.addEventListener("change", atualizarCert); atualizarCert(); }
+
+    // Rodape: Cancelar | Salvar sem gerar | Gerar Laudo (acao principal: gera, anexa e registra).
+    const acoes = form.querySelector(".form-cadastro-acoes");
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "btn-cad-secundario";
-    btn.textContent = "📄 Gerar Laudo (PDF)";
+    btn.className = "btn-cad-primario";
+    btn.textContent = "📄 Gerar Laudo";
+    const btnSalvar = acoes ? acoes.querySelector("button[type=submit]") : null;
+    if (btnSalvar) { btnSalvar.className = "btn-cad-secundario"; btnSalvar.textContent = "Salvar sem gerar"; }
+    if (acoes) acoes.appendChild(btn);
     const avisoEl = document.createElement("div");
     avisoEl.className = "campo-arquivo-aviso";
     avisoEl.hidden = true;
-    wrapBotao.appendChild(btn);
-    wrapBotao.appendChild(avisoEl);
-    corpo.insertBefore(wrapBotao, corpo.firstChild);
+    if (acoes) acoes.parentNode.insertBefore(avisoEl, acoes);
 
     function mostrarAviso(msg, ehErro) {
       avisoEl.textContent = msg || "";
@@ -2793,6 +2797,11 @@
         mostrarAviso("Selecione o Cliente antes de gerar o laudo.", true);
         return;
       }
+      if (form._campos["Responsavel Tecnico"] && !form._campos["Responsavel Tecnico"].value) {
+        mostrarAviso("Selecione o Responsável técnico. Se a lista estiver vazia, cadastre o ergonomista em Cadastro › Ergonomistas.", true);
+        return;
+      }
+      if (!form.checkValidity()) { form.reportValidity(); return; }
       const empresaId = resolverEmpresaIdDoForm(form);
       const opcoes = {
         empresaId,
@@ -2815,6 +2824,7 @@
       }
 
       btn.disabled = true;
+      let geradoEAnexado = false;
       mostrarAviso("Gerando laudo...");
       try {
         const bufferPDF = await gerarLaudoPDF(opcoes);
@@ -2852,7 +2862,7 @@
             URL.revokeObjectURL(url);
           } else {
             await campoArquivo.anexarArquivos([arquivoGerado], empresaId || "GLOBAL");
-            mostrarAviso("Laudo gerado e anexado. Clique em Salvar para registrar o código de verificação (QR Code do documento).");
+            geradoEAnexado = true;
           }
         }
         if (form._campos["Emitido Em"] && !form._campos["Emitido Em"].value) {
@@ -2864,6 +2874,12 @@
         // salvar o registro depois de gerar o PDF.
         if (form._campos["Texto"] && !form._campos["Texto"].value) {
           form._campos["Texto"].value = `Laudo gerado automaticamente pela plataforma S.I.G.E (Sistema Integrado de Gestão ElevaLife) em ${hojeMeiaNoite().toLocaleDateString("pt-BR")}, a partir das Avaliações Ergonômicas e do Inventário de Riscos já registrados para ${nomeCliente}. Ver arquivo PDF anexado.`;
+        }
+        // Registra o laudo na mesma acao (o submit do formulario grava o registro com o
+        // codigo de verificacao e o arquivo); a lista passa a oferecer Baixar/Imprimir.
+        if (geradoEAnexado) {
+          mostrarAviso("Laudo gerado. Registrando...");
+          form.requestSubmit();
         }
       } catch (erro) {
         mostrarAviso(erro && erro.message ? erro.message : "Falha ao gerar o laudo.", true);
@@ -4002,7 +4018,7 @@
       aoConstruir: comCascata(null),
     },
     compativeis: {
-      grupo: "registro", icone: "🔄", tituloMenu: "Compatíveis",
+      grupo: "registro", icone: "🔄", tituloMenu: "Restritos (Compatíveis)",
       titulo: "Compatíveis",
       colunasTabela: ["Cliente", "Setor", "Funcionario", "Status Restricao", "Turno Trabalho", "Segmento Corporal", "Inicio Restricao"],
       colunasData: ["Inicio Restricao"],
@@ -4117,14 +4133,14 @@
     // camposCertificadoCalibracao/camposModeloLaudo acima). Por isso, sem
     // "aoConstruir": nao ha cascata Cliente/Unidade/... nenhuma aqui.
     certificadoCalibracao: {
-      grupo: "registro", icone: "📐", tituloMenu: "Certificado Calibração",
+      grupo: "mestre", icone: "📐", tituloMenu: "Certificado Calibração",
       titulo: "Certificados de Calibração",
       colunasTabela: ["Nome", "Validade"],
       colunasData: ["Validade"], camposData: ["Validade"],
       campos: camposCertificadoCalibracao(),
     },
     modeloLaudo: {
-      grupo: "registro", icone: "📝", tituloMenu: "Editor de Texto",
+      grupo: "mestre", icone: "📝", tituloMenu: "Editor de Texto",
       titulo: "Editor de Texto do Laudo",
       colunasTabela: ["Nome"],
       colunasData: [], camposData: [],
@@ -4133,7 +4149,7 @@
     },
     // V 1.3: ergonomistas (global) - assinatura e registro usados no laudo.
     ergonomista: {
-      grupo: "registro", icone: "🧑‍⚕️", tituloMenu: "Ergonomistas",
+      grupo: "mestre", icone: "🧑‍⚕️", tituloMenu: "Ergonomistas",
       titulo: "Ergonomistas (responsável técnico do laudo)",
       colunasTabela: ["Nome", "Registro", "Titulo"],
       colunasData: [], camposData: [],
