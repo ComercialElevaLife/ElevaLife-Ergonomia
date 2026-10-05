@@ -37,13 +37,14 @@
       passos: [
         "Cadastre na ordem: Cliente › Unidade › Setor › Posto de Trabalho › Cargo › Atividade. Cada nível só aceita valores do nível anterior (listas em cascata).",
         "No Cliente, informe a Matriz de Risco (3x3, 4x4 ou 5x5): ela define a graduação do Inventário de Riscos. O logotipo do cliente colore a identidade da tela quando só aquele cliente está filtrado.",
+        "Em Cadastro ficam também as configurações do laudo: Ergonomistas, Certificado Calibração e Editor de Texto.",
         "Só depois de cadastrar a estrutura é possível lançar registros.",
       ],
     },
     {
       titulo: "Registro: o dia a dia",
       passos: [
-        "Em Registro ficam as tabelas operacionais: Mapa de Risco, Plano de Ação, Absenteísmo, HHT / Dias Úteis, Compatíveis, Avaliação Ergonômica (AEP), Inventário de Riscos (AEP), Laudos e AET.",
+        "Em Registro ficam as tabelas operacionais: Mapa de Risco, Plano de Ação, Absenteísmo, HHT / Dias Úteis, Restritos (Compatíveis), Avaliação Ergonômica (AEP), Inventário de Riscos (AEP), Laudos e AET.",
         "Cada linha é um registro. Use \"+ Novo registro\" para lançar e os botões Editar e Excluir de cada linha.",
         "Campos calculados (Risco Global, Status da ação, Graduação do risco) são preenchidos pelo sistema: não são digitados.",
         "Datas são digitadas como DD/MM/AAAA (a barra entra sozinha) ou escolhidas no ícone de calendário. Os filtros Ano e Mês só trazem registros que têm a data lançada: sem data, o registro não aparece quando Ano/Mês está selecionado.",
@@ -80,8 +81,9 @@
       titulo: "Laudos e Certificados de Calibração",
       passos: [
         "O Modelo de Laudo (Editor de Texto) e os Certificados de Calibração são bibliotecas compartilhadas por todos os clientes.",
-        "Cadastre os ergonomistas em Registro › Ergonomistas (com registro profissional e imagem da assinatura). Se quiser ajustar os textos do laudo, use Registro › Editor de Texto.",
-        "Em Registro › Laudos, clique em \"+ Novo registro\", escolha cliente, setor e posto, o responsável técnico e clique em \"Gerar Laudo (PDF)\". O PDF é montado a partir da Avaliação Ergonômica, do Inventário de Riscos e do Plano de Ação e anexado ao registro; clique em Salvar para registrar o código de verificação do QR Code.",
+        "Cadastre os ergonomistas em Cadastro › Ergonomistas (com registro profissional e imagem da assinatura). Se quiser ajustar os textos do laudo, use Cadastro › Editor de Texto.",
+        "Em Registro › Laudos, clique em \"+ Novo registro\", escolha o cliente, o responsável técnico e (se desejar) setor e posto, e clique em \"Gerar Laudo\" no rodapé do formulário. Um único clique monta o PDF a partir da Avaliação Ergonômica, do Inventário de Riscos e do Plano de Ação, anexa o arquivo e registra o laudo com o código de verificação do QR Code.",
+        "\"Salvar sem gerar\" mantém o registro sem montar o PDF (por exemplo, para anexar um laudo emitido fora do sistema ou corrigir dados de um laudo existente).",
       ],
     },
     {
@@ -222,12 +224,20 @@
 
   const HISTORICO = [
     {
+      versao: "1.4", data: "05/10/2026",
+      itens: [
+        "Tela de Laudo simplificada: de 17 para 12 campos visíveis. Código de verificação, hash, registros profissionais, emissor e texto passam a ser preenchidos automaticamente.",
+        "Botão \"Gerar Laudo\" no rodapé do formulário: um clique gera o PDF, anexa o arquivo e registra o laudo. \"Salvar sem gerar\" permanece disponível.",
+        "Menus: Ergonomistas, Certificado Calibração e Editor de Texto passam de Registro para Cadastro (configurações). \"Compatíveis\" passa a \"Restritos (Compatíveis)\", igual ao menu Gestão de Restritos.",
+      ],
+    },
+    {
       versao: "1.3", data: "05/10/2026",
       itens: [
         "Laudo (AEP) redesenhado como documento oficial: A4 em retrato, capa com o logotipo do cliente, sumário clicável (links e marcadores do PDF), cabeçalho e rodapé com \"Página X de Y\" e código do documento.",
-        "Metodologia ElevaLife no laudo: apresentação, a ElevaLife, responsabilidade técnica, demanda, dados da empresa, fundamentação (ergonomia, os cinco pilares, NR-17, NR-01/GRO/PGR), cinco etapas e PDCA, técnicas, ISO/TS 20646, guias de graduação, matriz de risco, referências. Os textos são editáveis em Registro › Editor de Texto (campo vazio usa o texto padrão).",
+        "Metodologia ElevaLife no laudo: apresentação, a ElevaLife, responsabilidade técnica, demanda, dados da empresa, fundamentação (ergonomia, os cinco pilares, NR-17, NR-01/GRO/PGR), cinco etapas e PDCA, técnicas, ISO/TS 20646, guias de graduação, matriz de risco, referências. Os textos são editáveis em Cadastro › Editor de Texto (campo vazio usa o texto padrão).",
         "Cada posto traz fotos, descrição da atividade, panorama, fatores com gravidade × probabilidade, ações por fator e risco previsto/realizado; o plano de ação e o risco residual fecham o documento.",
-        "Nova tela Registro › Ergonomistas (nome, formação, registro profissional e imagem da assinatura). O laudo usa o responsável técnico e o ergonomista executor escolhidos.",
+        "Nova tela Cadastro › Ergonomistas (nome, formação, registro profissional e imagem da assinatura). O laudo usa o responsável técnico e o ergonomista executor escolhidos.",
         "Última página: assinaturas, campo para o cliente e QR Code com código de verificação. A página pública sige-ergo.elevalife.com.br/verificar mostra a autoria e confere se o arquivo é o documento emitido. Para valer, salve o registro do Laudo depois de gerar o PDF.",
       ],
     },
