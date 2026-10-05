@@ -44,6 +44,9 @@
     // GLOBAIS (compartilhados entre todas as empresas), gravados com
     // EmpresaId="GLOBAL" - ver api/src/functions/entidades.js/COLECOES_GLOBAIS.
     "certificadoCalibracao", "modeloLaudo",
+    // V 1.2: configuracoes do sistema (so Administrador grava; GLOBAL) - hoje
+    // guarda os nomes dos tipos de acao do Plano de Acao (ver js/acoes.js).
+    "configuracao",
   ];
 
   const estado = {
@@ -72,7 +75,7 @@
       mapaRisco: [], planoAcao: [], absenteismo: [], compativeis: [],
       cliente: [], unidade: [], setor: [], cargo: [], posto: [], atividade: [],
       avaliacaoErgonomica: [], fatorRisco: [], laudo: [], aet: [], diasUteis: [],
-      certificadoCalibracao: [], modeloLaudo: [],
+      certificadoCalibracao: [], modeloLaudo: [], configuracao: [],
     },
     inscricoes: [],
   };
@@ -301,8 +304,10 @@
   //    exigindo internet e avisa com mensagem clara.
   // --------------------------------------------------------------------
 
-  const OFFLINE_COLECOES = ["avaliacaoErgonomica", "fatorRisco"];
-  const MSG_PRECISA_INTERNET = "Sem conexão com a internet. Esta ação só funciona online — a Avaliação Ergonômica (AEP) e o Inventário de Riscos podem ser preenchidos sem internet.";
+  // V 1.2: planoAcao entra porque as acoes do risco sao criadas no Inventario
+  // (e a evidencia pode ser uma foto tirada no campo, sem sinal).
+  const OFFLINE_COLECOES = ["avaliacaoErgonomica", "fatorRisco", "planoAcao"];
+  const MSG_PRECISA_INTERNET = "Sem conexão com a internet. Esta ação só funciona online — a Avaliação Ergonômica (AEP) e o Inventário de Riscos (com suas ações) podem ser preenchidos sem internet.";
 
   let filaCache = []; // espelho em memoria da fila (a verdade fica no IndexedDB)
   const ouvintesFila = [];

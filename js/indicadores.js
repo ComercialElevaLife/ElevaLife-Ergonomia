@@ -14,7 +14,7 @@
   "use strict";
 
   const BI = (global.BI = global.BI || {});
-  BI.VERSAO = "1.1"; // versao do sistema - exibida no rodape e em Ajuda > Versao (ver docs/CHANGELOG.md)
+  BI.VERSAO = "1.2"; // versao do sistema - exibida no rodape e em Ajuda > Versao (ver docs/CHANGELOG.md)
 
   const FILTROS_GLOBAIS = "Cliente, Unidade, Setor, Posto, Cargo e Atividade";
   // Ano/Mes filtra pela data lancada no proprio registro; registro sem essa

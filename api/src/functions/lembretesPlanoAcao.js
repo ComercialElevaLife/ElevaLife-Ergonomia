@@ -63,6 +63,7 @@ const { obterContainer } = require("../shared/cosmos");
 const { enviarEmail, modeloPlanoAcao, modeloConvite, modeloRedefinicao, ESTAGIOS_PLANO_ACAO } = require("../shared/email");
 
 const NOME_APP = "S.I.G.E";
+const EMAIL_VALIDO_JOB = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
 function paraDataUTC(isoYYYYMMDD) {
@@ -177,6 +178,71 @@ async function processarAcao(container, acao, hojeMs, emailsAdmin, context, opco
   return mudou;
 }
 
+// ---- V 1.2: evidencia pendente (acao concluida por Administrador sem evidencia)
+// Avisos: 3 dias antes do "Prazo Evidencia", no dia, no dia seguinte e a cada
+// 7 dias enquanto continuar sem evidencia. Vao para o responsavel da acao e
+// para o Administrador que concedeu a dispensa (em atraso, todos os
+// Administradores em copia). Estado em "_notifEv" (nunca no formulario).
+async function buscarDispensasPendentes(container) {
+  const consulta = {
+    query: "SELECT * FROM c WHERE IS_DEFINED(c._dispensa) AND NOT IS_DEFINED(c._dispensa.regularizadaEm)",
+  };
+  const { resources } = await container.items.query(consulta).fetchAll();
+  return resources;
+}
+
+async function processarEvidencia(container, acao, hojeMs, emailsAdmin, context, opcoes = {}) {
+  const enviar = opcoes.enviar || enviarEstagio;
+  const d = acao._dispensa;
+  const prazoMs = paraDataUTC(d && d.prazo);
+  if (prazoMs === null) return false;
+  const doc = Object.assign({}, acao, { "Prazo Evidencia": d.prazo, "Justificativa Sem Evidencia": d.justificativa });
+  const diff = diasEntre(prazoMs, hojeMs);
+  const notif = Object.assign({}, acao._notifEv);
+  const responsavel = acao["E-mail Responsavel"] || null;
+  const quemDispensou = d.por && EMAIL_VALIDO_JOB.test(d.por) ? d.por : null;
+  const hojeISO = new Date(hojeMs).toISOString().slice(0, 10);
+  let mudou = false;
+
+  async function aviso(estagio, emAtraso) {
+    if (opcoes.enviar) {
+      await opcoes.enviar({ estagio, acao: doc, paraResponsavel: responsavel, emailsAdmin, ehEstagioDeAtraso: emAtraso });
+      return;
+    }
+    const destinos = Array.from(new Set([responsavel, quemDispensou].filter(Boolean)));
+    const envios = destinos.map((para) => enviarEmail({
+      para,
+      assunto: ESTAGIOS_PLANO_ACAO[estagio].assunto(doc),
+      htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio, acao: doc, paraAdmin: para === quemDispensou }),
+    }));
+    if (emAtraso) {
+      emailsAdmin.filter((e) => !destinos.includes(e)).forEach((para) => envios.push(enviarEmail({
+        para,
+        assunto: `[Admin] ${ESTAGIOS_PLANO_ACAO[estagio].assunto(doc)}`,
+        htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio, acao: doc, paraAdmin: true }),
+      })));
+    }
+    await Promise.allSettled(envios);
+  }
+
+  if (diff >= -3 && diff <= -1 && !notif.antes) { await aviso("evidAntes", false); notif.antes = true; mudou = true; }
+  if (diff === 0 && !notif.vence) { await aviso("evidVence", false); notif.vence = true; mudou = true; }
+  if (diff >= 1 && !notif.atraso) { await aviso("evidAtraso", true); notif.atraso = true; notif.ultimoSemanal = hojeISO; mudou = true; }
+  else if (diff > 1 && notif.atraso) {
+    const ultimoMs = paraDataUTC(notif.ultimoSemanal) ?? prazoMs;
+    if (diasEntre(ultimoMs, hojeMs) >= 7) { await aviso("evidAtraso", true); notif.ultimoSemanal = hojeISO; mudou = true; }
+  }
+
+  if (mudou && opcoes.gravar !== false) {
+    try {
+      await container.item(acao.id, acao.EmpresaId).replace(Object.assign({}, acao, { _notifEv: notif }));
+    } catch (erro) {
+      context.error(`Falha ao gravar _notifEv do Plano de Acao ${acao.id}`, erro);
+    }
+  }
+  return mudou;
+}
+
 async function executarLembretes(context) {
   const container = obterContainer("planoAcao");
   const hojeMs = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
@@ -192,6 +258,23 @@ async function executarLembretes(context) {
       resumo.falhas += 1;
       context.error(`Falha ao processar lembretes do Plano de Acao ${acao.id}`, erro);
     }
+  }
+  // V 1.2: evidencias pendentes (conclusao por Administrador sem comprovante).
+  resumo.evidenciasPendentes = 0;
+  resumo.evidenciasNotificadas = 0;
+  try {
+    const pendentes = await buscarDispensasPendentes(container);
+    resumo.evidenciasPendentes = pendentes.length;
+    for (const acao of pendentes) {
+      try {
+        if (await processarEvidencia(container, acao, hojeMs, emailsAdmin, context)) resumo.evidenciasNotificadas += 1;
+      } catch (erro) {
+        resumo.falhas += 1;
+        context.error(`Falha ao processar evidencia pendente ${acao.id}`, erro);
+      }
+    }
+  } catch (erro) {
+    context.error("Falha ao consultar evidencias pendentes", erro);
   }
   return resumo;
 }
@@ -381,4 +464,5 @@ async function tratar(request, context) {
   }
 }
 
-module.exports = { tratar, executarLembretes, executarSimulacao };
+module.exports = {
+  processarEvidencia, tratar, executarLembretes, executarSimulacao };

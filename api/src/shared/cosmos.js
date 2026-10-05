@@ -44,10 +44,27 @@ function obterContainer(nome) {
   return obterBanco().container(nome);
 }
 
+// Colecoes criadas sob demanda (V 1.2: "configuracao"). O banco e Serverless,
+// entao criar um container novo nao tem custo de throughput. Se ja existir,
+// createIfNotExists so le. Memoizado por instancia da Function App.
+const containersGarantidos = new Map();
+async function garantirContainer(nome) {
+  if (!containersGarantidos.has(nome)) {
+    containersGarantidos.set(
+      nome,
+      obterBanco()
+        .containers.createIfNotExists({ id: nome, partitionKey: { paths: [caminhoParticao(nome)] } })
+        .then(() => obterContainer(nome))
+        .catch((erro) => { containersGarantidos.delete(nome); throw erro; })
+    );
+  }
+  return containersGarantidos.get(nome);
+}
+
 // Caminho da chave de particao usado por cada colecao - usado ao montar o
 // definidor de containers em scripts de provisionamento (ver docs/azure-setup.md).
 function caminhoParticao(nome) {
   return PARTICAO_POR_ID.has(nome) ? "/id" : "/EmpresaId";
 }
 
-module.exports = { obterCliente, obterBanco, obterContainer, caminhoParticao, PARTICAO_POR_ID };
+module.exports = { obterCliente, obterBanco, obterContainer, garantirContainer, caminhoParticao, PARTICAO_POR_ID };

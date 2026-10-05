@@ -1953,3 +1953,41 @@ ul.ajuda-passos { list-style: disc; }
 .hist-tempo-alt { font-size: 12.5px; color: var(--texto); margin-top: 2px; word-break: break-word; }
 .hist-aviso { font-size: 13px; color: var(--cinza-quente); margin: 0; }
 body.hist-aberto { overflow: hidden; }
+
+/* ==========================================================================
+   V 1.2 - Acoes do risco (Inventario de Riscos), evidencias e Configuracoes
+   ========================================================================== */
+.acoes-editor { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.acoes-lista { display: flex; flex-direction: column; gap: 12px; }
+.acoes-barra { display: flex; gap: 8px; }
+.acoes-aviso { font-size: 12.5px; color: var(--cinza-quente); font-style: italic; }
+.acoes-resumo { border: 1px solid var(--linha); border-radius: 10px; padding: 10px 12px; background: var(--creme); }
+.acoes-resumo-vazio { font-size: 13px; color: var(--texto-secundario); }
+.acoes-resumo-linha { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.acoes-resumo-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--texto-secundario); }
+.acoes-resumo-segs { margin-top: 8px; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
+.acoes-resumo-segnome { font-weight: 700; margin-right: 6px; color: var(--texto); }
+.acoes-resumo-segtxt { color: var(--texto-secundario); }
+.acao-pilula { display: inline-block; padding: 2px 10px; border: 1.5px solid var(--cinza-quente); border-radius: 999px; font-weight: 700; font-size: 12px; background: var(--card); }
+.acao-card { border: 1px solid var(--linha); border-left: 4px solid var(--vinho); border-radius: 10px; padding: 12px; background: var(--card); }
+.acao-card-concluida { border-left-color: var(--teal); background: #f4f9f9; }
+.acao-card-com-erro { border-left-color: var(--status-critical); box-shadow: 0 0 0 1px var(--status-critical); }
+.acao-card-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.acao-card-titulo { font-weight: 700; color: var(--vinho-escuro); }
+.acao-card-botoes { display: flex; gap: 6px; flex-wrap: wrap; }
+.acao-card-status { font-size: 12px; color: var(--texto-secundario); margin-bottom: 8px; }
+.acao-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 12px; }
+.acao-campo { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.acao-campo-largo { grid-column: 1 / -1; }
+.acao-campo label { font-size: 11.5px; font-weight: 600; color: var(--texto-secundario); }
+.acao-campo input, .acao-campo select { width: 100%; box-sizing: border-box; }
+.acao-card-erro { margin-top: 8px; color: var(--status-critical); font-size: 12.5px; font-weight: 600; }
+.acoes-legado { border: 1px dashed var(--vinho-suave-2); border-radius: 10px; padding: 8px 12px; }
+.acoes-legado:empty { display: none; }
+.acoes-legado-titulo { font-size: 12px; font-weight: 700; color: var(--vinho); margin-bottom: 4px; }
+.acoes-legado-item { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; font-size: 13px; padding: 4px 0; }
+.acoes-legado-txt { flex: 1; white-space: pre-wrap; }
+.aviso-evidencia { margin-top: 6px; font-size: 12.5px; color: #8a5a00; background: #fff6e0; border: 1px solid #f0d9a0; border-radius: 8px; padding: 6px 10px; }
+.config-ajuda { font-size: 13px; color: var(--texto-secundario); margin: 4px 0 12px; max-width: 760px; }
+.config-form { display: flex; flex-direction: column; gap: 12px; max-width: 520px; }
+.config-form .acao-campo input { padding: 8px 10px; }

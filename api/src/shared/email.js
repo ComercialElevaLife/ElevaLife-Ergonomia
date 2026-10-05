@@ -204,12 +204,42 @@ const ESTAGIOS_PLANO_ACAO = {
     titulo: "Lembrete semanal: ação continua em atraso",
     mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, continua em atraso (data programada: ${formatarDataBR(a["Dt Programada"])}).`,
   },
+  // V 1.2 - ação concluída por um Administrador SEM evidência: cobra o anexo
+  // (foto ou PDF) até "Prazo Evidencia".
+  evidDispensa: {
+    cor: "#8a6d1a",
+    assunto: (a) => `Ação concluída sem evidência – anexe até ${formatarDataBR(a["Prazo Evidencia"])} – ${a.Cliente}`,
+    titulo: "Ação concluída sem evidência: falta anexar o comprovante",
+    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, foi concluída por um Administrador sem evidência anexada. O comprovante (foto ou PDF) precisa ser anexado até <strong>${formatarDataBR(a["Prazo Evidencia"])}</strong>.`,
+    extra: (a) => [["Justificativa", a["Justificativa Sem Evidencia"] || "-"], ["Prazo para anexar a evidência", formatarDataBR(a["Prazo Evidencia"])]],
+  },
+  evidAntes: {
+    cor: "#8a6d1a",
+    assunto: (a) => `Lembrete: evidência pendente vence em breve – ${a.Cliente}`,
+    titulo: "A evidência de uma ação concluída vence em até 3 dias",
+    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, está concluída sem evidência. O prazo para anexar o comprovante é <strong>${formatarDataBR(a["Prazo Evidencia"])}</strong>.`,
+    extra: (a) => [["Prazo para anexar a evidência", formatarDataBR(a["Prazo Evidencia"])]],
+  },
+  evidVence: {
+    cor: "#8a6d1a",
+    assunto: (a) => `Vence hoje: anexar evidência da ação – ${a.Cliente}`,
+    titulo: "Hoje é o último dia para anexar a evidência",
+    mensagem: (a) => `O prazo para anexar o comprovante da ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, é <strong>hoje (${formatarDataBR(a["Prazo Evidencia"])})</strong>.`,
+    extra: (a) => [["Prazo para anexar a evidência", formatarDataBR(a["Prazo Evidencia"])]],
+  },
+  evidAtraso: {
+    cor: "#a32020",
+    assunto: (a) => `Evidência em atraso – ${a.Cliente}`,
+    titulo: "O prazo para anexar a evidência de uma ação foi ultrapassado",
+    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, continua sem evidência e o prazo (${formatarDataBR(a["Prazo Evidencia"])}) já passou.`,
+    extra: (a) => [["Prazo para anexar a evidência", formatarDataBR(a["Prazo Evidencia"])]],
+  },
 };
 
 function modeloPlanoAcao({ nomeApp, estagio, acao, paraAdmin }) {
   const cfg = ESTAGIOS_PLANO_ACAO[estagio];
   const linhaAdmin = paraAdmin
-    ? `<p style="font-size:12.5px;color:#7a6a6a;line-height:1.6">Cópia enviada a você como Administrador do ${nomeApp}, porque esta ação está em atraso.</p>`
+    ? `<p style="font-size:12.5px;color:#7a6a6a;line-height:1.6">Cópia enviada a você como Administrador do ${nomeApp}, ${estagio.indexOf("evid") === 0 ? "porque a evidência desta ação está pendente." : "porque esta ação está em atraso."}</p>`
     : "";
   return `
     <div style="font-family:Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#2a1a1a">
@@ -226,6 +256,7 @@ function modeloPlanoAcao({ nomeApp, estagio, acao, paraAdmin }) {
           <tr><td style="padding:4px 0;color:#7a6a6a">Ação recomendada</td><td style="padding:4px 0">${acao["Acao Recomendada"] || "-"}</td></tr>
           <tr><td style="padding:4px 0;color:#7a6a6a">Responsável</td><td style="padding:4px 0">${acao["Responsavel Acao"] || "-"}</td></tr>
           <tr><td style="padding:4px 0;color:#7a6a6a">Data programada</td><td style="padding:4px 0">${formatarDataBR(acao["Dt Programada"])}</td></tr>
+          ${(cfg.extra ? cfg.extra(acao) : []).map(([r, v]) => `<tr><td style="padding:4px 0;color:#7a6a6a">${r}</td><td style="padding:4px 0">${v}</td></tr>`).join("")}
         </table>
         ${linhaAdmin}
         <p style="font-size:12.5px;color:#7a6a6a;line-height:1.6">Acesse o ${nomeApp} (aba Registro &gt; Plano de Ação) para ver o histórico completo e registrar a data de conclusão quando a ação for concluída.</p>

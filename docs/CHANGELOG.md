@@ -2,6 +2,18 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.2 — 05/10/2026
+
+- **Ações por fator de risco:** o Inventário de Riscos troca "Ação para Eliminação"/"Ação Organizacional" (texto) e o risco "após a melhoria" digitado por uma **lista de ações**. Cada ação é um registro do Plano de Ação ligado ao fator (`Fator Risco Id`) com tipo, descrição, segmento corporal, "reduz o risco de [atual] para [menor nível]", complexidade (Baixa/Média/Alta), responsável (nome + e-mail), prazo e status (Não iniciada / Em andamento / Concluída). A ação precisa levar o segmento a um nível menor que o atual.
+- **Risco residual calculado:** por segmento, previsto = menor alvo entre as ações; realizado = idem só com as concluídas; o fator fica no maior nível entre os segmentos. Sem ação, o residual não se aplica.
+- **Configurações (Administrador):** novos nomes para os três tipos de ação (códigos internos fixos `Eliminacao`, `Engenharia`, `Organizacional`); coleção global `configuracao`.
+- **Evidência obrigatória:** para concluir é preciso anexar foto (JPG/PNG) ou PDF (até 15 MB) — regra aplicada no servidor (`api/src/shared/planoAcaoRegras.js`). Só o Administrador pode concluir sem evidência, com justificativa (mín. 10 caracteres) e data-limite (até 180 dias); o servidor grava `_dispensa` (quem, quando, justificativa, prazo) e os lembretes diários cobram a evidência (3 dias antes, no dia, e a cada 7 dias de atraso) do responsável e do Administrador. Anexar a evidência regulariza a dispensa.
+- **E-mail de atribuição** só na criação da ação ou quando o e-mail do responsável muda (acaba o reenvio a cada gravação / reenvio da fila offline).
+- **Compatibilidade:** registros antigos intactos (campos e risco pós antigos ficam gravados); textos antigos viram ação com um clique; ações concluídas antes da V 1.2 seguem editáveis sem evidência.
+- **Plano de Ação:** campos novos (fator vinculado, tipo, segmento, risco atual/alvo, complexidade, situação, evidências) e coluna "Evidência" (Anexada (n) / Pendente até dd/mm / Sem evidência). Ações podem ser criadas offline (fila).
+- **Laudo:** a seção do Inventário lista as ações e o risco previsto/realizado.
+- Correção: histórico não registra mais alteração falsa quando só muda o tipo do valor.
+
 ## V 1.1 — 05/10/2026
 
 - **Ano/Mês só com data lançada:** as opções vêm das datas realmente registradas e o filtro só traz registros com a data preenchida. Campos novos: Data da avaliação (Mapa de Risco e Avaliação Ergonômica) e Data da identificação (Inventário de Riscos).
