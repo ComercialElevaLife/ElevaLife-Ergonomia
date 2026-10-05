@@ -246,7 +246,9 @@
       const resp = await fetch("/api/" + encodeURIComponent(chave), { credentials: "same-origin" });
       if (!resp.ok) {
         console.error("BI Ergonomia - erro ao carregar " + chave + " da API:", resp.status);
-        return false;
+        // Erro HTTP (ex.: 500 numa colecao) NAO e falta de internet: so falha
+        // de rede (catch abaixo) devolve false e leva o app para o modo offline.
+        return null;
       }
       const documentos = await resp.json();
       // app.js identifica cada linha pelo campo "_id" (convencao herdada do
