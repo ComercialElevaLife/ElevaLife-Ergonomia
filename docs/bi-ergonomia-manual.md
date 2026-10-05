@@ -1422,3 +1422,13 @@ publicados em produção:
   pacote `.aab`; (5) cadastro do app (descrição, imagens, política de
   privacidade, classificação etária). Alternativa sem Play Store: instalar o
   arquivo direto nos tablets (ou por gestão de dispositivos).
+
+### V 1.0 — 04/10/2026 (versionamento, visual clean, Ajuda e indicadores)
+
+- **Versionamento**: o sistema passa a ter versão (`BI.VERSAO`, hoje 1.0), exibida no rodapé e em Ajuda › Versão. Histórico em `docs/CHANGELOG.md`; cada fechamento de pacote ganha uma tag Git `vX.Y`.
+- **Visual clean**: removidos os textos descritivos dos cards, as introduções das telas Cadastro/Registro/Usuários/Referência, as legendas dos diagramas e o rodapé de "dados fictícios / gerado em". As descrições continuam no HTML (usadas no PDF exportado) mas ficam ocultas; o conteúdo vive no botão "i" e em Ajuda.
+- **Dicionário de indicadores**: `js/indicadores.js` é a fonte única (botão "i" em cada card e Ajuda › Indicadores); `docs/indicadores-gestao-de-risco.md` é gerado a partir dele. Na calibração foram corrigidas 3 distorções (graduação do Inventário ignorando níveis da matriz, fatores "Não" contados, prazos contando fatores concluídos) e listadas 6 regras que dependem de validação da equipe.
+- **Ajuda** (`js/ajuda.js`): manual de uso por módulo, 7 fluxos BPMN desenhados em SVG a partir de dados (raias, tarefas, decisões), indicadores e histórico. Conteúdo estático, igual para todos os perfis.
+- **Riscos Psicossociais**: item de menu e tela "Em construção" (aba `psicossocial`).
+- **Marco zero (04/10/2026)**: banco (Cosmos) e Storage zerados a pedido do responsável; mantido só o usuário Administrador dele e as 2 bibliotecas globais (modelo de laudo e certificado de calibração de exemplo). Backup local feito antes (JSON + arquivos do Storage).
+- Service worker em `sige-v3` (força a atualização do cache nos aparelhos).

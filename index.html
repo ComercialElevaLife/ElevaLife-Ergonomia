@@ -42,7 +42,7 @@
       <!-- Nome por extenso + simbolo de copyright, pedido do Leo 02/10/2026:
            "acho legal incluir no nome do sistema. S.I.G.E. - SISTEMA
            INTEGRADO GESTÃO ELEVALIFE (símbolo de copyright)". -->
-      <div class="tagline">Sistema Integrado de Gestão ElevaLife © · 15 anos elevando pessoas e resultados</div>
+      <div class="tagline">Sistema Integrado de Gestão ElevaLife ©</div>
     </div>
     <div id="tela-acesso-conteudo"></div>
   </div>
@@ -57,7 +57,7 @@
           <div class="produto">S.I.G.E</div>
           <!-- Nome por extenso + simbolo de copyright, pedido do Leo
                02/10/2026 (ver mesmo comentario em .tela-acesso-marca acima). -->
-          <div class="tagline">Sistema Integrado de Gestão ElevaLife © · 15 anos elevando pessoas e resultados</div>
+          <div class="tagline">Sistema Integrado de Gestão ElevaLife ©</div>
         </div>
       </div>
       <button type="button" id="btn-fechar-sidebar-mobile" class="btn-fechar-sidebar" aria-label="Fechar menu">
@@ -87,6 +87,10 @@
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h11"/><path d="M12 4l3 3-3 3"/><path d="M16 13H5"/><path d="M8 16l-3-3 3-3"/></svg></span>
         <span class="rotulo">Gestão de Restritos</span>
       </button>
+      <button type="button" data-aba="psicossocial" title="Riscos Psicossociais">
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17s-6-3.6-6-8.2A3.3 3.3 0 0 1 10 7a3.3 3.3 0 0 1 6 1.8C16 13.4 10 17 10 17Z"/></svg></span>
+        <span class="rotulo">Riscos Psicossociais</span>
+      </button>
       <div class="sidebar-nav-grupo" data-grupo-nav="registro">
         <button type="button" data-aba="registro" class="sidebar-nav-pai" title="Registro">
           <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="10" cy="4.5" rx="6" ry="2"/><path d="M4 4.5v11c0 1.1 2.7 2 6 2s6-.9 6-2v-11"/><path d="M4 10c0 1.1 2.7 2 6 2s6-.9 6-2"/></svg></span>
@@ -108,6 +112,10 @@
       <button type="button" data-aba="usuarios" id="nav-btn-usuarios" title="Usuários" hidden>
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="6.5" r="3"/><path d="M3.5 17c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/></svg></span>
         <span class="rotulo">Usuários</span>
+      </button>
+      <button type="button" data-aba="ajuda" title="Ajuda">
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M7.9 7.8a2.2 2.2 0 1 1 3.2 2c-.7.4-1.1.9-1.1 1.7"/><path d="M10 14h.01"/></svg></span>
+        <span class="rotulo">Ajuda</span>
       </button>
     </nav>
 
@@ -265,7 +273,7 @@
            separados (nunca 1 so bloco misturado) - ordem dentro de cada um
            tambem revista: primeiro o retrato geral (graduacao/cobertura),
            depois status/prazos, por ultimo o detalhe por setor. -->
-      <div class="col-12 titulo-secao-grade titulo-secao-grade--aep">AEP - Avaliação Ergonômica e Inventário de Riscos <span>(nativo, Sistema de Gestão Integrada)</span></div>
+      <div class="col-12 titulo-secao-grade titulo-secao-grade--aep">AEP · Avaliação Ergonômica e Inventário de Riscos</div>
 
       <div class="cartao col-12">
         <div class="cartao-titulo">Inventário de Riscos - Graduação do Risco</div>
@@ -307,11 +315,11 @@
 
       <!-- AET so ganhou indicador proprio neste pedido (28/09/2026) - antes
            so existia como tela de cadastro/upload, sem nenhum numero aqui. -->
-      <div class="col-12 titulo-secao-grade titulo-secao-grade--aet">AET - Análise Ergonômica do Trabalho <span>(externa, anexada em Excel/PDF)</span></div>
+      <div class="col-12 titulo-secao-grade titulo-secao-grade--aet">AET · Análise Ergonômica do Trabalho</div>
 
       <div class="cartao col-12">
         <div class="cartao-titulo">AET - Arquivos Anexados por Classificação</div>
-        <div class="cartao-sub" id="tiles-aet-resumo">Classificação automática por conteúdo do arquivo (Excel/PDF), confirmada pelo ergonomista no cadastro</div>
+        <div class="cartao-sub cartao-sub--dados" id="tiles-aet-resumo"></div>
         <div class="grade-status" id="tiles-aet-classificacao"></div>
       </div>
 
@@ -437,11 +445,6 @@
   </section>
 
   <section id="aba-cadastro" hidden>
-    <p class="dados-intro">
-      Cadastro-mestre (setup): a estrutura organizacional valida do cliente - Cliente (Empresa) > Unidade > Setor >
-      Cargo / Posto de Trabalho > Atividade. E a partir daqui que os 4 formularios da aba Registro validam suas
-      opções em cascata - nunca texto livre. Faca esse cadastro antes de lancar registros na aba Registro.
-    </p>
     <div class="aviso-somente-leitura" id="aviso-somente-leitura-cadastro" hidden>
       Banco de dados indisponível nesta visualização (modo somente leitura) - o cadastro abaixo mostra a
       estrutura fictícia de exemplo, mas novos lançamentos não podem ser salvos por aqui agora.
@@ -451,12 +454,6 @@
   </section>
 
   <section id="aba-registro" hidden>
-    <p class="dados-intro">
-      Registro (input do dia a dia): lançamento real nas 4 tabelas operacionais do S.I.G.E - Mapa de Risco,
-      Plano de Ação, Absenteísmo e Compatíveis. O que você salvar aqui fica gravado de verdade neste BI - qualquer
-      pessoa que abrir este link vê os mesmos dados. Lista CID e Dias Úteis são tabelas de referência (fixas) e
-      ficam disponíveis só para consulta no rodapé da página.
-    </p>
     <div class="aviso-somente-leitura" id="aviso-somente-leitura-registro" hidden>
       Banco de dados indisponível nesta visualização (modo somente leitura) - os registros abaixo mostram os
       dados fictícios de exemplo, mas novos lançamentos não podem ser salvos por aqui agora.
@@ -469,10 +466,6 @@
        app.js) - gerencia quem tem acesso ao BI e a quais empresas-cliente
        cada pessoa esta vinculada (ver api/src/functions/usuarios.js). -->
   <section id="aba-usuarios" hidden>
-    <p class="dados-intro">
-      Usuários com acesso ao S.I.G.E - defina o papel de cada pessoa (Administrador vê tudo; Consultor e
-      Cliente só veem as empresas vinculadas a eles) e a quais empresas-cliente cada uma está vinculada.
-    </p>
     <div class="cartao col-12 bloco-cadastro">
       <div class="cadastro-cabecalho">
         <div class="cartao-titulo">Usuários<span class="contagem-tabela" id="contagem-usuarios"></span></div>
@@ -489,17 +482,25 @@
     </div>
   </section>
 
+  <section id="aba-psicossocial" hidden>
+    <div class="em-construcao">
+      <div class="em-construcao-icone" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17s-6-3.6-6-8.2A3.3 3.3 0 0 1 10 7a3.3 3.3 0 0 1 6 1.8C16 13.4 10 17 10 17Z"/></svg>
+      </div>
+      <h2>Riscos Psicossociais</h2>
+      <span class="selo-construcao">Em construção</span>
+    </div>
+  </section>
+
+  <section id="aba-ajuda" hidden></section>
+
   <section id="aba-referencia" hidden>
-    <p class="dados-intro">
-      Tabelas de referência (estáticas, só para consulta) – alimentam cálculos como CID de afastamento e
-      contagem de dias úteis/colaboradores por Ano/Mês.
-    </p>
     <div class="grade" id="grade-referencia"></div>
   </section>
     </main>
 
     <footer class="rodape">
-      S.I.G.E - Sistema Integrado de Gestão ElevaLife © · Produto ElevaLife, dados fictícios nesta fase de validação · Gerado em <span id="data-geracao"></span>
+      <span id="versao-sistema">V 1.0</span>
       · <button type="button" class="link-referencia" id="btn-toggle-referencia">Ver tabelas de referência</button>
     </footer>
   </div>
@@ -524,6 +525,8 @@
 <script src="js/calc.js"></script>
 <script src="js/offline.js"></script>
 <script src="js/db.js"></script>
+<script src="js/indicadores.js"></script>
+<script src="js/ajuda.js"></script>
 <script src="js/diagramas.js"></script>
 <!-- Fontes Montserrat/Montserrat Alternates embutidas (base64) para o Laudo
      em PDF - jsPDF nao enxerga as fontes do CSS/navegador, entao a fonte tem

@@ -550,11 +550,18 @@
   // Generaliza mapaRiscoGlobal() para qualquer campo de nivel de risco (usa
   // sempre os mesmos 4 NIVEIS_RISCO/cores). mapaRiscoGlobal continua existindo
   // como um atalho pro caso historico (campo fixo "Risco Global").
+  // As matrizes do Inventario gravam rotulos proprios ("Moderado", "Muito
+  // Baixo", "Altissimo" - ver MATRIZES_RISCO); o painel usa sempre os 4
+  // NIVEIS_RISCO. Sem este agrupamento, esses fatores eram silenciosamente
+  // ignorados nas contagens (bug achado na calibracao dos indicadores, V 1.0).
+  const NIVEL_CANONICO = { "Muito Baixo": "Baixo", "Moderado": "Medio", "Altíssimo": "Muito Alto" };
+  function nivelCanonico(nivel) { return NIVEL_CANONICO[nivel] || nivel; }
+
   function distribuicaoPorNivelRisco(linhas, campo) {
     const total = linhas.length;
     const porNivel = {};
     NIVEIS_RISCO.forEach((n) => (porNivel[n] = 0));
-    linhas.forEach((l) => { if (l[campo] in porNivel) porNivel[l[campo]] += 1; });
+    linhas.forEach((l) => { const n = nivelCanonico(l[campo]); if (n in porNivel) porNivel[n] += 1; });
     return NIVEIS_RISCO.map((n) => ({
       nivel: n,
       qtd: porNivel[n],
@@ -812,6 +819,7 @@
     construirMapaCores,
     calcularStatusAcao,
     calcularRiscoGlobal,
+    nivelCanonico,
     nivelReduzido,
     buscarPorChave,
     filtrar,

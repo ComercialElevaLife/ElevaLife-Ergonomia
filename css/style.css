@@ -965,11 +965,20 @@ main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1600px; margin: 0 a
   color: var(--texto);
   margin-bottom: 2px;
 }
-.cartao .cartao-sub {
+/* Visual clean (V 1.0): a descricao fixa de cada card saiu da tela - o
+   texto continua no HTML (usado no PDF) e a explicacao completa fica no
+   botao "i" do titulo (js/indicadores.js). So sobra visivel o resumo que e'
+   DADO calculado (ex.: "3 registros de AET"). */
+.cartao .cartao-sub { display: none; }
+.cartao .cartao-sub.cartao-sub--dados {
+  display: block;
   font-size: 11.5px;
   color: var(--cinza-quente);
   margin-bottom: 8px;
 }
+.cartao .cartao-sub.cartao-sub--dados:empty { display: none; }
+.figura-diagrama figcaption { display: none; }
+.sidebar .titulos .tagline { display: none; }
 
 .col-3 { grid-column: span 3; }
 .col-4 { grid-column: span 4; }
@@ -1820,3 +1829,70 @@ footer.rodape {
   cursor: pointer;
   text-decoration: underline;
 }
+
+
+/* ---------------------------- V 1.0: botao "i", Ajuda, Em construcao ---------------------------- */
+
+.btn-info {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 17px; height: 17px; margin-left: 8px; vertical-align: 1px;
+  border: 1px solid var(--cinza-quente); border-radius: 50%;
+  background: transparent; color: var(--cinza-quente);
+  font: italic 700 11px/1 Georgia, serif; cursor: pointer; padding: 0;
+}
+.btn-info:hover, .btn-info:focus-visible { color: var(--vinho-medio); border-color: var(--vinho-medio); outline: none; }
+
+.info-popover {
+  position: absolute; z-index: 1000; max-width: calc(100vw - 24px);
+  background: var(--card); color: var(--texto);
+  border: 1px solid var(--linha); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  padding: 12px 14px; font-size: 12.5px; line-height: 1.5;
+}
+.info-popover p { margin: 6px 0 0; }
+.info-popover-titulo { font-weight: 700; font-size: 13px; color: var(--vinho-escuro); }
+
+footer.rodape { padding: 10px 16px 18px; opacity: 0.75; }
+
+.em-construcao {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; min-height: 55vh; text-align: center; color: var(--texto);
+}
+.em-construcao h2 { margin: 0; font-size: 22px; font-weight: 700; }
+.em-construcao-icone { width: 54px; height: 54px; color: var(--vinho-medio); }
+.selo-construcao {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  padding: 5px 14px; border-radius: 999px;
+  border: 1px dashed var(--vinho-medio); color: var(--vinho-medio);
+}
+
+.ajuda-abas { margin-bottom: 14px; }
+.ajuda-painel { display: flex; flex-direction: column; gap: 10px; max-width: 980px; }
+.ajuda-secao {
+  border: 1px solid var(--linha); border-radius: 10px; background: var(--card);
+  padding: 0 14px;
+}
+.ajuda-secao > summary { cursor: pointer; font-weight: 600; font-size: 13.5px; padding: 12px 0; }
+.ajuda-passos { margin: 0 0 14px; padding-left: 20px; font-size: 13px; line-height: 1.55; color: var(--texto); }
+.ajuda-passos li { margin-bottom: 6px; }
+ul.ajuda-passos { list-style: disc; }
+.ajuda-indicador { padding-bottom: 12px; font-size: 13px; line-height: 1.55; }
+.ajuda-indicador p { margin: 0 0 7px; }
+.ajuda-h3 { margin: 14px 0 0; font-size: 15px; color: var(--vinho-escuro); }
+.ajuda-grupo { margin-top: 6px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--cinza-quente); }
+.ajuda-fluxo-resumo { margin: 2px 0 10px; font-size: 12.5px; color: var(--cinza-quente); }
+.bpmn-rolagem { overflow-x: auto; border: 1px solid var(--linha); border-radius: 8px; }
+.bpmn-svg { display: block; font-family: inherit; }
+.bpmn-raia { fill: none; stroke: var(--linha); }
+.bpmn-raia-rotulo { fill: var(--vinho-escuro, #5E2A30); }
+.bpmn-raia-texto { fill: #fff; font-size: 10.5px; font-weight: 700; }
+.bpmn-aresta { fill: none; stroke: var(--cinza-quente); stroke-width: 1.5; }
+.bpmn-seta { fill: var(--cinza-quente); }
+.bpmn-rotulo-aresta { font-size: 10.5px; font-weight: 700; fill: var(--vinho-medio); paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
+.bpmn-tarefa rect { fill: var(--card); stroke: var(--vinho-medio); stroke-width: 1.5; }
+.bpmn-decisao polygon { fill: var(--card); stroke: var(--teal-escuro, #1d6f6f); stroke-width: 1.5; }
+.bpmn-inicio circle { fill: var(--card); stroke: var(--status-good, #2e8b57); stroke-width: 2; }
+.bpmn-fim circle { fill: var(--card); stroke: var(--vinho-escuro, #5E2A30); stroke-width: 3.5; }
+.bpmn-texto { font-size: 11px; fill: var(--texto); }
+.bpmn-legenda { font-size: 10.5px; font-weight: 600; paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
+.bpmn-x { font-size: 15px; font-weight: 700; fill: var(--teal-escuro, #1d6f6f); }

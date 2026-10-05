@@ -1066,7 +1066,7 @@
         abrirDrillDown(
           `Inventário de Riscos - ${window.BI.Calc.rotuloNivel(n.nivel)}`,
           `${n.qtd} fator(es) de risco`, "fatorRisco",
-          fatorRiscoF.filter((l) => l["Graduacao Risco"] === n.nivel), ev
+          fatorRiscoF.filter((l) => window.BI.Calc.nivelCanonico(l["Graduacao Risco"]) === n.nivel), ev
         );
       });
       const rotulo = document.createElement("div");
@@ -3525,7 +3525,7 @@
     },
     mapaRisco: {
       grupo: "registro", icone: "⚠️", tituloMenu: "Mapa de Risco",
-      titulo: "Mapa de Risco (1 registro por posto de trabalho)",
+      titulo: "Mapa de Risco",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Risco Global"],
       colunasData: [],
       camposData: [],
@@ -3592,7 +3592,7 @@
     // trabalhados no mes) - ver js/calc.js.
     diasUteis: {
       grupo: "registro", icone: "🕒", tituloMenu: "HHT / Dias Úteis",
-      titulo: "HHT / Dias Úteis (base de cálculo da Taxa de Frequência - NBR 14280)",
+      titulo: "HHT / Dias Úteis",
       colunasTabela: ["Cliente", "Unidade", "Setor", "Ano/Mes Uteis", "Qtd Colaboradores", "Qtd Dias Uteis"],
       colunasData: ["Ano/Mes Uteis"],
       camposData: ["Ano/Mes Uteis"],
@@ -3608,7 +3608,7 @@
     },
     compativeis: {
       grupo: "registro", icone: "🔄", tituloMenu: "Compatíveis",
-      titulo: "Compatíveis (restrições médicas)",
+      titulo: "Compatíveis",
       colunasTabela: ["Cliente", "Setor", "Funcionario", "Status Restricao", "Turno Trabalho", "Segmento Corporal", "Inicio Restricao"],
       colunasData: ["Inicio Restricao"],
       camposData: ["Inicio Restricao"],
@@ -3672,7 +3672,7 @@
     },
     fatorRisco: {
       grupo: "registro", icone: "🧩", tituloMenu: "Inventário de Riscos (AEP)",
-      titulo: "Inventário de Riscos (Fatores de Risco) (AEP)",
+      titulo: "Inventário de Riscos (AEP)",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Fator", "Graduacao Risco", "Status"],
       colunasData: ["Valido Ate"], camposData: ["Valido Ate"],
       campos: camposFatorRisco(),
@@ -3714,14 +3714,14 @@
     // "aoConstruir": nao ha cascata Cliente/Unidade/... nenhuma aqui.
     certificadoCalibracao: {
       grupo: "registro", icone: "📐", tituloMenu: "Certificado Calibração",
-      titulo: "Certificados de Calibração (biblioteca de instrumentos)",
+      titulo: "Certificados de Calibração",
       colunasTabela: ["Nome", "Validade"],
       colunasData: ["Validade"], camposData: ["Validade"],
       campos: camposCertificadoCalibracao(),
     },
     modeloLaudo: {
       grupo: "registro", icone: "📝", tituloMenu: "Editor de Texto",
-      titulo: "Editor de Texto do Laudo (modelo padrão reaproveitado em todo laudo gerado)",
+      titulo: "Editor de Texto do Laudo",
       colunasTabela: ["Nome"],
       colunasData: [], camposData: [],
       campos: camposModeloLaudo(),
@@ -5076,6 +5076,7 @@
     });
     const btnRef = document.getElementById("btn-toggle-referencia");
     if (btnRef) btnRef.textContent = "Ver tabelas de referência";
+    if (window.BI.Indicadores) window.BI.Indicadores.fecharPopover();
     atualizarEstadoExportacao();
     expandirGrupoSidebar(GRUPO_DA_ABA[aba] ? aba : null);
   }
@@ -5619,7 +5620,9 @@
     // Sistema de Gestao Integrada: mesmos filtros globais (camposData vazio -
     // nenhum dos 3 cadastros tem campo de Ano/Mes por enquanto).
     const avaliacaoF = Calc.filtrar(window.BI.dados.avaliacaoErgonomica || [], filtros, []);
-    const fatorRiscoF = Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, []);
+    // Fator marcado "Nao" no checklist nao e' risco: fica fora de todas as contagens.
+    const fatorRiscoF = Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, []).filter((l) => l["Existe Fator Risco"] !== "Nao");
+    const fatorRiscoAbertoF = fatorRiscoF.filter((l) => ["A validar", "Em andamento"].includes(l.Status));
     const laudoF = Calc.filtrar(window.BI.dados.laudo || [], filtros, []);
     const aetF = Calc.filtrar(window.BI.dados.aet || [], filtros, []);
     const DIAS_ALERTA_PRAZO = 30;
@@ -5628,7 +5631,7 @@
     renderTilesFatorRiscoGraduacao(Calc.distribuicaoPorNivelRisco(fatorRiscoF, "Graduacao Risco"), fatorRiscoF);
     renderDonutFatorRiscoStatus(Calc.distribuicaoPorStatus(fatorRiscoF, "Status", STATUS_FATOR_RISCO_POOL), fatorRiscoF);
     renderTilesAvaliacaoCobertura(Calc.coberturaAvaliacao(avaliacaoF, mapaRiscoF));
-    renderTilesFatorRiscoPrazos(Calc.distribuicaoVencimento(fatorRiscoF, "Valido Ate", hoje, DIAS_ALERTA_PRAZO), fatorRiscoF, hoje, DIAS_ALERTA_PRAZO);
+    renderTilesFatorRiscoPrazos(Calc.distribuicaoVencimento(fatorRiscoAbertoF, "Valido Ate", hoje, DIAS_ALERTA_PRAZO), fatorRiscoAbertoF, hoje, DIAS_ALERTA_PRAZO);
     renderTopSetoresFatorRisco(Calc.topSetoresPorCampo(fatorRiscoF, "Status", ["A validar", "Em andamento"], 5), fatorRiscoF);
     renderDonutLaudosTipo(laudoF);
 
@@ -6277,6 +6280,10 @@
       configurarSidebar();
       configurarAbas();
       configurarToggleReferencia();
+      if (window.BI.Indicadores) window.BI.Indicadores.instalarBotoesInfo();
+      if (window.BI.Ajuda) window.BI.Ajuda.montar();
+      const spanVersao = document.getElementById("versao-sistema");
+      if (spanVersao && window.BI.VERSAO) spanVersao.textContent = "V " + window.BI.VERSAO;
       configurarExportacao();
       configurarBarraSuperior();
       configurarPainelFiltros();
