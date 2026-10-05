@@ -47,6 +47,8 @@
     // V 1.2: configuracoes do sistema (so Administrador grava; GLOBAL) - hoje
     // guarda os nomes dos tipos de acao do Plano de Acao (ver js/acoes.js).
     "configuracao",
+    // V 1.3: cadastro global de ergonomistas (assinatura do laudo).
+    "ergonomista",
   ];
 
   const estado = {
@@ -75,7 +77,7 @@
       mapaRisco: [], planoAcao: [], absenteismo: [], compativeis: [],
       cliente: [], unidade: [], setor: [], cargo: [], posto: [], atividade: [],
       avaliacaoErgonomica: [], fatorRisco: [], laudo: [], aet: [], diasUteis: [],
-      certificadoCalibracao: [], modeloLaudo: [], configuracao: [],
+      certificadoCalibracao: [], modeloLaudo: [], configuracao: [], ergonomista: [],
     },
     inscricoes: [],
   };

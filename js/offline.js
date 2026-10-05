@@ -107,6 +107,7 @@
     diasUteis: "HHT / Dias Úteis",
     certificadoCalibracao: "Certificado de Calibração",
     modeloLaudo: "Modelo de Laudo",
+    ergonomista: "Ergonomista",
   };
 
   function injetarEstilo() {

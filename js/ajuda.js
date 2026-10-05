@@ -80,7 +80,8 @@
       titulo: "Laudos e Certificados de Calibração",
       passos: [
         "O Modelo de Laudo (Editor de Texto) e os Certificados de Calibração são bibliotecas compartilhadas por todos os clientes.",
-        "Em Registro › Laudos, clique em \"+ Novo registro\", escolha cliente, setor e posto e clique em \"Gerar Laudo (PDF)\". O PDF é montado a partir da Avaliação Ergonômica e do Inventário de Riscos e anexado ao registro; confirme em Salvar.",
+        "Cadastre os ergonomistas em Registro › Ergonomistas (com registro profissional e imagem da assinatura). Se quiser ajustar os textos do laudo, use Registro › Editor de Texto.",
+        "Em Registro › Laudos, clique em \"+ Novo registro\", escolha cliente, setor e posto, o responsável técnico e clique em \"Gerar Laudo (PDF)\". O PDF é montado a partir da Avaliação Ergonômica, do Inventário de Riscos e do Plano de Ação e anexado ao registro; clique em Salvar para registrar o código de verificação do QR Code.",
       ],
     },
     {
@@ -220,6 +221,16 @@
   ];
 
   const HISTORICO = [
+    {
+      versao: "1.3", data: "05/10/2026",
+      itens: [
+        "Laudo (AEP) redesenhado como documento oficial: A4 em retrato, capa com o logotipo do cliente, sumário clicável (links e marcadores do PDF), cabeçalho e rodapé com \"Página X de Y\" e código do documento.",
+        "Metodologia ElevaLife no laudo: apresentação, a ElevaLife, responsabilidade técnica, demanda, dados da empresa, fundamentação (ergonomia, os cinco pilares, NR-17, NR-01/GRO/PGR), cinco etapas e PDCA, técnicas, ISO/TS 20646, guias de graduação, matriz de risco, referências. Os textos são editáveis em Registro › Editor de Texto (campo vazio usa o texto padrão).",
+        "Cada posto traz fotos, descrição da atividade, panorama, fatores com gravidade × probabilidade, ações por fator e risco previsto/realizado; o plano de ação e o risco residual fecham o documento.",
+        "Nova tela Registro › Ergonomistas (nome, formação, registro profissional e imagem da assinatura). O laudo usa o responsável técnico e o ergonomista executor escolhidos.",
+        "Última página: assinaturas, campo para o cliente e QR Code com código de verificação. A página pública sige-ergo.elevalife.com.br/verificar mostra a autoria e confere se o arquivo é o documento emitido. Para valer, salve o registro do Laudo depois de gerar o PDF.",
+      ],
+    },
     {
       versao: "1.2", data: "05/10/2026",
       itens: [
