@@ -35,6 +35,9 @@ function resumir(v) {
 
 function igual(a, b) {
   if (vazio(a) && vazio(b)) return true;
+  // 9 e "9" sao o mesmo valor (o formulario devolve texto): nao e alteracao.
+  const simples = (v) => v === null || ["string", "number", "boolean"].includes(typeof v);
+  if (simples(a) && simples(b)) return String(a) === String(b);
   return JSON.stringify(a) === JSON.stringify(b);
 }
 

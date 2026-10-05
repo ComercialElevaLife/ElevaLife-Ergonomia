@@ -26,6 +26,9 @@ const CONTAINER_POR_COLECAO = {
   certificadoCalibracao: "certificados-calibracao",
   // Logotipo do cadastro ampliado de empresa (ver js/app.js/camposCadastroCliente).
   cliente: "clientes-logos",
+  // V 1.2: evidencias (foto ou PDF) de conclusao das acoes do Plano de Acao.
+  // O container e criado sob demanda no primeiro upload (ver arquivos.js).
+  planoAcao: "planoacao-evidencias",
 };
 
 let clienteBlob = null;
