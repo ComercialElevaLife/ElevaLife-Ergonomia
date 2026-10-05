@@ -28,6 +28,7 @@ const rotaApiKeysAdmin = require("./apiKeysAdmin");
 const rotaAuth = require("./auth");
 const rotaCnpj = require("./cnpj");
 const rotaJobs = require("./lembretesPlanoAcao");
+const { excluirArquivosRemovidos } = require("../shared/blob");
 const { enviarEmail, modeloPlanoAcao, ESTAGIOS_PLANO_ACAO } = require("../shared/email");
 
 const NOME_APP = "S.I.G.E";
@@ -211,6 +212,8 @@ async function tratar(request, context) {
         }
         const doc = Object.assign({}, existente, corpo, { id, EmpresaId: empresaIdFinal });
         const { resource } = await container.item(id, empresaIdDoDocumento(colecao, doc)).replace(doc);
+        // Tirou uma foto/arquivo do registro: apaga o arquivo do Storage tambem.
+        await excluirArquivosRemovidos(existente, resource, empresaIdFinal, context);
         return { jsonBody: resource };
       }
 
@@ -225,6 +228,8 @@ async function tratar(request, context) {
           return { status: 403, jsonBody: { erro: "Só Administrador pode excluir uma empresa-cliente." } };
         }
         await container.item(id, empresaIdDoDocumento(colecao, existente)).delete();
+        // Excluiu o registro: apaga as fotos/arquivos dele do Storage tambem.
+        await excluirArquivosRemovidos(existente, null, COLECOES_GLOBAIS.includes(colecao) ? EMPRESA_GLOBAL : empresaIdDoDocumento(colecao, existente), context);
         return { status: 204 };
       }
 

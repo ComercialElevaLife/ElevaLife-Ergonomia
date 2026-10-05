@@ -92,6 +92,21 @@
   const ROTULO_COLECAO = {
     avaliacaoErgonomica: "Avaliação Ergonômica",
     fatorRisco: "Inventário de Riscos",
+    mapaRisco: "Mapa de Risco",
+    planoAcao: "Plano de Ação",
+    absenteismo: "Absenteísmo",
+    compativeis: "Compatíveis",
+    cliente: "Empresa (Cliente)",
+    unidade: "Unidade",
+    setor: "Setor",
+    posto: "Posto de Trabalho",
+    cargo: "Cargo",
+    atividade: "Atividade",
+    laudo: "Laudo",
+    aet: "AET",
+    diasUteis: "HHT / Dias Úteis",
+    certificadoCalibracao: "Certificado de Calibração",
+    modeloLaudo: "Modelo de Laudo",
   };
 
   function injetarEstilo() {
@@ -133,7 +148,7 @@
     const d = entrada.dados || {};
     const partes = ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"].map((c) => d[c]).filter(Boolean);
     const extra = d["Fator Risco"] || d["Fator"] || "";
-    const texto = partes.join(" › ") + (extra ? " – " + extra : "");
+    const texto = (d.Nome && !partes.length ? d.Nome : partes.join(" › ")) + (extra ? " – " + extra : "");
     return texto || "(sem identificação)";
   }
 
@@ -197,7 +212,7 @@
       const sub = document.createElement("p");
       sub.className = "sub";
       sub.textContent = lista.length
-        ? "Estes registros foram feitos sem internet e estão guardados neste aparelho. Eles são enviados sozinhos quando o sinal voltar."
+        ? "Estas operações (registros e exclusões) foram feitas sem internet e estão guardadas neste aparelho. Elas são enviadas sozinhas quando o sinal voltar."
         : "Nada pendente. Tudo o que foi feito já está no servidor.";
       janela.append(h, sub);
 
@@ -205,7 +220,8 @@
         const item = document.createElement("div");
         item.className = "ind-item" + (entrada.estado === "conflito" || entrada.estado === "erro" ? " ind-item-problema" : "");
         const titulo = document.createElement("b");
-        titulo.textContent = (ROTULO_COLECAO[entrada.colecao] || entrada.colecao) + (entrada.criar ? " (novo)" : " (alteração)");
+        titulo.textContent = (ROTULO_COLECAO[entrada.colecao] || entrada.colecao) +
+          (entrada.tipo === "excluir" ? " (exclusão)" : entrada.criar ? " (novo)" : " (alteração)");
         const resumo = document.createElement("div");
         resumo.className = "resumo";
         resumo.textContent = resumoDe(entrada);
@@ -228,9 +244,11 @@
           acoes.appendChild(b);
         }
         const d = document.createElement("button");
-        d.type = "button"; d.textContent = "Descartar";
+        d.type = "button"; d.textContent = entrada.tipo === "excluir" ? "Cancelar exclusão" : "Descartar";
         d.addEventListener("click", async () => {
-          if (!global.confirm("Descartar este registro? Ele será perdido e não será enviado.")) return;
+          if (!global.confirm(entrada.tipo === "excluir"
+            ? "Cancelar esta exclusão? O registro continua no sistema."
+            : "Descartar este registro? Ele será perdido e não será enviado.")) return;
           await dbApi.fila.descartar(entrada.seq);
           renderizarJanela();
         });

@@ -19,16 +19,17 @@
            navegador ja manda o cookie de autenticacao do Static Web Apps
            sozinho num <img>/<a> normal, sem precisar de fetch manual).
 
-   Sem rota de exclusao por enquanto: remover um arquivo de um registro so
-   tira a referencia do documento (o blob fica orfao no Storage) - suficiente
-   pro volume desta fase; uma rotina de limpeza de orfaos fica pro backlog.
+   DELETE /api/arquivos?chave=...
+        -> apaga o arquivo do Blob Storage (mesma permissao de ver o arquivo).
+           Alem desta rota, a API apaga os arquivos sozinha quando o registro
+           e excluido ou salvo sem eles (ver shared/blob.js).
    ========================================================================== */
 
 "use strict";
 
 const crypto = require("crypto");
 const { resolverIdentidade, podeVerEmpresa } = require("../shared/tenant");
-const { obterContainerCliente } = require("../shared/blob");
+const { obterContainerCliente, excluirArquivo } = require("../shared/blob");
 
 // Mesma constante de src/functions/entidades.js (EMPRESA_GLOBAL) - o arquivo
 // do Certificado de Calibracao e gravado com esse EmpresaId fixo (biblioteca
@@ -167,6 +168,19 @@ async function tratarDownload(request, identidade) {
   };
 }
 
+async function tratarExclusao(request, identidade) {
+  const chave = request.query.get("chave");
+  if (!chave) return { status: 400, jsonBody: { erro: "Parâmetro “chave” é obrigatório." } };
+  const partes = chave.split("/");
+  const empresaId = partes[0];
+  if (!empresaId || !REGRAS_POR_COLECAO[partes[1]]) return { status: 204 };
+  if (!podeAcessarEmpresaOuGlobal(identidade, empresaId)) {
+    return { status: 403, jsonBody: { erro: "Sem permissão para excluir este arquivo." } };
+  }
+  await excluirArquivo(chave);
+  return { status: 204 };
+}
+
 async function tratar(request, context) {
   let identidade;
   try {
@@ -186,6 +200,7 @@ async function tratar(request, context) {
   try {
     if (request.method === "POST") return await tratarUpload(request, identidade);
     if (request.method === "GET") return await tratarDownload(request, identidade);
+    if (request.method === "DELETE") return await tratarExclusao(request, identidade);
     return { status: 405, jsonBody: { erro: "Método não suportado." } };
   } catch (erro) {
     context.error("Erro em /api/arquivos", erro);

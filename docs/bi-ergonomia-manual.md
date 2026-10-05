@@ -1373,3 +1373,50 @@ publicados em produção:
   - **Atenção:** os dados ficam no aparelho; se o tablet for compartilhado,
     use o botão Sair ao terminar (apaga a cópia dos dados; a fila de envios
     pendentes é mantida).
+- **Exclusão sem impeditivo, online e offline** (04/10/2026) — pedido do Léo:
+  "o sistema precisa ter a possibilidade de exclusão de dados sem impeditivo
+  off e on".
+  - **Arquivos apagados de verdade.** Antes, excluir um registro (ou tirar uma
+    foto dele) só apagava a referência e o arquivo ficava órfão no Storage.
+    Agora a API apaga o arquivo junto: ao **excluir o registro**, ao **salvar
+    o registro sem uma foto/arquivo que ele tinha** e pela nova rota
+    `DELETE /api/arquivos?chave=...` (`api/src/shared/blob.js`). Só apaga chave
+    que pertence à empresa do próprio registro (ninguém apaga arquivo de outra
+    empresa). Falha no Storage nunca derruba a exclusão: vai para o log.
+  - **Exclusão offline em todas as telas de dados.** Excluir (individual ou em
+    lote) sem internet entra na mesma fila do passo 2: o registro some da
+    lista na hora e é apagado no servidor (com os arquivos) quando o sinal
+    volta; na janela de pendências aparece como "(exclusão)", com "Cancelar
+    exclusão". Registro criado offline e excluído antes de enviar nunca chega
+    ao servidor; edição pendente + exclusão vira só exclusão. Exceção:
+    **Usuários** continua exigindo internet (conta de acesso, não é dado de
+    campo). Criar/editar fora da AEP continua exigindo internet.
+  - **Carga com sinal oscilando.** Se o sinal cair no meio do carregamento
+    inicial, as listas que falharam vêm da cópia guardada no aparelho (o app
+    passa a "sem internet" e sincroniza depois), em vez de ficarem vazias.
+- **Onde ficam os dados (mapa do armazenamento)** (04/10/2026) — tudo no
+  Azure, grupo `rg-elevalife-ergonomia`, região **Central US**:
+  - *Site + API:* Static Web App `bi-ergonomia-elevalife` (plano **Free**).
+  - *Dados (registros):* Cosmos DB `cosmos-bi-ergonomia`, modo **serverless**
+    (paga só pelo uso), 1 região, backup periódico. Em 04/10/2026: ~1 MB e 26
+    documentos.
+  - *Arquivos (fotos, logotipos, laudos, AET, certificados):* conta de storage
+    `stbiergonomiaelevalife` (StorageV2, **LRS**, camada **Hot**, sem acesso
+    público), containers `avaliacao-fotos`, `clientes-logos`, `laudos-arquivos`,
+    `aet-arquivos`, `certificados-calibracao`. Todo acesso passa pela API.
+  - *Consumo:* o que cresce é o **Storage de fotos** (foto de celular tem
+    1–3 MB; AEP em campo com muitas fotos é o que pesa). Cosmos é pequeno.
+    Arquivos de empresas fictícias antigas (Fibratex, Nutrivale, Poliplast,
+    "teste") ainda estão no Storage e podem ser removidos.
+- **Backlog — publicação na Google Play (aguarda validação da diretoria)**
+  (04/10/2026): empacotar o S.I.G.E. como app Android (TWA) e publicar na Play
+  Store. Pré-requisitos: (1) domínio próprio `elevalife-sige.com.br`
+  (Registro.br, em nome da ElevaLife) apontando para o site, com atualização
+  de `URL_PUBLICA` e da variável `SIGE_URL` do GitHub; (2) conta de
+  desenvolvedor Google Play da ElevaLife (taxa única; contas de empresa pedem
+  verificação, e contas novas podem exigir período de teste fechado antes da
+  publicação — confirmar regras vigentes no Play Console); (3) chave de
+  assinatura do app guardada pela ElevaLife; (4) `assetlinks.json` no site e
+  pacote `.aab`; (5) cadastro do app (descrição, imagens, política de
+  privacidade, classificação etária). Alternativa sem Play Store: instalar o
+  arquivo direto nos tablets (ou por gestão de dispositivos).

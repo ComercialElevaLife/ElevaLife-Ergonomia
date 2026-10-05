@@ -246,7 +246,7 @@
       const resp = await fetch("/api/" + encodeURIComponent(chave), { credentials: "same-origin" });
       if (!resp.ok) {
         console.error("BI Ergonomia - erro ao carregar " + chave + " da API:", resp.status);
-        return;
+        return false;
       }
       const documentos = await resp.json();
       // app.js identifica cada linha pelo campo "_id" (convencao herdada do
@@ -257,8 +257,10 @@
       estado.colecoes[chave] = sobreporPendentes(chave, documentos.map((doc) => Object.assign({ _id: doc.id }, doc)));
       guardarCopiaLocal(chave, documentos);
       if (callbackAtualizacao) callbackAtualizacao(chave);
+      return true;
     } catch (erro) {
       console.error("BI Ergonomia - falha de rede ao carregar " + chave + ":", erro);
+      return false;
     }
   }
 
@@ -290,7 +292,10 @@
   //    servidor depois da copia que o aparelho tinha (_ts maior), NAO
   //    sobrescreve sozinho: fica "conflito" e quem usa decide ("Enviar minha
   //    versao" ou "Descartar"). Registro novo nunca tem conflito.
-  //  - Todo o resto (cadastros, usuarios, laudos, exclusoes) continua
+  //  - EXCLUSAO funciona offline em TODAS as telas de dados (pedido do Leo,
+  //    04/10/2026): vai para a mesma fila ("excluir"), some da lista na hora e
+  //    e apagada no servidor (com as fotos/arquivos dela) quando o sinal volta.
+  //  - O resto (criar/editar cadastros, laudos, Plano de Acao etc.) continua
   //    exigindo internet e avisa com mensagem clara.
   // --------------------------------------------------------------------
 
@@ -331,9 +336,16 @@
     try {
       filaCache = await global.BI.Offline.fila.listar();
       const arquivos = await global.BI.Offline.todos("arquivos");
-      (arquivos || []).forEach((reg) => {
-        if (reg && reg.id && reg.blob && !urlsLocais.has(reg.id)) urlsLocais.set(reg.id, URL.createObjectURL(reg.blob));
-      });
+      const emUso = new Set();
+      filaCache.forEach((e) => coletarArquivosLocais(e.dados).forEach((i) => emUso.add(i.chave.slice(6))));
+      const seteDias = 7 * 24 * 60 * 60 * 1000;
+      for (const reg of arquivos || []) {
+        if (!reg || !reg.id) continue;
+        // Foto que foi anexada mas nunca entrou num registro salvo (usuario
+        // desistiu/removeu): limpa do aparelho depois de 7 dias.
+        if (!emUso.has(reg.id) && reg.criadoEm && Date.now() - reg.criadoEm > seteDias) { await apagarArquivoLocal(reg.id); continue; }
+        if (reg.blob && !urlsLocais.has(reg.id)) urlsLocais.set(reg.id, URL.createObjectURL(reg.blob));
+      }
       global.BI.Offline.pedirPersistencia();
     } catch (e) {
       console.warn("S.I.G.E. - armazenamento local indisponível:", e);
@@ -346,8 +358,9 @@
   function sobreporPendentes(chave, lista) {
     const pend = filaCache.filter((e) => e.colecao === chave);
     if (!pend.length) return lista;
-    const res = lista.slice();
+    let res = lista.slice();
     pend.forEach((e) => {
+      if (e.tipo === "excluir") { res = res.filter((l) => l._id !== e.id); return; }
       const linha = Object.assign({}, e.dados, { id: e.id, _id: e.id, _pendente: true });
       const i = res.findIndex((l) => l._id === e.id);
       if (i >= 0) res[i] = Object.assign({}, res[i], linha);
@@ -372,6 +385,21 @@
       await global.BI.Offline.limpar("cache");
       await global.BI.Offline.apagar("meta", "identidade");
     } catch (e) { /* tudo bem */ }
+  }
+
+  // Carrega todas as colecoes da API. Sinal que caiu NO MEIO do carregamento
+  // (a internet de campo oscila) nao pode deixar listas vazias na tela: as
+  // que falharam vem da copia guardada no aparelho e o app passa a "sem
+  // internet" ate a proxima sincronizacao bem-sucedida.
+  async function carregarTudoOuCopia() {
+    const resultados = await Promise.all(COLECOES.map((chave) => recarregarColecaoApi(chave)));
+    const falharam = COLECOES.filter((chave, i) => resultados[i] === false);
+    if (falharam.length) {
+      estado.offlineAgora = true;
+      for (const chave of falharam) await reconstruirDaCopia(chave);
+      avisarFila();
+      agendarSincronizacao(15000);
+    }
   }
 
   // Abre o app SEM internet usando a copia guardada da ultima vez que o
@@ -426,7 +454,7 @@
     const idLocal = novoIdLocal();
     try {
       await global.BI.Offline.gravar("arquivos", idLocal, {
-        id: idLocal, blob: arquivo, nome: arquivo.name, tipo: arquivo.type, colecao: colecaoChave, empresaId,
+        id: idLocal, blob: arquivo, nome: arquivo.name, tipo: arquivo.type, colecao: colecaoChave, empresaId, criadoEm: Date.now(),
       });
     } catch (e) {
       throw new Error("Não foi possível guardar a foto neste aparelho (sem espaço?). Libere espaço e tente de novo.");
@@ -462,7 +490,10 @@
     const existente = filaCache.find((e) => e.colecao === colecaoChave && e.id === idFinal);
     try {
       if (existente) {
-        // Editou de novo antes de enviar: so vale a ultima versao.
+        // Editou de novo antes de enviar: so vale a ultima versao. Foto local
+        // que saiu do registro e apagada do aparelho.
+        const aindaUsadas = new Set(coletarArquivosLocais(corpo).map((i) => i.chave));
+        coletarArquivosLocais(existente.dados).forEach((i) => { if (!aindaUsadas.has(i.chave)) apagarArquivoLocal(i.chave.slice(6)); });
         existente.dados = corpo;
         existente.estado = "pendente";
         existente.mensagem = null;
@@ -488,18 +519,59 @@
     return idFinal;
   }
 
-  async function descartarEntrada(entrada) {
+  // Exclusao offline (ou com sinal ruim): some da lista agora, apaga no
+  // servidor depois. Registro criado offline e ainda nao enviado nunca
+  // existiu no servidor - basta tirar da fila.
+  async function enfileirarExclusao(colecaoChave, id) {
+    if (!offlineDisponivel()) throw new Error(MSG_PRECISA_INTERNET);
+    const linha = (estado.colecoes[colecaoChave] || []).find((l) => l._id === id) || {};
+    const pendente = filaCache.find((e) => e.colecao === colecaoChave && e.id === id);
+    if (pendente) {
+      if (pendente.tipo === "excluir") return; // ja esta na fila para excluir
+      if (pendente.criar) { await descartarEntrada(pendente); return; } // nunca chegou ao servidor
+      await descartarEntrada(pendente, true); // havia uma edicao pendente: some, a exclusao vale
+    }
+    const resumo = {};
+    ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Nome", "Fator Risco", "Fator"].forEach((c) => { if (linha[c]) resumo[c] = linha[c]; });
+    try {
+      const nova = { colecao: colecaoChave, id, tipo: "excluir", dados: resumo, criar: false, estado: "pendente", tentativas: 0, criadoEm: Date.now() };
+      nova.seq = await global.BI.Offline.fila.adicionar(nova);
+      filaCache.push(nova);
+    } catch (e) {
+      throw new Error("Não foi possível guardar a exclusão neste aparelho (sem espaço?). Libere espaço e tente de novo.");
+    }
+    estado.colecoes[colecaoChave] = sobreporPendentes(colecaoChave, estado.colecoes[colecaoChave] || []);
+    if (callbackAtualizacao) callbackAtualizacao(colecaoChave);
+    atualizarContagens();
+    agendarSincronizacao(estado.offlineAgora ? 30000 : 2000);
+  }
+
+  // Refaz a lista de uma colecao a partir da copia guardada no aparelho (usado
+  // quando se descarta uma exclusao pendente estando sem internet).
+  async function reconstruirDaCopia(chave) {
+    try {
+      const c = estado.identidade && await global.BI.Offline.ler("cache", estado.identidade.email + "|" + chave);
+      if (!c || !Array.isArray(c.docs)) return;
+      estado.colecoes[chave] = sobreporPendentes(chave, c.docs.map((doc) => Object.assign({ _id: doc.id }, doc)));
+      if (callbackAtualizacao) callbackAtualizacao(chave);
+    } catch (e) { /* mantem a lista como esta */ }
+  }
+
+  async function descartarEntrada(entrada, silencioso) {
     if (!entrada) return;
     try {
       coletarArquivosLocais(entrada.dados).forEach((item) => apagarArquivoLocal(item.chave.slice(6)));
       await global.BI.Offline.fila.remover(entrada.seq);
     } catch (e) { /* segue */ }
     filaCache = filaCache.filter((e) => e.seq !== entrada.seq);
-    if (entrada.criar) {
+    if (silencioso) { atualizarContagens(); return; } // quem chamou ja cuida da lista
+    if (entrada.criar && entrada.tipo !== "excluir") {
       estado.colecoes[entrada.colecao] = (estado.colecoes[entrada.colecao] || []).filter((l) => !(l._pendente && l._id === entrada.id));
       if (callbackAtualizacao) callbackAtualizacao(entrada.colecao);
     } else if (!semInternetAgora()) {
       await recarregarColecaoApi(entrada.colecao);
+    } else {
+      await reconstruirDaCopia(entrada.colecao);
     }
     atualizarContagens();
   }
@@ -526,6 +598,23 @@
     const O = global.BI.Offline;
     const salvarEntrada = () => O.fila.atualizar(entrada).catch(() => {});
     try {
+      if (entrada.tipo === "excluir") {
+        const respDel = await fetch("/api/" + encodeURIComponent(entrada.colecao) + "/" + encodeURIComponent(entrada.id), {
+          method: "DELETE", credentials: "same-origin",
+        });
+        if (respDel.ok || respDel.status === 204 || respDel.status === 404) { // 404 = ja nao existe, objetivo cumprido
+          await O.fila.remover(entrada.seq);
+          filaCache = filaCache.filter((e) => e.seq !== entrada.seq);
+          return "ok";
+        }
+        if (respDel.status === 401) { estado.sessaoExpirada = true; return "parar"; }
+        if (respDel.status >= 500) { entrada.tentativas = (entrada.tentativas || 0) + 1; await salvarEntrada(); return "parar"; }
+        entrada.estado = "erro";
+        entrada.mensagem = await corpoDeErro(respDel);
+        await salvarEntrada();
+        return "problema";
+      }
+
       // 1) Fotos feitas offline sobem primeiro e trocam "local:..." pela chave real.
       for (const item of coletarArquivosLocais(entrada.dados)) {
         const idLocal = item.chave.slice(6);
@@ -628,8 +717,8 @@
       atualizarContagens();
 
       if (estavaOffline && !estado.offlineAgora) {
-        await Promise.all(COLECOES.map((chave) => recarregarColecaoApi(chave)));
-        estado.cacheEm = null;
+        await carregarTudoOuCopia();
+        if (!estado.offlineAgora) estado.cacheEm = null;
       } else {
         await Promise.all(Array.from(tocadas).map((chave) => recarregarColecaoApi(chave)));
       }
@@ -712,7 +801,7 @@
       estado.identidade = deteccao.identidade;
       estado.mensagemAcesso = null;
       guardarIdentidadeLocal(deteccao.identidade);
-      await Promise.all(COLECOES.map((chave) => recarregarColecaoApi(chave)));
+      await carregarTudoOuCopia();
       iniciarMonitorOffline();
       if (filaCache.length) agendarSincronizacao(1500);
       return true;
@@ -897,11 +986,24 @@
       // Registro criado offline e ainda nao enviado: basta tirar da fila.
       const pendente = filaCache.find((e) => e.colecao === colecaoChave && e.id === id);
       if (pendente && pendente.criar) { await descartarEntrada(pendente); return; }
-      if (semInternetAgora()) throw new Error(MSG_PRECISA_INTERNET);
-      const resp = await fetch("/api/" + encodeURIComponent(colecaoChave) + "/" + encodeURIComponent(id), {
-        method: "DELETE",
-        credentials: "same-origin",
-      });
+      const podeFila = colecaoChave !== "usuarios";
+      // Sem internet: a exclusao entra na fila e some da lista na hora.
+      if (podeFila && semInternetAgora()) { await enfileirarExclusao(colecaoChave, id); return; }
+      if (!podeFila && semInternetAgora()) throw new Error(MSG_PRECISA_INTERNET);
+      let resp;
+      try {
+        resp = await fetch("/api/" + encodeURIComponent(colecaoChave) + "/" + encodeURIComponent(id), {
+          method: "DELETE",
+          credentials: "same-origin",
+        });
+      } catch (erroRede) {
+        if (!ehErroDeRede(erroRede)) throw erroRede;
+        estado.offlineAgora = true;
+        avisarFila();
+        if (podeFila) { await enfileirarExclusao(colecaoChave, id); return; }
+        throw new Error(MSG_PRECISA_INTERNET);
+      }
+      if (resp.status === 401 && podeFila) { estado.sessaoExpirada = true; await enfileirarExclusao(colecaoChave, id); return; }
       if (!resp.ok && resp.status !== 204) throw new Error(await corpoDeErro(resp));
       await recarregarColecaoApi(colecaoChave);
       return;
@@ -920,6 +1022,10 @@
     if (!ids || !ids.length) return { total: 0, falhas: 0 };
 
     if (estado.modoApi) {
+      if (colecaoChave !== "usuarios" && semInternetAgora()) {
+        for (const id of ids) await excluir(colecaoChave, id);
+        return { total: ids.length, falhas: 0 };
+      }
       if (semInternetAgora()) throw new Error(MSG_PRECISA_INTERNET);
       const resultados = await Promise.allSettled(ids.map((id) =>
         fetch("/api/" + encodeURIComponent(colecaoChave) + "/" + encodeURIComponent(id), {
