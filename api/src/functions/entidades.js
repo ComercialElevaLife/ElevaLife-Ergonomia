@@ -28,6 +28,7 @@ const rotaApiKeysAdmin = require("./apiKeysAdmin");
 const rotaAuth = require("./auth");
 const rotaCnpj = require("./cnpj");
 const rotaJobs = require("./lembretesPlanoAcao");
+const rotaVerificar = require("./verificar");
 const { excluirArquivosRemovidos } = require("../shared/blob");
 const { aplicarAuditoria } = require("../shared/auditoria");
 const { enviarEmail, modeloPlanoAcao, ESTAGIOS_PLANO_ACAO } = require("../shared/email");
@@ -61,13 +62,17 @@ const COLECOES = [
   // V 1.2: configuracoes do sistema editaveis pelo Administrador (ex.: nomes
   // dos tipos de acao do Plano de Acao) - GLOBAL, so Administrador grava.
   "configuracao",
+  // V 1.3: cadastro GLOBAL de ergonomistas (nome, registro profissional,
+  // certificacao e imagem da assinatura) usado no Laudo (responsavel tecnico
+  // e ergonomista executor). Container criado sob demanda.
+  "ergonomista",
 ];
 
 // Colecoes sem dono (nenhuma amarrada a uma empresa-cliente especifica) -
 // todo usuario autenticado com papel liberado ve e edita, independente de
 // quais empresas estao vinculadas a ele. Gravadas sempre com
 // EmpresaId=EMPRESA_GLOBAL (constante fixa, nunca uma empresa real).
-const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo", "configuracao"];
+const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo", "configuracao", "ergonomista"];
 // Colecoes em que so o Administrador grava/exclui (todos podem ler).
 const COLECOES_SO_ADMIN_GRAVA = ["configuracao"];
 const EMPRESA_GLOBAL = "GLOBAL";
@@ -89,6 +94,9 @@ const ROTAS_ESPECIAIS = {
   // de Acao, chamado pelo GitHub Actions com cabecalho x-job-key (ver
   // api/src/functions/lembretesPlanoAcao.js).
   jobs: rotaJobs.tratar,
+  // GET /api/verificar/{codigo} - V 1.3: verificacao PUBLICA (sem login) de um
+  // laudo pelo codigo impresso no documento / QR Code (ver verificar.js).
+  verificar: rotaVerificar.tratar,
 };
 
 async function lerPorId(container, id) {
@@ -206,7 +214,7 @@ async function tratar(request, context) {
     };
   }
 
-  const container = colecao === "configuracao" ? await garantirContainer(colecao) : obterContainer(colecao);
+  const container = ["configuracao", "ergonomista"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
   const id = request.params.id;
   if (COLECOES_SO_ADMIN_GRAVA.includes(colecao) && request.method !== "GET" && identidade.papel !== "Administrador") {
     return { status: 403, jsonBody: { erro: "Só Administrador pode alterar as configurações do sistema." } };

@@ -82,6 +82,12 @@ const REGRAS_POR_COLECAO = {
     tiposAceitos: ["application/pdf", "image/jpeg", "image/png"],
     tamanhoMaximoBytes: 15 * 1024 * 1024,
   },
+  // V 1.3: imagem da assinatura do ergonomista (cadastro global, gravada com
+  // EmpresaId "GLOBAL").
+  ergonomista: {
+    tiposAceitos: ["image/jpeg", "image/png"],
+    tamanhoMaximoBytes: 2 * 1024 * 1024,
+  },
 };
 
 function sanitizarNomeArquivo(nome) {
@@ -137,7 +143,7 @@ async function tratarUpload(request, identidade) {
   const chave = `${EmpresaId}/${Colecao}/${crypto.randomUUID()}-${nomeSeguro}`;
 
   const containerCliente = obterContainerCliente(Colecao);
-  if (Colecao === "planoAcao") await containerCliente.createIfNotExists(); // container novo da V 1.2
+  if (Colecao === "planoAcao" || Colecao === "ergonomista") await containerCliente.createIfNotExists(); // containers novos (V 1.2 / V 1.3)
   const blocoCliente = containerCliente.getBlockBlobClient(chave);
   await blocoCliente.uploadData(buffer, { blobHTTPHeaders: { blobContentType: TipoConteudo } });
 

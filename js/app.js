@@ -2028,7 +2028,14 @@
         // digitar/colar manualmente um laudo que nao passou pelo gerador).
         { campo: "Texto", rotulo: "Texto do Laudo (opcional: preenchido automaticamente ao gerar o PDF; use só para digitar um laudo manual)", tipo: "textarea" },
         { campo: "Emitido Em", rotulo: "Emitido em", tipo: "data" },
-        { campo: "Emitido Por", rotulo: "Emitido por", tipo: "texto", sugestoesFn: () => Array.from(new Set((window.BI.dados.laudo || []).map((l) => l["Emitido Por"]).filter(Boolean))).sort() },
+        { campo: "Responsavel Tecnico", rotulo: "Responsável técnico (cadastro de Ergonomistas)", tipo: "select", opcoes: () => (window.BI.dados.ergonomista || []).map((e) => e.Nome) },
+        { campo: "Ergonomista Executor", rotulo: "Ergonomista executor (opcional)", tipo: "select", opcoes: () => (window.BI.dados.ergonomista || []).map((e) => e.Nome) },
+        { campo: "Emitido Por", rotulo: "Emitido por (texto; preenchido pelo Responsável técnico)", tipo: "texto", sugestoesFn: () => Array.from(new Set((window.BI.dados.laudo || []).map((l) => l["Emitido Por"]).filter(Boolean))).sort() },
+        { campo: "Revisao", rotulo: "Revisão do documento (ex.: 00, 01)", tipo: "texto" },
+        { campo: "Codigo Verificacao", rotulo: "Código de verificação (gerado)", tipo: "calculado" },
+        { campo: "Hash Documento", rotulo: "Impressão digital SHA-256 do arquivo (gerada)", tipo: "calculado" },
+        { campo: "Registro Responsavel", rotulo: "Registro do responsável (gerado)", tipo: "calculado" },
+        { campo: "Registro Executor", rotulo: "Registro do executor (gerado)", tipo: "calculado" },
         {
           campo: "Arquivo Url", rotulo: "Arquivo do Laudo (PDF ou imagem, até 15MB)", tipo: "arquivo", multiplo: false,
           colecaoArquivo: "laudo", aceitaTipos: "application/pdf,image/jpeg,image/png",
@@ -2062,13 +2069,44 @@
   // por empresa-cliente - ver comentario acima em camposCertificadoCalibracao).
   // Nunca inclui nome/registro profissional de um ergonomista especifico -
   // isso vem do campo "Emitido Por" de cada Laudo (ver camposLaudo).
+  // V 1.3: cada trecho de texto do laudo (AEP) pode ser editado pela area
+  // tecnica; campo vazio = usa o texto padrao ElevaLife (js/laudo-textos.js).
+  // Paragrafos separados por linha em branco, **negrito** com asteriscos duplos.
+  // Marcadores: {cliente} {unidade} {setores} {nPostos} {nFatores} {nAcoes} {resumoNiveis}.
   function camposModeloLaudo() {
+    const T = window.BI.LaudoTextos;
+    return [{ campo: "Nome", rotulo: "Nome do Modelo", tipo: "texto", obrigatorio: true }].concat(
+      (T ? T.CAMPOS_EDITAVEIS : []).map(([campo, rotulo]) => ({ campo, rotulo: rotulo + " (vazio = texto padrão ElevaLife)", tipo: "textarea" }))
+    );
+  }
+
+  // Botao do Editor de Texto: preenche com o texto padrao os campos ainda vazios,
+  // para a area tecnica partir do texto ElevaLife e editar so o que precisar.
+  function ligarTextoPadraoModelo(form) {
+    const T = window.BI.LaudoTextos;
+    if (!T) return;
+    const corpo = form.querySelector(".form-cadastro-corpo") || form;
+    const wrap = document.createElement("div");
+    wrap.className = "campo-form campo-form-largo";
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.className = "btn-cad-secundario"; btn.textContent = "📝 Preencher campos vazios com o texto padrão ElevaLife";
+    btn.addEventListener("click", () => {
+      T.CAMPOS_EDITAVEIS.forEach(([campo]) => { const el = form._campos[campo]; if (el && !el.value) el.value = T.PADRAO[campo] || ""; });
+    });
+    wrap.appendChild(btn);
+    corpo.insertBefore(wrap, corpo.firstChild);
+  }
+
+  // V 1.3: cadastro GLOBAL de ergonomistas (responsavel tecnico e executor do laudo).
+  function camposErgonomista() {
     return [
-      { campo: "Nome", rotulo: "Nome do Modelo", tipo: "texto", obrigatorio: true },
-      { campo: "Apresentacao", rotulo: "Apresentação / Demanda do Trabalho", tipo: "textarea", obrigatorio: true },
-      { campo: "Metodologia", rotulo: "Métodos e Metodologia Utilizada", tipo: "textarea", obrigatorio: true },
-      { campo: "Recomendacoes", rotulo: "Recomendações e Sugestões (texto introdutório)", tipo: "textarea" },
-      { campo: "Conclusao", rotulo: "Conclusão", tipo: "textarea", obrigatorio: true },
+      { campo: "Nome", rotulo: "Nome completo", tipo: "texto", obrigatorio: true },
+      { campo: "Titulo", rotulo: "Formação e certificações (ex.: Fisioterapeuta · Ergonomista certificado ABERGO)", tipo: "texto" },
+      { campo: "Registro", rotulo: "Registro profissional (ex.: CREFITO-3 000000-F)", tipo: "texto" },
+      {
+        campo: "Assinatura", rotulo: "Imagem da assinatura (PNG com fundo transparente ou JPG, até 2MB)", tipo: "arquivo", multiplo: false,
+        colecaoArquivo: "ergonomista", aceitaTipos: "image/jpeg,image/png", tamanhoMaximoBytes: 2 * 1024 * 1024,
+      },
     ];
   }
 
@@ -2166,6 +2204,9 @@
   // finalizada. As 2 passadas produzem o mesmo numero de paginas porque
   // usam exatamente o mesmo conteudo/entradas.
   async function gerarLaudoPDF(opcoes) {
+    // V 1.3: o laudo (AEP) e gerado por js/laudo.js; o codigo abaixo e o
+    // gerador anterior (V 1.2), mantido so como reserva.
+    if (window.BI.Laudo && window.BI.Laudo.gerar) return window.BI.Laudo.gerar(opcoes);
     const jsPDFCtor = window.jspdf && window.jspdf.jsPDF;
     if (!jsPDFCtor) {
       throw new Error("A biblioteca de geração de PDF não carregou (script externo bloqueado ou indisponível).");
@@ -2764,12 +2805,38 @@
         nomeCertificado: form._campos["Certificado Calibracao"] ? form._campos["Certificado Calibracao"].value : "",
         emitidoPor: form._campos["Emitido Por"] ? form._campos["Emitido Por"].value : "",
         emitidoEm: form._campos["Emitido Em"] ? form._campos["Emitido Em"].value : "",
+        responsavelTecnico: form._campos["Responsavel Tecnico"] ? form._campos["Responsavel Tecnico"].value : "",
+        ergonomistaExecutor: form._campos["Ergonomista Executor"] ? form._campos["Ergonomista Executor"].value : "",
+        revisao: (form._campos["Revisao"] && form._campos["Revisao"].value) || "00",
+        codigo: (form._campos["Codigo Verificacao"] && form._campos["Codigo Verificacao"].dataset.valorReal) || "",
       };
+      if (!opcoes.codigo && window.BI.Laudo) {
+        opcoes.codigo = window.BI.Laudo.novoCodigo((window.BI.dados.laudo || []).map((l) => l["Codigo Verificacao"]), "AEP");
+      }
 
       btn.disabled = true;
       mostrarAviso("Gerando laudo...");
       try {
         const bufferPDF = await gerarLaudoPDF(opcoes);
+        // V 1.3: registra no formulario o codigo de verificacao, a impressao digital
+        // (SHA-256) do arquivo e os registros profissionais; a pagina publica
+        // /verificar consulta esses campos depois que o Laudo for SALVO.
+        const definirCalculado = (campo, valor) => {
+          const el = form._campos[campo];
+          if (!el) return;
+          el.dataset.valorReal = valor || "";
+          el.textContent = valor || "-";
+        };
+        try {
+          const dig = await window.crypto.subtle.digest("SHA-256", bufferPDF);
+          definirCalculado("Hash Documento", Array.from(new Uint8Array(dig)).map((b) => b.toString(16).padStart(2, "0")).join(""));
+        } catch (e) { definirCalculado("Hash Documento", ""); }
+        const saida = opcoes.saida || {};
+        definirCalculado("Codigo Verificacao", saida.codigo || opcoes.codigo);
+        definirCalculado("Registro Responsavel", saida.registroResponsavel);
+        definirCalculado("Registro Executor", saida.registroExecutor);
+        if (form._campos["Revisao"] && !form._campos["Revisao"].value) form._campos["Revisao"].value = saida.revisao || "00";
+        if (form._campos["Emitido Por"] && !form._campos["Emitido Por"].value && opcoes.responsavelTecnico) form._campos["Emitido Por"].value = opcoes.responsavelTecnico;
         const dataArquivo = hojeMeiaNoite().toISOString().slice(0, 10);
         const nomeArquivo = `laudo-${slug(nomeCliente)}-${dataArquivo}.pdf`;
         const arquivoGerado = new File([bufferPDF], nomeArquivo, { type: "application/pdf" });
@@ -2785,7 +2852,7 @@
             URL.revokeObjectURL(url);
           } else {
             await campoArquivo.anexarArquivos([arquivoGerado], empresaId || "GLOBAL");
-            mostrarAviso("Laudo gerado e anexado com sucesso.");
+            mostrarAviso("Laudo gerado e anexado. Clique em Salvar para registrar o código de verificação (QR Code do documento).");
           }
         }
         if (form._campos["Emitido Em"] && !form._campos["Emitido Em"].value) {
@@ -4018,7 +4085,7 @@
     laudo: {
       grupo: "registro", icone: "📄", tituloMenu: "Laudos",
       titulo: "Laudos e Certificados",
-      colunasTabela: ["Cliente", "Tipo", "Emitido Em", "Emitido Por"],
+      colunasTabela: ["Cliente", "Tipo", "Emitido Em", "Emitido Por", "Codigo Verificacao"],
       colunasData: ["Emitido Em"], camposData: ["Emitido Em"],
       campos: camposLaudo(),
       // Alem da cascata Cliente/Setor/Posto (comCascata), injeta o botao
@@ -4062,6 +4129,15 @@
       colunasTabela: ["Nome"],
       colunasData: [], camposData: [],
       campos: camposModeloLaudo(),
+      aoConstruir: ligarTextoPadraoModelo,
+    },
+    // V 1.3: ergonomistas (global) - assinatura e registro usados no laudo.
+    ergonomista: {
+      grupo: "registro", icone: "🧑‍⚕️", tituloMenu: "Ergonomistas",
+      titulo: "Ergonomistas (responsável técnico do laudo)",
+      colunasTabela: ["Nome", "Registro", "Titulo"],
+      colunasData: [], camposData: [],
+      campos: camposErgonomista(),
     },
   };
 

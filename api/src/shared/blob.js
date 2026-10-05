@@ -29,6 +29,8 @@ const CONTAINER_POR_COLECAO = {
   // V 1.2: evidencias (foto ou PDF) de conclusao das acoes do Plano de Acao.
   // O container e criado sob demanda no primeiro upload (ver arquivos.js).
   planoAcao: "planoacao-evidencias",
+  // V 1.3: imagem da assinatura do ergonomista (cadastro global).
+  ergonomista: "ergonomistas-assinaturas",
 };
 
 let clienteBlob = null;

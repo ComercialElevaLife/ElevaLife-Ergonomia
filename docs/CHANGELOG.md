@@ -2,6 +2,15 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.3 — 05/10/2026
+
+- **Laudo (AEP) oficial:** gerador novo (`js/laudo.js`), A4 retrato, capa com logotipo do cliente, sumário clicável (links internos + marcadores do PDF), cabeçalho/rodapé corridos com "Página X de Y" e código do documento. Seções: apresentação, a ElevaLife, responsabilidade técnica, demanda, dados da empresa, fundamentação (ergonomia, cinco pilares, NR-17, NR-01/GRO/PGR), métodos (cinco etapas, PDCA, técnicas, ISO/TS 20646, guias de graduação, interfaces), classificação do risco (gravidade, probabilidade, matriz do cliente, tipos de ação, risco residual), avaliações por posto (fotos numeradas, descrição, panorama, grupos, fatores com ações e risco previsto/realizado), plano de ação, risco residual por fator, referências e conclusão.
+- **Texto editável:** `js/laudo-textos.js` guarda o texto padrão; a área técnica substitui cada trecho em Registro › Editor de Texto (campo vazio = padrão; botão "Preencher campos vazios com o texto padrão"). Marcadores: `{cliente}`, `{unidade}`, `{setores}`, `{nPostos}`, `{nFatores}`, `{nAcoes}`, `{resumoNiveis}`. Tabelas e quadros (pilares, etapas, PDCA, métodos, guias de graduação, interfaces) seguem fixos no código.
+- **Ergonomistas (coleção global `ergonomista`):** nome, formação/certificações, registro profissional e imagem da assinatura (container `ergonomistas-assinaturas`, criado sob demanda). O Laudo ganha "Responsável técnico" e "Ergonomista executor".
+- **Validação:** o Laudo grava `Codigo Verificacao` (ELV-AEP-AAAA-XXXXXX), `Hash Documento` (SHA-256 do PDF), `Revisao` e os registros profissionais. Última página: assinaturas (imagem), campo do cliente e QR Code. `GET /api/verificar/{codigo}` é público e devolve só tipo, cliente, emissão, revisão, ergonomistas e hash; a página `/verificar/{codigo}` confere o arquivo no navegador (o PDF não sai do aparelho). Só vale depois de salvar o registro do Laudo.
+- QR Code: biblioteca `qrcode-generator` (cdnjs). Service worker: cache `sige-v6`.
+- O gerador anterior (V 1.2) permanece em `app.js` apenas como reserva e será removido na próxima versão.
+
 ## V 1.2 — 05/10/2026
 
 - **Ações por fator de risco:** o Inventário de Riscos troca "Ação para Eliminação"/"Ação Organizacional" (texto) e o risco "após a melhoria" digitado por uma **lista de ações**. Cada ação é um registro do Plano de Ação ligado ao fator (`Fator Risco Id`) com tipo, descrição, segmento corporal, "reduz o risco de [atual] para [menor nível]", complexidade (Baixa/Média/Alta), responsável (nome + e-mail), prazo e status (Não iniciada / Em andamento / Concluída). A ação precisa levar o segmento a um nível menor que o atual.

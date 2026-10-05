@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Verificação de documento – S.I.G.E ElevaLife</title>
+<style>
+  :root{--vinho:#8B3A42;--vinho-e:#5E2A30;--creme:#F5EFEA;--texto:#3D2E30;--cinza:#8A7A78;--ok:#1A9C4B;--erro:#D93636}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Montserrat,"Segoe UI",system-ui,sans-serif;background:var(--creme);color:var(--texto);line-height:1.5}
+  header{background:linear-gradient(90deg,var(--vinho-e),var(--vinho));color:#fff;padding:18px 20px}
+  header b{font-size:20px;letter-spacing:.01em}header small{display:block;opacity:.85;font-size:12px}
+  main{max-width:640px;margin:0 auto;padding:22px 16px 40px}
+  .cartao{background:#fff;border-radius:10px;border:1px solid #E5D8D4;padding:18px 18px 14px;margin-bottom:16px}
+  h1{font-size:18px;margin:0 0 4px;color:var(--vinho-e)}
+  .selo{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;color:#fff;margin-bottom:10px}
+  .selo.ok{background:var(--ok)}.selo.erro{background:var(--erro)}
+  dl{margin:0;display:grid;grid-template-columns:150px 1fr;gap:6px 12px;font-size:14px}
+  dt{color:var(--cinza);font-size:12px;text-transform:uppercase;letter-spacing:.04em;padding-top:2px}
+  dd{margin:0;word-break:break-word}
+  .hash{font-family:ui-monospace,Consolas,monospace;font-size:11.5px}
+  .caixa{border:2px dashed #CDB9B4;border-radius:10px;padding:18px;text-align:center;font-size:14px;color:var(--cinza);cursor:pointer;background:#FBF8F6}
+  .caixa.sobre{border-color:var(--vinho);background:#F7EDEC}
+  .res{margin-top:12px;font-size:14px;font-weight:600}
+  .res.ok{color:var(--ok)}.res.erro{color:var(--erro)}
+  .nota{font-size:12px;color:var(--cinza)}
+  form{display:flex;gap:8px;margin-top:10px}
+  input[type=text]{flex:1;padding:10px;border:1px solid #CDB9B4;border-radius:8px;font:inherit;text-transform:uppercase}
+  button{background:var(--vinho);color:#fff;border:0;border-radius:8px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer}
+  @media(max-width:520px){dl{grid-template-columns:1fr}dt{padding-top:8px}}
+</style>
+</head>
+<body>
+<header><b>ElevaLife</b><small>S.I.G.E – Verificação de documento</small></header>
+<main>
+  <div class="cartao" id="busca">
+    <h1>Código de verificação</h1>
+    <div class="nota">Informe o código impresso na última página do documento, ou leia o QR Code.</div>
+    <form id="form"><input type="text" id="codigo" placeholder="ELV-AEP-2026-XXXXXX" autocomplete="off" maxlength="32"><button type="submit">Verificar</button></form>
+  </div>
+  <div id="saida"></div>
+</main>
+<script>
+(function(){
+  "use strict";
+  var saida = document.getElementById("saida");
+  var campo = document.getElementById("codigo");
+  function esc(t){ var d=document.createElement("div"); d.textContent=t==null?"":String(t); return d.innerHTML; }
+  function dataBR(iso){ var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||""); return m? m[3]+"/"+m[2]+"/"+m[1] : (iso||"-"); }
+  async function sha256(buf){ var h = await crypto.subtle.digest("SHA-256", buf); return Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,"0");}).join(""); }
+
+  function linha(r,v){ return v ? "<dt>"+r+"</dt><dd>"+esc(v)+"</dd>" : ""; }
+  function mostrar(d){
+    var html = '<div class="cartao"><span class="selo ok">Documento registrado</span><h1>'+esc(d.tipo)+' – '+esc(d.cliente)+'</h1><dl>'
+      + linha("Código", d.codigo) + linha("Emitido em", dataBR(d.emitidoEm)) + linha("Revisão", d.revisao)
+      + linha("Responsável técnico", d.responsavelTecnico + (d.registroResponsavel ? " · " + d.registroResponsavel : ""))
+      + linha("Ergonomista executor", d.ergonomistaExecutor + (d.registroExecutor ? " · " + d.registroExecutor : ""))
+      + (d.hash ? '<dt>Impressão digital</dt><dd class="hash">'+esc(d.hash)+'</dd>' : "")
+      + '</dl></div>';
+    if (d.hash) {
+      html += '<div class="cartao"><h1>Conferir o arquivo</h1><div class="nota">Arraste aqui o PDF que você recebeu (ou toque para escolher). A conferência é feita no seu aparelho: o arquivo não é enviado a lugar nenhum.</div>'
+        + '<label class="caixa" id="caixa" style="display:block;margin-top:10px">Solte o PDF aqui ou toque para escolher<input type="file" id="arq" accept="application/pdf" hidden></label><div class="res" id="res"></div></div>';
+    }
+    saida.innerHTML = html;
+    var arq = document.getElementById("arq"), caixa = document.getElementById("caixa"), res = document.getElementById("res");
+    if (!arq) return;
+    async function conferir(f){
+      if (!f) return;
+      res.className = "res"; res.textContent = "Calculando…";
+      try {
+        var h = await sha256(await f.arrayBuffer());
+        if (h === String(d.hash).toLowerCase()) { res.className = "res ok"; res.textContent = "Arquivo íntegro: é exatamente o documento emitido."; }
+        else { res.className = "res erro"; res.textContent = "O arquivo não confere com o documento emitido (foi alterado ou é outra versão)."; }
+      } catch(e){ res.className = "res erro"; res.textContent = "Não foi possível ler o arquivo."; }
+    }
+    arq.addEventListener("change", function(){ conferir(arq.files[0]); });
+    ["dragenter","dragover"].forEach(function(ev){ caixa.addEventListener(ev, function(e){ e.preventDefault(); caixa.classList.add("sobre"); }); });
+    ["dragleave","drop"].forEach(function(ev){ caixa.addEventListener(ev, function(e){ e.preventDefault(); caixa.classList.remove("sobre"); }); });
+    caixa.addEventListener("drop", function(e){ conferir(e.dataTransfer.files[0]); });
+  }
+  function naoEncontrado(msg){
+    saida.innerHTML = '<div class="cartao"><span class="selo erro">Não encontrado</span><h1>Documento não localizado</h1><div class="nota">'+esc(msg||"Não há documento registrado com este código. Confira o código e tente de novo.")+'</div></div>';
+  }
+  async function consultar(codigo){
+    codigo = String(codigo||"").trim().toUpperCase();
+    if (!codigo) return;
+    campo.value = codigo;
+    saida.innerHTML = '<div class="cartao nota">Consultando…</div>';
+    try {
+      var r = await fetch("/api/verificar/" + encodeURIComponent(codigo), { headers: { Accept: "application/json" } });
+      var j = await r.json().catch(function(){ return {}; });
+      if (r.ok && j.encontrado) mostrar(j); else naoEncontrado(r.status === 400 ? j.erro : null);
+    } catch(e){ naoEncontrado("Não foi possível consultar agora. Tente novamente em instantes."); }
+  }
+  document.getElementById("form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var c = campo.value.trim().toUpperCase();
+    if (c) { history.replaceState(null, "", "/verificar/" + encodeURIComponent(c)); consultar(c); }
+  });
+  var partes = location.pathname.split("/").filter(Boolean);
+  if (partes[0] === "verificar" && partes[1]) consultar(decodeURIComponent(partes[1]));
+})();
+</script>
+</body>
+</html>
