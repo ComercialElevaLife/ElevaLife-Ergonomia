@@ -1429,6 +1429,17 @@ table.tabela-dados td.col-selecao input[type="checkbox"]:disabled { cursor: not-
   background: var(--card);
 }
 .checklist-badge-graduacao { font-weight: 700; font-size: 13.5px; }
+.checklist-fator-detalhes .campo-form-largo { grid-column: 1 / -1; }
+.checklist-fator-detalhes textarea {
+  font-family: inherit; font-size: 13px; padding: 6px 8px; border-radius: 7px;
+  border: 1px solid var(--linha); background: var(--card); color: var(--texto);
+  width: 100%; resize: vertical; min-height: 44px;
+}
+.checklist-sub-titulo {
+  grid-column: 1 / -1; margin-top: 4px; padding-top: 6px; border-top: 1px dashed var(--linha);
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--teal);
+}
+.checklist-sub-titulo:first-child { border-top: none; margin-top: 0; padding-top: 0; }
 .checklist-erro {
   padding: 0 clamp(14px, 3vw, 24px);
   flex-shrink: 0;
@@ -1671,6 +1682,22 @@ canvas.grafico-interativo { cursor: default; }
   width: 100%;
 }
 .campo-form textarea { resize: vertical; min-height: 60px; }
+/* V 1.1 - campo de data DD/MM/AAAA com calendario (js/datas.js) */
+.campo-data { position: relative; display: flex; align-items: center; }
+.campo-data .campo-data-texto { padding-right: 34px; }
+.campo-data-calendario {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 28px; height: 28px; padding: 4px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--cinza-quente); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.campo-data-calendario:hover { background: var(--creme); color: var(--teal); }
+.campo-data-calendario svg { width: 18px; height: 18px; }
+.campo-data-nativo {
+  position: absolute; right: 0; bottom: 0; width: 1px; height: 1px;
+  opacity: 0; pointer-events: none; border: 0; padding: 0;
+}
+
 .campo-form input:focus, .campo-form select:focus, .campo-form textarea:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
 .campo-form input:disabled, .campo-form select:disabled, .campo-form textarea:disabled { opacity: 0.6; background: var(--creme); }
 
@@ -1896,3 +1923,33 @@ ul.ajuda-passos { list-style: disc; }
 .bpmn-texto { font-size: 11px; fill: var(--texto); }
 .bpmn-legenda { font-size: 10.5px; font-weight: 600; paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
 .bpmn-x { font-size: 15px; font-weight: 700; fill: var(--teal-escuro, #1d6f6f); }
+
+/* V 1.1 - Mais detalhes (historico do registro) */
+.hist-overlay { position: fixed; inset: 0; background: rgba(40, 20, 30, 0.45); z-index: 1200; }
+.hist-dialogo {
+  position: fixed; z-index: 1201; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(720px, calc(100vw - 24px)); max-height: calc(100vh - 32px);
+  display: flex; flex-direction: column;
+  background: var(--card); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.28);
+}
+.hist-dialogo[hidden], .hist-overlay[hidden] { display: none; }
+.hist-cab { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--linha); }
+.hist-titulo { font-weight: 700; font-size: 15px; color: var(--texto); }
+.hist-fechar { border: 0; background: transparent; font-size: 22px; line-height: 1; cursor: pointer; color: var(--cinza-quente); padding: 2px 8px; border-radius: 6px; }
+.hist-fechar:hover { background: var(--creme); }
+.hist-corpo { padding: 14px 18px 18px; overflow-y: auto; }
+.hist-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.hist-resumo-item { background: var(--creme); border-radius: 8px; padding: 9px 12px; display: flex; flex-direction: column; gap: 2px; }
+.hist-rot { font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--cinza-quente); }
+.hist-val { font-size: 13px; color: var(--texto); word-break: break-word; }
+.hist-secao { margin: 18px 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--teal); }
+.hist-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.hist-campo { border: 1px solid var(--linha); border-radius: 8px; padding: 8px 10px; }
+.hist-campo-nome { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--cinza-quente); }
+.hist-campo-valor { font-size: 13.5px; margin: 2px 0 4px; word-break: break-word; white-space: pre-wrap; }
+.hist-campo-meta { font-size: 11px; color: var(--cinza-quente); }
+.hist-tempo-item { border-left: 3px solid var(--teal); padding: 2px 0 2px 10px; margin-bottom: 10px; }
+.hist-tempo-cab { font-size: 12.5px; font-weight: 700; }
+.hist-tempo-alt { font-size: 12.5px; color: var(--texto); margin-top: 2px; word-break: break-word; }
+.hist-aviso { font-size: 13px; color: var(--cinza-quente); margin: 0; }
+body.hist-aberto { overflow: hidden; }

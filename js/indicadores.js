@@ -14,10 +14,12 @@
   "use strict";
 
   const BI = (global.BI = global.BI || {});
-  BI.VERSAO = "1.0"; // versao do sistema - exibida no rodape e em Ajuda > Versao (ver docs/CHANGELOG.md)
+  BI.VERSAO = "1.1"; // versao do sistema - exibida no rodape e em Ajuda > Versao (ver docs/CHANGELOG.md)
 
   const FILTROS_GLOBAIS = "Cliente, Unidade, Setor, Posto, Cargo e Atividade";
-  const SEM_ANO_MES = FILTROS_GLOBAIS + ". Ano/Mês não altera este indicador.";
+  // Ano/Mes filtra pela data lancada no proprio registro; registro sem essa
+  // data fica de fora quando Ano/Mes esta selecionado (V 1.1).
+  const POR_DATA = (campo) => FILTROS_GLOBAIS + ". Ano/Mês filtra pela " + campo + " (registro sem essa data fica de fora quando Ano/Mês está selecionado).";
   const COM_ANO_MES = FILTROS_GLOBAIS + ". Ano/Mês também filtra (ver Cálculo).";
 
   const ABAS = {
@@ -40,7 +42,7 @@
       mostra: "Quantos postos de trabalho estão em cada nível de risco (Baixo, Moderado, Alto, Muito Alto).",
       fonte: "Registro › Mapa de Risco (1 linha = 1 posto/atividade avaliado).",
       calculo: "O Risco Global de cada posto é a MÉDIA das 12 notas (1 a 4) digitadas no Mapa de Risco: Col. Cervical, Tronco, Ombros, Cotovelos, Punhos, Mãos/Dedos, Joelhos, Pernas, Tornozelos, Pés/Dedos, Psicossocial/Cognitivo e Ambiental. Média ≥ 2,70 = Muito Alto; ≥ 2,15 = Alto; ≥ 1,55 = Moderado; abaixo = Baixo. O card conta postos por nível; o % é a quantidade ÷ total de postos filtrados.",
-      filtros: SEM_ANO_MES,
+      filtros: POR_DATA("data da avaliação do Mapa de Risco"),
       cuidado: "Método diferente do Inventário de Riscos (que usa a matriz de risco do cliente): os dois cards NÃO precisam bater, pois medem universos distintos (postos × fatores). Clique no número para listar os postos.",
     },
     {
@@ -48,7 +50,7 @@
       mostra: "Os 3 setores com mais postos em risco Alto ou Muito Alto.",
       fonte: "Registro › Mapa de Risco.",
       calculo: "Por setor: postos críticos (Alto + Muito Alto) ÷ total de postos do setor. A barra mostra esse %; a ORDEM dos 3 setores é pela quantidade de postos críticos (desempate pelo %).",
-      filtros: SEM_ANO_MES,
+      filtros: POR_DATA("data da avaliação do Mapa de Risco"),
       cuidado: "Um setor com 1 posto 100% crítico pode aparecer abaixo de um setor com 5 de 10 críticos (50%): a ordem é por quantidade, a barra é em %.",
     },
     {
@@ -104,7 +106,7 @@
       mostra: "Quantidade de postos por nível de risco dentro de cada setor.",
       fonte: "Registro › Mapa de Risco.",
       calculo: "Mesmo Risco Global do card \"Mapa de Risco Global\", aberto por setor.",
-      filtros: SEM_ANO_MES,
+      filtros: POR_DATA("data da avaliação do Mapa de Risco"),
       cuidado: "A soma de todas as barras é igual ao total de postos do card Mapa de Risco Global.",
     },
 
@@ -116,7 +118,7 @@
       mostra: "Quantos fatores de risco (ISO TS-20646) existem em cada nível de graduação.",
       fonte: "Registro › Inventário de Riscos (AEP): 1 linha = 1 fator marcado \"Existe fator de risco: Sim\" em um posto.",
       calculo: "A graduação vem da matriz de risco configurada no cliente (Probabilidade × Gravidade; 3x3, 4x4 ou 5x5). Para caber nos 4 níveis do painel: Muito Baixo e Baixo = Baixo; Moderado = Moderado; Alto = Alto; Altíssimo = Muito Alto. Fatores marcados \"Não\" não entram.",
-      filtros: SEM_ANO_MES,
+      filtros: POR_DATA("data da identificação do fator"),
       cuidado: "Cliente com matriz 5x5 mostra aqui 4 níveis (agrupados). O nível exato de cada fator continua na tabela do Inventário.",
     },
     {
@@ -124,7 +126,7 @@
       mostra: "Quantos postos do Mapa de Risco já têm Avaliação Ergonômica (AEP).",
       fonte: "Registro › Avaliação Ergonômica (AEP) comparada com Registro › Mapa de Risco.",
       calculo: "Avaliações registradas = total de avaliações filtradas. Postos cobertos = postos do Mapa de Risco (chave Cliente+Unidade+Setor+Posto+Cargo+Atividade) que têm pelo menos 1 avaliação. Cobertura = cobertos ÷ postos do Mapa de Risco.",
-      filtros: SEM_ANO_MES,
+      filtros: POR_DATA("data da avaliação (Avaliação Ergonômica e Mapa de Risco)"),
       cuidado: "Avaliação de um posto que não está no Mapa de Risco entra em \"registradas\" mas não em \"cobertos\". Sem postos no Mapa, a cobertura mostra 0%.",
     },
     {
@@ -132,7 +134,7 @@
       mostra: "Em que etapa de tratativa estão os fatores de risco (A validar, Em andamento, Concluído, Cancelado).",
       fonte: "Registro › Inventário de Riscos (AEP), campo Status.",
       calculo: "Contagem de fatores (marcados \"Sim\") por status; % sobre o total de fatores filtrados.",
-      filtros: SEM_ANO_MES,
+      filtros: POR_DATA("data da identificação do fator"),
       cuidado: "Todo fator novo nasce como \"A validar\".",
     },
     {
@@ -140,7 +142,7 @@
       mostra: "Situação do prazo \"Válido Até\" dos fatores de risco ainda abertos.",
       fonte: "Registro › Inventário de Riscos (AEP), campo Válido Até.",
       calculo: "Só fatores em aberto (A validar ou Em andamento). Vencido = Válido Até antes de hoje; Vencendo = vence em até 30 dias; Em dia = vence daqui a mais de 30 dias.",
-      filtros: SEM_ANO_MES,
+      filtros: POR_DATA("data da identificação do fator"),
       cuidado: "Fatores sem Válido Até, Concluídos ou Cancelados não entram nestes 3 números.",
     },
     {
@@ -148,7 +150,7 @@
       mostra: "Os 5 setores com mais fatores de risco ainda em aberto.",
       fonte: "Registro › Inventário de Riscos (AEP).",
       calculo: "Por setor: fatores com status A validar ou Em andamento ÷ total de fatores do setor. A barra mostra o %; a ordem é pela quantidade de fatores em aberto.",
-      filtros: SEM_ANO_MES,
+      filtros: POR_DATA("data da identificação do fator"),
       cuidado: "Mesma lógica do Top 3 Setores críticos: ordem por quantidade, barra em %.",
     },
     {
@@ -156,7 +158,7 @@
       mostra: "Quantos laudos e certificados de calibração foram emitidos.",
       fonte: "Registro › Laudos (campo Tipo).",
       calculo: "Contagem de registros de Laudos por Tipo (Laudo ou Certificado de Calibração).",
-      filtros: SEM_ANO_MES,
+      filtros: POR_DATA("data de emissão do laudo"),
       cuidado: "Conta o registro emitido, não o número de páginas ou arquivos.",
     },
     {
@@ -164,7 +166,7 @@
       mostra: "Quantos arquivos de AET (Excel/PDF) foram anexados e de que tipo de conteúdo são.",
       fonte: "Registro › AET (campo Arquivos AET).",
       calculo: "Conta ARQUIVOS (um registro pode ter vários). A classificação é a confirmada pelo ergonomista; se ele não confirmou, vale a automática, lida do conteúdo do arquivo. Classificações sem arquivos ficam ocultas.",
-      filtros: SEM_ANO_MES,
+      filtros: POR_DATA("data da análise"),
       cuidado: "É contagem de arquivos, não de postos nem de análises.",
     },
 
@@ -220,7 +222,7 @@
       mostra: "Gênero dos colaboradores em restrição ou acompanhamento.",
       fonte: "Registro › Compatíveis.",
       calculo: "Contagem de registros por gênero.",
-      filtros: "Filtros globais (sem Ano/Mês) + filtros da página: Status Restrição e Turno de Trabalho.",
+      filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página: Status Restrição e Turno de Trabalho.",
       cuidado: "Conta registros de restrição; um colaborador com duas restrições conta duas vezes.",
     },
     {
@@ -228,7 +230,7 @@
       mostra: "Distribuição por faixa etária.",
       fonte: "Registro › Compatíveis (campo Idade).",
       calculo: "Contagem de registros nas faixas: até 24, 25-34, 35-44, 45-54 e 55+.",
-      filtros: "Filtros globais (sem Ano/Mês) + filtros da página.",
+      filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "Idade vazia não entra em nenhuma faixa.",
     },
     {
@@ -236,7 +238,7 @@
       mostra: "Quantos colaboradores já foram recolocados em atividade compatível.",
       fonte: "Registro › Compatíveis (campo Atividade Compatível).",
       calculo: "Contagem de registros por valor de Atividade Compatível (Sim/Não).",
-      filtros: "Filtros globais (sem Ano/Mês) + filtros da página.",
+      filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "",
     },
     {
@@ -244,7 +246,7 @@
       mostra: "Situação das restrições em cada setor.",
       fonte: "Registro › Compatíveis (Status Restrição: Ativa, Em Avaliação, Encerrada).",
       calculo: "Barras empilhadas: contagem de registros por status, por setor.",
-      filtros: "Filtros globais (sem Ano/Mês) + filtros da página.",
+      filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "",
     },
     {
@@ -252,7 +254,7 @@
       mostra: "Situação das restrições em cada turno de trabalho.",
       fonte: "Registro › Compatíveis (Turno Trabalho).",
       calculo: "Barras empilhadas: contagem de registros por status, por turno.",
-      filtros: "Filtros globais (sem Ano/Mês) + filtros da página.",
+      filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "",
     },
     {
@@ -260,7 +262,7 @@
       mostra: "Quantos colaboradores em atividade compatível existem em cada setor.",
       fonte: "Registro › Compatíveis.",
       calculo: "Contagem de registros com Atividade Compatível = Sim, por setor.",
-      filtros: "Filtros globais (sem Ano/Mês) + filtros da página.",
+      filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "",
     },
     {
@@ -268,7 +270,7 @@
       mostra: "Quantidade de restrições por região do corpo, vista frontal.",
       fonte: "Registro › Compatíveis (Segmento Corporal).",
       calculo: "Contagem de restrições por Segmento Corporal. Silhueta de frente: lado Direito da pessoa à esquerda da imagem.",
-      filtros: "Filtros globais (sem Ano/Mês) + filtros da página.",
+      filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "",
     },
     {
@@ -276,7 +278,7 @@
       mostra: "Quantidade de restrições por região do corpo, vista posterior.",
       fonte: "Registro › Compatíveis (Segmento Corporal).",
       calculo: "Contagem de restrições por Segmento Corporal. Silhueta de costas: lado Direito da pessoa à direita da imagem.",
-      filtros: "Filtros globais (sem Ano/Mês) + filtros da página.",
+      filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "",
     },
   ];

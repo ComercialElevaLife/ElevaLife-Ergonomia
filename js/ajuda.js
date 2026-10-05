@@ -46,6 +46,8 @@
         "Em Registro ficam as tabelas operacionais: Mapa de Risco, Plano de Ação, Absenteísmo, HHT / Dias Úteis, Compatíveis, Avaliação Ergonômica (AEP), Inventário de Riscos (AEP), Laudos e AET.",
         "Cada linha é um registro. Use \"+ Novo registro\" para lançar e os botões Editar e Excluir de cada linha.",
         "Campos calculados (Risco Global, Status da ação, Graduação do risco) são preenchidos pelo sistema: não são digitados.",
+        "Datas são digitadas como DD/MM/AAAA (a barra entra sozinha) ou escolhidas no ícone de calendário. Os filtros Ano e Mês só trazem registros que têm a data lançada: sem data, o registro não aparece quando Ano/Mês está selecionado.",
+        "Botão \"Mais detalhes\" em cada linha: mostra quem criou e quem editou por último (com data e hora, gravadas pelo servidor) e, campo a campo, o valor atual e o que mudou. Fica escondido até o clique e vale para todos que enxergam o registro.",
         "Excluir um registro apaga também as fotos e arquivos ligados a ele no armazenamento.",
       ],
     },
@@ -62,7 +64,7 @@
     {
       titulo: "Inventário de Riscos e Mapa de Risco",
       passos: [
-        "Em Registro › Avaliação Ergonômica (AEP), use o botão \"Inventário de Riscos\" da linha do posto para abrir o checklist de fatores (ISO TS-20646), marque os fatores existentes e escolha Probabilidade e Gravidade de cada um. A graduação sai da matriz do cliente.",
+        "Em Registro › Avaliação Ergonômica (AEP), use o botão \"Inventário de Riscos\" da linha do posto para abrir o checklist de fatores (ISO TS-20646), marque os fatores existentes e escolha Probabilidade e Gravidade de cada um. A graduação sai da matriz do cliente. Cada fator marcado abre Fonte Geradora, Consequência, Medidas de Controle Existentes, Ação para Eliminação e Ação Organizacional, além da classificação atual e do risco após a melhoria (graduação calculada pela mesma matriz).",
         "No Mapa de Risco, dê a nota de 1 a 4 para cada uma das 12 dimensões (regiões do corpo, Psicossocial/Cognitivo e Ambiental). O Risco Global do posto é calculado pela média.",
       ],
     },
@@ -218,6 +220,16 @@
   ];
 
   const HISTORICO = [
+    {
+      versao: "1.1", data: "05/10/2026",
+      itens: [
+        "Filtros Ano e Mês passam a vir só das datas lançadas e só trazem registros com data (Mapa de Risco, Avaliação, Inventário e Restritos ganharam campo de data).",
+        "Datas em DD/MM/AAAA em todo o sistema, com calendário no campo e máscara automática; Excel e histórico também saem em DD/MM/AAAA.",
+        "Histórico de cada registro: quem criou e quem editou, com data e hora gravadas pelo servidor, visível em \"Mais detalhes\" (campo a campo, com o valor anterior).",
+        "Checklist do Inventário de Riscos: Fonte Geradora, Consequência, Medidas de Controle Existentes, Ação para Eliminação, Ação Organizacional e risco após a melhoria (graduação calculada).",
+        "Menos campos abertos: SLA virou lista; e-mail do responsável validado e preenchido automaticamente; CNPJ, CEP e telefone com máscara; sugestões em Queixa Principal, Restrição Médica, Atividade Compatível e Emitido por.",
+      ],
+    },
     {
       versao: "1.0", data: "04/10/2026",
       itens: [

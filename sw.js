@@ -20,7 +20,7 @@
 
 "use strict";
 
-const VERSAO = "sige-v3";
+const VERSAO = "sige-v4";
 const CACHE_SITE = `${VERSAO}-site`;
 const CACHE_EXTERNO = `${VERSAO}-externo`;
 
@@ -29,6 +29,8 @@ const ARQUIVOS_BASE = [
   "/index.html",
   "/css/style.css",
   "/js/rotulos.js",
+  "/js/datas.js",
+  "/js/historico.js",
   "/js/calc.js",
   "/js/offline.js",
   "/js/db.js",

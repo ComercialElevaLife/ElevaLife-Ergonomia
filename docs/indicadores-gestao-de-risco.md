@@ -1,8 +1,8 @@
-# Dicionário de indicadores — S.I.G.E V 1.0
+# Dicionário de indicadores — S.I.G.E V 1.1
 
 O que cada indicador dos dashboards puxa, de onde vem o dado e como é calculado. Este arquivo é gerado a partir de `js/indicadores.js` (a mesma fonte do botão "i" nos cards e de Ajuda › Indicadores) — para alterar um texto, altere lá.
 
-Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem para todos os cards. **Ano/Mês só filtra o Plano de Ação e o Absenteísmo/HHT**; não altera Mapa de Risco, Inventário, Avaliação, Laudos, AET nem Restritos.
+Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem para todos os cards. **Ano/Mês filtra pela data lançada em cada registro** (Mapa de Risco: data da avaliação; Inventário: data da identificação; Avaliação: data da avaliação; Plano de Ação: prazo ou conclusão; Absenteísmo: data do afastamento; HHT: mês; Restritos: início da restrição; Laudos: emissão; AET: data da análise). Registro sem a data fica de fora quando Ano/Mês está selecionado.
 
 ## Gestão de Risco
 
@@ -13,7 +13,7 @@ Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem 
 - **O que mostra:** Quantos postos de trabalho estão em cada nível de risco (Baixo, Moderado, Alto, Muito Alto).
 - **De onde vem:** Registro › Mapa de Risco (1 linha = 1 posto/atividade avaliado).
 - **Como é calculado:** O Risco Global de cada posto é a MÉDIA das 12 notas (1 a 4) digitadas no Mapa de Risco: Col. Cervical, Tronco, Ombros, Cotovelos, Punhos, Mãos/Dedos, Joelhos, Pernas, Tornozelos, Pés/Dedos, Psicossocial/Cognitivo e Ambiental. Média ≥ 2,70 = Muito Alto; ≥ 2,15 = Alto; ≥ 1,55 = Moderado; abaixo = Baixo. O card conta postos por nível; o % é a quantidade ÷ total de postos filtrados.
-- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês não altera este indicador.
+- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês filtra pela data da avaliação do Mapa de Risco (registro sem essa data fica de fora quando Ano/Mês está selecionado).
 - **Atenção:** Método diferente do Inventário de Riscos (que usa a matriz de risco do cliente): os dois cards NÃO precisam bater, pois medem universos distintos (postos × fatores). Clique no número para listar os postos.
 
 #### Top 3 Setores críticos
@@ -21,7 +21,7 @@ Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem 
 - **O que mostra:** Os 3 setores com mais postos em risco Alto ou Muito Alto.
 - **De onde vem:** Registro › Mapa de Risco.
 - **Como é calculado:** Por setor: postos críticos (Alto + Muito Alto) ÷ total de postos do setor. A barra mostra esse %; a ORDEM dos 3 setores é pela quantidade de postos críticos (desempate pelo %).
-- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês não altera este indicador.
+- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês filtra pela data da avaliação do Mapa de Risco (registro sem essa data fica de fora quando Ano/Mês está selecionado).
 - **Atenção:** Um setor com 1 posto 100% crítico pode aparecer abaixo de um setor com 5 de 10 críticos (50%): a ordem é por quantidade, a barra é em %.
 
 #### Plano de Ação - Global
@@ -76,7 +76,7 @@ Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem 
 - **O que mostra:** Quantidade de postos por nível de risco dentro de cada setor.
 - **De onde vem:** Registro › Mapa de Risco.
 - **Como é calculado:** Mesmo Risco Global do card "Mapa de Risco Global", aberto por setor.
-- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês não altera este indicador.
+- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês filtra pela data da avaliação do Mapa de Risco (registro sem essa data fica de fora quando Ano/Mês está selecionado).
 - **Atenção:** A soma de todas as barras é igual ao total de postos do card Mapa de Risco Global.
 
 ### AEP - Avaliação Ergonômica e Inventário de Riscos
@@ -86,7 +86,7 @@ Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem 
 - **O que mostra:** Quantos fatores de risco (ISO TS-20646) existem em cada nível de graduação.
 - **De onde vem:** Registro › Inventário de Riscos (AEP): 1 linha = 1 fator marcado "Existe fator de risco: Sim" em um posto.
 - **Como é calculado:** A graduação vem da matriz de risco configurada no cliente (Probabilidade × Gravidade; 3x3, 4x4 ou 5x5). Para caber nos 4 níveis do painel: Muito Baixo e Baixo = Baixo; Moderado = Moderado; Alto = Alto; Altíssimo = Muito Alto. Fatores marcados "Não" não entram.
-- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês não altera este indicador.
+- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês filtra pela data da identificação do fator (registro sem essa data fica de fora quando Ano/Mês está selecionado).
 - **Atenção:** Cliente com matriz 5x5 mostra aqui 4 níveis (agrupados). O nível exato de cada fator continua na tabela do Inventário.
 
 #### Avaliação Ergonômica - Cobertura
@@ -94,7 +94,7 @@ Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem 
 - **O que mostra:** Quantos postos do Mapa de Risco já têm Avaliação Ergonômica (AEP).
 - **De onde vem:** Registro › Avaliação Ergonômica (AEP) comparada com Registro › Mapa de Risco.
 - **Como é calculado:** Avaliações registradas = total de avaliações filtradas. Postos cobertos = postos do Mapa de Risco (chave Cliente+Unidade+Setor+Posto+Cargo+Atividade) que têm pelo menos 1 avaliação. Cobertura = cobertos ÷ postos do Mapa de Risco.
-- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês não altera este indicador.
+- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês filtra pela data da avaliação (Avaliação Ergonômica e Mapa de Risco) (registro sem essa data fica de fora quando Ano/Mês está selecionado).
 - **Atenção:** Avaliação de um posto que não está no Mapa de Risco entra em "registradas" mas não em "cobertos". Sem postos no Mapa, a cobertura mostra 0%.
 
 #### Inventário de Riscos - Status
@@ -102,7 +102,7 @@ Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem 
 - **O que mostra:** Em que etapa de tratativa estão os fatores de risco (A validar, Em andamento, Concluído, Cancelado).
 - **De onde vem:** Registro › Inventário de Riscos (AEP), campo Status.
 - **Como é calculado:** Contagem de fatores (marcados "Sim") por status; % sobre o total de fatores filtrados.
-- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês não altera este indicador.
+- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês filtra pela data da identificação do fator (registro sem essa data fica de fora quando Ano/Mês está selecionado).
 - **Atenção:** Todo fator novo nasce como "A validar".
 
 #### Inventário de Riscos - Prazos
@@ -110,7 +110,7 @@ Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem 
 - **O que mostra:** Situação do prazo "Válido Até" dos fatores de risco ainda abertos.
 - **De onde vem:** Registro › Inventário de Riscos (AEP), campo Válido Até.
 - **Como é calculado:** Só fatores em aberto (A validar ou Em andamento). Vencido = Válido Até antes de hoje; Vencendo = vence em até 30 dias; Em dia = vence daqui a mais de 30 dias.
-- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês não altera este indicador.
+- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês filtra pela data da identificação do fator (registro sem essa data fica de fora quando Ano/Mês está selecionado).
 - **Atenção:** Fatores sem Válido Até, Concluídos ou Cancelados não entram nestes 3 números.
 
 #### Top Setores - Riscos em Aberto
@@ -118,7 +118,7 @@ Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem 
 - **O que mostra:** Os 5 setores com mais fatores de risco ainda em aberto.
 - **De onde vem:** Registro › Inventário de Riscos (AEP).
 - **Como é calculado:** Por setor: fatores com status A validar ou Em andamento ÷ total de fatores do setor. A barra mostra o %; a ordem é pela quantidade de fatores em aberto.
-- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês não altera este indicador.
+- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês filtra pela data da identificação do fator (registro sem essa data fica de fora quando Ano/Mês está selecionado).
 - **Atenção:** Mesma lógica do Top 3 Setores críticos: ordem por quantidade, barra em %.
 
 #### Laudos e Certificados - Por Tipo
@@ -126,7 +126,7 @@ Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem 
 - **O que mostra:** Quantos laudos e certificados de calibração foram emitidos.
 - **De onde vem:** Registro › Laudos (campo Tipo).
 - **Como é calculado:** Contagem de registros de Laudos por Tipo (Laudo ou Certificado de Calibração).
-- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês não altera este indicador.
+- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês filtra pela data de emissão do laudo (registro sem essa data fica de fora quando Ano/Mês está selecionado).
 - **Atenção:** Conta o registro emitido, não o número de páginas ou arquivos.
 
 ### AET - Análise Ergonômica do Trabalho
@@ -136,7 +136,7 @@ Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem 
 - **O que mostra:** Quantos arquivos de AET (Excel/PDF) foram anexados e de que tipo de conteúdo são.
 - **De onde vem:** Registro › AET (campo Arquivos AET).
 - **Como é calculado:** Conta ARQUIVOS (um registro pode ter vários). A classificação é a confirmada pelo ergonomista; se ele não confirmou, vale a automática, lida do conteúdo do arquivo. Classificações sem arquivos ficam ocultas.
-- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês não altera este indicador.
+- **Filtros que valem:** Cliente, Unidade, Setor, Posto, Cargo e Atividade. Ano/Mês filtra pela data da análise (registro sem essa data fica de fora quando Ano/Mês está selecionado).
 - **Atenção:** É contagem de arquivos, não de postos nem de análises.
 
 ## Gestão de Absenteísmo
@@ -190,7 +190,7 @@ Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem 
 - **O que mostra:** Gênero dos colaboradores em restrição ou acompanhamento.
 - **De onde vem:** Registro › Compatíveis.
 - **Como é calculado:** Contagem de registros por gênero.
-- **Filtros que valem:** Filtros globais (sem Ano/Mês) + filtros da página: Status Restrição e Turno de Trabalho.
+- **Filtros que valem:** Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página: Status Restrição e Turno de Trabalho.
 - **Atenção:** Conta registros de restrição; um colaborador com duas restrições conta duas vezes.
 
 #### Idade
@@ -198,7 +198,7 @@ Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem 
 - **O que mostra:** Distribuição por faixa etária.
 - **De onde vem:** Registro › Compatíveis (campo Idade).
 - **Como é calculado:** Contagem de registros nas faixas: até 24, 25-34, 35-44, 45-54 e 55+.
-- **Filtros que valem:** Filtros globais (sem Ano/Mês) + filtros da página.
+- **Filtros que valem:** Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.
 - **Atenção:** Idade vazia não entra em nenhuma faixa.
 
 #### Em Atividade Compatível
@@ -206,42 +206,42 @@ Regra geral: os filtros Cliente, Unidade, Setor, Posto, Cargo e Atividade valem 
 - **O que mostra:** Quantos colaboradores já foram recolocados em atividade compatível.
 - **De onde vem:** Registro › Compatíveis (campo Atividade Compatível).
 - **Como é calculado:** Contagem de registros por valor de Atividade Compatível (Sim/Não).
-- **Filtros que valem:** Filtros globais (sem Ano/Mês) + filtros da página.
+- **Filtros que valem:** Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.
 
 #### Status por Setor
 
 - **O que mostra:** Situação das restrições em cada setor.
 - **De onde vem:** Registro › Compatíveis (Status Restrição: Ativa, Em Avaliação, Encerrada).
 - **Como é calculado:** Barras empilhadas: contagem de registros por status, por setor.
-- **Filtros que valem:** Filtros globais (sem Ano/Mês) + filtros da página.
+- **Filtros que valem:** Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.
 
 #### Restrição por Turno
 
 - **O que mostra:** Situação das restrições em cada turno de trabalho.
 - **De onde vem:** Registro › Compatíveis (Turno Trabalho).
 - **Como é calculado:** Barras empilhadas: contagem de registros por status, por turno.
-- **Filtros que valem:** Filtros globais (sem Ano/Mês) + filtros da página.
+- **Filtros que valem:** Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.
 
 #### Compatível por Setor
 
 - **O que mostra:** Quantos colaboradores em atividade compatível existem em cada setor.
 - **De onde vem:** Registro › Compatíveis.
 - **Como é calculado:** Contagem de registros com Atividade Compatível = Sim, por setor.
-- **Filtros que valem:** Filtros globais (sem Ano/Mês) + filtros da página.
+- **Filtros que valem:** Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.
 
 #### Restrições por região (frente)
 
 - **O que mostra:** Quantidade de restrições por região do corpo, vista frontal.
 - **De onde vem:** Registro › Compatíveis (Segmento Corporal).
 - **Como é calculado:** Contagem de restrições por Segmento Corporal. Silhueta de frente: lado Direito da pessoa à esquerda da imagem.
-- **Filtros que valem:** Filtros globais (sem Ano/Mês) + filtros da página.
+- **Filtros que valem:** Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.
 
 #### Restrições por região (costas)
 
 - **O que mostra:** Quantidade de restrições por região do corpo, vista posterior.
 - **De onde vem:** Registro › Compatíveis (Segmento Corporal).
 - **Como é calculado:** Contagem de restrições por Segmento Corporal. Silhueta de costas: lado Direito da pessoa à direita da imagem.
-- **Filtros que valem:** Filtros globais (sem Ano/Mês) + filtros da página.
+- **Filtros que valem:** Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.
 
 ## Pontos de atenção encontrados na calibração (V 1.0)
 
@@ -255,7 +255,7 @@ Decisões de regra que ficam para validar com a diretoria/equipe (não foram alt
 
 1. "Em andamento" no Plano de Ação só existe no dia exato do prazo.
 2. O Risco Global do Plano de Ação é uma cópia do posto no momento do lançamento da ação.
-3. O Ano/Mês não filtra os cards de risco (Mapa, Inventário, Avaliação, Laudos, AET).
+3. (Resolvido na V 1.1) O Ano/Mês agora filtra todos os cards pela data lançada em cada registro; registros antigos sem data só aparecem com Ano/Mês em "Todos".
 4. A Qtd Colaboradores de Absenteísmo é a média das linhas de HHT / Dias Úteis, não a soma dos setores.
 5. Taxa de Frequência conta cada registro de afastamento como um caso.
 6. Mapa de Risco (média das 12 notas) e Inventário (matriz do cliente) são métodos diferentes de graduar risco; os dois cards não precisam bater.

@@ -1432,3 +1432,13 @@ publicados em produção:
 - **Riscos Psicossociais**: item de menu e tela "Em construção" (aba `psicossocial`).
 - **Marco zero (04/10/2026)**: banco (Cosmos) e Storage zerados a pedido do responsável; mantido só o usuário Administrador dele e as 2 bibliotecas globais (modelo de laudo e certificado de calibração de exemplo). Backup local feito antes (JSON + arquivos do Storage).
 - Service worker em `sige-v3` (força a atualização do cache nos aparelhos).
+
+### V 1.1 — 05/10/2026 (datas, histórico, Inventário e campos guiados)
+
+- **Auditoria no servidor** (`api/src/shared/auditoria.js`, usada em POST/PUT de `entidades.js`): grava `_criadoEm/_criadoPor/_editadoEm/_editadoPor` e `_historico[{em, por, acao, alteracoes[{campo,de,para}]}]` (até 100 eventos, 60 alterações por evento, valores até 240 caracteres). Campos de auditoria enviados pelo navegador são descartados; edição sem mudança real não gera evento; registros antigos recebem `_criadoEm` a partir do `_ts` do Cosmos e autor desconhecido. O POST é upsert (fila offline reenvia): se o id já existe, vira edição.
+- **Mais detalhes** (`js/historico.js`): botão em cada linha da lista do Registro/Cadastro; diálogo com criado/última edição, campo a campo e linha do tempo. Registro ainda não sincronizado mostra aviso.
+- **Datas** (`js/datas.js`): campo de texto DD/MM/AAAA (MM/AAAA no mês) com máscara e botão de calendário; `.value` continua AAAA-MM-DD / AAAA-MM. `padraoHoje: true` na definição do campo preenche hoje só em registro novo. Exibição em tabelas, histórico e Excel em DD/MM/AAAA.
+- **Ano/Mês**: opções = meses das datas lançadas (`DATAS_FILTRO` em `js/app.js`); meses dependem dos anos selecionados. Campos que alimentam o filtro: Mapa de Risco `Dt Avaliacao`, Plano de Ação `Dt Programada/Dt Conclusao`, Absenteísmo `Dt Afastamento`, HHT `Ano/Mes Uteis`, Restritos `Inicio Restricao`, Avaliação `Data Avaliacao`, Inventário `Dt Identificacao`, Laudos `Emitido Em`, AET `Data Analise`. Registro sem a data não passa no filtro quando Ano/Mês está ativo.
+- **Inventário de Riscos**: chaves novas `Criticidade Pos`, `Probabilidade Pos`, `Graduacao Risco Pos`, `Dt Identificacao`; rótulos: "Fonte Geradora" (`Circunstancia Geradora`) e "Ação Organizacional" (`Controles Administrativos`). Checklist e formulário mostram os mesmos campos.
+- **Campos guiados**: SLA em lista (`SLA_POOL`; valor antigo fora da lista é mantido como opção), `inputType: "email"`, `mascara` (cnpj/cep/telefone), `sugestoesDe/sugestoesFn` em Queixa Principal, Restrição Médica, Atividade Compatível (recomendada) e Emitido Por.
+- Service worker em `sige-v4`.

@@ -29,6 +29,7 @@ const rotaAuth = require("./auth");
 const rotaCnpj = require("./cnpj");
 const rotaJobs = require("./lembretesPlanoAcao");
 const { excluirArquivosRemovidos } = require("../shared/blob");
+const { aplicarAuditoria } = require("../shared/auditoria");
 const { enviarEmail, modeloPlanoAcao, ESTAGIOS_PLANO_ACAO } = require("../shared/email");
 
 const NOME_APP = "S.I.G.E";
@@ -171,7 +172,14 @@ async function tratar(request, context) {
         if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerEmpresa(identidade, empresaId)) {
           return { status: 403, jsonBody: { erro: "Sem permissão para gravar nesta empresa." } };
         }
-        const doc = Object.assign({}, corpo, { id: corpo.id || crypto.randomUUID(), EmpresaId: empresaId });
+        const novo = Object.assign({}, corpo, { id: corpo.id || crypto.randomUUID(), EmpresaId: empresaId });
+        // POST e' upsert (a fila offline reenvia o mesmo registro) - se o id ja
+        // existe, o historico continua de onde parou em vez de recomecar.
+        const jaExistia = corpo.id ? await lerPorId(container, novo.id) : null;
+        if (jaExistia && !COLECOES_GLOBAIS.includes(colecao) && !podeVerDocumento(identidade, colecao, jaExistia)) {
+          return { status: 403, jsonBody: { erro: "Sem permissão." } };
+        }
+        const doc = aplicarAuditoria(jaExistia, novo, identidade.email);
         const { resource } = await container.items.upsert(doc);
         if (colecao === "planoAcao") {
           // Notificacao "atribuida" (pedido do Leo 02/10/2026): assim que uma
@@ -210,7 +218,7 @@ async function tratar(request, context) {
         if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerEmpresa(identidade, empresaIdFinal)) {
           return { status: 403, jsonBody: { erro: "Sem permissão para gravar nesta empresa." } };
         }
-        const doc = Object.assign({}, existente, corpo, { id, EmpresaId: empresaIdFinal });
+        const doc = aplicarAuditoria(existente, Object.assign({}, existente, corpo, { id, EmpresaId: empresaIdFinal }), identidade.email);
         const { resource } = await container.item(id, empresaIdDoDocumento(colecao, doc)).replace(doc);
         // Tirou uma foto/arquivo do registro: apaga o arquivo do Storage tambem.
         await excluirArquivosRemovidos(existente, resource, empresaIdFinal, context);
