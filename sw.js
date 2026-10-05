@@ -20,7 +20,7 @@
 
 "use strict";
 
-const VERSAO = "sige-v5";
+const VERSAO = "sige-v6";
 const CACHE_SITE = `${VERSAO}-site`;
 const CACHE_EXTERNO = `${VERSAO}-externo`;
 
@@ -39,6 +39,8 @@ const ARQUIVOS_BASE = [
   "/js/ajuda.js",
   "/js/diagramas.js",
   "/js/pdf-fonts.js",
+  "/js/laudo-textos.js",
+  "/js/laudo.js",
   "/js/app.js",
   "/img/logo-icone-branco.png",
   "/img/logo-icone-bordo.png",

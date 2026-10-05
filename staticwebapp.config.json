@@ -7,6 +7,20 @@
       ]
     },
     {
+      "route": "/verificar",
+      "rewrite": "/verificar.html",
+      "allowedRoles": [
+        "anonymous"
+      ]
+    },
+    {
+      "route": "/verificar/*",
+      "rewrite": "/verificar.html",
+      "allowedRoles": [
+        "anonymous"
+      ]
+    },
+    {
       "route": "/sw.js",
       "headers": {
         "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -25,7 +39,8 @@
       "*.{css,js,json,png,jpg,jpeg,svg,ico}",
       "/sw.js",
       "/manifest.webmanifest",
-      "/img/*"
+      "/img/*",
+      "/verificar.html"
     ]
   },
   "globalHeaders": {
