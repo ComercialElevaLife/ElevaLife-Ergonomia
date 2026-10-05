@@ -2,6 +2,12 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.5 — 05/10/2026
+
+- **Textos de Ajuda:** manual de uso reescrito em linguagem técnica e padronizada, com "Objetivo" e "Perfis" em cada seção; seções novas (Absenteísmo, HHT e Restritos; Usuários, perfis e configurações) e conteúdo atualizado conforme V 1.2–1.4 (ações por fator, evidência, Gerar Laudo em uma etapa, verificação).
+- **Dicionário de indicadores** (botão "i" e Ajuda › Indicadores) e **fluxos BPMN** com redação técnica; histórico de versões revisado. Nenhuma regra de cálculo foi alterada.
+- Renderização do manual: `js/ajuda.js` (campos opcionais `objetivo` e `perfis`); estilo `.ajuda-objetivo` em `css/style.css`. Service worker: cache `sige-v8`.
+
 ## V 1.4 — 05/10/2026
 
 - **Laudo:** formulário enxuto (12 campos visíveis); `Texto`, `Emitido Por`, `Hash Documento`, `Registro Responsavel` e `Registro Executor` ficam ocultos e são gravados na geração. Revisão inicial "00", Tipo "Laudo" e Emitido em (hoje) por padrão; certificado de calibração só aparece com "Incluir = Sim".

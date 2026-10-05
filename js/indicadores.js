@@ -14,7 +14,7 @@
   "use strict";
 
   const BI = (global.BI = global.BI || {});
-  BI.VERSAO = "1.4"; // versao do sistema - exibida no rodape e em Ajuda > Versao (ver docs/CHANGELOG.md)
+  BI.VERSAO = "1.5"; // versao do sistema - exibida no rodape e em Ajuda > Versao (ver docs/CHANGELOG.md)
 
   const FILTROS_GLOBAIS = "Cliente, Unidade, Setor, Posto, Cargo e Atividade";
   // Ano/Mes filtra pela data lancada no proprio registro; registro sem essa
@@ -29,7 +29,7 @@
   };
 
   const STATUS_ACAO =
-    "Status calculado na hora, com a data de hoje: sem Dt Programada e sem Dt Conclusão = Não iniciado; só com Dt Conclusão = Concluída; " +
+    "O status é calculado no momento da consulta, com a data atual: sem Dt Programada e sem Dt Conclusão = Não iniciado; apenas com Dt Conclusão = Concluída; " +
     "sem conclusão e programada antes de hoje = Atrasada; sem conclusão e programada para hoje = Em andamento; sem conclusão e programada no futuro = Não iniciado; " +
     "com conclusão depois da programada = Concluída com atraso; senão Concluída.";
 
@@ -39,63 +39,63 @@
     // ------------------------------------------------------------------
     {
       id: "tiles-risco-global", aba: "ergo", grupo: "Mapa de Risco e Plano de Ação", titulo: "Mapa de Risco Global",
-      mostra: "Quantos postos de trabalho estão em cada nível de risco (Baixo, Moderado, Alto, Muito Alto).",
+      mostra: "Distribuição dos postos de trabalho por nível de risco global (Baixo, Moderado, Alto e Muito Alto).",
       fonte: "Registro › Mapa de Risco (1 linha = 1 posto/atividade avaliado).",
-      calculo: "O Risco Global de cada posto é a MÉDIA das 12 notas (1 a 4) digitadas no Mapa de Risco: Col. Cervical, Tronco, Ombros, Cotovelos, Punhos, Mãos/Dedos, Joelhos, Pernas, Tornozelos, Pés/Dedos, Psicossocial/Cognitivo e Ambiental. Média ≥ 2,70 = Muito Alto; ≥ 2,15 = Alto; ≥ 1,55 = Moderado; abaixo = Baixo. O card conta postos por nível; o % é a quantidade ÷ total de postos filtrados.",
+      calculo: "O Risco Global de cada posto corresponde à média das 12 notas (1 a 4) atribuídas no Mapa de Risco: Col. Cervical, Tronco, Ombros, Cotovelos, Punhos, Mãos/Dedos, Joelhos, Pernas, Tornozelos, Pés/Dedos, Psicossocial/Cognitivo e Ambiental. Média ≥ 2,70 = Muito Alto; ≥ 2,15 = Alto; ≥ 1,55 = Moderado; abaixo = Baixo. O card contabiliza os postos por nível; o percentual é a quantidade dividida pelo total de postos filtrados.",
       filtros: POR_DATA("data da avaliação do Mapa de Risco"),
-      cuidado: "Método diferente do Inventário de Riscos (que usa a matriz de risco do cliente): os dois cards NÃO precisam bater, pois medem universos distintos (postos × fatores). Clique no número para listar os postos.",
+      cuidado: "A metodologia difere da do Inventário de Riscos, que utiliza a matriz de risco do cliente. Os dois indicadores não devem ser comparados diretamente, pois medem universos distintos (postos e fatores). Ao selecionar o número, o sistema lista os postos.",
     },
     {
       id: "chart-top-setores", aba: "ergo", grupo: "Mapa de Risco e Plano de Ação", titulo: "Top 3 Setores críticos",
-      mostra: "Os 3 setores com mais postos em risco Alto ou Muito Alto.",
+      mostra: "Os três setores com maior número de postos em risco Alto ou Muito Alto.",
       fonte: "Registro › Mapa de Risco.",
-      calculo: "Por setor: postos críticos (Alto + Muito Alto) ÷ total de postos do setor. A barra mostra esse %; a ORDEM dos 3 setores é pela quantidade de postos críticos (desempate pelo %).",
+      calculo: "Por setor: postos críticos (Alto e Muito Alto) ÷ total de postos do setor. A barra apresenta esse percentual; a ordenação dos três setores considera a quantidade de postos críticos, com desempate pelo percentual.",
       filtros: POR_DATA("data da avaliação do Mapa de Risco"),
-      cuidado: "Um setor com 1 posto 100% crítico pode aparecer abaixo de um setor com 5 de 10 críticos (50%): a ordem é por quantidade, a barra é em %.",
+      cuidado: "Um setor com 1 posto (100% crítico) pode aparecer abaixo de um setor com 5 postos críticos em 10 (50%), pois a ordenação é por quantidade e a barra, em percentual.",
     },
     {
       id: "chart-plano-global", aba: "ergo", grupo: "Mapa de Risco e Plano de Ação", titulo: "Plano de Ação - Global",
       mostra: "Distribuição de todas as ações do Plano de Ação por status.",
       fonte: "Registro › Plano de Ação.",
-      calculo: STATUS_ACAO + " Com filtro de Ano/Mês, a ação entra se a Dt Programada OU a Dt Conclusão cair no período.",
+      calculo: STATUS_ACAO + " Com filtro de Ano/Mês, a ação é considerada se a Dt Programada ou a Dt Conclusão estiver no período.",
       filtros: COM_ANO_MES,
-      cuidado: "\"Em andamento\" só aparece no dia exato do prazo (regra atual): ação com prazo futuro é \"Não iniciado\" e, passado o prazo sem conclusão, \"Atrasada\".",
+      cuidado: "Pela regra vigente, o status \"Em andamento\" ocorre apenas na data exata do prazo: ação com prazo futuro permanece \"Não iniciado\" e, vencido o prazo sem conclusão, passa a \"Atrasada\".",
     },
     {
       id: "chart-plano-criticos", aba: "ergo", grupo: "Mapa de Risco e Plano de Ação", titulo: "Plano de Ação - Postos Críticos",
-      mostra: "O mesmo status do card Global, só para ações de postos Alto ou Muito Alto.",
+      mostra: "Status das ações, conforme o card Global, restrito aos postos de risco Alto ou Muito Alto.",
       fonte: "Registro › Plano de Ação (campo Risco Global gravado na própria ação).",
-      calculo: "Filtra as ações do Plano cujo Risco Global é Alto ou Muito Alto e calcula o status como no card Global.",
+      calculo: "Seleciona as ações cujo Risco Global é Alto ou Muito Alto e calcula o status pela mesma regra do card Global.",
       filtros: COM_ANO_MES,
-      cuidado: "O Risco Global é COPIADO do posto no momento em que a ação é lançada. Se o posto for reavaliado depois, a ação continua com o valor antigo.",
+      cuidado: "O Risco Global é copiado do posto no momento do lançamento da ação. Se o posto for reavaliado posteriormente, a ação mantém o valor original.",
     },
     {
       id: "chart-acoes-previstas", aba: "ergo", grupo: "Mapa de Risco e Plano de Ação", titulo: "Ações previstas no período",
-      mostra: "Quantas ações estão programadas em cada mês.",
+      mostra: "Quantidade de ações programadas por mês.",
       fonte: "Registro › Plano de Ação (campo Dt Programada).",
-      calculo: "Conta as ações por mês da Dt Programada (concluídas ou não), com eixo contínuo do primeiro ao último mês (meses sem ação = 0). Ano/Mês filtra pela Dt Programada.",
+      calculo: "Contabiliza as ações por mês da Dt Programada (concluídas ou não), em eixo contínuo do primeiro ao último mês (meses sem ação = 0). O filtro Ano/Mês considera a Dt Programada.",
       filtros: COM_ANO_MES,
-      cuidado: "Ações sem Dt Programada não aparecem neste gráfico.",
+      cuidado: "Ações sem Dt Programada não são exibidas neste gráfico.",
     },
     {
       id: "chart-acoes-concluidas", aba: "ergo", grupo: "Mapa de Risco e Plano de Ação", titulo: "Ações concluídas no período",
-      mostra: "Quantas ações foram concluídas em cada mês.",
+      mostra: "Quantidade de ações concluídas por mês.",
       fonte: "Registro › Plano de Ação (campo Dt Conclusão).",
-      calculo: "Conta as ações que têm Dt Conclusão, por mês dessa data. Ano/Mês filtra pela Dt Conclusão.",
+      calculo: "Contabiliza as ações com Dt Conclusão, por mês dessa data. O filtro Ano/Mês considera a Dt Conclusão.",
       filtros: COM_ANO_MES,
-      cuidado: "Inclui concluídas no prazo e com atraso.",
+      cuidado: "Inclui as ações concluídas no prazo e com atraso.",
     },
     {
       id: "chart-por-responsavel", aba: "ergo", grupo: "Mapa de Risco e Plano de Ação", titulo: "Plano de Ação por Responsável",
-      mostra: "Carga e situação das ações de cada responsável.",
+      mostra: "Volume e situação das ações por responsável.",
       fonte: "Registro › Plano de Ação (campo Responsável Ação).",
-      calculo: "Barras empilhadas por status (mesma regra do card Global), ordenadas pelo total de ações do responsável. Ação sem responsável aparece como \"Sem responsavel\".",
+      calculo: "Barras empilhadas por status (mesma regra do card Global), ordenadas pelo total de ações do responsável. Ações sem responsável são agrupadas em \"Sem responsavel\".",
       filtros: COM_ANO_MES,
-      cuidado: "É a base dos avisos por e-mail: o responsável recebe lembretes das ações dele.",
+      cuidado: "Corresponde à base dos avisos por e-mail: cada responsável recebe lembretes das ações sob sua responsabilidade.",
     },
     {
       id: "chart-status-por-setor", aba: "ergo", grupo: "Mapa de Risco e Plano de Ação", titulo: "Status do Plano de Ação por Setor",
-      mostra: "Situação das ações em cada setor.",
+      mostra: "Situação das ações por setor.",
       fonte: "Registro › Plano de Ação.",
       calculo: "Barras empilhadas por status (mesma regra do card Global), uma barra por setor.",
       filtros: COM_ANO_MES,
@@ -103,11 +103,11 @@
     },
     {
       id: "chart-risco-por-setor", aba: "ergo", grupo: "Mapa de Risco e Plano de Ação", titulo: "Mapa de Risco por Setor",
-      mostra: "Quantidade de postos por nível de risco dentro de cada setor.",
+      mostra: "Quantidade de postos por nível de risco, detalhada por setor.",
       fonte: "Registro › Mapa de Risco.",
-      calculo: "Mesmo Risco Global do card \"Mapa de Risco Global\", aberto por setor.",
+      calculo: "Mesmo Risco Global do card \"Mapa de Risco Global\", desdobrado por setor.",
       filtros: POR_DATA("data da avaliação do Mapa de Risco"),
-      cuidado: "A soma de todas as barras é igual ao total de postos do card Mapa de Risco Global.",
+      cuidado: "A soma das barras equivale ao total de postos do card Mapa de Risco Global.",
     },
 
     // ------------------------------------------------------------------
@@ -115,59 +115,59 @@
     // ------------------------------------------------------------------
     {
       id: "tiles-fatorrisco-graduacao", aba: "ergo", grupo: "AEP - Avaliação Ergonômica e Inventário de Riscos", titulo: "Inventário de Riscos - Graduação do Risco",
-      mostra: "Quantos fatores de risco (ISO TS-20646) existem em cada nível de graduação.",
+      mostra: "Distribuição dos fatores de risco (ISO/TS 20646) por nível de graduação.",
       fonte: "Registro › Inventário de Riscos (AEP): 1 linha = 1 fator marcado \"Existe fator de risco: Sim\" em um posto.",
-      calculo: "A graduação vem da matriz de risco configurada no cliente (Probabilidade × Gravidade; 3x3, 4x4 ou 5x5). Para caber nos 4 níveis do painel: Muito Baixo e Baixo = Baixo; Moderado = Moderado; Alto = Alto; Altíssimo = Muito Alto. Fatores marcados \"Não\" não entram.",
+      calculo: "A graduação decorre da matriz de risco configurada no cliente (Probabilidade × Gravidade; 3x3, 4x4 ou 5x5). Para adequação aos quatro níveis do painel: Muito Baixo e Baixo = Baixo; Moderado = Moderado; Alto = Alto; Altíssimo = Muito Alto. Fatores marcados \"Não\" não entram.",
       filtros: POR_DATA("data da identificação do fator"),
-      cuidado: "Cliente com matriz 5x5 mostra aqui 4 níveis (agrupados). O nível exato de cada fator continua na tabela do Inventário.",
+      cuidado: "Em clientes com matriz 5x5, os níveis são agrupados em quatro neste painel. O nível exato de cada fator permanece na tabela do Inventário.",
     },
     {
       id: "tiles-avaliacao-cobertura", aba: "ergo", grupo: "AEP - Avaliação Ergonômica e Inventário de Riscos", titulo: "Avaliação Ergonômica - Cobertura",
-      mostra: "Quantos postos do Mapa de Risco já têm Avaliação Ergonômica (AEP).",
+      mostra: "Proporção de postos do Mapa de Risco que já possuem Avaliação Ergonômica (AEP).",
       fonte: "Registro › Avaliação Ergonômica (AEP) comparada com Registro › Mapa de Risco.",
-      calculo: "Avaliações registradas = total de avaliações filtradas. Postos cobertos = postos do Mapa de Risco (chave Cliente+Unidade+Setor+Posto+Cargo+Atividade) que têm pelo menos 1 avaliação. Cobertura = cobertos ÷ postos do Mapa de Risco.",
+      calculo: "Avaliações registradas: total de avaliações filtradas. Postos cobertos: postos do Mapa de Risco (chave Cliente + Unidade + Setor + Posto + Cargo + Atividade) com ao menos uma avaliação. Cobertura: postos cobertos ÷ postos do Mapa de Risco.",
       filtros: POR_DATA("data da avaliação (Avaliação Ergonômica e Mapa de Risco)"),
-      cuidado: "Avaliação de um posto que não está no Mapa de Risco entra em \"registradas\" mas não em \"cobertos\". Sem postos no Mapa, a cobertura mostra 0%.",
+      cuidado: "A avaliação de um posto ausente do Mapa de Risco compõe \"registradas\", mas não \"cobertos\". Sem postos no Mapa de Risco, a cobertura é exibida como 0%.",
     },
     {
       id: "chart-fatorrisco-status", aba: "ergo", grupo: "AEP - Avaliação Ergonômica e Inventário de Riscos", titulo: "Inventário de Riscos - Status",
-      mostra: "Em que etapa de tratativa estão os fatores de risco (A validar, Em andamento, Concluído, Cancelado).",
+      mostra: "Etapa de tratativa dos fatores de risco (A validar, Em andamento, Concluído e Cancelado).",
       fonte: "Registro › Inventário de Riscos (AEP), campo Status.",
-      calculo: "Contagem de fatores (marcados \"Sim\") por status; % sobre o total de fatores filtrados.",
+      calculo: "Contagem de fatores marcados como existentes (\"Sim\") por status; percentual sobre o total de fatores filtrados.",
       filtros: POR_DATA("data da identificação do fator"),
-      cuidado: "Todo fator novo nasce como \"A validar\".",
+      cuidado: "Todo fator novo é criado com o status \"A validar\".",
     },
     {
       id: "tiles-fatorrisco-prazos", aba: "ergo", grupo: "AEP - Avaliação Ergonômica e Inventário de Riscos", titulo: "Inventário de Riscos - Prazos",
-      mostra: "Situação do prazo \"Válido Até\" dos fatores de risco ainda abertos.",
+      mostra: "Situação do prazo de validade (\"Válido Até\") dos fatores de risco em aberto.",
       fonte: "Registro › Inventário de Riscos (AEP), campo Válido Até.",
-      calculo: "Só fatores em aberto (A validar ou Em andamento). Vencido = Válido Até antes de hoje; Vencendo = vence em até 30 dias; Em dia = vence daqui a mais de 30 dias.",
+      calculo: "Consideram-se apenas fatores em aberto (A validar ou Em andamento). Vencido: Válido Até anterior à data atual; Vencendo: vencimento em até 30 dias; Em dia: vencimento em mais de 30 dias.",
       filtros: POR_DATA("data da identificação do fator"),
-      cuidado: "Fatores sem Válido Até, Concluídos ou Cancelados não entram nestes 3 números.",
+      cuidado: "Fatores sem Válido Até, Concluídos ou Cancelados não compõem estes três valores.",
     },
     {
       id: "chart-fatorrisco-top-setores", aba: "ergo", grupo: "AEP - Avaliação Ergonômica e Inventário de Riscos", titulo: "Top Setores - Riscos em Aberto",
-      mostra: "Os 5 setores com mais fatores de risco ainda em aberto.",
+      mostra: "Os cinco setores com maior número de fatores de risco em aberto.",
       fonte: "Registro › Inventário de Riscos (AEP).",
-      calculo: "Por setor: fatores com status A validar ou Em andamento ÷ total de fatores do setor. A barra mostra o %; a ordem é pela quantidade de fatores em aberto.",
+      calculo: "Por setor: fatores com status A validar ou Em andamento ÷ total de fatores do setor. A barra apresenta o percentual; a ordenação considera a quantidade de fatores em aberto.",
       filtros: POR_DATA("data da identificação do fator"),
-      cuidado: "Mesma lógica do Top 3 Setores críticos: ordem por quantidade, barra em %.",
+      cuidado: "Mesma lógica do Top 3 Setores críticos: ordenação por quantidade e barra em percentual.",
     },
     {
       id: "chart-laudos-tipo", aba: "ergo", grupo: "AEP - Avaliação Ergonômica e Inventário de Riscos", titulo: "Laudos e Certificados - Por Tipo",
-      mostra: "Quantos laudos e certificados de calibração foram emitidos.",
+      mostra: "Quantidade de laudos e certificados de calibração emitidos.",
       fonte: "Registro › Laudos (campo Tipo).",
       calculo: "Contagem de registros de Laudos por Tipo (Laudo ou Certificado de Calibração).",
       filtros: POR_DATA("data de emissão do laudo"),
-      cuidado: "Conta o registro emitido, não o número de páginas ou arquivos.",
+      cuidado: "Contabiliza o registro emitido, e não o número de páginas ou de arquivos.",
     },
     {
       id: "tiles-aet-classificacao", aba: "ergo", grupo: "AET - Análise Ergonômica do Trabalho", titulo: "AET - Arquivos Anexados por Classificação",
-      mostra: "Quantos arquivos de AET (Excel/PDF) foram anexados e de que tipo de conteúdo são.",
+      mostra: "Quantidade de arquivos de AET (Excel/PDF) anexados, por tipo de conteúdo.",
       fonte: "Registro › AET (campo Arquivos AET).",
-      calculo: "Conta ARQUIVOS (um registro pode ter vários). A classificação é a confirmada pelo ergonomista; se ele não confirmou, vale a automática, lida do conteúdo do arquivo. Classificações sem arquivos ficam ocultas.",
+      calculo: "Contabiliza arquivos (um registro pode conter vários). Prevalece a classificação confirmada pelo ergonomista; na ausência de confirmação, utiliza-se a classificação automática, obtida da leitura do arquivo. Classificações sem arquivos não são exibidas.",
       filtros: POR_DATA("data da análise"),
-      cuidado: "É contagem de arquivos, não de postos nem de análises.",
+      cuidado: "O valor corresponde a arquivos, e não a postos ou a análises.",
     },
 
     // ------------------------------------------------------------------
@@ -175,19 +175,19 @@
     // ------------------------------------------------------------------
     {
       id: "tiles-totais-medocup", aba: "medocup", grupo: "Absenteísmo", titulo: "Totais do período filtrado",
-      mostra: "Colaboradores, dias perdidos e Taxa de Frequência do período.",
+      mostra: "Número de colaboradores, dias perdidos e Taxa de Frequência do período.",
       fonte: "Registro › Absenteísmo e Registro › HHT / Dias Úteis.",
-      calculo: "Qtd Dias Perdidos = soma de \"Qtd Dias\" dos afastamentos. Taxa de Frequência = nº de afastamentos ÷ HHT × 1.000.000, com HHT = soma de (Colaboradores × Dias Úteis × 8 h) de cada linha de HHT / Dias Úteis (NBR 14280). Qtd Colaboradores = média da coluna Colaboradores das linhas de HHT / Dias Úteis do filtro.",
+      calculo: "Qtd Dias Perdidos: soma de \"Qtd Dias\" dos afastamentos. Taxa de Frequência: nº de afastamentos ÷ HHT × 1.000.000, sendo HHT a soma de (Colaboradores × Dias Úteis × 8 h) de cada linha de HHT / Dias Úteis (NBR 14280). Qtd Colaboradores: média da coluna Colaboradores das linhas de HHT / Dias Úteis do filtro.",
       filtros: "Cliente, Unidade, Setor, Posto, Cargo, Atividade e Ano/Mês (afastamento pela Dt Afastamento; HHT pelo Ano/Mês Úteis).",
-      cuidado: "Sem linhas de HHT / Dias Úteis lançadas, a Taxa de Frequência fica 0. A Qtd Colaboradores é a MÉDIA das linhas (setor × mês), não a soma dos setores.",
+      cuidado: "Sem linhas de HHT / Dias Úteis lançadas, a Taxa de Frequência é 0. A Qtd Colaboradores é a média das linhas (setor × mês), e não a soma dos setores.",
     },
     {
       id: "chart-evolucao-taxa", aba: "medocup", grupo: "Absenteísmo", titulo: "Evolução da Taxa de Frequência",
-      mostra: "A Taxa de Frequência mês a mês, com atestados e dias perdidos no balão.",
+      mostra: "Evolução mensal da Taxa de Frequência; atestados e dias perdidos são exibidos no detalhe do gráfico (ao passar o cursor).",
       fonte: "Registro › Absenteísmo e Registro › HHT / Dias Úteis.",
       calculo: "Mesma fórmula do card Totais, calculada para cada mês (afastamentos do mês ÷ HHT do mês × 1.000.000).",
       filtros: "Cliente, Unidade, Setor, Posto, Cargo, Atividade e Ano/Mês.",
-      cuidado: "Mês com afastamento mas sem HHT lançado aparece com taxa 0.",
+      cuidado: "Mês com afastamento e sem HHT lançado é exibido com taxa 0.",
     },
     {
       id: "chart-taxa-por-setor", aba: "medocup", grupo: "Absenteísmo", titulo: "Taxa de Frequência por Setor",
@@ -195,13 +195,13 @@
       fonte: "Registro › Absenteísmo e Registro › HHT / Dias Úteis.",
       calculo: "Mesma fórmula do card Totais, por setor. Os setores listados são os que têm linha em HHT / Dias Úteis.",
       filtros: "Cliente, Unidade, Setor, Posto, Cargo, Atividade e Ano/Mês.",
-      cuidado: "Setor com afastamentos mas sem HHT lançado não aparece.",
+      cuidado: "Setor com afastamentos e sem HHT lançado não é exibido.",
     },
     {
       id: "diagrama-medocup-frente", aba: "medocup", grupo: "Absenteísmo", titulo: "Dias perdidos por região (frente)",
       mostra: "Dias perdidos por região do corpo, vista frontal.",
       fonte: "Registro › Absenteísmo (Região Corporal e Qtd Dias).",
-      calculo: "Soma de \"Qtd Dias\" por Região Corporal. A silhueta é vista de frente: o lado Direito da pessoa aparece à esquerda da imagem.",
+      calculo: "Soma de \"Qtd Dias\" por Região Corporal. Na vista frontal, o lado direito da pessoa corresponde ao lado esquerdo da imagem.",
       filtros: "Cliente, Unidade, Setor, Posto, Cargo, Atividade e Ano/Mês.",
       cuidado: "",
     },
@@ -209,7 +209,7 @@
       id: "diagrama-medocup-costas", aba: "medocup", grupo: "Absenteísmo", titulo: "Dias perdidos por região (costas)",
       mostra: "Dias perdidos por região do corpo, vista posterior.",
       fonte: "Registro › Absenteísmo (Região Corporal e Qtd Dias).",
-      calculo: "Soma de \"Qtd Dias\" por Região Corporal. A silhueta é vista de costas: o lado Direito da pessoa aparece à direita da imagem.",
+      calculo: "Soma de \"Qtd Dias\" por Região Corporal. Na vista posterior, o lado direito da pessoa corresponde ao lado direito da imagem.",
       filtros: "Cliente, Unidade, Setor, Posto, Cargo, Atividade e Ano/Mês.",
       cuidado: "",
     },
@@ -219,11 +219,11 @@
     // ------------------------------------------------------------------
     {
       id: "chart-compat-genero", aba: "compativeis", grupo: "Restritos", titulo: "Gênero",
-      mostra: "Gênero dos colaboradores em restrição ou acompanhamento.",
+      mostra: "Distribuição por gênero dos colaboradores com restrição médica registrada.",
       fonte: "Registro › Restritos (Compatíveis).",
       calculo: "Contagem de registros por gênero.",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página: Status Restrição e Turno de Trabalho.",
-      cuidado: "Conta registros de restrição; um colaborador com duas restrições conta duas vezes.",
+      cuidado: "Contabiliza registros de restrição: um colaborador com duas restrições é contado duas vezes.",
     },
     {
       id: "chart-compat-idade", aba: "compativeis", grupo: "Restritos", titulo: "Idade",
@@ -231,11 +231,11 @@
       fonte: "Registro › Restritos (Compatíveis) (campo Idade).",
       calculo: "Contagem de registros nas faixas: até 24, 25-34, 35-44, 45-54 e 55+.",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
-      cuidado: "Idade vazia não entra em nenhuma faixa.",
+      cuidado: "Registros sem idade não são alocados em nenhuma faixa.",
     },
     {
       id: "chart-compat-atividade", aba: "compativeis", grupo: "Restritos", titulo: "Em Atividade Compatível",
-      mostra: "Quantos colaboradores já foram recolocados em atividade compatível.",
+      mostra: "Quantidade de colaboradores recolocados em atividade compatível, em comparação com os não recolocados.",
       fonte: "Registro › Restritos (Compatíveis) (campo Atividade Compatível).",
       calculo: "Contagem de registros por valor de Atividade Compatível (Sim/Não).",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
@@ -243,7 +243,7 @@
     },
     {
       id: "chart-compat-status-setor", aba: "compativeis", grupo: "Restritos", titulo: "Status por Setor",
-      mostra: "Situação das restrições em cada setor.",
+      mostra: "Situação das restrições por setor.",
       fonte: "Registro › Restritos (Compatíveis) (Status Restrição: Ativa, Em Avaliação, Encerrada).",
       calculo: "Barras empilhadas: contagem de registros por status, por setor.",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
@@ -251,7 +251,7 @@
     },
     {
       id: "chart-compat-restricao-turno", aba: "compativeis", grupo: "Restritos", titulo: "Restrição por Turno",
-      mostra: "Situação das restrições em cada turno de trabalho.",
+      mostra: "Situação das restrições por turno de trabalho.",
       fonte: "Registro › Restritos (Compatíveis) (Turno Trabalho).",
       calculo: "Barras empilhadas: contagem de registros por status, por turno.",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
@@ -259,7 +259,7 @@
     },
     {
       id: "chart-compat-compativel-setor", aba: "compativeis", grupo: "Restritos", titulo: "Compatível por Setor",
-      mostra: "Quantos colaboradores em atividade compatível existem em cada setor.",
+      mostra: "Quantidade de colaboradores em atividade compatível, por setor.",
       fonte: "Registro › Restritos (Compatíveis).",
       calculo: "Contagem de registros com Atividade Compatível = Sim, por setor.",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
@@ -269,7 +269,7 @@
       id: "diagrama-compat-frente", aba: "compativeis", grupo: "Restritos", titulo: "Restrições por região (frente)",
       mostra: "Quantidade de restrições por região do corpo, vista frontal.",
       fonte: "Registro › Restritos (Compatíveis) (Segmento Corporal).",
-      calculo: "Contagem de restrições por Segmento Corporal. Silhueta de frente: lado Direito da pessoa à esquerda da imagem.",
+      calculo: "Contagem de restrições por Segmento Corporal. Na vista frontal, o lado direito da pessoa corresponde ao lado esquerdo da imagem.",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "",
     },
@@ -277,7 +277,7 @@
       id: "diagrama-compat-costas", aba: "compativeis", grupo: "Restritos", titulo: "Restrições por região (costas)",
       mostra: "Quantidade de restrições por região do corpo, vista posterior.",
       fonte: "Registro › Restritos (Compatíveis) (Segmento Corporal).",
-      calculo: "Contagem de restrições por Segmento Corporal. Silhueta de costas: lado Direito da pessoa à direita da imagem.",
+      calculo: "Contagem de restrições por Segmento Corporal. Na vista posterior, o lado direito da pessoa corresponde ao lado direito da imagem.",
       filtros: "Filtros globais (Ano/Mês pela data de início da restrição) + filtros da página.",
       cuidado: "",
     },
