@@ -1900,6 +1900,7 @@ footer.rodape { padding: 10px 16px 18px; opacity: 0.75; }
   padding: 0 14px;
 }
 .ajuda-secao > summary { cursor: pointer; font-weight: 600; font-size: 13.5px; padding: 12px 0; }
+.ajuda-objetivo { margin: 0 0 10px; font-size: 12.5px; line-height: 1.55; color: var(--texto-secundario, var(--texto)); }
 .ajuda-passos { margin: 0 0 14px; padding-left: 20px; font-size: 13px; line-height: 1.55; color: var(--texto); }
 .ajuda-passos li { margin-bottom: 6px; }
 ul.ajuda-passos { list-style: disc; }
