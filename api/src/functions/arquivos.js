@@ -77,6 +77,11 @@ const REGRAS_POR_COLECAO = {
     tiposAceitos: ["image/jpeg", "image/png"],
     tamanhoMaximoBytes: 2 * 1024 * 1024,
   },
+  // V 1.2: evidencia de conclusao de acao do Plano de Acao (foto ou PDF).
+  planoAcao: {
+    tiposAceitos: ["application/pdf", "image/jpeg", "image/png"],
+    tamanhoMaximoBytes: 15 * 1024 * 1024,
+  },
 };
 
 function sanitizarNomeArquivo(nome) {
@@ -132,6 +137,7 @@ async function tratarUpload(request, identidade) {
   const chave = `${EmpresaId}/${Colecao}/${crypto.randomUUID()}-${nomeSeguro}`;
 
   const containerCliente = obterContainerCliente(Colecao);
+  if (Colecao === "planoAcao") await containerCliente.createIfNotExists(); // container novo da V 1.2
   const blocoCliente = containerCliente.getBlockBlobClient(chave);
   await blocoCliente.uploadData(buffer, { blobHTTPHeaders: { blobContentType: TipoConteudo } });
 

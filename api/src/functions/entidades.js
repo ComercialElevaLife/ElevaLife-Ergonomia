@@ -19,7 +19,7 @@
 
 const crypto = require("crypto");
 const { app } = require("@azure/functions");
-const { obterContainer } = require("../shared/cosmos");
+const { obterContainer, garantirContainer } = require("../shared/cosmos");
 const { resolverIdentidade, empresasVisiveis, podeVerEmpresa, podeVerDocumento, empresaIdDoDocumento } = require("../shared/tenant");
 const rotaMe = require("./me");
 const rotaUsuarios = require("./usuarios");
@@ -31,6 +31,8 @@ const rotaJobs = require("./lembretesPlanoAcao");
 const { excluirArquivosRemovidos } = require("../shared/blob");
 const { aplicarAuditoria } = require("../shared/auditoria");
 const { enviarEmail, modeloPlanoAcao, ESTAGIOS_PLANO_ACAO } = require("../shared/email");
+const { avaliarPlanoAcao, precisaNotificarAtribuicao, evidenciasValidas } = require("../shared/planoAcaoRegras");
+const { obterContainerCliente } = require("../shared/blob");
 
 const NOME_APP = "S.I.G.E";
 
@@ -56,13 +58,18 @@ const COLECOES = [
   // em todo laudo que gera), nunca filtrados por EmpresaId - ver
   // COLECOES_GLOBAIS abaixo.
   "certificadoCalibracao", "modeloLaudo",
+  // V 1.2: configuracoes do sistema editaveis pelo Administrador (ex.: nomes
+  // dos tipos de acao do Plano de Acao) - GLOBAL, so Administrador grava.
+  "configuracao",
 ];
 
 // Colecoes sem dono (nenhuma amarrada a uma empresa-cliente especifica) -
 // todo usuario autenticado com papel liberado ve e edita, independente de
 // quais empresas estao vinculadas a ele. Gravadas sempre com
 // EmpresaId=EMPRESA_GLOBAL (constante fixa, nunca uma empresa real).
-const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo"];
+const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo", "configuracao"];
+// Colecoes em que so o Administrador grava/exclui (todos podem ler).
+const COLECOES_SO_ADMIN_GRAVA = ["configuracao"];
 const EMPRESA_GLOBAL = "GLOBAL";
 
 // "me" e "usuarios" sao despachadas aqui dentro (em vez de cada uma ter seu
@@ -113,6 +120,64 @@ async function listarComFiltro(container, colecao, identidade) {
   return resources;
 }
 
+// V 1.2 - Plano de Acao: aplica as regras de status/evidencia (ver
+// shared/planoAcaoRegras.js) e confere no Storage que os arquivos de
+// evidencia novos existem de verdade (nao basta o nome no corpo da requisicao).
+async function avaliarPlanoAcaoComArquivos(existente, novo, identidade, context) {
+  const avaliacao = avaliarPlanoAcao({
+    existente, novo, papel: identidade.papel, email: identidade.email,
+  });
+  if (!avaliacao.ok) return avaliacao;
+  const jaConhecidas = new Set(evidenciasValidas(existente).map((e) => e.chave));
+  const novas = evidenciasValidas(avaliacao.doc).filter((e) => !jaConhecidas.has(e.chave));
+  for (const e of novas) {
+    let existe = false;
+    try {
+      existe = await obterContainerCliente("planoAcao").getBlockBlobClient(e.chave).exists();
+    } catch (erro) {
+      context.error("Falha ao conferir evidencia no Storage: " + e.chave, erro);
+      existe = true; // falha de infraestrutura nao deve travar o usuario
+    }
+    if (!existe) {
+      return { ok: false, status: 422, codigo: "EVIDENCIA_NAO_ENCONTRADA", erro: "Um dos arquivos de evidência não foi encontrado. Anexe novamente." };
+    }
+  }
+  return avaliacao;
+}
+
+// Notificacoes do Plano de Acao disparadas na gravacao (best-effort - nunca
+// derrubam o registro): "atribuida" (so na criacao ou troca do e-mail do
+// responsavel) e "evidDispensa" (Administrador concluiu sem evidencia).
+async function notificarPlanoAcao(context, existente, resource) {
+  try {
+    if (precisaNotificarAtribuicao(existente, resource)) {
+      await enviarEmail({
+        para: resource["E-mail Responsavel"],
+        assunto: ESTAGIOS_PLANO_ACAO.atribuida.assunto(resource),
+        htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio: "atribuida", acao: resource }),
+      });
+    }
+  } catch (erro) {
+    context.error("Falha ao enviar e-mail de acao atribuida (Plano de Acao)", erro);
+  }
+  try {
+    const d = resource._dispensa;
+    const jaAvisou = existente && existente._dispensa && existente._dispensa.em === (d && d.em);
+    if (d && !d.regularizadaEm && !jaAvisou) {
+      const destinos = Array.from(new Set([d.por, resource["E-mail Responsavel"]].filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(x || "")))));
+      for (const para of destinos) {
+        await enviarEmail({
+          para,
+          assunto: ESTAGIOS_PLANO_ACAO.evidDispensa.assunto(resource),
+          htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio: "evidDispensa", acao: resource, paraAdmin: para === d.por }),
+        });
+      }
+    }
+  } catch (erro) {
+    context.error("Falha ao enviar e-mail de dispensa de evidencia (Plano de Acao)", erro);
+  }
+}
+
 async function tratar(request, context) {
   const colecao = request.params.colecao;
 
@@ -141,8 +206,11 @@ async function tratar(request, context) {
     };
   }
 
-  const container = obterContainer(colecao);
+  const container = colecao === "configuracao" ? await garantirContainer(colecao) : obterContainer(colecao);
   const id = request.params.id;
+  if (COLECOES_SO_ADMIN_GRAVA.includes(colecao) && request.method !== "GET" && identidade.papel !== "Administrador") {
+    return { status: 403, jsonBody: { erro: "Só Administrador pode alterar as configurações do sistema." } };
+  }
 
   try {
     switch (request.method) {
@@ -179,27 +247,16 @@ async function tratar(request, context) {
         if (jaExistia && !COLECOES_GLOBAIS.includes(colecao) && !podeVerDocumento(identidade, colecao, jaExistia)) {
           return { status: 403, jsonBody: { erro: "Sem permissão." } };
         }
-        const doc = aplicarAuditoria(jaExistia, novo, identidade.email);
+        let paraGravar = novo;
+        if (colecao === "planoAcao") {
+          const avaliacao = await avaliarPlanoAcaoComArquivos(jaExistia, novo, identidade, context);
+          if (!avaliacao.ok) return { status: avaliacao.status, jsonBody: { erro: avaliacao.erro, codigo: avaliacao.codigo } };
+          paraGravar = avaliacao.doc;
+        }
+        const doc = aplicarAuditoria(jaExistia, paraGravar, identidade.email);
         const { resource } = await container.items.upsert(doc);
         if (colecao === "planoAcao") {
-          // Notificacao "atribuida" (pedido do Leo 02/10/2026): assim que uma
-          // acao e cadastrada com um Responsavel + E-mail Responsavel, avisa a
-          // pessoa na hora - as demais notificacoes (30 dias antes, no
-          // vencimento, atraso, 30 dias de atraso, semanal) sao tratadas pelo
-          // job diario em functions/lembretesPlanoAcao.js. Best-effort: nunca
-          // deve derrubar a criacao do registro por causa de e-mail.
-          const paraEmail = resource["E-mail Responsavel"];
-          if (paraEmail) {
-            try {
-              await enviarEmail({
-                para: paraEmail,
-                assunto: ESTAGIOS_PLANO_ACAO.atribuida.assunto(resource),
-                htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio: "atribuida", acao: resource }),
-              });
-            } catch (erro) {
-              context.error("Falha ao enviar e-mail de acao atribuida (Plano de Acao)", erro);
-            }
-          }
+          await notificarPlanoAcao(context, jaExistia, resource);
         }
         return { status: 201, jsonBody: resource };
       }
@@ -218,8 +275,17 @@ async function tratar(request, context) {
         if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerEmpresa(identidade, empresaIdFinal)) {
           return { status: 403, jsonBody: { erro: "Sem permissão para gravar nesta empresa." } };
         }
-        const doc = aplicarAuditoria(existente, Object.assign({}, existente, corpo, { id, EmpresaId: empresaIdFinal }), identidade.email);
+        let mesclado = Object.assign({}, existente, corpo, { id, EmpresaId: empresaIdFinal });
+        if (colecao === "planoAcao") {
+          const avaliacao = await avaliarPlanoAcaoComArquivos(existente, mesclado, identidade, context);
+          if (!avaliacao.ok) return { status: avaliacao.status, jsonBody: { erro: avaliacao.erro, codigo: avaliacao.codigo } };
+          mesclado = avaliacao.doc;
+        }
+        const doc = aplicarAuditoria(existente, mesclado, identidade.email);
         const { resource } = await container.item(id, empresaIdDoDocumento(colecao, doc)).replace(doc);
+        if (colecao === "planoAcao") {
+          await notificarPlanoAcao(context, existente, resource);
+        }
         // Tirou uma foto/arquivo do registro: apaga o arquivo do Storage tambem.
         await excluirArquivosRemovidos(existente, resource, empresaIdFinal, context);
         return { jsonBody: resource };
