@@ -2,6 +2,10 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.12 — 06/10/2026
+
+- **Aviso na importação da Avaliação Ergonômica (AEP):** se a planilha tiver colunas de Inventário de Riscos (Grupo, Fator, Criticidade, Probabilidade, Graduação…), a prévia mostra um aviso para usar Registro › Inventário de Riscos (AEP) › Importar Excel. Motivo: o relatório do sistema anterior tem Empresa/Unidade/Setor/Posto/Cargo, e importado na AEP só a hierarquia entra (e avaliações vazias), enquanto os fatores de risco são ignorados. Novo recurso opcional `avisoPlanilha(cabecalhos)` no motor (`js/importador.js`); só a AEP o usa. O aviso não bloqueia a importação. Service worker: cache `sige-v15`.
+
 ## V 1.11 — 06/10/2026
 
 - **Atividade e Data deixam de ser obrigatórias nas importações** do Inventário de Riscos (Atividade, Data de identificação) e da Avaliação Ergonômica/AEP (Atividade, Data da avaliação): o sistema anterior não as traz. Sem coluna ou com célula vazia, o campo fica em branco; os "valores padrão" da prévia passam a começar vazios (a V 1.10 sugeria "Atividade não informada – histórico" e a data de hoje) e continuam editáveis, caso o usuário queira preencher as linhas sem dado. Não cria mais cadastros de Atividade fictícios.
