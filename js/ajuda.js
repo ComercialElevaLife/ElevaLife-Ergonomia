@@ -70,6 +70,7 @@
         "Com o retorno da conexão, o envio é automático (a cada 30 segundos). Ao selecionar a faixa, abre-se \"Envios pendentes\", com as opções Enviar agora, Descartar, Tentar de novo e, em caso de conflito de edição, Enviar minha versão.",
         "A exclusão também é permitida sem conexão: ela é enfileirada e executada no retorno do sinal, podendo ser cancelada antes disso.",
         "Recomenda-se não encerrar a sessão (Sair) com envios pendentes; o sistema solicita confirmação nessa situação.",
+        "Histórico de AEP de planilha Excel (inclusive do sistema anterior): em Registro › Avaliação Ergonômica (AEP), \"Importar Excel\". Baixe o modelo ou envie a planilha existente, ligue as colunas aos campos (nomes comuns são reconhecidos automaticamente), confira a prévia e confirme. Cliente, Unidade, Setor, Posto, Cargo e Atividade devem estar cadastrados; Jornada, Pausas e Rodízio são opcionais na importação; fotos não são importadas.",
       ],
     },
     {
@@ -260,6 +261,13 @@
   ];
 
   const HISTORICO = [
+    {
+      versao: "1.8", data: "05/10/2026",
+      itens: [
+        "Importação do histórico de AEP por planilha Excel (Registro › Avaliação Ergonômica): modelo para baixar, reconhecimento automático de colunas comuns, mapeamento manual, prévia com a situação de cada linha e confirmação antes de gravar.",
+        "Avaliações com o mesmo posto, cargo, atividade e data são atualizadas, sem duplicar. Fotos não são importadas.",
+      ],
+    },
     {
       versao: "1.7", data: "05/10/2026",
       itens: [

@@ -4104,6 +4104,35 @@
       // um - o cadastro antigo continua existindo (util pra buscar/editar/
       // excluir um fator especifico depois).
       temInventarioChecklist: true,
+      // V 1.8: importacao do historico de AEP por planilha Excel (sistema legado).
+      // Mesmo motor da V 1.6 (modelo + mapeamento de colunas + previa + confirmacao).
+      // Jornada/Pausas/Rodizio sao obrigatorios no formulario, mas historicos antigos
+      // podem nao ter - na importacao ficam opcionais (ver "opcionais").
+      importacao: {
+        chaveNatural: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Data Avaliacao"],
+        arquivo: "historico-aep",
+        nomePlanilha: "Dados",
+        colunasPrevia: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Data Avaliacao"],
+        opcionais: ["Jornada de Trabalho", "Pausas", "Rodizio"],
+        // Nomes de coluna comuns em planilhas do sistema anterior (reconhecidos sem mapear na mao).
+        apelidos: {
+          "Cliente": ["Empresa", "Razao Social", "Nome da Empresa"],
+          "Unidade": ["Filial", "Planta", "Local"],
+          "Setor": ["Area", "Departamento"],
+          "Posto Trabalho": ["Posto", "Posto de Trabalho"],
+          "Cargo": ["Funcao"],
+          "Atividade": ["Tarefa"],
+          "Data Avaliacao": ["Data", "Data da AEP", "Data AEP", "Data Avaliacao", "Dt Avaliacao", "Data da Avaliacao"],
+          "Jornada de Trabalho": ["Jornada"],
+          "Rodizio": ["Rodizio de Atividades"],
+          "Descricao Setor": ["Descricao do Setor"],
+          "Descricao Atividade Observada": ["Descricao da Atividade", "Tarefa Real Observada"],
+          "Caracteristicas Trabalhadores": ["Caracteristicas dos Trabalhadores", "Perfil dos Trabalhadores"],
+          "Historico Acidentes": ["Historico de Acidentes", "Acidentes"],
+        },
+        exemplo: { "Data Avaliacao": "15/03/2025", "Jornada de Trabalho": "Segunda a sexta, 08h às 17h48", "Pausas": "10 min a cada 50 min", "Rodizio": "Não há" },
+        descricao: "Importe o histórico de avaliações ergonômicas (AEP) de uma planilha Excel, inclusive a exportada do sistema anterior: na prévia você liga cada coluna do arquivo ao campo correspondente. Cliente, Unidade, Setor, Posto, Cargo e Atividade precisam estar cadastrados. Fotos não são importadas. Avaliações iguais (mesmo posto, cargo, atividade e data) são atualizadas, nunca duplicadas.",
+      },
     },
     fatorRisco: {
       grupo: "registro", icone: "🧩", tituloMenu: "Inventário de Riscos (AEP)",
@@ -5102,7 +5131,13 @@
     const def = {
       colecao: chave,
       titulo: cfg.titulo,
-      campos: cfg.campos,
+      campos: cfg.campos.map((c) => {
+        const opcional = imp.opcionais && imp.opcionais.indexOf(c.campo) >= 0;
+        const apelidos = imp.apelidos && imp.apelidos[c.campo];
+        return opcional || apelidos
+          ? Object.assign({}, c, opcional ? { obrigatorio: false } : {}, apelidos ? { apelidos } : {})
+          : c;
+      }),
       chaveNatural: imp.chaveNatural,
       arquivo: imp.arquivo,
       nomePlanilha: imp.nomePlanilha,
