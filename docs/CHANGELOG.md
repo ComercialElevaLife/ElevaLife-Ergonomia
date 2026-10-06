@@ -2,6 +2,12 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.14 — 06/10/2026
+
+- **Novo módulo Riscos Psicossociais (versão de testes)** em `psicossocial.html`, aberto pela aba Riscos Psicossociais (embutido) ou em tela cheia. Fluxo: cadastro da empresa pelo CNPJ (usa `/api/cnpj`) → planilha de solicitação ao cliente (unidades, colaboradores/GHEs, taxa de frequência, ações já realizadas) → coleta do HSE-IT por QR code ou código curto, com matrícula (resposta única; a matrícula não é gravada junto das respostas) → checklist ISO 45003 pelo gestor do contrato → análise de risco (probabilidade = HSE × ISO 45003; severidade = taxa de frequência do GHE; matriz 4x4 ou 5x5) → plano de ação com a Biblioteca Mestre (450 ações) → relatório Word.
+- **API:** duas rotas novas no dispatcher (`ROTAS_ESPECIAIS`): `/api/psico/{doc|col|eu}` (equipe: sessão + papel Administrador/Consultor) e `/api/psicopub/{codigo|empresa|matricula|resposta|iso}` (pública, sem login, usada pelas telas do QR code). Dados no Cosmos, container `psicossocial` (criado sob demanda, partição `/EmpresaId`). Ver `api/src/functions/psicossocial.js`.
+- `staticwebapp.config.json`: `/psicossocial.html` pode ser embutido no próprio SIGE (`X-Frame-Options: SAMEORIGIN`). Service worker: cache `sige-v17`.
+
 ## V 1.13 — 06/10/2026
 
 - **Importação única do histórico do sistema anterior.** Importar o relatório de Inventário de Riscos agora distribui tudo de uma vez, com uma única prévia de validação: (1) cria os cadastros que faltam (Cliente › Unidade › Setor › Posto › Cargo › Atividade), (2) cria a **Avaliação Ergonômica (AEP) de cada posto/cargo** a que os fatores pertencem — só com os dados da planilha (jornada, pausas e rodízio ficam para preencher depois) e **reaproveitando as AEP que já existem** (chave: Cliente, Unidade, Setor, Posto, Cargo, Atividade) — e (3) grava os fatores no Inventário. A criação da AEP é uma caixa marcada na prévia (padrão: marcada).
