@@ -1,6 +1,6 @@
 /* ==========================================================================
    S.I.G.E. - ElevaLife
-   TEXTO PADRAO DO LAUDO (AEP) - V 1.3. Base: metodologia ElevaLife (5 pilares
+   TEXTO PADRAO DO LAUDO (AEP) - V 1.3; V 1.9: o Editor de Texto passou a cobrir TODO o texto do documento (PDF e Word). Base: metodologia ElevaLife (5 pilares
    da gestao de ergonomia, 5 etapas da gestao do risco ergonomico, PDCA),
    NR-17, NR-01 (GRO/PGR), ISO/TS 20646 e referencias de mercado.
 
@@ -77,22 +77,166 @@
       "BORG, G. *Borg’s Perceived Exertion and Pain Scales*. Human Kinetics, 1998.\n" +
       "WATERS, T. R. et al. Revised NIOSH equation for the design and evaluation of manual lifting tasks. *Ergonomics*, 1993; McATAMNEY, L.; CORLETT, E. N. RULA. *Applied Ergonomics*, 1993; HIGNETT, S.; McATAMNEY, L. REBA. *Applied Ergonomics*, 2000.\n" +
       "Manual de Goniometria (referências de amplitude de movimento) e Guia de referência ElevaLife para graduação de ADM, esforço, duração e frequência.",
+
+    "Capa Lema":
+      "15 anos elevando pessoas e resultados",
+
+    "Capa Titulo":
+      "Avaliação Ergonômica\nPreliminar",
+
+    "Capa Subtitulo":
+      "AEP conforme NR-17 e NR-01 (GRO/PGR), com lista de fatores de risco da ISO/TS 20646",
+
+    "Etapas Relacionamento":
+      "Diagnóstico inicial\nAnálise estratégica\nDesenvolvimento da solução integrada\nPlano de ação\nImplementação\nEngajamento e comunicação\nMonitoramento de KPIs\nAvaliações periódicas",
+
+    "Responsabilidade":
+      "Os trabalhos de campo, a análise e a emissão deste documento foram realizados pelos profissionais indicados abaixo, que assinam o documento ao final.",
+
+    "Demanda Intro":
+      "A demanda do trabalho está organizada nos seguintes tópicos:",
+
+    "Pilares":
+      "Diagnóstico, riscos e melhoria contínua | AEP, AET, análise documental e atualização dos riscos ergonômicos.\nGestão de restritos e sintomas | Integração com SESMT e saúde para queixas, restrições e retorno ao trabalho.\nTreinamentos e capacitações | Formação de colaboradores, líderes, EHS, engenharia e comitê.\nProjetos e concepção | Participação técnica em postos, ferramentas, layouts e processos antes da implantação.\nSuporte técnico-jurídico | Respostas técnicas, documentação e subsídios preventivos em demandas de ergonomia.",
+
+    "Pilar AEP":
+      "Esta AEP pertence ao pilar 1: ela produz o diagnóstico e o inventário de riscos que orientam as ações dos demais pilares.",
+
+    "Prioridade Medidas":
+      "Seguindo a hierarquia de controle adotada no GRO, as ações são propostas na seguinte ordem: **eliminação** do fator de risco; **engenharia e adequação** do posto, dos equipamentos e do ambiente; e medidas **organizacionais** (pausas, rodízio, treinamento e procedimentos).",
+
+    "Metodologia Passos":
+      "Diagnóstico\nDados\nIntervenção\nResultado\nDecisão",
+
+    "Etapas Intro":
+      "A gestão do risco ergonômico percorre cinco etapas, que se repetem a cada ciclo de revisão do estudo.",
+
+    "Etapas Cinco":
+      "Diagnóstico | Observação da atividade real, medições, entrevistas e identificação dos fatores de risco.\nValidação | Conferência dos achados com trabalhadores, lideranças, SESMT e EHS.\nPlano de ação | Ações por prioridade, com responsável, prazo e segmento corporal beneficiado.\nAuditoria | Verificação da execução, com evidências anexadas e follow-up periódico.\nRedução de risco | Cálculo do risco residual e reavaliação dos postos.",
+
+    "Etapas Nota":
+      "As etapas 1 e 2 ocorrem no local de trabalho. As etapas 3 e 4 resultam no inventário de riscos e no plano de ação deste documento, acompanhados no S.I.G.E, que registra cada ação concluída com a respectiva evidência (foto ou documento). A etapa 5 recalcula o risco residual e alimenta a reavaliação. O programa segue o ciclo PDCA:",
+
+    "PDCA":
+      "Planejar (Plan) | Diagnóstico e priorização, avaliação biomecânica, AEP e AET.\nExecutar (Do) | Desenho e implementação das intervenções, integração com dados médicos e ocupacionais.\nVerificar (Check) | Reavaliações e comparativos pré e pós-intervenção.\nAjustar (Act) | Inteligência de dados, governança e reporte, evolução do programa.",
+
+    "Metodos":
+      "ISO 11228 | Manuseio manual de cargas, empurrar e puxar.\nISO 11226 | Avaliação de posturas estáticas.\nRULA, REBA, MFA | Posturas dinâmicas e fadiga.\nHAL, Strain Index, OCRA | Repetitividade.\nISO 10075 | Carga mental.\nReferências antropométricas | Dimensionamento de postos de trabalho.",
+
+    "ISO Intro":
+      "A ISO/TS 20646:2014 (*Ergonomics guidelines for the optimization of musculoskeletal workload*) orienta a identificação e a redução da carga musculoesquelética no trabalho e fundamenta a lista de fatores de risco aplicada pela ElevaLife. Em cada posto, os {nFatoresISO} fatores da lista são avaliados quanto à sua existência, em {nGruposISO} grupos:",
+
+    "ISO Legenda":
+      "Os fatores identificados como existentes recebem circunstância geradora, consequência, medida de controle existente, gravidade, probabilidade e as ações propostas.",
+
+    "Guias Intro":
+      "Para descrever com padronização a postura, o esforço, a duração e a frequência encontrados na atividade, a ElevaLife utiliza os guias de referência abaixo, baseados em diversas metodologias. Eles apoiam o ergonomista na graduação dos achados e são utilizados independentemente da matriz de risco adotada.",
+
+    "ADM Tabela":
+      "Pescoço | Flexão | 0–10° | 11–20° | Acima de 20° | ADM máx.\nPescoço | Inclinação | 0–20° | 21–30° | Acima de 30° | ADM máx.\nPescoço | Rotação | 0–20° | 21–40° | Acima de 40° | ADM máx.\nTronco | Flexão | 0–20° | 21–60° | Acima de 60° | ADM máx.\nTronco | Inclinação | 0–20° | 21–30° | Acima de 30° | ADM máx.\nTronco | Extensão / Rotação | 0–10° | 11–20° | 21–30° | Acima de 31°\nOmbro | Flexão / Abdução | 0–45° | 46–90° | 91–120° | Acima de 120°\nOmbro | Adução | 0–10° | 11–20° | 21–30° | Acima de 30°\nOmbro | Rotação interna / externa | 0–15° | 16–35° | 36–55° | Acima de 55°\nCotovelo | Flexão / Extensão | 0–60° | 61–90° | Acima de 90° | ADM máx.\nPunhos | Flexão / Extensão | 0–15° | 16–45° | Acima de 45° | ADM máx.\nPunhos | Desvio ulnar / radial | 0° | 0–10° | Acima de 10° | ADM máx.\nQuadril / Joelho | Flexão | 0–10° | 11–20° | Acima de 20° | ADM máx.",
+
+    "ADM Fonte":
+      "Fonte: referências de amplitude de movimento do Manual de Goniometria, adotadas no guia de referência ElevaLife.",
+
+    "Escalas":
+      "Esforço\nEscala | Leve | Mod. | Ac. | N/R\nBorg | 0–2 | 3–4 | 5–6 | 7–10\nCarga (kg) | 0–3,5 | 3,5–10 | 10–25 | > 25\n\nDuração do esforço\nUnidade | Baixo | Mod. | Ac. | N/R\nSegundos | 0–6 | 6–20 | 20–30 | > 30\n% do ciclo | até 10 | 11–20 | 21–40 | > 40\n\nFrequência\nUnidade | Baixo | Mod. | Ac. | N/R\nMov./min | 0–1 | 2–5 | 6–10 | > 10",
+
+    "Escalas Legenda":
+      "Mod. = moderada; Ac. = acentuada; N/R = não recomendada.",
+
+    "Interfaces Intro":
+      "Os resultados da AEP se conectam às demais frentes de atuação da ElevaLife, de caráter técnico e preventivo:",
+
+    "Interfaces":
+      "Gestão de restritos e intervenção preventiva em sintomas | Queixas osteomusculares, restrições e retornos ao trabalho são cruzados com os fatores de risco dos postos, com apoio ao SESMT e à área médica.\nFatores psicossociais (NR-01) | Abordagem preliminar por entrevistas e dados organizacionais; aprofundamento com ferramentas validadas, como o HSE-IT, quando aplicável.\nTreinamentos e capacitações | Capacitação de trabalhadores, líderes e comitê nos fatores de risco e nas medidas de controle identificados.\nProjetos e concepção | Subsídio técnico para a adequação de postos, layouts e equipamentos antes de sua implantação.",
+
+    "Risco Intro":
+      "A identificação dos riscos é feita pela observação da atividade e pela verificação da existência de cada fator da lista da ISO/TS 20646. A classificação segue a NR-01 – Disposições Gerais e Gerenciamento de Riscos Ocupacionais, considerando a **gravidade** (severidade do dano) e a **probabilidade** de sua ocorrência, em conformidade com o conceito de risco da ISO 12100: combinação da probabilidade de ocorrência de um dano e da gravidade desse dano. A matriz de risco é configurável por cliente, como descrito na BS 8800 (matriz de severidade e probabilidade). Neste estudo foi utilizada a **{matriz}**.",
+
+    "Gravidade":
+      "Muito Baixa | Risco muito baixo, efeito desprezível, chance muito baixa de desenvolver doenças.\nBaixa | Baixo risco, efeitos reversíveis de curto prazo, baixa chance para o desenvolvimento de doenças.\nMedia | Risco moderado, efeitos reversíveis, chance moderada de desenvolver doenças.\nAlta | Alto risco, efeitos que podem levar tempo e terapia para reverter, alta chance de desenvolver doenças.\nMuito Alta | Risco muito alto, possível efeito irreversível, chance muito alta de desenvolver doenças.",
+
+    "Probabilidade":
+      "Muito Baixa | Exposição eventual, muito inferior a 10% da jornada.\nBaixa | Exposição baixa, inferior a 10% da jornada.\nMedia | Exposição moderada, inferior a 50% da jornada.\nAlta | Exposição frequente, até 90% da jornada.\nMuito Alta | Exposição contínua.",
+
+    "Matriz Intro":
+      "Após atribuir gravidade e probabilidade a cada fator identificado, o risco é pontuado pelo produto dos dois índices e classificado em uma das graduações utilizadas em todos os indicadores do S.I.G.E.",
+
+    "Graduacao":
+      "Muito Baixo | Risco desprezível, aceitável.\nBaixo | Risco trivial ou mínimo, aceitável. Ações de melhoria do conforto e da produtividade podem ser avaliadas.\nModerado | Risco médio, aceitável desde que não associado a dano de gravidade muito alta. Medidas de controle devem ser mantidas e monitoradas.\nAlto | Risco elevado, aceitável desde que haja ações e medidas para reduzi-lo ao nível médio ou baixo. Na impossibilidade de reduzir, o risco não é aceitável.\nMuito Alto | Risco inaceitável. Ações imediatas devem ser tomadas.\nAltíssimo | Risco inaceitável. Ações imediatas devem ser tomadas.",
+
+    "Medidas Intro":
+      "Ao final da avaliação de cada posto, as recomendações são apontadas com o objetivo de prevenir agravos à saúde do trabalhador, buscando o conforto, a segurança e a eficiência. Cada ação proposta é classificada em um dos três **tipos** abaixo, listados por ordem de prioridade, e indica o segmento corporal beneficiado, o responsável, o prazo e o nível de risco esperado do segmento após a ação.",
+
+    "Medidas Tipos":
+      "Suprime o fator de risco na origem (por exemplo, mudar o processo ou o layout para que a tarefa de risco deixe de existir).\nAdapta o posto, os equipamentos, o mobiliário ou o ambiente para reduzir a exposição.\nAtua na forma de organizar o trabalho: pausas, rodízio, treinamento, procedimentos e outras medidas.",
+
+    "Residual Caixa":
+      "**Risco previsto:** para cada segmento corporal considera-se o menor nível esperado entre as ações propostas; o risco previsto do fator é o mais alto entre os seus segmentos.\n**Risco realizado:** usa a mesma regra, mas considera somente as ações **concluídas**. Uma ação só é considerada concluída com a **evidência** anexada (foto ou documento); exceções são autorizadas apenas por um Administrador, com justificativa e prazo para a regularização.\nFatores sem ação cadastrada permanecem com o risco atual e aparecem como “sem ação proposta”.",
+
+    "Avaliacoes Intro":
+      "Cada posto de trabalho foi avaliado conforme o método descrito na seção 7. A seguir, são apresentados, para cada posto, a identificação, o registro fotográfico, a descrição da atividade real, o panorama de risco e o inventário de fatores identificados, com as respectivas ações do plano e o risco residual.",
+
+    "Residual Legenda":
+      "Previsto: considera todas as ações propostas. Realizado: considera apenas as ações concluídas com evidência. Data-base do acompanhamento: {dataBase}.",
+
+    "Validacao Texto":
+      "Documento emitido eletronicamente no S.I.G.E por {nomes} em {emissao}. Código de verificação: **{codigo}** · Revisão {revisao}. Aponte a câmera para o QR Code ou acesse **sige-ergo.elevalife.com.br/verificar** e informe o código para confirmar a autoria, a data e a integridade do arquivo.",
+
+    "Titulos":
+      "cabecalho | ElevaLife · Avaliação Ergonômica Preliminar (AEP)\ns1 | 1. Apresentação\ns2 | 2. A ElevaLife\ns3 | 3. Responsabilidade técnica e execução\ns4 | 4. Demanda do trabalho\ns5 | 5. Informações cadastrais da empresa\ns6 | 6. Fundamentação\ns61 | 6.1 Ergonomia e os pilares da gestão ElevaLife\ns62 | 6.2 A NR-17 e a Avaliação Ergonômica Preliminar\ns63 | 6.3 Gestão do risco ergonômico no GRO/PGR (NR-01)\ncaixa-prioridade | Prioridade das medidas de prevenção\ns7 | 7. Métodos e metodologia utilizada\ns71 | 7.1 As cinco etapas da gestão do risco ergonômico\ns72 | 7.2 Técnicas e instrumentos\ns73 | 7.3 Lista de fatores de risco (ISO/TS 20646)\ns74 | 7.4 Guias de referência para graduação\nadm | Referência para postura – amplitude de movimento (ADM)\ns75 | 7.5 Interfaces com as demais frentes da ElevaLife\ns8 | 8. Identificação e classificação do risco\ns81 | 8.1 Gravidade e probabilidade\ns82 | 8.2 Matriz de risco e graduação\ns83 | 8.3 Medidas de controle e risco residual\ncaixa-residual | Como o risco residual é calculado\ns9 | 9. Avaliações ergonômicas preliminares\np-descsetor | Descrição do setor\np-descatividade | Descrição da atividade (tarefa real observada)\np-caract | Características dos trabalhadores\np-panorama | Panorama do posto\np-fatores | Fatores de risco identificados, medidas e ações\ns10 | 10. Plano de ação e risco residual\nresidual | Risco residual por fator\ns11 | 11. Referências\ns12 | 12. Conclusão e validação do documento\ncliente-assinatura | Cliente – {cliente}\nvalidacao | Validação do documento",
   };
 
   // Lista de campos do Modelo de Laudo (rotulo exibido no Editor de Texto).
   const CAMPOS_EDITAVEIS = [
+    ["Capa Lema", "Capa – frase abaixo do nome ElevaLife"],
+    ["Capa Titulo", "Capa – título (cada linha vira uma linha impressa)"],
+    ["Capa Subtitulo", "Capa – subtítulo"],
+    ["Titulos", "Títulos das seções e das caixas (uma linha por título, no formato chave | título; não altere a chave)"],
     ["Apresentacao", "1. Apresentação"],
     ["Sobre ElevaLife", "2. A ElevaLife"],
+    ["Etapas Relacionamento", "2. Etapas do relacionamento com o cliente (uma por linha)"],
+    ["Responsabilidade", "3. Responsabilidade técnica – texto de abertura"],
+    ["Demanda Intro", "4. Demanda do trabalho – frase de abertura"],
     ["Demanda", "4. Demanda do trabalho (um item por linha)"],
     ["Fundamentacao Ergonomia", "6.1 Ergonomia e os pilares da gestão ElevaLife"],
+    ["Pilares", "6.1 Pilares da gestão ElevaLife (um por linha: título | descrição)"],
+    ["Pilar AEP", "6.1 Parágrafo após os pilares"],
     ["Fundamentacao NR17", "6.2 A NR-17 e a Avaliação Ergonômica Preliminar"],
     ["Fundamentacao GRO", "6.3 Gestão do risco ergonômico no GRO/PGR (NR-01)"],
+    ["Prioridade Medidas", "6.3 Caixa “Prioridade das medidas de prevenção”"],
     ["Metodologia", "7. Métodos e metodologia utilizada (introdução)"],
-    ["Tecnicas", "7.2 Técnicas e instrumentos (um item por linha)"],
+    ["Metodologia Passos", "7. Passos do método (um por linha)"],
+    ["Etapas Intro", "7.1 Etapas da gestão do risco – frase de abertura"],
+    ["Etapas Cinco", "7.1 As cinco etapas (uma por linha: título | descrição)"],
+    ["Etapas Nota", "7.1 Parágrafo após as etapas (antes do PDCA)"],
+    ["PDCA", "7.1 Ciclo PDCA (uma por linha: título | descrição)"],
+    ["Tecnicas", "7.2 Técnicas e instrumentos (um por linha)"],
     ["AEP AET", "7.2 AEP e AET (parágrafo antes da tabela de métodos)"],
+    ["Metodos", "7.2 Tabela de métodos (uma por linha: norma ou ferramenta | aplicação)"],
+    ["ISO Intro", "7.3 Lista de fatores de risco – texto de abertura (marcadores {nFatoresISO} e {nGruposISO})"],
+    ["ISO Legenda", "7.3 Legenda abaixo da tabela de grupos"],
+    ["Guias Intro", "7.4 Guias de referência – texto de abertura"],
+    ["ADM Tabela", "7.4 Tabela de amplitude de movimento (uma por linha: segmento | postura | leve | moderada | acentuada | não recomendada)"],
+    ["ADM Fonte", "7.4 Fonte da tabela de amplitude de movimento"],
+    ["Escalas", "7.4 Escalas de esforço, duração e frequência (blocos separados por linha em branco: título, cabeçalho, linhas)"],
+    ["Escalas Legenda", "7.4 Legenda das escalas"],
+    ["Interfaces Intro", "7.5 Interfaces com as demais frentes – texto de abertura"],
+    ["Interfaces", "7.5 Interfaces (uma por linha: frente | como se conecta)"],
+    ["Risco Intro", "8. Identificação e classificação do risco – texto de abertura (marcador {matriz})"],
+    ["Gravidade", "8.1 Definição de gravidade (uma por linha: nível | efeitos; mantenha os níveis)"],
+    ["Probabilidade", "8.1 Definição de probabilidade (uma por linha: nível | perfil de exposição; mantenha os níveis)"],
+    ["Matriz Intro", "8.2 Matriz de risco – texto de abertura"],
+    ["Graduacao", "8.2 Descrição de cada graduação (uma por linha: graduação | descrição e conduta; mantenha as graduações)"],
+    ["Medidas Intro", "8.3 Medidas de controle – texto de abertura"],
+    ["Medidas Tipos", "8.3 Descrição dos três tipos de ação (uma por linha, na ordem de prioridade)"],
+    ["Residual Caixa", "8.3 Caixa “Como o risco residual é calculado” (um parágrafo por linha)"],
+    ["Avaliacoes Intro", "9. Avaliações ergonômicas preliminares – texto de abertura"],
     ["Recomendacoes", "10. Plano de ação e risco residual (introdução)"],
-    ["Conclusao", "12. Conclusão"],
+    ["Residual Legenda", "10. Legenda do risco residual (marcador {dataBase})"],
     ["Referencias", "11. Referências (uma por linha)"],
+    ["Conclusao", "12. Conclusão"],
+    ["Validacao Texto", "12. Texto da validação do documento (marcadores {nomes}, {emissao}, {codigo}, {revisao})"],
   ];
 
   BI.LaudoTextos = { PADRAO, CAMPOS_EDITAVEIS };

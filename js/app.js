@@ -2024,6 +2024,11 @@
           colecaoArquivo: "laudo", aceitaTipos: "application/pdf,image/jpeg,image/png",
           tamanhoMaximoBytes: 15 * 1024 * 1024,
         },
+        {
+          campo: "Arquivo Word", rotulo: "Laudo em Word (.docx, editável; gerado junto com o PDF, até 15MB)", tipo: "arquivo", multiplo: false,
+          colecaoArquivo: "laudo", aceitaTipos: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          tamanhoMaximoBytes: 15 * 1024 * 1024,
+        },
         // Ocultos: preenchidos pelo gerador.
         { campo: "Texto", rotulo: "Texto do Laudo", tipo: "textarea" },
         { campo: "Emitido Por", rotulo: "Emitido por", tipo: "texto", sugestoesFn: () => Array.from(new Set((window.BI.dados.laudo || []).map((l) => l["Emitido Por"]).filter(Boolean))).sort() },
@@ -2829,6 +2834,10 @@
       mostrarAviso("Gerando laudo...");
       try {
         const bufferPDF = await gerarLaudoPDF(opcoes);
+        // V 1.9: todo laudo sai em PDF e em Word (.docx editavel), do mesmo
+        // conteudo (Editor de Texto). Se o Word falhar, nada e registrado.
+        if (!window.BI.Laudo || !window.BI.Laudo.gerarDocx) throw new Error("O gerador de Word não carregou. Atualize a página (Ctrl+F5) e tente de novo.");
+        const bufferDocx = await window.BI.Laudo.gerarDocx(Object.assign({}, opcoes, { codigo: opcoes.codigo, saida: opcoes.saida }));
         // V 1.3: registra no formulario o codigo de verificacao, a impressao digital
         // (SHA-256) do arquivo e os registros profissionais; a pagina publica
         // /verificar consulta esses campos depois que o Laudo for SALVO.
@@ -2851,18 +2860,29 @@
         const dataArquivo = hojeMeiaNoite().toISOString().slice(0, 10);
         const nomeArquivo = `laudo-${slug(nomeCliente)}-${dataArquivo}.pdf`;
         const arquivoGerado = new File([bufferPDF], nomeArquivo, { type: "application/pdf" });
+        const TIPO_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        const nomeWord = nomeArquivo.replace(/\.pdf$/, ".docx");
+        const arquivoWord = new File([bufferDocx], nomeWord, { type: TIPO_DOCX });
 
         const campoArquivo = form._campos["Arquivo Url"];
         if (campoArquivo && campoArquivo.anexarArquivos) {
           if (!window.BI.DB.estado.modoApi) {
-            mostrarAviso("Laudo gerado. O upload automático só funciona na versão publicada (produção). Baixando o PDF...");
+            mostrarAviso("Laudo gerado. O upload automático só funciona na versão publicada (produção). Baixando o PDF e o Word...");
             const url = URL.createObjectURL(new Blob([bufferPDF], { type: "application/pdf" }));
             const link = document.createElement("a");
             link.href = url; link.download = nomeArquivo;
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
             URL.revokeObjectURL(url);
+            const urlW = URL.createObjectURL(new Blob([bufferDocx], { type: TIPO_DOCX }));
+            const linkW = document.createElement("a");
+            linkW.href = urlW; linkW.download = nomeWord;
+            document.body.appendChild(linkW); linkW.click(); document.body.removeChild(linkW);
+            URL.revokeObjectURL(urlW);
           } else {
             await campoArquivo.anexarArquivos([arquivoGerado], empresaId || "GLOBAL");
+            const campoWord = form._campos["Arquivo Word"];
+            if (!campoWord || !campoWord.anexarArquivos) throw new Error("Campo do Word não encontrado no formulário.");
+            await campoWord.anexarArquivos([arquivoWord], empresaId || "GLOBAL");
             geradoEAnexado = true;
           }
         }
@@ -2874,7 +2894,7 @@
         // lista - nunca obriga o usuario a digitar nada so pra conseguir
         // salvar o registro depois de gerar o PDF.
         if (form._campos["Texto"] && !form._campos["Texto"].value) {
-          form._campos["Texto"].value = `Laudo gerado automaticamente pela plataforma S.I.G.E (Sistema Integrado de Gestão ElevaLife) em ${hojeMeiaNoite().toLocaleDateString("pt-BR")}, a partir das Avaliações Ergonômicas e do Inventário de Riscos já registrados para ${nomeCliente}. Ver arquivo PDF anexado.`;
+          form._campos["Texto"].value = `Laudo gerado automaticamente pela plataforma S.I.G.E (Sistema Integrado de Gestão ElevaLife) em ${hojeMeiaNoite().toLocaleDateString("pt-BR")}, a partir das Avaliações Ergonômicas e do Inventário de Riscos já registrados para ${nomeCliente}. Ver arquivos PDF e Word anexados.`;
         }
         // Registra o laudo na mesma acao (o submit do formulario grava o registro com o
         // codigo de verificacao e o arquivo); a lista passa a oferecer Baixar/Imprimir.
@@ -4167,6 +4187,8 @@
       // (ver renderizarListaCadastro) ganha um botao "Baixar/Imprimir"
       // direto na linha quando ja existe um arquivo anexado.
       campoArquivoPrincipal: "Arquivo Url",
+      // V 1.9: segundo botao na linha, para o Word editavel gerado junto.
+      campoArquivoSecundario: { campo: "Arquivo Word", rotulo: "⬇ Word" },
     },
     // AET (Analise Ergonomica do Trabalho) - hoje feita fora do sistema
     // (Excel/PDF) e so anexada aqui; o cadastro le e classifica o conteudo
@@ -5461,6 +5483,26 @@
             btnBaixar.title = "Este registro ainda não tem um arquivo gerado/anexado - use Editar e o botão \"Gerar Laudo (PDF)\"";
           }
           tdAcoes.appendChild(btnBaixar);
+        }
+        if (cfg.campoArquivoSecundario) {
+          const itemWord = linha[cfg.campoArquivoSecundario.campo];
+          const btnWord = document.createElement("button");
+          btnWord.type = "button";
+          btnWord.className = "btn-acao-linha btn-acao-linha-baixar";
+          btnWord.textContent = cfg.campoArquivoSecundario.rotulo;
+          btnWord.disabled = !(itemWord && itemWord.chave);
+          if (!btnWord.disabled) {
+            btnWord.title = "Baixa o laudo em Word (.docx) para editar";
+            btnWord.addEventListener("click", () => {
+              const a = document.createElement("a");
+              a.href = window.BI.DB.urlArquivo(itemWord.chave);
+              a.download = itemWord.nomeArquivo || "laudo.docx";
+              document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            });
+          } else {
+            btnWord.title = "Laudos gerados antes da V 1.9 não têm Word - gere o laudo de novo para obter o arquivo editável";
+          }
+          tdAcoes.appendChild(btnWord);
         }
         // "Inventário de Riscos" direto na linha de Avaliacao Ergonomica
         // (pedido do Leo 28/09/2026 - ver abrirInventarioChecklist) - abre a

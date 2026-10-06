@@ -49,7 +49,8 @@ const REGRAS_POR_COLECAO = {
     tamanhoMaximoBytes: 5 * 1024 * 1024,
   },
   laudo: {
-    tiposAceitos: ["application/pdf", "image/jpeg", "image/png"],
+    // V 1.9: o laudo tambem e guardado em Word (.docx)
+    tiposAceitos: ["application/pdf", "image/jpeg", "image/png", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
     tamanhoMaximoBytes: 15 * 1024 * 1024,
   },
   // AET (Analise Ergonomica do Trabalho): Excel (Mapa de Risco/Plano de Acao)
@@ -102,7 +103,7 @@ function assinaturaConfere(tipo, buf) {
   if (tipo === "image/jpeg") return inicio(3).equals(Buffer.from([0xff, 0xd8, 0xff]));
   if (tipo === "image/png") return inicio(8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
   if (tipo === "application/pdf") return buf.subarray(0, 1024).includes("%PDF-");
-  if (tipo === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") return inicio(2).equals(Buffer.from([0x50, 0x4b]));
+  if (tipo === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || tipo === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") return inicio(2).equals(Buffer.from([0x50, 0x4b]));
   return true;
 }
 

@@ -110,9 +110,10 @@
       objetivo: "Emitir o Laudo da AEP como documento com autoria identificada e verificação de autenticidade.",
       perfis: "Administrador e Consultor, com o ergonomista como responsável técnico.",
       passos: [
-        "O Modelo de Laudo (Cadastro › Editor de Texto) e os Certificados de Calibração são bibliotecas compartilhadas entre todos os clientes. Campo vazio no Editor de Texto utiliza o texto padrão.",
+        "O Modelo de Laudo (Cadastro › Editor de Texto) e os Certificados de Calibração são bibliotecas compartilhadas entre todos os clientes. O Editor de Texto cobre todo o conteúdo do Laudo: capa, títulos das seções, parágrafos, listas, quadros, tabelas de apoio, escalas e conclusão. Campo vazio utiliza o texto padrão; o botão \"Preencher campos vazios com o texto padrão\" carrega o texto de partida para edição. Os cabeçalhos das colunas das tabelas e os dados do cliente seguem fixos.",
         "Antes da primeira emissão, cadastre os ergonomistas em Cadastro › Ergonomistas, com registro profissional e imagem da assinatura.",
-        "Em Registro › Laudos, \"+ Novo registro\": selecione o Cliente e o Responsável técnico (Setor, Posto e Ergonomista executor são opcionais) e acione \"Gerar Laudo\", no rodapé do formulário. Em uma única ação, o sistema monta o PDF com base na Avaliação Ergonômica, no Inventário de Riscos e no Plano de Ação, anexa o arquivo e registra o laudo com código de verificação e QR Code.",
+        "Em Registro › Laudos, \"+ Novo registro\": selecione o Cliente e o Responsável técnico (Setor, Posto e Ergonomista executor são opcionais) e acione \"Gerar Laudo\", no rodapé do formulário. Em uma única ação, o sistema monta o PDF e o documento em Word (.docx) com base na Avaliação Ergonômica, no Inventário de Riscos e no Plano de Ação, anexa os dois arquivos e registra o laudo com código de verificação e QR Code.",
+        "O Word é o documento editável: na lista de Laudos, o botão \"⬇ Word\" baixa o arquivo. O sumário é um campo do Word; ao abrir, se o Word perguntar sobre atualizar campos, confirme (ou clique com o botão direito no sumário › Atualizar campo) para obter os números de página. O PDF e o Word usam o mesmo texto do Editor de Texto. A impressão digital (SHA-256) e a verificação referem-se ao PDF. Laudos emitidos antes da V 1.9 não têm Word; gere novamente para obtê-lo.",
         "\"Salvar sem gerar\" registra o laudo sem montar o PDF, por exemplo, para anexar um documento emitido fora do sistema ou corrigir dados de um laudo existente.",
         "A autenticidade pode ser conferida em sige-ergo.elevalife.com.br/verificar, pelo código ou pelo QR Code, com comparação do arquivo por meio do hash SHA-256.",
       ],
@@ -261,6 +262,14 @@
   ];
 
   const HISTORICO = [
+    {
+      versao: "1.9", data: "06/10/2026",
+      itens: [
+        "O Editor de Texto (Cadastro) passa a cobrir todo o Laudo: capa, títulos das seções, apresentação, fundamentação, metodologia, tabelas de apoio, escalas, interfaces, medidas, referências, conclusão e texto de validação. Campo vazio utiliza o texto padrão e o PDF sai igual ao anterior enquanto nada for alterado.",
+        "\"Gerar Laudo\" passa a produzir o PDF e o documento em Word (.docx) editável, a partir do mesmo texto. Na lista de Laudos há o botão \"⬇ Word\". Os dois arquivos ficam anexados ao registro.",
+        "Os cabeçalhos das colunas das tabelas e alguns rótulos estruturais seguem fixos no sistema.",
+      ],
+    },
     {
       versao: "1.8", data: "05/10/2026",
       itens: [

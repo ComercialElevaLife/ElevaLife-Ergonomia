@@ -61,90 +61,16 @@
     return `ELV-${sigla || "AEP"}-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-6)}`;
   }
 
-  // ---- dados estaticos da metodologia ElevaLife -----------------------------
-  const ETAPAS8 = ["Diagnóstico inicial", "Análise estratégica", "Desenvolvimento da solução integrada", "Plano de ação", "Implementação", "Engajamento e comunicação", "Monitoramento de KPIs", "Avaliações periódicas"];
-  const PILARES = [
-    ["Diagnóstico, riscos e melhoria contínua", "AEP, AET, análise documental e atualização dos riscos ergonômicos."],
-    ["Gestão de restritos e sintomas", "Integração com SESMT e saúde para queixas, restrições e retorno ao trabalho."],
-    ["Treinamentos e capacitações", "Formação de colaboradores, líderes, EHS, engenharia e comitê."],
-    ["Projetos e concepção", "Participação técnica em postos, ferramentas, layouts e processos antes da implantação."],
-    ["Suporte técnico-jurídico", "Respostas técnicas, documentação e subsídios preventivos em demandas de ergonomia."],
-  ];
-  const ETAPAS5 = [
-    ["Diagnóstico", "Observação da atividade real, medições, entrevistas e identificação dos fatores de risco."],
-    ["Validação", "Conferência dos achados com trabalhadores, lideranças, SESMT e EHS."],
-    ["Plano de ação", "Ações por prioridade, com responsável, prazo e segmento corporal beneficiado."],
-    ["Auditoria", "Verificação da execução, com evidências anexadas e follow-up periódico."],
-    ["Redução de risco", "Cálculo do risco residual e reavaliação dos postos."],
-  ];
-  const PDCA = [
-    ["Planejar (Plan)", "Diagnóstico e priorização, avaliação biomecânica, AEP e AET.", [225, 237, 247]],
-    ["Executar (Do)", "Desenho e implementação das intervenções, integração com dados médicos e ocupacionais.", [226, 242, 232]],
-    ["Verificar (Check)", "Reavaliações e comparativos pré e pós-intervenção.", [252, 243, 214]],
-    ["Ajustar (Act)", "Inteligência de dados, governança e reporte, evolução do programa.", [250, 226, 226]],
-  ];
-  const METODOS = [
-    ["ISO 11228", "Manuseio manual de cargas, empurrar e puxar."],
-    ["ISO 11226", "Avaliação de posturas estáticas."],
-    ["RULA, REBA, MFA", "Posturas dinâmicas e fadiga."],
-    ["HAL, Strain Index, OCRA", "Repetitividade."],
-    ["ISO 10075", "Carga mental."],
-    ["Referências antropométricas", "Dimensionamento de postos de trabalho."],
-  ];
-  const ADM = [
-    ["Pescoço", "Flexão", "0–10°", "11–20°", "Acima de 20°", "ADM máx."],
-    ["Pescoço", "Inclinação", "0–20°", "21–30°", "Acima de 30°", "ADM máx."],
-    ["Pescoço", "Rotação", "0–20°", "21–40°", "Acima de 40°", "ADM máx."],
-    ["Tronco", "Flexão", "0–20°", "21–60°", "Acima de 60°", "ADM máx."],
-    ["Tronco", "Inclinação", "0–20°", "21–30°", "Acima de 30°", "ADM máx."],
-    ["Tronco", "Extensão / Rotação", "0–10°", "11–20°", "21–30°", "Acima de 31°"],
-    ["Ombro", "Flexão / Abdução", "0–45°", "46–90°", "91–120°", "Acima de 120°"],
-    ["Ombro", "Adução", "0–10°", "11–20°", "21–30°", "Acima de 30°"],
-    ["Ombro", "Rotação interna / externa", "0–15°", "16–35°", "36–55°", "Acima de 55°"],
-    ["Cotovelo", "Flexão / Extensão", "0–60°", "61–90°", "Acima de 90°", "ADM máx."],
-    ["Punhos", "Flexão / Extensão", "0–15°", "16–45°", "Acima de 45°", "ADM máx."],
-    ["Punhos", "Desvio ulnar / radial", "0°", "0–10°", "Acima de 10°", "ADM máx."],
-    ["Quadril / Joelho", "Flexão", "0–10°", "11–20°", "Acima de 20°", "ADM máx."],
-  ];
-  const ESCALAS = [
-    ["Esforço", ["Escala", "Leve", "Mod.", "Ac.", "N/R"], [["Borg", "0–2", "3–4", "5–6", "7–10"], ["Carga (kg)", "0–3,5", "3,5–10", "10–25", "> 25"]]],
-    ["Duração do esforço", ["Unidade", "Baixo", "Mod.", "Ac.", "N/R"], [["Segundos", "0–6", "6–20", "20–30", "> 30"], ["% do ciclo", "até 10", "11–20", "21–40", "> 40"]]],
-    ["Frequência", ["Unidade", "Baixo", "Mod.", "Ac.", "N/R"], [["Mov./min", "0–1", "2–5", "6–10", "> 10"]]],
-  ];
-  const INTERFACES = [
-    ["Gestão de restritos e intervenção preventiva em sintomas", "Queixas osteomusculares, restrições e retornos ao trabalho são cruzados com os fatores de risco dos postos, com apoio ao SESMT e à área médica."],
-    ["Fatores psicossociais (NR-01)", "Abordagem preliminar por entrevistas e dados organizacionais; aprofundamento com ferramentas validadas, como o HSE-IT, quando aplicável."],
-    ["Treinamentos e capacitações", "Capacitação de trabalhadores, líderes e comitê nos fatores de risco e nas medidas de controle identificados."],
-    ["Projetos e concepção", "Subsídio técnico para a adequação de postos, layouts e equipamentos antes de sua implantação."],
-  ];
-  const DEF_GRAVIDADE = {
-    "Muito Baixa": "Risco muito baixo, efeito desprezível, chance muito baixa de desenvolver doenças.",
-    "Baixa": "Baixo risco, efeitos reversíveis de curto prazo, baixa chance para o desenvolvimento de doenças.",
-    "Media": "Risco moderado, efeitos reversíveis, chance moderada de desenvolver doenças.",
-    "Alta": "Alto risco, efeitos que podem levar tempo e terapia para reverter, alta chance de desenvolver doenças.",
-    "Muito Alta": "Risco muito alto, possível efeito irreversível, chance muito alta de desenvolver doenças.",
-  };
-  const DEF_PROBABILIDADE = {
-    "Muito Baixa": "Exposição eventual, muito inferior a 10% da jornada.",
-    "Baixa": "Exposição baixa, inferior a 10% da jornada.",
-    "Media": "Exposição moderada, inferior a 50% da jornada.",
-    "Alta": "Exposição frequente, até 90% da jornada.",
-    "Muito Alta": "Exposição contínua.",
-  };
-  const DEF_NIVEL = {
-    "Muito Baixo": "Risco desprezível, aceitável.",
-    "Baixo": "Risco trivial ou mínimo, aceitável. Ações de melhoria do conforto e da produtividade podem ser avaliadas.",
-    "Moderado": "Risco médio, aceitável desde que não associado a dano de gravidade muito alta. Medidas de controle devem ser mantidas e monitoradas.",
-    "Alto": "Risco elevado, aceitável desde que haja ações e medidas para reduzi-lo ao nível médio ou baixo. Na impossibilidade de reduzir, o risco não é aceitável.",
-    "Muito Alto": "Risco inaceitável. Ações imediatas devem ser tomadas.",
-    "Altíssimo": "Risco inaceitável. Ações imediatas devem ser tomadas.",
-  };
+  // ---- dados da metodologia ElevaLife ---------------------------------------
+  // V 1.9: textos, tabelas e definicoes agora ficam em js/laudo-textos.js (BI.LaudoTextos.PADRAO)
+  // e podem ser editados no Editor de Texto; aqui sobram so as cores de apoio.
+  const CORES_PDCA = [[225, 237, 247], [226, 242, 232], [252, 243, 214], [250, 226, 226]];
   const ROTULO_ESCALA = { "Media": "Média" };
 
   // ---------------------------------------------------------------------------
-  async function gerar(opcoes) {
-    const jsPDFCtor = global.jspdf && global.jspdf.jsPDF;
-    if (!jsPDFCtor) throw new Error("A biblioteca de geração de PDF não carregou (script externo bloqueado ou indisponível).");
+  // V 1.9: reunia o conteudo do documento (dados, textos do modelo, imagens) para os dois
+  // formatos de saida - PDF (gerar) e Word (gerarDocx, em js/laudo-docx.js).
+  async function preparar(opcoes) {
     const Calc = BI.Calc;
     const Acoes = BI.Acoes;
     const dados = BI.dados;
@@ -230,9 +156,18 @@
       cliente: opcoes.nomeCliente, unidade: unidadesAv.length === 1 ? "Unidade " + unidadesAv[0] : "unidades " + unidadesAv.join(", "),
       setores: setoresAv.length === 1 ? "o setor de " + setoresAv[0] : "os setores de " + setoresAv.join(", ").replace(/, ([^,]*)$/, " e $1"),
       nPostos: avaliacoes.length, nFatores: todosFatores.length, nAcoes: todasAcoes.length, resumoNiveis,
+      // V 1.9: marcadores dos textos que antes eram fixos
+      nFatoresISO: (Calc.GRUPOS_FATOR_RISCO || []).reduce((t, g) => t + Calc.fatoresDoGrupo(g).length, 0), nGruposISO: (Calc.GRUPOS_FATOR_RISCO || []).length,
+      matriz: nomeMatriz.toLowerCase(), dataBase: dataBR(hojeISO()), emissao, codigo, revisao,
+      nomes: assinantes.map((a) => a.Nome).join(" e ") || "o responsável técnico",
     };
     const texto = (campo) => substituir(String(modelo[campo] || "").trim() || T.PADRAO[campo] || "", vars);
     const linhasDe = (campo) => texto(campo).split(/\n+/).map((s) => s.trim()).filter(Boolean);
+    // V 1.9: tabelas e listas editaveis - uma linha por registro, colunas separadas por "|".
+    const celulas = (campo) => texto(campo).split("\n").map((l) => l.split("|").map((c) => c.trim())).filter((r) => r.some(Boolean));
+    const mapaDe = (campo) => { const o = {}; celulas(campo).forEach((r) => { if (r[0]) o[r[0]] = r.slice(1).join(" | "); }); return o; };
+    const titulosMapa = mapaDe("Titulos");
+    const titDe = (chave, padrao) => titulosMapa[chave] || padrao;
 
     // dados de saida p/ o formulario (registro p/ verificacao)
     opcoes.saida = {
@@ -240,6 +175,36 @@
       registroResponsavel: responsavel ? responsavel.Registro || "" : "",
       registroExecutor: executor ? executor.Registro || "" : "",
     };
+    // V 1.9: dados de uma acao do plano - usados pelo PDF e pelo Word.
+    const statusAcaoInfo = (a) => {
+      const st = Calc.statusDaLinhaAcao ? Calc.statusDaLinhaAcao(a, hoje) : (Acoes.estaConcluida(a) ? "Concluida" : "Nao Iniciado");
+      const mapa = { "Concluida": [PAL.verde, "Concluída"], "Concluida com atraso": [PAL.verde, "Concluída c/ atraso"], "Em Andamento": [PAL.azul, "Em andamento"], "Atrasada": [[217, 54, 54], "Atrasada"], "Nao Iniciado": [[138, 122, 120], "Não iniciada"] };
+      const m = mapa[st] || mapa["Nao Iniciado"]; return { rotulo: m[1], cor: m[0] };
+    };
+    const dadosAcao = (a, grauFator) => {
+      const atual = a["Risco Atual Segmento"] || Calc.nivelCanonico(grauFator);
+      const reduz = a["Risco Apos Acao"] ? `${rotCanon(atual)} para ${rotCanon(a["Risco Apos Acao"])}` : rotCanon(atual);
+      return {
+        nr: a["Nr Acao"] != null ? "A-" + String(a["Nr Acao"]).padStart(2, "0") : "-",
+        tipo: Acoes.rotuloTipo(a["Tipo Acao"]) || a["Categoria Acao"] || "",
+        descricao: a["Acao Recomendada"] || "",
+        evidencia: (a.Evidencias || []).length ? `Evidência anexada (${a.Evidencias.length})` : "",
+        segmentoRisco: `${a["Segmento Corporal"] || "Geral"}: ${reduz}`,
+        responsavel: a["Responsavel Acao"] || "-",
+        prazo: a["Dt Programada"] ? dataBR(a["Dt Programada"]) : "-",
+        status: statusAcaoInfo(a),
+      };
+    };
+    return {
+      statusAcaoInfo, dadosAcao, corNivel, dataBR, hojeISO, PAL, ROTULO_ESCALA, URL_VERIFICACAO,
+      Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe,
+    };
+  }
+
+  async function gerar(opcoes) {
+    const jsPDFCtor = global.jspdf && global.jspdf.jsPDF;
+    if (!jsPDFCtor) throw new Error("A biblioteca de geração de PDF não carregou (script externo bloqueado ou indisponível).");
+    const { statusAcaoInfo, dadosAcao, Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe } = await preparar(opcoes);
 
     // ========================================================================
     function construir(doc, mapa, final) {
@@ -315,6 +280,7 @@
 
       // ---- titulos ---------------------------------------------------------------
       function h1(chave, titulo, novaPag) {
+        titulo = titDe(chave, titulo);
         if (novaPag) novaPagina(); else { if (y > TOPO) y += 14; garantir(70); }
         registrar(chave, titulo, 1);
         doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(15); cor(PAL.vinho);
@@ -323,6 +289,7 @@
         y += 18;
       }
       function h2(chave, titulo) {
+        titulo = titDe(chave, titulo);
         garantir(48);
         registrar(chave, titulo, 2);
         doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(11.5); cor(PAL.vinhoM);
@@ -498,7 +465,7 @@
           doc.rect((W / passos) * p, 0, W / passos + 1, alt, "F");
         }
         doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(26); doc.setTextColor(255, 255, 255); doc.text("ElevaLife", M, 62);
-        fonte("normal", 9.5); doc.setTextColor(232, 214, 216); doc.text("15 anos elevando pessoas e resultados", M, 79);
+        fonte("normal", 9.5); doc.setTextColor(232, 214, 216); doc.text(texto("Capa Lema"), M, 79);
         // logotipo do cliente (caixa branca)
         const bx = W - M - 150; const by = 40; preencher(PAL.branco); doc.roundedRect(bx, by, 150, 62, 6, 6, "F");
         if (logoCliente) {
@@ -508,9 +475,9 @@
           } catch (e) { fonte("bold", 10); cor(PAL.vinho); doc.text(opcoes.nomeCliente, bx + 75, by + 34, { align: "center", maxWidth: 138 }); }
         } else { fonte("bold", 10); cor(PAL.vinho); doc.text(doc.splitTextToSize(opcoes.nomeCliente, 138), bx + 75, by + 30, { align: "center" }); }
         doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(30); doc.setTextColor(255, 255, 255);
-        doc.text(["Avaliação Ergonômica", "Preliminar"], M, 205, { lineHeightFactor: 1.2 });
+        doc.text(linhasDe("Capa Titulo"), M, 205, { lineHeightFactor: 1.2 });
         fonte("normal", 10); doc.setTextColor(232, 214, 216);
-        doc.text(doc.splitTextToSize("AEP conforme NR-17 e NR-01 (GRO/PGR), com lista de fatores de risco da ISO/TS 20646", L - 40), M, 292);
+        doc.text(doc.splitTextToSize(texto("Capa Subtitulo"), L - 40), M, 292);
         y = alt + 28;
         const infos = [
           ["Empresa avaliada", opcoes.nomeCliente, true],
@@ -561,18 +528,19 @@
       paragrafos("Sobre ElevaLife");
       {
         const gap = 5; const cols = 4; const w = (L - gap * (cols - 1)) / cols;
-        ETAPAS8.forEach((e, i) => {
+        const etapas8 = linhasDe("Etapas Relacionamento");
+        etapas8.forEach((e, i) => {
           if (i % cols === 0) garantir(30);
           const x = M + (i % cols) * (w + gap);
           caixa(x, y, w, 26, PAL.creme);
           preencher(PAL.vinho); doc.circle(x + 10, y + 13, 5.5, "F"); doc.setTextColor(255, 255, 255); fonte("bold", 6.5); doc.text(String(i + 1), x + 10, y + 15.2, { align: "center" });
           fonte("bold", 6.8); cor(PAL.vinhoE); doc.text(doc.splitTextToSize(e, w - 24).slice(0, 2), x + 19, y + (e.length > 22 ? 11 : 15));
-          if (i % cols === cols - 1 || i === ETAPAS8.length - 1) y += 31;
+          if (i % cols === cols - 1 || i === etapas8.length - 1) y += 31;
         });
         y += 4;
       }
       h1("s3", "3. Responsabilidade técnica e execução", false);
-      paragrafo("Os trabalhos de campo, a análise e a emissão deste documento foram realizados pelos profissionais indicados abaixo, que assinam o documento ao final.");
+      paragrafos("Responsabilidade");
       {
         const gap = 8; const w = (L - gap) / 2; garantir(66);
         [["Responsável técnico", responsavel], ["Ergonomista executor", executor]].forEach(([papel, p], k) => {
@@ -585,7 +553,7 @@
         y += 70;
       }
       h1("s4", "4. Demanda do trabalho", false);
-      paragrafo("A demanda do trabalho está organizada nos seguintes tópicos:", { depois: 3 });
+      paragrafos("Demanda Intro", { depois: 3 });
       lista(linhasDe("Demanda"));
 
       // ============================ 5 ===================================================
@@ -611,18 +579,18 @@
       h1("s6", "6. Fundamentação", true);
       h2("s61", "6.1 Ergonomia e os pilares da gestão ElevaLife");
       paragrafos("Fundamentacao Ergonomia");
-      cartoes(PILARES, 5);
+      { const pilares = celulas("Pilares"); cartoes(pilares, Math.min(5, pilares.length) || 1); }
       y += 4;
-      paragrafo("Esta AEP pertence ao pilar 1: ela produz o diagnóstico e o inventário de riscos que orientam as ações dos demais pilares.");
+      paragrafos("Pilar AEP");
       h2("s62", "6.2 A NR-17 e a Avaliação Ergonômica Preliminar");
       paragrafos("Fundamentacao NR17");
       h2("s63", "6.3 Gestão do risco ergonômico no GRO/PGR (NR-01)");
       paragrafos("Fundamentacao GRO");
       {
-        const txt = "Seguindo a hierarquia de controle adotada no GRO, as ações são propostas na seguinte ordem: **eliminação** do fator de risco; **engenharia e adequação** do posto, dos equipamentos e do ambiente; e medidas **organizacionais** (pausas, rodízio, treinamento e procedimentos).";
+        const txt = texto("Prioridade Medidas");
         const q = quebrar(palavras(txt), L - 24, 8.5); const h = 28 + q.linhas.length * 12.5;
         garantir(h + 8); caixa(M, y, L, h, PAL.creme); preencher(PAL.vinho); doc.rect(M, y, 3, h, "F");
-        fonte("bold", 8.5); cor(PAL.vinhoE); doc.text("Prioridade das medidas de prevenção", M + 12, y + 14);
+        fonte("bold", 8.5); cor(PAL.vinhoE); doc.text(titDe("caixa-prioridade", "Prioridade das medidas de prevenção"), M + 12, y + 14);
         const y0 = y; y = y0 + 27; paragrafo(txt, { tam: 8.5, largura: L - 12, recuo: 12, depois: 0 }); y = y0 + h + 8;
       }
 
@@ -630,36 +598,36 @@
       h1("s7", "7. Métodos e metodologia utilizada", false);
       paragrafos("Metodologia");
       {
-        const itens = ["Diagnóstico", "Dados", "Intervenção", "Resultado", "Decisão"]; const gap = 14; const w = (L - gap * 4) / 5; garantir(30);
-        itens.forEach((t, i) => { const x = M + i * (w + gap); caixa(x, y, w, 22, PAL.creme, PAL.suave); fonte("bold", 8); cor(PAL.vinhoE); doc.text(t, x + w / 2, y + 14, { align: "center" }); if (i < 4) { const ax = x + w + gap / 2; traco(PAL.vinho, 1); doc.line(ax - 4, y + 11, ax + 2, y + 11); preencher(PAL.vinho); doc.triangle(ax + 2, y + 8, ax + 2, y + 14, ax + 5.5, y + 11, "F"); } });
+        const itens = linhasDe("Metodologia Passos"); const gap = 14; const w = (L - gap * (itens.length - 1)) / (itens.length || 1); garantir(30);
+        itens.forEach((t, i) => { const x = M + i * (w + gap); caixa(x, y, w, 22, PAL.creme, PAL.suave); fonte("bold", 8); cor(PAL.vinhoE); doc.text(t, x + w / 2, y + 14, { align: "center" }); if (i < itens.length - 1) { const ax = x + w + gap / 2; traco(PAL.vinho, 1); doc.line(ax - 4, y + 11, ax + 2, y + 11); preencher(PAL.vinho); doc.triangle(ax + 2, y + 8, ax + 2, y + 14, ax + 5.5, y + 11, "F"); } });
         y += 32;
       }
       h2("s71", "7.1 As cinco etapas da gestão do risco ergonômico");
-      paragrafo("A gestão do risco ergonômico percorre cinco etapas, que se repetem a cada ciclo de revisão do estudo.");
-      faixaEtapas(ETAPAS5);
-      paragrafo("As etapas 1 e 2 ocorrem no local de trabalho. As etapas 3 e 4 resultam no inventário de riscos e no plano de ação deste documento, acompanhados no S.I.G.E, que registra cada ação concluída com a respectiva evidência (foto ou documento). A etapa 5 recalcula o risco residual e alimenta a reavaliação. O programa segue o ciclo PDCA:");
-      blocosColoridos(PDCA);
+      paragrafos("Etapas Intro");
+      faixaEtapas(celulas("Etapas Cinco").map((r) => [r[0], r[1] || ""]));
+      paragrafos("Etapas Nota");
+      blocosColoridos(celulas("PDCA").map((r, i) => [r[0], r[1] || "", CORES_PDCA[i % CORES_PDCA.length]]));
       h2("s72", "7.2 Técnicas e instrumentos");
       lista(linhasDe("Tecnicas"));
       paragrafos("AEP AET");
-      tabela(["Norma / ferramenta", "Aplicação"], METODOS, [32, 68]);
+      tabela(["Norma / ferramenta", "Aplicação"], celulas("Metodos").map((r) => [r[0], r[1] || ""]), [32, 68]);
       h2("s73", "7.3 Lista de fatores de risco (ISO/TS 20646)");
       {
-        const totalF = (Calc.GRUPOS_FATOR_RISCO || []).reduce((s, g) => s + Calc.fatoresDoGrupo(g).length, 0);
-        paragrafo(`A ISO/TS 20646:2014 (*Ergonomics guidelines for the optimization of musculoskeletal workload*) orienta a identificação e a redução da carga musculoesquelética no trabalho e fundamenta a lista de fatores de risco aplicada pela ElevaLife. Em cada posto, os ${totalF} fatores da lista são avaliados quanto à sua existência, em ${Calc.GRUPOS_FATOR_RISCO.length} grupos:`);
+        paragrafos("ISO Intro");
         tabela(["Grupo", "Descrição do grupo", "Fatores"], Calc.GRUPOS_FATOR_RISCO.map((g, i) => [{ t: String(i + 1), alinhar: "centro" }, g, { t: String(Calc.fatoresDoGrupo(g).length), alinhar: "centro" }]), [10, 78, 12]);
-        legenda("Os fatores identificados como existentes recebem circunstância geradora, consequência, medida de controle existente, gravidade, probabilidade e as ações propostas.");
+        legenda(texto("ISO Legenda"));
       }
       h2("s74", "7.4 Guias de referência para graduação");
-      paragrafo("Para descrever com padronização a postura, o esforço, a duração e a frequência encontrados na atividade, a ElevaLife utiliza os guias de referência abaixo, baseados em diversas metodologias. Eles apoiam o ergonomista na graduação dos achados e são utilizados independentemente da matriz de risco adotada.");
-      h3("Referência para postura – amplitude de movimento (ADM)");
-      tabela(["Segmento", "Postura", "Leve", "Moderada", "Acentuada", "Não recomendada"], ADM, [14, 24, 12, 14, 18, 18], { tam: 7.4 });
-      legenda("Fonte: referências de amplitude de movimento do Manual de Goniometria, adotadas no guia de referência ElevaLife.");
+      paragrafos("Guias Intro");
+      h3(titDe("adm", "Referência para postura – amplitude de movimento (ADM)"));
+      tabela(["Segmento", "Postura", "Leve", "Moderada", "Acentuada", "Não recomendada"], celulas("ADM Tabela").map((r) => [0, 1, 2, 3, 4, 5].map((c) => r[c] || "")), [14, 24, 12, 14, 18, 18], { tam: 7.4 });
+      legenda(texto("ADM Fonte"));
       {
-        const gap = 8; const w = (L - gap * 2) / 3; let hmax = 0;
+        const escalas = texto("Escalas").split(/\n{2,}/).map((b) => b.split("\n").map((l) => l.trim()).filter(Boolean)).filter((b) => b.length >= 2).map((b) => [b[0], b[1].split("|").map((c) => c.trim()), b.slice(2).map((l) => l.split("|").map((c) => c.trim()))]);
+        const gap = 8; const w = (L - gap * (escalas.length - 1)) / (escalas.length || 1); let hmax = 0;
         garantir(80);
         const y0 = y;
-        ESCALAS.forEach(([tit, cab, lin], k) => {
+        escalas.forEach(([tit, cab, lin], k) => {
           const x = M + k * (w + gap); fonte("bold", 7.8); cor(PAL.tealE); doc.text(tit.toUpperCase(), x, y0 + 8);
           const ySalvo = y; y = y0 + 14; const salvoM = M;
           // mini-tabela manual (largura fixa, sem quebra de pagina)
@@ -670,42 +638,43 @@
           lin.forEach((r, ri) => { if (ri % 2) { preencher(PAL.zebra); doc.rect(x, yy, w, 13, "F"); } cor(PAL.texto); r.forEach((c, i) => doc.text(c, px(i), yy + 9)); yy += 13; });
           hmax = Math.max(hmax, yy - y0); y = ySalvo;
         });
-        y = y0 + hmax + 8; legenda("Mod. = moderada; Ac. = acentuada; N/R = não recomendada.");
+        y = y0 + hmax + 8; legenda(texto("Escalas Legenda"));
       }
       h2("s75", "7.5 Interfaces com as demais frentes da ElevaLife");
-      paragrafo("Os resultados da AEP se conectam às demais frentes de atuação da ElevaLife, de caráter técnico e preventivo:");
-      tabela(["Frente", "Como se conecta a esta AEP"], INTERFACES, [32, 68]);
+      paragrafos("Interfaces Intro");
+      tabela(["Frente", "Como se conecta a esta AEP"], celulas("Interfaces").map((r) => [r[0], r[1] || ""]), [32, 68]);
 
       // ============================ 8 ===================================================
       h1("s8", "8. Identificação e classificação do risco", true);
-      paragrafo(`A identificação dos riscos é feita pela observação da atividade e pela verificação da existência de cada fator da lista da ISO/TS 20646. A classificação segue a NR-01 – Disposições Gerais e Gerenciamento de Riscos Ocupacionais, considerando a **gravidade** (severidade do dano) e a **probabilidade** de sua ocorrência, em conformidade com o conceito de risco da ISO 12100: combinação da probabilidade de ocorrência de um dano e da gravidade desse dano. A matriz de risco é configurável por cliente, como descrito na BS 8800 (matriz de severidade e probabilidade). Neste estudo foi utilizada a **${nomeMatriz.toLowerCase()}**.`);
+      const defGravidade = mapaDe("Gravidade"); const defProbabilidade = mapaDe("Probabilidade"); const defNivel = mapaDe("Graduacao");
+      paragrafos("Risco Intro");
       h2("s81", "8.1 Gravidade e probabilidade");
-      tabela(["Gravidade", "Efeitos"], escala.map((g, i) => [{ t: `${ROTULO_ESCALA[g] || g} (${i + 1})`, negrito: true }, DEF_GRAVIDADE[g] || ""]), [26, 74]);
-      tabela(["Probabilidade", "Perfil de exposição qualitativa"], escala.map((g, i) => [{ t: `${ROTULO_ESCALA[g] || g} (${i + 1})`, negrito: true }, DEF_PROBABILIDADE[g] || ""]), [26, 74]);
+      tabela(["Gravidade", "Efeitos"], escala.map((g, i) => [{ t: `${ROTULO_ESCALA[g] || g} (${i + 1})`, negrito: true }, defGravidade[g] || ""]), [26, 74]);
+      tabela(["Probabilidade", "Perfil de exposição qualitativa"], escala.map((g, i) => [{ t: `${ROTULO_ESCALA[g] || g} (${i + 1})`, negrito: true }, defProbabilidade[g] || ""]), [26, 74]);
       h2("s82", "8.2 Matriz de risco e graduação");
-      paragrafo("Após atribuir gravidade e probabilidade a cada fator identificado, o risco é pontuado pelo produto dos dois índices e classificado em uma das graduações utilizadas em todos os indicadores do S.I.G.E.");
+      paragrafos("Matriz Intro");
       desenharMatriz();
       {
         const niveis = []; escala.forEach((p) => escala.forEach((g) => { const n = Calc.nivelDaMatriz(nomeMatriz, p, g); if (n && !niveis.includes(n)) niveis.push(n); }));
         tabela(["Pontuação", "Graduação", "Descrição do risco e conduta"], niveis.map((n) => {
           const ps = []; escala.forEach((p) => escala.forEach((g) => { if (Calc.nivelDaMatriz(nomeMatriz, p, g) === n) ps.push(Calc.pontuacaoDaMatriz(nomeMatriz, p, g)); }));
-          return [`${Math.min.apply(null, ps)} a ${Math.max.apply(null, ps)}`, { t: n, pilula: corNivel(n) }, DEF_NIVEL[n] || ""];
+          return [`${Math.min.apply(null, ps)} a ${Math.max.apply(null, ps)}`, { t: n, pilula: corNivel(n) }, defNivel[n] || ""];
         }), [14, 18, 68]);
       }
       h2("s83", "8.3 Medidas de controle e risco residual");
-      paragrafo("Ao final da avaliação de cada posto, as recomendações são apontadas com o objetivo de prevenir agravos à saúde do trabalhador, buscando o conforto, a segurança e a eficiência. Cada ação proposta é classificada em um dos três **tipos** abaixo, listados por ordem de prioridade, e indica o segmento corporal beneficiado, o responsável, o prazo e o nível de risco esperado do segmento após a ação.");
-      tabela(null, (Acoes ? Acoes.tipos() : []).map((t, i) => [{ t: t.rotulo, pilula: [PAL.vinhoE, PAL.tealE, PAL.vinhoM][i % 3] }, ["Suprime o fator de risco na origem (por exemplo, mudar o processo ou o layout para que a tarefa de risco deixe de existir).", "Adapta o posto, os equipamentos, o mobiliário ou o ambiente para reduzir a exposição.", "Atua na forma de organizar o trabalho: pausas, rodízio, treinamento, procedimentos e outras medidas."][i % 3]]), [22, 78]);
+      paragrafos("Medidas Intro");
+      tabela(null, (Acoes ? Acoes.tipos() : []).map((t, i) => [{ t: t.rotulo, pilula: [PAL.vinhoE, PAL.tealE, PAL.vinhoM][i % 3] }, (linhasDe("Medidas Tipos")[i % (linhasDe("Medidas Tipos").length || 1)] || "")]), [22, 78]);
       {
-        const txt = "**Risco previsto:** para cada segmento corporal considera-se o menor nível esperado entre as ações propostas; o risco previsto do fator é o mais alto entre os seus segmentos.\n**Risco realizado:** usa a mesma regra, mas considera somente as ações **concluídas**. Uma ação só é considerada concluída com a **evidência** anexada (foto ou documento); exceções são autorizadas apenas por um Administrador, com justificativa e prazo para a regularização.\nFatores sem ação cadastrada permanecem com o risco atual e aparecem como “sem ação proposta”.";
+        const txt = texto("Residual Caixa");
         const q = txt.split("\n").map((p) => quebrar(palavras(p), L - 24, 8.2)); const h = 26 + q.reduce((s, x) => s + x.linhas.length * 11.6 + 3, 0);
         garantir(h + 8); caixa(M, y, L, h, PAL.creme); preencher(PAL.vinho); doc.rect(M, y, 3, h, "F");
-        fonte("bold", 8.5); cor(PAL.vinhoE); doc.text("Como o risco residual é calculado", M + 12, y + 14);
+        fonte("bold", 8.5); cor(PAL.vinhoE); doc.text(titDe("caixa-residual", "Como o risco residual é calculado"), M + 12, y + 14);
         const y0 = y; y = y0 + 26; txt.split("\n").forEach((p) => paragrafo(p, { tam: 8.2, largura: L - 12, recuo: 12, depois: 3 })); y = y0 + h + 8;
       }
 
       // ============================ 9 ===================================================
       h1("s9", "9. Avaliações ergonômicas preliminares", true);
-      paragrafo("Cada posto de trabalho foi avaliado conforme o método descrito na seção 7. A seguir, são apresentados, para cada posto, a identificação, o registro fotográfico, a descrição da atividade real, o panorama de risco e o inventário de fatores identificados, com as respectivas ações do plano e o risco residual.");
+      paragrafos("Avaliacoes Intro");
       let nFigura = 0;
       avaliacoes.forEach((av, i) => {
         const chavePosto = "s9p" + i;
@@ -745,10 +714,10 @@
             y += hImg + 26;
           }
         }
-        if (av["Descricao Setor"]) { h3("Descrição do setor"); paragrafo(av["Descricao Setor"]); }
-        if (av["Descricao Atividade Observada"]) { h3("Descrição da atividade (tarefa real observada)"); paragrafo(av["Descricao Atividade Observada"]); }
-        if (av["Caracteristicas Trabalhadores"]) { h3("Características dos trabalhadores"); paragrafo(av["Caracteristicas Trabalhadores"]); }
-        h3("Panorama do posto");
+        if (av["Descricao Setor"]) { h3(titDe("p-descsetor", "Descrição do setor")); paragrafo(av["Descricao Setor"]); }
+        if (av["Descricao Atividade Observada"]) { h3(titDe("p-descatividade", "Descrição da atividade (tarefa real observada)")); paragrafo(av["Descricao Atividade Observada"]); }
+        if (av["Caracteristicas Trabalhadores"]) { h3(titDe("p-caract", "Características dos trabalhadores")); paragrafo(av["Caracteristicas Trabalhadores"]); }
+        h3(titDe("p-panorama", "Panorama do posto"));
         const cnt = contaNivel(fatores);
         azulejos(NIVEIS4.map(([k, r]) => ({ n: cnt[k], rot: r, cor: corNivel(k) })));
         // grupos
@@ -758,7 +727,7 @@
           return [{ t: String(gi + 1), alinhar: "centro" }, g, { t: String(Calc.fatoresDoGrupo(g).length), alinhar: "centro" }, { t: String(doGrupo.length), alinhar: "centro" }, maior ? { t: rotCanon(Calc.nivelCanonico(maior)), pilula: corNivel(maior) } : { t: "Sem risco identificado", cor: PAL.cinza }];
         }), [8, 52, 11, 11, 18]);
         // fatores
-        h3("Fatores de risco identificados, medidas e ações");
+        h3(titDe("p-fatores", "Fatores de risco identificados, medidas e ações"));
         if (!fatores.length) paragrafo("Nenhum fator de risco com “Existe Fator de Risco: Sim” cadastrado para este posto de trabalho.", { cor: PAL.cinza });
         fatores.forEach((fr) => {
           const gi = Calc.GRUPOS_FATOR_RISCO.indexOf(fr.Grupo); const fi = gi >= 0 ? Calc.fatoresDoGrupo(fr.Grupo).indexOf(fr.Fator) : -1;
@@ -798,19 +767,10 @@
         });
       });
 
-      function statusAcao(a) {
-        const st = Calc.statusDaLinhaAcao ? Calc.statusDaLinhaAcao(a, hoje) : (Acoes.estaConcluida(a) ? "Concluida" : "Nao Iniciado");
-        const mapa = { "Concluida": [PAL.verde, "Concluída"], "Concluida com atraso": [PAL.verde, "Concluída c/ atraso"], "Em Andamento": [PAL.azul, "Em andamento"], "Atrasada": [[217, 54, 54], "Atrasada"], "Nao Iniciado": [[138, 122, 120], "Não iniciada"] };
-        const m = mapa[st] || mapa["Nao Iniciado"]; return { t: m[1], pilula: m[0] };
-      }
+      function statusAcao(a) { const m = statusAcaoInfo(a); return { t: m.rotulo, pilula: m.cor }; }
       function linhaAcao(a, grauFator, comSetor) {
-        const atual = a["Risco Atual Segmento"] || Calc.nivelCanonico(grauFator);
-        const reduz = a["Risco Apos Acao"] ? `${rotCanon(atual)} para ${rotCanon(a["Risco Apos Acao"])}` : rotCanon(atual);
-        const ev = (a.Evidencias || []).length ? `Evidência anexada (${a.Evidencias.length})` : "";
-        const prazo = a["Dt Programada"] ? dataBR(a["Dt Programada"]) : "-";
-        const tipo = Acoes.rotuloTipo(a["Tipo Acao"]) || a["Categoria Acao"] || "";
-        const nr = a["Nr Acao"] != null ? "A-" + String(a["Nr Acao"]).padStart(2, "0") : "-";
-        return [{ t: nr, negrito: true }, { t: `${tipo ? tipo + " – " : ""}${a["Acao Recomendada"] || ""}`, extra: ev }, `${a["Segmento Corporal"] || "Geral"}: ${reduz}`, a["Responsavel Acao"] || "-", prazo, statusAcao(a)];
+        const d = dadosAcao(a, grauFator);
+        return [{ t: d.nr, negrito: true }, { t: `${d.tipo ? d.tipo + " – " : ""}${d.descricao}`, extra: d.evidencia }, d.segmentoRisco, d.responsavel, d.prazo, statusAcao(a)];
       }
 
       // ============================ 10 ==================================================
@@ -828,12 +788,12 @@
           return [l[0], `${av.Setor} · ${fr.Fator || ""}`, { t: Acoes.rotuloTipo(a["Tipo Acao"]) || a["Categoria Acao"] || "-" }, { t: a["Acao Recomendada"] || "-", extra: l[1].extra }, l[3], l[4], l[5]];
         }), [7, 21, 13, 24, 12, 9, 14], { tam: 7 });
       } else paragrafo("Nenhuma ação cadastrada para os fatores deste documento.", { cor: PAL.cinza });
-      h3("Risco residual por fator");
+      h3(titDe("residual", "Risco residual por fator"));
       tabela(["Setor", "Fator de risco", "Risco atual", "Previsto", "Realizado"], todosFatores.map(({ av, fr }) => {
         const g = grau(fr); const ac = acoesDe(fr); const r = ac.length ? Acoes.resumoRisco(g, ac) : null;
         return [av.Setor, fr.Fator || "", { t: rotCanon(Calc.nivelCanonico(g)), pilula: corNivel(g) }, r ? { t: rotCanon(r.previsto), pilula: corNivel(r.previsto) } : { t: "Sem ação proposta", cor: PAL.cinza }, r ? { t: rotCanon(r.realizado), pilula: corNivel(r.realizado) } : { t: "–", cor: PAL.cinza }];
       }), [14, 44, 14, 14, 14], { tam: 7.4 });
-      legenda("Previsto: considera todas as ações propostas. Realizado: considera apenas as ações concluídas com evidência. Data-base do acompanhamento: " + dataBR(hojeISO()) + ".");
+      legenda(texto("Residual Legenda"));
 
       // ============================ 11 ==================================================
       h1("s11", "11. Referências", false);
@@ -864,7 +824,7 @@
         // cliente
         garantir(66);
         caixa(M, y, L, 56, PAL.branco, PAL.suave2);
-        fonte("bold", 8.5); cor(PAL.vinhoE); doc.text(`Cliente – ${opcoes.nomeCliente}`, M + 10, y + 14);
+        fonte("bold", 8.5); cor(PAL.vinhoE); doc.text(titDe("cliente-assinatura", `Cliente – ${opcoes.nomeCliente}`), M + 10, y + 14);
         fonte("normal", 8); cor(PAL.texto);
         doc.text("Nome / cargo: ______________________________________", M + 10, y + 32); doc.text("Data: ____ / ____ / ________", M + L - 160, y + 32);
         doc.text("Assinatura: ___________________________________________", M + 10, y + 48);
@@ -880,9 +840,8 @@
           for (let r = 0; r < mc; r++) for (let c = 0; c < mc; c++) if (qr.isDark(r, c)) doc.rect(M + 12 + c * mod, y + 12 + r * mod, mod + 0.15, mod + 0.15, "F");
         } else { fonte("normal", 6.5); cor(PAL.cinza); doc.text("QR Code indisponível", M + 8 + tq / 2, y + 8 + tq / 2, { align: "center" }); }
         const tx = M + tq + 22;
-        fonte("bold", 9); cor(PAL.tealE); doc.text("Validação do documento", tx, y + 17);
-        const nomes = assinantes.map((a) => a.Nome).join(" e ") || "o responsável técnico";
-        const corpo = `Documento emitido eletronicamente no S.I.G.E por ${nomes} em ${emissao}. Código de verificação: **${codigo}** · Revisão ${revisao}. Aponte a câmera para o QR Code ou acesse **sige-ergo.elevalife.com.br/verificar** e informe o código para confirmar a autoria, a data e a integridade do arquivo.`;
+        fonte("bold", 9); cor(PAL.tealE); doc.text(titDe("validacao", "Validação do documento"), tx, y + 17);
+        const corpo = texto("Validacao Texto");
         const y0 = y; y = y0 + 31; paragrafo(corpo, { tam: 7.8, recuo: tx - M, largura: L - 8, justificar: false, depois: 0 }); y = y0 + 110;
       }
 
@@ -914,7 +873,7 @@
         const total = doc.internal.getNumberOfPages();
         for (let p = 2; p <= total; p++) {
           doc.setPage(p);
-          fonte("bold", 7.2); cor(PAL.vinho); doc.text("ElevaLife · Avaliação Ergonômica Preliminar (AEP)", M, 30);
+          fonte("bold", 7.2); cor(PAL.vinho); doc.text(titDe("cabecalho", "ElevaLife · Avaliação Ergonômica Preliminar (AEP)"), M, 30);
           fonte("normal", 7.2); cor(PAL.cinza); doc.text(`Doc. ${codigo} · Rev. ${revisao}`, W - M, 30, { align: "right" });
           traco(PAL.suave, 0.6); doc.line(M, 36, W - M, 36); doc.line(M, H - 34, W - M, H - 34);
           fonte("normal", 7); cor(PAL.cinza); doc.text(`${opcoes.nomeCliente} – ${unidadesAv.join(" · ")}`, M, H - 22);
@@ -936,5 +895,10 @@
     return doc.output("arraybuffer");
   }
 
-  BI.Laudo = { gerar, novoCodigo };
+  async function gerarDocx(opcoes) {
+    const ctx = await preparar(opcoes);
+    return BI.LaudoDocx.construir(ctx, opcoes);
+  }
+
+  BI.Laudo = { gerar, gerarDocx, novoCodigo };
 })(window);
