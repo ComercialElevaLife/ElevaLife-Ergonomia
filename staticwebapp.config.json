@@ -13,6 +13,14 @@
       "statusCode": 404
     },
     {
+      "route": "/psicossocial.html",
+      "headers": {
+        "X-Frame-Options": "SAMEORIGIN",
+        "Content-Security-Policy": "frame-ancestors 'self'",
+        "Cache-Control": "no-cache, must-revalidate"
+      }
+    },
+    {
       "route": "/api/*",
       "allowedRoles": [
         "anonymous"
@@ -52,7 +60,8 @@
       "/sw.js",
       "/manifest.webmanifest",
       "/img/*",
-      "/verificar.html"
+      "/verificar.html",
+      "/psicossocial.html"
     ]
   },
   "globalHeaders": {

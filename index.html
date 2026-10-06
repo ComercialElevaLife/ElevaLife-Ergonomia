@@ -493,13 +493,12 @@
   </section>
 
   <section id="aba-psicossocial" hidden>
-    <div class="em-construcao">
-      <div class="em-construcao-icone" aria-hidden="true">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17s-6-3.6-6-8.2A3.3 3.3 0 0 1 10 7a3.3 3.3 0 0 1 6 1.8C16 13.4 10 17 10 17Z"/></svg>
-      </div>
-      <h2>Riscos Psicossociais</h2>
-      <span class="selo-construcao">Em construção</span>
-    </div>
+    <!-- V 1.14: modulo Riscos Psicossociais (HSE-IT, ISO 45003, analise de risco, plano de acao e relatorio).
+         Roda em pagina propria (psicossocial.html) porque as telas do QR code sao publicas; aqui ela aparece
+         embutida, usando a mesma sessao do SIGE. -->
+    <iframe id="frame-psicossocial" src="/psicossocial.html" title="Riscos Psicossociais" loading="lazy"
+      style="display:block;width:100%;height:calc(100vh - 140px);min-height:640px;border:0;border-radius:12px;background:#F5EFEA"></iframe>
+    <p style="margin:.5rem 0 0;font-size:.82rem;color:#8A7A78">Prefere tela cheia? <a href="/psicossocial.html" target="_blank" rel="noopener">Abrir o módulo em uma nova aba</a>.</p>
   </section>
 
   <section id="aba-ajuda" hidden></section>
