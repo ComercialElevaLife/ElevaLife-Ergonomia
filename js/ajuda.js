@@ -270,6 +270,10 @@
 
   const HISTORICO = [
     {
+      versao: "1.21", data: "06/10/2026",
+      itens: ["Riscos Psicossociais: ao abrir a aba, o menu lateral do SIGE é recolhido e o módulo ocupa a largura toda da tela (layout de computador também em notebooks)."],
+    },
+    {
       versao: "1.20", data: "06/10/2026",
       itens: ["Riscos Psicossociais: a planilha do plano de ação deixa de ter a aba Resumo por GHE."],
     },
