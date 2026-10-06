@@ -127,7 +127,7 @@ async function tratarEquipe(request, context) {
   }
   if (!identidade) return { status: 401, jsonBody: { erro: "Não autenticado." } };
   if (![PAPEIS.ADMIN, PAPEIS.CONSULTOR].includes(identidade.papel)) {
-    return { status: 403, jsonBody: { erro: "O módulo de Riscos Psicossociais é restrito à equipe ElevaLife." } };
+    return { status: 403, jsonBody: { erro: "O módulo de Riscos Psicossociais é restrito à equipe ElevaLife.", papel: identidade.papel || null } };
   }
 
   const acao = String(request.params.id || "");
