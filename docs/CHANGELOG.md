@@ -2,6 +2,13 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.13 — 06/10/2026
+
+- **Importação única do histórico do sistema anterior.** Importar o relatório de Inventário de Riscos agora distribui tudo de uma vez, com uma única prévia de validação: (1) cria os cadastros que faltam (Cliente › Unidade › Setor › Posto › Cargo › Atividade), (2) cria a **Avaliação Ergonômica (AEP) de cada posto/cargo** a que os fatores pertencem — só com os dados da planilha (jornada, pausas e rodízio ficam para preencher depois) e **reaproveitando as AEP que já existem** (chave: Cliente, Unidade, Setor, Posto, Cargo, Atividade) — e (3) grava os fatores no Inventário. A criação da AEP é uma caixa marcada na prévia (padrão: marcada).
+- **Da tela de AEP:** ao selecionar uma planilha de Inventário de Riscos (Grupo, Fator, Criticidade/Probabilidade/Graduação) em Avaliação Ergonômica › Importar Excel, o sistema abre automaticamente a importação do histórico já com a planilha carregada (não é preciso escolher o arquivo de novo). Planilhas de AEP comuns seguem no fluxo de AEP.
+- **Interpretação de valores:** "Temperatura" (sistema anterior) passa a ser reconhecido como "Ambiente de trabalho extremamente quente ou frio" (sinônimo); grafias parecidas continuam em revisão (nomes unificados, correspondência de valores, duplicadas).
+- Motor (`js/importador.js`): novos recursos opcionais `derivados` (registros criados junto), `redirecionar` (planilha de outro tipo) e `abrir(def, ctx, inicial)` (arquivo já lido). Sem rota nova na API. Service worker: cache `sige-v16`.
+
 ## V 1.12 — 06/10/2026
 
 - **Aviso na importação da Avaliação Ergonômica (AEP):** se a planilha tiver colunas de Inventário de Riscos (Grupo, Fator, Criticidade, Probabilidade, Graduação…), a prévia mostra um aviso para usar Registro › Inventário de Riscos (AEP) › Importar Excel. Motivo: o relatório do sistema anterior tem Empresa/Unidade/Setor/Posto/Cargo, e importado na AEP só a hierarquia entra (e avaliações vazias), enquanto os fatores de risco são ignorados. Novo recurso opcional `avisoPlanilha(cabecalhos)` no motor (`js/importador.js`); só a AEP o usa. O aviso não bloqueia a importação. Service worker: cache `sige-v15`.
