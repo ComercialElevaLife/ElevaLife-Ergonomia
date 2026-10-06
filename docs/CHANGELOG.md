@@ -2,6 +2,10 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.21 — 06/10/2026
+
+- **Riscos Psicossociais · layout em notebooks:** o módulo roda num iframe e o layout dele depende da largura disponível; com o menu lateral aberto, em telas de notebook sobravam ~800 px e as telas empilhavam como no celular. Agora, ao abrir a aba, o menu lateral é recolhido automaticamente (sem alterar a preferência salva; volta ao sair da aba) e a área do módulo perde o limite de largura e o espaçamento extra (`body.psico-ativo`, script inline em `index.html`). No módulo, os pontos de quebra para uma coluna caíram (etapas: 800 px; painéis lado a lado: 820 px) e a fonte fica um pouco menor entre 641 e 1280 px. Service worker: cache `sige-v24`.
+
 ## V 1.20 — 06/10/2026
 
 - **Riscos Psicossociais · Excel do plano de ação:** removida a aba "Resumo por GHE" (ficam "Plano de ação" e, quando houver, "Ações a manter"). Service worker: cache `sige-v23`.
