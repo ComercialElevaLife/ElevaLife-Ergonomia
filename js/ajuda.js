@@ -81,7 +81,7 @@
         "Em Registro › Avaliação Ergonômica (AEP), o botão \"Inventário de Riscos\", na linha do posto, abre o checklist de fatores (ISO/TS 20646). Para cada fator existente, informam-se Probabilidade e Gravidade; a graduação é obtida pela matriz do cliente.",
         "Cada fator marcado requer Fonte Geradora, Consequência e Medidas de Controle Existentes, além das ações de controle vinculadas (tipo, descrição, segmento corporal, redução prevista de risco, complexidade, responsável, prazo e status). O risco residual é calculado a partir dessas ações: o previsto considera todas; o realizado, apenas as concluídas.",
         "No Mapa de Risco, cada uma das 12 dimensões (regiões corporais, Psicossocial/Cognitivo e Ambiental) recebe nota de 1 a 4. O Risco Global do posto resulta da média dessas notas.",
-        "Histórico do sistema anterior: em Registro › Inventário de Riscos (AEP), \"Importar Excel\" lê o relatório exportado do sistema anterior (uma linha por fator). Atividade e Data de identificação são opcionais (o sistema anterior não as tem): se a planilha não trouxer, ficam em branco, a menos que você informe um valor na prévia. Marque \"Criar automaticamente os cadastros que faltam\" para gerar Cliente, Unidade, Setor, Posto, Cargo e Atividade ausentes, confira os nomes parecidos, a correspondência de valores (ex.: Leve = Baixa) e as linhas duplicadas, e confirme. A Graduação do Risco é gravada exatamente como veio; as linhas em que ela difere da matriz do S.I.G.E. ficam marcadas na prévia. Reimportar o mesmo arquivo não duplica: as linhas idênticas são puladas.",
+        "Histórico do sistema anterior: em Registro › Inventário de Riscos (AEP), \"Importar Excel\" lê o relatório exportado do sistema anterior (uma linha por fator). Atividade e Data de identificação são opcionais (o sistema anterior não as tem): se a planilha não trouxer, ficam em branco, a menos que você informe um valor na prévia. A mesma importação cria a Avaliação Ergonômica (AEP) de cada posto/cargo (aproveitando as existentes), então não é preciso importar em duas telas. Marque \"Criar automaticamente os cadastros que faltam\" para gerar Cliente, Unidade, Setor, Posto, Cargo e Atividade ausentes, confira os nomes parecidos, a correspondência de valores (ex.: Leve = Baixa) e as linhas duplicadas, e confirme. A Graduação do Risco é gravada exatamente como veio; as linhas em que ela difere da matriz do S.I.G.E. ficam marcadas na prévia. Reimportar o mesmo arquivo não duplica: as linhas idênticas são puladas.",
       ],
     },
     {
@@ -263,6 +263,18 @@
   ];
 
   const HISTORICO = [
+    {
+      versao: "1.13", data: "06/10/2026",
+      itens: [
+        "Importação única do histórico do sistema anterior: ao importar o relatório de Inventário de Riscos, o SIGE cria os cadastros que faltam, a Avaliação Ergonômica (AEP) de cada posto/cargo (reaproveitando as que já existem) e grava os fatores de risco, tudo conferido numa única prévia. Se a planilha de inventário for escolhida na tela de AEP, o sistema redireciona sozinho para essa importação.",
+      ],
+    },
+    {
+      versao: "1.12", data: "06/10/2026",
+      itens: [
+        "Importação da Avaliação Ergonômica (AEP): se a planilha for um Inventário de Riscos (traz Grupo, Fator, Criticidade, Probabilidade…), a prévia avisa para usar Registro › Inventário de Riscos (AEP) › Importar Excel, onde os fatores de risco são lidos.",
+      ],
+    },
     {
       versao: "1.11", data: "06/10/2026",
       itens: [

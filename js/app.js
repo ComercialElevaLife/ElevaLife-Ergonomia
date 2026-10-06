@@ -4177,6 +4177,20 @@
         colunasPrevia: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Data Avaliacao"],
         // V 1.11: Atividade e Data da avaliacao tambem sao opcionais na importacao.
         opcionais: ["Jornada de Trabalho", "Pausas", "Rodizio", "Atividade", "Data Avaliacao"],
+        // V 1.12: o relatorio de Inventario de Riscos do sistema anterior tambem tem Empresa/Unidade/Setor/Posto/Cargo;
+        // importado aqui, so a hierarquia entra e as avaliacoes ficam vazias. Avisa para usar a tela certa.
+        redirecionar: (cabecalhos) => {
+          const tem = (...ns) => ns.some((n) => cabecalhos.indexOf(n) !== -1);
+          const sinais = [tem("grupo"), tem("fator", "fator de risco"), tem("criticidade", "gravidade"), tem("probabilidade"), tem("graduacao do risco", "pontuacao de risco")].filter(Boolean).length;
+          return sinais >= 3 ? "fatorRisco" : null;
+        },
+        avisoPlanilha: (cabecalhos) => {
+          const tem = (...ns) => ns.some((n) => cabecalhos.indexOf(n) !== -1);
+          const sinais = [tem("grupo"), tem("fator", "fator de risco"), tem("criticidade", "gravidade"), tem("probabilidade"), tem("graduacao do risco", "pontuacao de risco")].filter(Boolean).length;
+          return sinais >= 3
+            ? "Esta planilha parece ser um Inventário de Riscos (tem Grupo, Fator, Criticidade/Probabilidade…). Aqui, na Avaliação Ergonômica, só Cliente, Unidade, Setor, Posto e Cargo seriam lidos e os fatores de risco seriam ignorados. Para importar o inventário, use Registro › Inventário de Riscos (AEP) › Importar Excel."
+            : null;
+        },
         padroes: [
           { campo: "Atividade", rotulo: "Atividade para as linhas sem atividade (opcional – em branco, não preenche)", sugestao: "" },
           { campo: "Data Avaliacao", rotulo: "Data da avaliação para as linhas sem data (opcional – em branco, não preenche)", sugestao: "" },
@@ -4257,7 +4271,10 @@
             const matriz = matrizParaImportacao(valores.Cliente);
             return { opcoes: Calc.escalaDaMatriz(matriz), contexto: matriz };
           },
-          sinonimos: { Criticidade: SINONIMOS_ESCALA_LEGADO, Probabilidade: SINONIMOS_ESCALA_LEGADO },
+          sinonimos: {
+            Criticidade: SINONIMOS_ESCALA_LEGADO, Probabilidade: SINONIMOS_ESCALA_LEGADO,
+            Fator: { temperatura: "Ambiente de trabalho extremamente quente ou frio" },
+          },
         }),
         duplicidade: {
           campos: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Grupo", "Fator", "Circunstancia Geradora"],
@@ -4268,6 +4285,13 @@
           matrizDiverge: { chip: "matriz do cliente ≠ legado", rotulo: "Matriz do cliente difere da do legado" },
         },
         validarLinha: validarLinhaInventarioLegado,
+        // V 1.13: importacao unica - alem dos fatores e dos cadastros, cria a AEP (uma por posto+cargo[+atividade]) a que eles pertencem
+        derivados: [{
+          colecao: "avaliacaoErgonomica",
+          rotulo: "avaliações de AEP",
+          descricao: "O inventário pertence a uma avaliação (AEP) de cada posto e cargo. O SIGE cria a avaliação com os dados que a planilha tem (jornada, pausas e rodízio ficam para preencher depois) e reaproveita as que já existem.",
+          chave: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"],
+        }],
         descricao: "Importe o Inventário de Riscos exportado do sistema anterior (uma linha por fator de risco). Cliente, Unidade, Setor, Posto, Cargo e Atividade que ainda não existirem podem ser criados automaticamente. A Graduação do Risco é mantida como veio do sistema anterior (as linhas em que ela difere da matriz do SIGE ficam marcadas). Linhas repetidas e nomes parecidos são apresentados para revisão. Antes de gravar nada, você confere tudo na prévia.",
       },
     },
@@ -5243,7 +5267,7 @@
     return outro ? mensagem : null;
   }
 
-  function abrirImportacao(chave) {
+  function abrirImportacao(chave, inicial) {
     const cfg = CADASTROS_CONFIG[chave];
     if (!cfg || !cfg.importacao) return;
     if (!window.BI.Importador) { mostrarErro("O módulo de importação não carregou. Recarregue a página."); return; }
@@ -5276,6 +5300,9 @@
       duplicidade: imp.duplicidade,
       marcas: imp.marcas,
       validarLinha: imp.validarLinha,
+      avisoPlanilha: imp.avisoPlanilha,
+      redirecionar: imp.redirecionar,
+      derivados: imp.derivados,
     };
     const ctx = {
       existentes: () => window.BI.dados[chave] || [],
@@ -5291,6 +5318,8 @@
         id: (nivel, dados) => window.BI.DB.idCadastroMestre[COLECAO_DO_NIVEL[nivel]](dados),
       } : null,
       gerarId: () => novoIdRegistro(),
+      existentesDe: (colecao) => window.BI.dados[colecao] || [],
+      abrirOutra: (outraChave, arquivoInicial) => abrirImportacao(outraChave, arquivoInicial),
       // Aba "Referências" do modelo: combinacoes da hierarquia ja cadastradas
       // (somente as que o usuario enxerga), ate o nivel mais profundo do cadastro.
       referencias: () => {
@@ -5308,7 +5337,7 @@
         return base.map((l) => Object.assign({}, l, imp.exemplo || {}));
       },
     };
-    window.BI.Importador.abrir(def, ctx);
+    window.BI.Importador.abrir(def, ctx, inicial);
   }
 
   function abrirFormNovo(chave) {
