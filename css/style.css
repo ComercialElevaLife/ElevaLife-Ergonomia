@@ -2063,6 +2063,7 @@ body.hist-aberto { overflow: hidden; }
 .imp-bloco-aviso { border-left-color: var(--status-warning); }
 .imp-bloco-ok { border-left-color: var(--teal); }
 .imp-bloco-titulo { font-weight: 700; margin-bottom: 4px; }
+.imp-check-linha { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer; }
 .imp-bloco-nota { font-size: 0.85rem; color: var(--texto-secundario); margin-bottom: 8px; }
 .imp-bloco .btn-cad-primario, .imp-bloco .btn-cad-secundario { margin-top: 8px; }
 .imp-grade-padroes { display: grid; grid-template-columns: minmax(180px, 1.2fr) minmax(180px, 1.4fr) auto; gap: 6px 12px; align-items: center; }
