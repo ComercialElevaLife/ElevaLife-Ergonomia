@@ -2,6 +2,19 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.16 — 06/10/2026
+
+- **Riscos Psicossociais · Manual SIF HSE-IT ElevaLife.** SIF fixa por domínio (Demandas, Apoio da chefia e Relacionamentos 4; Controle, Apoio dos colegas, Cargo e Comunicação e mudanças 3), sem edição por empresa. Severidade Final SF = SIF × 0,75 + EOaj × 0,25 (EOaj = EO − 1), arredondada no inteiro mais próximo (0,50 sobe) — mesma tabela da V 1.15. A EO continua sugerida pela taxa de frequência (casos graves = 5) e pode ser ajustada por GHE (`eoMan`) com outros indicadores.
+- **Matriz 5 × 5 de volta:** colunas 1 e 2 da severidade equivalem à SF 1 e usam os valores da coluna 2 da matriz original (critério conservador); SF 2, 3 e 4 → colunas 3, 4 e 5. Matriz 4 × 4 sem mudança.
+- **Laudo:** item 4.4 reescrito com o manual (SIF, escala, justificativa por domínio, EO/EOaj, fórmula da SF, matriz SIF × EO e limitações); referências padrão = lista do manual + NR-7, Portaria MTE 765/2025, ISO 45001 e OIT/OMS 1984. Service worker: cache `sige-v19`. Sem alteração na API.
+
+## V 1.15 — 06/10/2026
+
+- **Riscos Psicossociais · nova metodologia de severidade.** Probabilidade continua HSE × ISO 45003, agora calculada por fator do HSE (graduação do fator × resultado do checklist). Severidade = SIF do fator (1 Baixa a 4 Crítica; padrão Demandas 4, Controle 3, Apoio da chefia 4, Apoio dos colegas 3, Relacionamentos 4, Cargo 3, Comunicação e mudanças 3; editável por empresa) × evidência organizacional (EO 1 a 5: TF < 2%, 2 a < 5%, 5 a 20%, > 20%, casos graves). Matrizes 5 × 4 (colunas 1 a 4 da 5 × 5 original) e 4 × 4. A graduação do GHE é a do fator de maior risco; a recomendação automática usa os fatores com risco moderado ou acima.
+- **Tela:** sem a lista lateral de empresas (seletor no topo), etapas numeradas em ordem de preenchimento com status, layout de computador; a aba Taxa de frequência passa a ser "Severidade (SIF e TF)".
+- **Laudo:** responsável técnico citado e assinado uma vez quando é o próprio ergonomista; razão social em caixa normal no texto; "Resultados gerais da empresa"; graduação moderada/alta no HSE e na probabilidade; ISO 45003 com gestão eficaz / intermediária / ineficaz; sem a coluna Prazo e sem a frase sobre o cruzamento no plano; lista das ações já realizadas; nova metodologia nos itens 4.3 a 4.5; capítulo de referências bibliográficas (editável em Cadastro, documento `config/laudo`).
+- Aba Riscos Psicossociais: iframe mais alto. Service worker: cache `sige-v18`. Sem alteração na API.
+
 ## V 1.14 — 06/10/2026
 
 - **Novo módulo Riscos Psicossociais (versão de testes)** em `psicossocial.html`, aberto pela aba Riscos Psicossociais (embutido) ou em tela cheia. Fluxo: cadastro da empresa pelo CNPJ (usa `/api/cnpj`) → planilha de solicitação ao cliente (unidades, colaboradores/GHEs, taxa de frequência, ações já realizadas) → coleta do HSE-IT por QR code ou código curto, com matrícula (resposta única; a matrícula não é gravada junto das respostas) → checklist ISO 45003 pelo gestor do contrato → análise de risco (probabilidade = HSE × ISO 45003; severidade = taxa de frequência do GHE; matriz 4x4 ou 5x5) → plano de ação com a Biblioteca Mestre (450 ações) → relatório Word.
