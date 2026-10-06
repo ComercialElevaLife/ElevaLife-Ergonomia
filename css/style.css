@@ -2026,6 +2026,7 @@ body.hist-aberto { overflow: hidden; }
 .imp-zona-titulo { font-weight: 700; color: var(--vinho); }
 .imp-zona-sub { font-size: 0.85rem; color: var(--texto-secundario); }
 .imp-arquivo { margin-top: 8px; max-width: 100%; }
+.imp-aviso-planilha { margin-top: 10px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--status-warning, #b7791f); color: var(--status-warning, #b7791f); background: transparent; font-size: 0.9rem; font-weight: 600; }
 .imp-erro { margin-top: 10px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--status-critical); color: var(--status-critical); background: transparent; font-size: 0.9rem; }
 .imp-arquivo-info { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
 .imp-sel-aba, .imp-mapa-grade select { padding: 5px 8px; border: 1px solid var(--linha); border-radius: 6px; background: var(--card); color: var(--texto); }
