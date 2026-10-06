@@ -70,7 +70,7 @@
         "Com o retorno da conexão, o envio é automático (a cada 30 segundos). Ao selecionar a faixa, abre-se \"Envios pendentes\", com as opções Enviar agora, Descartar, Tentar de novo e, em caso de conflito de edição, Enviar minha versão.",
         "A exclusão também é permitida sem conexão: ela é enfileirada e executada no retorno do sinal, podendo ser cancelada antes disso.",
         "Recomenda-se não encerrar a sessão (Sair) com envios pendentes; o sistema solicita confirmação nessa situação.",
-        "Histórico de AEP de planilha Excel (inclusive do sistema anterior): em Registro › Avaliação Ergonômica (AEP), \"Importar Excel\". Baixe o modelo ou envie a planilha existente, ligue as colunas aos campos (nomes comuns são reconhecidos automaticamente), confira a prévia e confirme. Cliente, Unidade, Setor, Posto, Cargo e Atividade devem estar cadastrados; Jornada, Pausas e Rodízio são opcionais na importação; fotos não são importadas.",
+        "Histórico de AEP de planilha Excel (inclusive do sistema anterior): em Registro › Avaliação Ergonômica (AEP), \"Importar Excel\". Baixe o modelo ou envie a planilha existente, ligue as colunas aos campos (nomes comuns são reconhecidos automaticamente), confira a prévia e confirme. Cliente, Unidade, Setor, Posto, Cargo e Atividade que ainda não existirem podem ser criados automaticamente (opção na prévia; só Administrador cria Cliente). Jornada, Pausas e Rodízio são opcionais na importação; fotos não são importadas.",
       ],
     },
     {
@@ -81,6 +81,7 @@
         "Em Registro › Avaliação Ergonômica (AEP), o botão \"Inventário de Riscos\", na linha do posto, abre o checklist de fatores (ISO/TS 20646). Para cada fator existente, informam-se Probabilidade e Gravidade; a graduação é obtida pela matriz do cliente.",
         "Cada fator marcado requer Fonte Geradora, Consequência e Medidas de Controle Existentes, além das ações de controle vinculadas (tipo, descrição, segmento corporal, redução prevista de risco, complexidade, responsável, prazo e status). O risco residual é calculado a partir dessas ações: o previsto considera todas; o realizado, apenas as concluídas.",
         "No Mapa de Risco, cada uma das 12 dimensões (regiões corporais, Psicossocial/Cognitivo e Ambiental) recebe nota de 1 a 4. O Risco Global do posto resulta da média dessas notas.",
+        "Histórico do sistema anterior: em Registro › Inventário de Riscos (AEP), \"Importar Excel\" lê o relatório exportado do sistema anterior (uma linha por fator). Informe a Atividade padrão e a Data de identificação (o sistema anterior não as tem), marque \"Criar automaticamente os cadastros que faltam\" para gerar Cliente, Unidade, Setor, Posto, Cargo e Atividade ausentes, confira os nomes parecidos, a correspondência de valores (ex.: Leve = Baixa) e as linhas duplicadas, e confirme. A Graduação do Risco é gravada exatamente como veio; as linhas em que ela difere da matriz do S.I.G.E. ficam marcadas na prévia. Reimportar o mesmo arquivo não duplica: as linhas idênticas são puladas.",
       ],
     },
     {
@@ -262,6 +263,14 @@
   ];
 
   const HISTORICO = [
+    {
+      versao: "1.10", data: "06/10/2026",
+      itens: [
+        "Importação do Inventário de Riscos do sistema anterior (Registro › Inventário de Riscos › Importar Excel): lê o relatório exportado, sem perder o histórico. A Graduação do Risco é mantida como veio do sistema anterior; as linhas em que difere da matriz do S.I.G.E. ficam marcadas na prévia. As ações do sistema anterior ficam no registro e podem ser convertidas em ação do Plano de Ação.",
+        "Em todas as importações, quando Cliente, Unidade, Setor, Posto, Cargo ou Atividade não existem no Cadastro, a prévia oferece criá-los automaticamente (Cliente só pelo Administrador), com a lista do que será criado.",
+        "Revisão antes de gravar: linhas duplicadas (idênticas ou parecidas, no arquivo ou já no sistema), nomes parecidos escritos de formas diferentes (ex.: \"Montador I, II, III\" e \"Montador I, II e III\") e correspondência de valores de lista (ex.: \"Leve\" = \"Baixa\"). Há ainda valores padrão editáveis para o que a planilha não traz (Atividade, Data) e o relatório de revisão em Excel.",
+      ],
+    },
     {
       versao: "1.9", data: "06/10/2026",
       itens: [
