@@ -76,6 +76,12 @@ const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo", "configuracao"
 // Colecoes em que so o Administrador grava/exclui (todos podem ler).
 const COLECOES_SO_ADMIN_GRAVA = ["configuracao"];
 const EMPRESA_GLOBAL = "GLOBAL";
+// V 1.7 (revisao de seguranca): colecoes que o UsuarioCliente le mas NAO grava.
+// Laudo (documento emitido e seu codigo de verificacao publico), cadastro da
+// empresa e as 3 bibliotecas globais (assinatura/registro do ergonomista,
+// modelo de texto do laudo, certificados de calibracao) alimentam documentos
+// de todas as empresas - antes qualquer usuario-cliente podia altera-las.
+const COLECOES_SO_EQUIPE_GRAVA = ["laudo", "cliente", "ergonomista", "modeloLaudo", "certificadoCalibracao"];
 
 // "me" e "usuarios" sao despachadas aqui dentro (em vez de cada uma ter seu
 // proprio app.http()) porque em producao a rota generica "{colecao}/{id?}"
@@ -106,6 +112,20 @@ async function lerPorId(container, id) {
   };
   const { resources } = await container.items.query(consulta).fetchAll();
   return resources[0] || null;
+}
+
+// V 1.7: o "Codigo Verificacao" do laudo e publico (QR Code / pagina
+// /verificar) - tem que ser unico, senao um registro poderia "copiar" o codigo
+// de outro laudo e se passar por ele.
+async function codigoVerificacaoEmUso(container, codigo, idAtual) {
+  if (!codigo) return false;
+  const { resources } = await container.items
+    .query({
+      query: 'SELECT c.id FROM c WHERE c["Codigo Verificacao"] = @codigo AND c.id != @id',
+      parameters: [{ name: "@codigo", value: String(codigo) }, { name: "@id", value: String(idAtual || "") }],
+    })
+    .fetchAll();
+  return resources.length > 0;
 }
 
 async function listarComFiltro(container, colecao, identidade) {
@@ -220,6 +240,10 @@ async function tratar(request, context) {
     return { status: 403, jsonBody: { erro: "Só Administrador pode alterar as configurações do sistema." } };
   }
 
+  if (COLECOES_SO_EQUIPE_GRAVA.includes(colecao) && request.method !== "GET" && identidade.papel === "UsuarioCliente") {
+    return { status: 403, jsonBody: { erro: "Só a equipe ElevaLife (Administrador ou Consultor) pode alterar este cadastro." } };
+  }
+
   try {
     switch (request.method) {
       case "GET": {
@@ -255,6 +279,9 @@ async function tratar(request, context) {
         if (jaExistia && !COLECOES_GLOBAIS.includes(colecao) && !podeVerDocumento(identidade, colecao, jaExistia)) {
           return { status: 403, jsonBody: { erro: "Sem permissão." } };
         }
+        if (colecao === "laudo" && await codigoVerificacaoEmUso(container, novo["Codigo Verificacao"], novo.id)) {
+          return { status: 409, jsonBody: { erro: "Já existe um laudo com este código de verificação." } };
+        }
         let paraGravar = novo;
         if (colecao === "planoAcao") {
           const avaliacao = await avaliarPlanoAcaoComArquivos(jaExistia, novo, identidade, context);
@@ -284,6 +311,9 @@ async function tratar(request, context) {
           return { status: 403, jsonBody: { erro: "Sem permissão para gravar nesta empresa." } };
         }
         let mesclado = Object.assign({}, existente, corpo, { id, EmpresaId: empresaIdFinal });
+        if (colecao === "laudo" && await codigoVerificacaoEmUso(container, mesclado["Codigo Verificacao"], id)) {
+          return { status: 409, jsonBody: { erro: "Já existe um laudo com este código de verificação." } };
+        }
         if (colecao === "planoAcao") {
           const avaliacao = await avaliarPlanoAcaoComArquivos(existente, mesclado, identidade, context);
           if (!avaliacao.ok) return { status: avaliacao.status, jsonBody: { erro: avaliacao.erro, codigo: avaliacao.codigo } };
@@ -331,4 +361,4 @@ app.http("entidades", {
   handler: tratar,
 });
 
-module.exports = { COLECOES, listarComFiltro, lerPorId };
+module.exports = { COLECOES, COLECOES_GLOBAIS, COLECOES_SO_EQUIPE_GRAVA, listarComFiltro, lerPorId };

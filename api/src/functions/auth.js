@@ -37,6 +37,19 @@ const {
 const { enviarEmail, modeloConvite, modeloRedefinicao } = require("../shared/email");
 
 const NOME_APP = "S.I.G.E";
+
+// V 1.7 (revisao de seguranca): limite de tentativas de login por conta.
+// 5 senhas erradas seguidas bloqueiam a conta por 15 minutos (resposta 429);
+// acertar a senha zera o contador. Tambem espaca os pedidos de "Esqueci
+// minha senha" (1 por minuto por conta) para ninguem encher a caixa de
+// e-mail de outra pessoa.
+const MAX_FALHAS_LOGIN = 5;
+const BLOQUEIO_LOGIN_MS = 15 * 60 * 1000;
+const INTERVALO_MIN_RESET_MS = 60 * 1000;
+const VALIDADE_RESET_MS_ESPELHO = 2 * 60 * 60 * 1000; // mesmo valor de shared/auth.js (gerarReset)
+// Hash bcrypt valido de uma senha qualquer: usado so pra gastar o mesmo tempo
+// quando o e-mail nao existe (evita descobrir e-mails pelo tempo da resposta).
+const HASH_FALSO = "$2a$10$CwTycUXWue0Thq9StjUM0uJ8.4Qm0o2dQ3GqQy1bq3zZ7yJmJcZ0u";
 const PAPEIS_VALIDOS = new Set(Object.values(PAPEIS));
 
 function normalizarEmail(v) {
@@ -104,17 +117,45 @@ async function enviarConvite(request, container, doc, { reenvio }) {
 // SEMPRE dispara um convite por e-mail agora, nao existe mais "criar sem
 // convidar" (pedido do Leo: toda pessoa nova tem que receber o convite).
 // Faz upsert pelo e-mail (nunca cria um segundo documento pro mesmo e-mail).
-async function criarOuConvidarUsuario(request, container, { Email, Papel, EmpresasVinculadas, id }) {
+async function criarOuConvidarUsuario(request, container, { Email, Papel, EmpresasVinculadas, id }, identidade) {
   const crypto = require("crypto");
   const email = normalizarEmail(Email);
   if (!email) return { erro: { status: 400, jsonBody: { erro: "E-mail é obrigatório." } } };
   if (!PAPEIS_VALIDOS.has(Papel)) {
     return { erro: { status: 400, jsonBody: { erro: `Papel inválido. Use um de: ${Array.from(PAPEIS_VALIDOS).join(", ")}.` } } };
   }
+  const empresas = Array.isArray(EmpresasVinculadas) ? EmpresasVinculadas.filter((e) => typeof e === "string" && e) : [];
+
+  // V 1.7 (revisao de seguranca): so o Administrador define papeis altos e
+  // vincula empresas livremente. Um Consultor so convida UsuarioCliente e
+  // so para empresas as quais ele mesmo esta vinculado - antes ele podia
+  // convidar qualquer papel/empresa (inclusive se promover a Administrador).
+  const ehAdmin = identidade && identidade.papel === PAPEIS.ADMIN;
+  if (!ehAdmin) {
+    if (Papel !== PAPEIS.CLIENTE) {
+      return { erro: { status: 403, jsonBody: { erro: "Consultores só podem convidar usuários do tipo UsuarioCliente. Peça a um Administrador para os demais papéis." } } };
+    }
+    const minhas = (identidade && identidade.empresasVinculadas) || [];
+    if (empresas.some((e) => !minhas.includes(e))) {
+      return { erro: { status: 403, jsonBody: { erro: "Você só pode vincular o usuário a empresas às quais você mesmo está vinculado." } } };
+    }
+  }
+
   const existente = await buscarUsuarioPorEmail(container, email);
+  if (existente) {
+    // Convidar um e-mail que ja existe NUNCA pode zerar a senha/tokens de uma
+    // conta ativa (era assim: gerava um novo link de primeiro acesso, que
+    // trocava a senha de qualquer usuario - inclusive Administrador).
+    if (existente.StatusConta === "Ativo" || existente.SenhaHash) {
+      return { erro: { status: 409, jsonBody: { erro: "Este e-mail já tem conta ativa. Para mudar papel ou empresas use a edição do usuário (Administrador); para acesso perdido, “Esqueci minha senha” na tela de login." } } };
+    }
+    if (!ehAdmin && existente.Papel && existente.Papel !== PAPEIS.CLIENTE) {
+      return { erro: { status: 403, jsonBody: { erro: "Sem permissão para alterar o convite deste usuário." } } };
+    }
+  }
   const doc = existente || { id: id || crypto.randomUUID(), Email: email };
   doc.Papel = Papel;
-  doc.EmpresasVinculadas = Array.isArray(EmpresasVinculadas) ? EmpresasVinculadas : [];
+  doc.EmpresasVinculadas = empresas;
 
   const { link, avisoEmail } = await enviarConvite(request, container, doc, { reenvio: Boolean(existente) });
   return { doc, link, avisoEmail };
@@ -122,6 +163,7 @@ async function criarOuConvidarUsuario(request, container, { Email, Papel, Empres
 
 async function tratar(request, context) {
   const acao = request.params.id;
+  if (request.method !== "POST") return { status: 405, jsonBody: { erro: "Use POST." } };
   const container = obterContainer("usuarios");
 
   try {
@@ -137,12 +179,39 @@ async function tratar(request, context) {
         // Mensagem generica (nao revela se o e-mail existe) - so muda entre
         // "sem conta"/"senha errada" internamente pros logs, nunca na resposta.
         const erroGenerico = { status: 401, jsonBody: { erro: "E-mail ou senha inválidos." } };
-        if (!doc || !doc.SenhaHash) return erroGenerico;
+        if (!doc || !doc.SenhaHash) {
+          await conferirSenha(senha, HASH_FALSO); // mesmo custo de tempo de uma conta real
+          return erroGenerico;
+        }
+        if (doc.BloqueadoAte && Date.parse(doc.BloqueadoAte) > Date.now()) {
+          return { status: 429, headers: { "Retry-After": "900" }, jsonBody: { erro: "Muitas tentativas de login. Aguarde alguns minutos e tente de novo, ou use “Esqueci minha senha”." } };
+        }
         if (doc.StatusConta && doc.StatusConta !== "Ativo") {
           return { status: 403, jsonBody: { erro: "Sua conta ainda não concluiu o primeiro acesso. Verifique o e-mail de convite." } };
         }
         const ok = await conferirSenha(senha, doc.SenhaHash);
-        if (!ok) return erroGenerico;
+        if (!ok) {
+          try {
+            doc.FalhasLogin = (doc.FalhasLogin || 0) + 1;
+            if (doc.FalhasLogin >= MAX_FALHAS_LOGIN) {
+              doc.BloqueadoAte = new Date(Date.now() + BLOQUEIO_LOGIN_MS).toISOString();
+              doc.FalhasLogin = 0;
+            }
+            await container.items.upsert(doc);
+          } catch (erroContador) {
+            context.error("Falha ao registrar tentativa de login", erroContador);
+          }
+          return erroGenerico;
+        }
+        if (doc.FalhasLogin || doc.BloqueadoAte) {
+          try {
+            delete doc.FalhasLogin;
+            delete doc.BloqueadoAte;
+            await container.items.upsert(doc);
+          } catch (erroContador) {
+            context.error("Falha ao zerar contador de login", erroContador);
+          }
+        }
 
         return {
           status: 200,
@@ -168,7 +237,7 @@ async function tratar(request, context) {
           return { status: 403, jsonBody: { erro: "Só Administradores ou Consultores podem convidar usuários." } };
         }
         const corpo = await request.json();
-        const resultado = await criarOuConvidarUsuario(request, container, corpo);
+        const resultado = await criarOuConvidarUsuario(request, container, corpo, identidade);
         if (resultado.erro) return resultado.erro;
         const { doc, link, avisoEmail } = resultado;
         return { status: 201, jsonBody: { id: doc.id, Email: doc.Email, Papel: doc.Papel, EmpresasVinculadas: doc.EmpresasVinculadas, StatusConta: doc.StatusConta, linkConvite: link, avisoEmail } };
@@ -185,7 +254,10 @@ async function tratar(request, context) {
         const email = normalizarEmail(corpo.Email);
         const doc = await buscarUsuarioPorEmail(container, email);
         if (!doc) return { status: 404, jsonBody: { erro: "Usuário não encontrado." } };
-        if (doc.StatusConta === "Ativo") {
+        if (identidade.papel !== PAPEIS.ADMIN && doc.Papel && doc.Papel !== PAPEIS.CLIENTE) {
+          return { status: 403, jsonBody: { erro: "Sem permissão para reenviar o convite deste usuário." } };
+        }
+        if (doc.StatusConta === "Ativo" || doc.SenhaHash) {
           return { status: 400, jsonBody: { erro: "Este usuário já concluiu o primeiro acesso. Use “Esqueci minha senha” na tela de login em vez de reenviar convite." } };
         }
         const { link, avisoEmail } = await enviarConvite(request, container, doc, { reenvio: true });
@@ -231,6 +303,11 @@ async function tratar(request, context) {
 
         const doc = await buscarUsuarioPorEmail(container, email);
         if (!doc || doc.StatusConta !== "Ativo") return respostaGenerica;
+        // Ja emitiu um link ha menos de 1 minuto: nao envia outro (anti spam de e-mail).
+        if (doc.TokenResetExpira) {
+          const emitidoEm = Date.parse(doc.TokenResetExpira) - VALIDADE_RESET_MS_ESPELHO;
+          if (Number.isFinite(emitidoEm) && Date.now() - emitidoEm < INTERVALO_MIN_RESET_MS) return respostaGenerica;
+        }
 
         const reset = gerarReset();
         doc.TokenResetHash = reset.tokenHash;
