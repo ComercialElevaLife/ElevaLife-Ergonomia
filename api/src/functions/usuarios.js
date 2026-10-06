@@ -57,7 +57,7 @@ async function tratar(request, context) {
 
       case "POST": {
         const corpo = await request.json();
-        const resultado = await criarOuConvidarUsuario(request, container, corpo);
+        const resultado = await criarOuConvidarUsuario(request, container, corpo, identidade);
         if (resultado.erro) return resultado.erro;
         const { doc, link, avisoEmail } = resultado;
         return { status: 201, jsonBody: { id: doc.id, Email: doc.Email, Papel: doc.Papel, EmpresasVinculadas: doc.EmpresasVinculadas, StatusConta: doc.StatusConta, linkConvite: link, avisoEmail } };

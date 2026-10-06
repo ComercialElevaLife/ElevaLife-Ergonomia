@@ -48,6 +48,20 @@ function obterCliente() {
   return clienteBlob;
 }
 
+// V 1.7 (revisao de seguranca): a chave de arquivo e SEMPRE
+// "<EmpresaId>/<colecao>/<nome>" - exatamente 3 partes, sem "." / "..", barras
+// invertidas, "%" ou caracteres de controle. Antes, uma chave como
+// "GLOBAL/laudo/../../OUTRA-EMPRESA/laudo/x" passava na checagem de permissao
+// (que so olhava a 1a parte) e o SDK do Storage normalizava o ".." na URL,
+// chegando em arquivo de outra empresa.
+function chaveArquivoValida(chave) {
+  if (typeof chave !== "string" || chave.length === 0 || chave.length > 400) return false;
+  if (/[\\%\u0000-\u001f\u007f]/.test(chave)) return false;
+  const partes = chave.split("/");
+  if (partes.length !== 3) return false;
+  return partes.every((p) => p.length > 0 && p !== "." && p !== "..");
+}
+
 function obterContainerCliente(colecao) {
   const nomeContainer = CONTAINER_POR_COLECAO[colecao];
   if (!nomeContainer) {
@@ -75,7 +89,7 @@ function coletarChavesArquivo(no, saida) {
   else if (no && typeof no === "object") {
     if (typeof no.chave === "string") {
       const partes = no.chave.split("/");
-      if (partes.length >= 3 && CONTAINER_POR_COLECAO[partes[1]]) saida.add(no.chave);
+      if (partes.length >= 3 && CONTAINER_POR_COLECAO[partes[1]] && chaveArquivoValida(no.chave)) saida.add(no.chave);
     }
     Object.keys(no).forEach((k) => { if (k !== "chave") coletarChavesArquivo(no[k], saida); });
   }
@@ -83,6 +97,7 @@ function coletarChavesArquivo(no, saida) {
 }
 
 async function excluirArquivo(chave) {
+  if (!chaveArquivoValida(chave)) return false;
   const partes = String(chave).split("/");
   if (partes.length < 3 || !CONTAINER_POR_COLECAO[partes[1]]) return false;
   await obterContainerCliente(partes[1]).getBlockBlobClient(chave).deleteIfExists();
@@ -116,6 +131,6 @@ async function excluirArquivosRemovidos(docAntigo, docNovo, empresaIdPermitido, 
 }
 
 module.exports = {
-  obterCliente, obterContainerCliente, CONTAINER_POR_COLECAO,
+  obterCliente, obterContainerCliente, CONTAINER_POR_COLECAO, chaveArquivoValida,
   coletarChavesArquivo, excluirArquivo, excluirArquivosRemovidos,
 };

@@ -261,6 +261,15 @@
 
   const HISTORICO = [
     {
+      versao: "1.7", data: "05/10/2026",
+      itens: [
+        "Revisão de segurança: convites passam a respeitar o perfil de quem convida (Consultor convida apenas UsuarioCliente, para as próprias empresas) e não alteram contas já ativas.",
+        "Login com limite de tentativas (bloqueio temporário após 5 senhas incorretas) e intervalo mínimo entre pedidos de redefinição de senha.",
+        "Laudo, Cadastro de Cliente, Ergonomistas, Modelo de laudo e Certificados passam a ser gravados apenas por Administrador ou Consultor; usuários-cliente continuam com acesso de leitura.",
+        "Envio de arquivos com conferência do conteúdo e proteção reforçada de caminho; leitura de PDF (AET) endurecida; páginas de documentação interna deixam de ser públicas.",
+      ],
+    },
+    {
       versao: "1.6", data: "05/10/2026",
       itens: [
         "Importação por Excel em HHT / Dias Úteis e Restritos (Compatíveis): modelo para baixar, leitura da planilha, prévia com situação de cada linha (novo, atualiza, sem alteração, erro) e confirmação antes de gravar.",

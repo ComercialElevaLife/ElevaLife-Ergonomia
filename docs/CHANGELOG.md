@@ -2,6 +2,18 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.7 — 05/10/2026
+
+Revisão de segurança (pen test: código + testes seguros em produção). Relatório completo em `docs/relatorio-seguranca-v1.7.md`.
+
+- **Convites (crítico):** `POST /api/auth/convidar` e `POST /api/usuarios` não reenviam/zeram convite de conta ativa (409); Consultor só convida `UsuarioCliente` e só para empresas às quais está vinculado; `reenviar-convite` de Consultor limitado a `UsuarioCliente`.
+- **RBAC:** `UsuarioCliente` não grava `laudo`, `cliente`, `ergonomista`, `modeloLaudo` nem `certificadoCalibracao` (API interna, uploads e chave de API de empresa); API pública não grava coleções globais. `Codigo Verificacao` do laudo único (409).
+- **Arquivos:** chave `<EmpresaId>/<colecao>/<arquivo>` validada (3 partes, sem `..`, `\`, `%`), bloqueando path traversal; assinatura (bytes iniciais) conferida para JPEG, PNG, PDF e XLSX; `X-Content-Type-Options: nosniff` no download.
+- **Login:** 5 senhas erradas bloqueiam a conta por 15 min (HTTP 429); resposta com custo de tempo igual para e-mail inexistente; "Esqueci minha senha" com intervalo mínimo de 1 min por conta; `/api/auth/*` só aceita POST (405).
+- **Front:** `pdfjsLib.getDocument(..., { isEvalSupported:false })` (CVE-2024-4367, pdf.js 3.11.174).
+- **Config:** `/MANUAL.md`, `/docs/*.md` e `/data/*.py` respondem 404; cabeçalhos `X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'` e `Permissions-Policy`.
+- Service worker: cache `sige-v10`.
+
 ## V 1.6 — 05/10/2026
 
 - **Importação por Excel** (novo `js/importador.js`, motor genérico reutilizável): botão "Importar Excel" em Registro › HHT / Dias Úteis e Registro › Restritos (Compatíveis). Fluxo: baixar modelo (abas Dados, Instruções, Exemplo e Referências) ou "Baixar dados atuais" → enviar a planilha → **prévia** (novo, atualiza, sem alteração, erro, com motivo por linha e mapeamento de colunas ajustável) → **confirmação** → gravação em lote com relatório. Linhas com erro nunca são gravadas; há download das linhas rejeitadas.

@@ -1,6 +1,18 @@
 {
   "routes": [
     {
+      "route": "/MANUAL.md",
+      "statusCode": 404
+    },
+    {
+      "route": "/docs/*.md",
+      "statusCode": 404
+    },
+    {
+      "route": "/data/*.py",
+      "statusCode": 404
+    },
+    {
       "route": "/api/*",
       "allowedRoles": [
         "anonymous"
@@ -44,7 +56,10 @@
     ]
   },
   "globalHeaders": {
-    "Cache-Control": "no-cache, must-revalidate"
+    "Cache-Control": "no-cache, must-revalidate",
+    "X-Frame-Options": "DENY",
+    "Content-Security-Policy": "frame-ancestors 'none'",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()"
   },
   "mimeTypes": {
     ".webmanifest": "application/manifest+json"

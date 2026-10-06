@@ -29,7 +29,7 @@
 
 const crypto = require("crypto");
 const { resolverIdentidade, podeVerEmpresa } = require("../shared/tenant");
-const { obterContainerCliente, excluirArquivo } = require("../shared/blob");
+const { obterContainerCliente, excluirArquivo, chaveArquivoValida } = require("../shared/blob");
 
 // Mesma constante de src/functions/entidades.js (EMPRESA_GLOBAL) - o arquivo
 // do Certificado de Calibracao e gravado com esse EmpresaId fixo (biblioteca
@@ -90,6 +90,22 @@ const REGRAS_POR_COLECAO = {
   },
 };
 
+// V 1.7: so a equipe ElevaLife grava arquivo destas colecoes (mesma lista de
+// COLECOES_SO_EQUIPE_GRAVA em entidades.js, restrita as que tem upload).
+const UPLOAD_SO_EQUIPE = ["laudo", "cliente", "ergonomista", "certificadoCalibracao"];
+
+// V 1.7: confere os primeiros bytes - o TipoConteudo vem do cliente e nao
+// prova nada. (Excel antigo / .xls fica sem checagem: navegadores rotulam ate
+// .csv assim.)
+function assinaturaConfere(tipo, buf) {
+  const inicio = (n) => buf.subarray(0, n);
+  if (tipo === "image/jpeg") return inicio(3).equals(Buffer.from([0xff, 0xd8, 0xff]));
+  if (tipo === "image/png") return inicio(8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  if (tipo === "application/pdf") return buf.subarray(0, 1024).includes("%PDF-");
+  if (tipo === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") return inicio(2).equals(Buffer.from([0x50, 0x4b]));
+  return true;
+}
+
 function sanitizarNomeArquivo(nome) {
   const base = String(nome || "arquivo")
     .normalize("NFKD")
@@ -115,8 +131,11 @@ async function tratarUpload(request, identidade) {
   if (!regra) {
     return { status: 400, jsonBody: { erro: `Coleção sem upload de arquivo: ${Colecao}` } };
   }
-  if (!EmpresaId || !podeAcessarEmpresaOuGlobal(identidade, EmpresaId)) {
+  if (!EmpresaId || typeof EmpresaId !== "string" || !chaveArquivoValida(`${EmpresaId}/${Colecao}/x`) || !podeAcessarEmpresaOuGlobal(identidade, EmpresaId)) {
     return { status: 403, jsonBody: { erro: "Sem permissão para gravar arquivo nesta empresa." } };
+  }
+  if (identidade.papel === "UsuarioCliente" && UPLOAD_SO_EQUIPE.includes(Colecao)) {
+    return { status: 403, jsonBody: { erro: "Só a equipe ElevaLife (Administrador ou Consultor) envia arquivos deste tipo." } };
   }
   if (!ConteudoBase64) {
     return { status: 400, jsonBody: { erro: "ConteudoBase64 é obrigatório." } };
@@ -139,6 +158,10 @@ async function tratarUpload(request, identidade) {
     return { status: 413, jsonBody: { erro: `Arquivo maior que o limite de ${limiteMB} MB.` } };
   }
 
+  if (!assinaturaConfere(TipoConteudo, buffer)) {
+    return { status: 400, jsonBody: { erro: "O conteúdo do arquivo não corresponde ao tipo informado." } };
+  }
+
   const nomeSeguro = sanitizarNomeArquivo(NomeArquivo);
   const chave = `${EmpresaId}/${Colecao}/${crypto.randomUUID()}-${nomeSeguro}`;
 
@@ -153,6 +176,7 @@ async function tratarUpload(request, identidade) {
 async function tratarDownload(request, identidade) {
   const chave = request.query.get("chave");
   if (!chave) return { status: 400, jsonBody: { erro: "Parâmetro “chave” é obrigatório." } };
+  if (!chaveArquivoValida(chave)) return { status: 404, jsonBody: { erro: "Arquivo não encontrado." } };
 
   const partes = chave.split("/");
   const empresaId = partes[0];
@@ -176,6 +200,7 @@ async function tratarDownload(request, identidade) {
     headers: {
       "Content-Type": download.contentType || "application/octet-stream",
       "Cache-Control": "private, max-age=300",
+      "X-Content-Type-Options": "nosniff",
     },
   };
 }
@@ -183,9 +208,13 @@ async function tratarDownload(request, identidade) {
 async function tratarExclusao(request, identidade) {
   const chave = request.query.get("chave");
   if (!chave) return { status: 400, jsonBody: { erro: "Parâmetro “chave” é obrigatório." } };
+  if (!chaveArquivoValida(chave)) return { status: 204 };
   const partes = chave.split("/");
   const empresaId = partes[0];
   if (!empresaId || !REGRAS_POR_COLECAO[partes[1]]) return { status: 204 };
+  if (identidade.papel === "UsuarioCliente" && UPLOAD_SO_EQUIPE.includes(partes[1])) {
+    return { status: 403, jsonBody: { erro: "Sem permissão para excluir este arquivo." } };
+  }
   if (!podeAcessarEmpresaOuGlobal(identidade, empresaId)) {
     return { status: 403, jsonBody: { erro: "Sem permissão para excluir este arquivo." } };
   }

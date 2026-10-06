@@ -31,7 +31,7 @@ const { app } = require("@azure/functions");
 const { obterContainer } = require("../shared/cosmos");
 const { podeVerEmpresa, podeVerDocumento, empresaIdDoDocumento } = require("../shared/tenant");
 const { autenticarRequisicaoPublica, colecaoPermitidaParaChave } = require("../shared/apiKeys");
-const { COLECOES, listarComFiltro, lerPorId } = require("./entidades");
+const { COLECOES, COLECOES_GLOBAIS, COLECOES_SO_EQUIPE_GRAVA, listarComFiltro, lerPorId } = require("./entidades");
 
 // "cliente" fica de fora da API publica por enquanto - criar uma empresa
 // nova continua sendo so pela API interna, com Administrador de verdade.
@@ -84,6 +84,16 @@ async function tratar(request, context) {
       case "POST": {
         if (!identidade.podeEscrever) {
           return { status: 403, jsonBody: { erro: "Esta chave de API não tem permissão de escrita." } };
+        }
+        // V 1.7: colecoes globais (configuracao, ergonomista, modeloLaudo,
+        // certificadoCalibracao) so se editam pela API interna - antes uma
+        // chave de empresa com escrita conseguia gravar nelas (inclusive em
+        // "configuracao", que e' so do Administrador).
+        if (COLECOES_GLOBAIS.includes(colecao)) {
+          return { status: 403, jsonBody: { erro: `A coleção “${colecao}” é somente leitura na API pública.` } };
+        }
+        if (identidade.papel === "UsuarioCliente" && COLECOES_SO_EQUIPE_GRAVA.includes(colecao)) {
+          return { status: 403, jsonBody: { erro: `Chaves de API de empresa não gravam em “${colecao}”.` } };
         }
         const corpo = await request.json();
         // Chave escopada a uma empresa sempre grava naquela empresa, mesmo
