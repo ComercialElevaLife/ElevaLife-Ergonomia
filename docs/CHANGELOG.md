@@ -2,6 +2,11 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.11 — 06/10/2026
+
+- **Atividade e Data deixam de ser obrigatórias nas importações** do Inventário de Riscos (Atividade, Data de identificação) e da Avaliação Ergonômica/AEP (Atividade, Data da avaliação): o sistema anterior não as traz. Sem coluna ou com célula vazia, o campo fica em branco; os "valores padrão" da prévia passam a começar vazios (a V 1.10 sugeria "Atividade não informada – histórico" e a data de hoje) e continuam editáveis, caso o usuário queira preencher as linhas sem dado. Não cria mais cadastros de Atividade fictícios.
+- Efeito na chave de duplicidade: sem Atividade e sem Data, duas linhas com o mesmo Posto + Cargo (AEP) caem na mesma chave — a segunda é marcada como repetida/atualiza a primeira. Formulários de cadastro manual seguem com os campos obrigatórios. Nenhuma rota da API alterada. Service worker: cache `sige-v14`.
+
 ## V 1.10 — 06/10/2026
 
 - **Importação do Inventário de Riscos do sistema anterior** (Registro › Inventário de Riscos › "Importar Excel", coleção `fatorRisco`): lê o relatório exportado do sistema anterior (Empresa, Unidade, Setor, Cargo, Posto de trabalho, Grupo, Fator, Existe fator, Circunstância geradora, Consequência, Medida de controle, Criticidade, Probabilidade, Pontuação, Graduação, Propor ação, ação para eliminação, controles administrativos, Status, SLA, Observação, Válido até). Decisão de negócio: **a Graduação e a Pontuação do sistema anterior são gravadas exatamente como vieram** (o S.I.G.E. só calcula se a planilha não trouxer); as linhas em que a graduação difere da matriz do S.I.G.E. são marcadas (chip, filtro e aviso por linha). Textos de ação do legado vão para `Acao Eliminacao` / `Controles Administrativos` (convertíveis em ação do Plano de Ação), `Propor Acao` e `Matriz` (a do cliente; novo cliente nasce em "Matriz 4x4"). Observação recebe "Importado do sistema anterior em dd/mm/aaaa.".
