@@ -2,6 +2,14 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.6 — 05/10/2026
+
+- **Importação por Excel** (novo `js/importador.js`, motor genérico reutilizável): botão "Importar Excel" em Registro › HHT / Dias Úteis e Registro › Restritos (Compatíveis). Fluxo: baixar modelo (abas Dados, Instruções, Exemplo e Referências) ou "Baixar dados atuais" → enviar a planilha → **prévia** (novo, atualiza, sem alteração, erro, com motivo por linha e mapeamento de colunas ajustável) → **confirmação** → gravação em lote com relatório. Linhas com erro nunca são gravadas; há download das linhas rejeitadas.
+- Validações: obrigatórios, números (aceita vírgula decimal), datas dd/mm/aaaa e número de série do Excel, mês (mm/aaaa, mmm/aaaa), listas fechadas e hierarquia Cliente › Unidade › Setor › … contra o Cadastro (grafia padronizada). Limite de 2.000 linhas por arquivo.
+- **Sem duplicidade:** HHT / Dias Úteis passa a aceitar um lançamento por Cliente + Unidade + Setor + mês (formulário e importação). Importação atualiza o existente; Restritos usa Cliente + Matrícula + Início da restrição.
+- `BI.DB.salvarEmLote` (js/db.js): mesmas rotas e regras de empresa/permissão do cadastro manual; 4 requisições em paralelo e uma única recarga ao final. Nenhuma rota nova na API e nenhuma regra de cálculo alterada.
+- Textos de Ajuda (Manual e Histórico) atualizados. Service worker: cache `sige-v9`.
+
 ## V 1.5 — 05/10/2026
 
 - **Textos de Ajuda:** manual de uso reescrito em linguagem técnica e padronizada, com "Objetivo" e "Perfis" em cada seção; seções novas (Absenteísmo, HHT e Restritos; Usuários, perfis e configurações) e conteúdo atualizado conforme V 1.2–1.4 (ações por fator, evidência, Gerar Laudo em uma etapa, verificação).

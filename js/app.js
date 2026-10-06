@@ -4016,6 +4016,18 @@
         { campo: "Qtd Dias Uteis", rotulo: "Qtd Dias Úteis no mês", tipo: "numero", obrigatorio: true, min: 0, max: 31 },
       ],
       aoConstruir: comCascata(null),
+      // V 1.6: um unico lancamento por Cliente + Unidade + Setor + Mes (duas
+      // linhas iguais somariam o HHT em dobro na Taxa de Frequencia) e
+      // importacao por planilha Excel (modelo + previa + confirmacao).
+      aoValidar: (form, dados) => erroDuplicidade("diasUteis", dados, "Já existe lançamento de HHT / Dias Úteis para este Cliente, Unidade, Setor e mês. Edite o registro existente."),
+      importacao: {
+        chaveNatural: ["Cliente", "Unidade", "Setor", "Ano/Mes Uteis"],
+        arquivo: "hht-dias-uteis",
+        nomePlanilha: "Dados",
+        colunasPrevia: ["Cliente", "Unidade", "Setor", "Ano/Mes Uteis", "Qtd Colaboradores", "Qtd Dias Uteis"],
+        exemplo: { "Ano/Mes Uteis": "10/2026", "Qtd Colaboradores": 120, "Qtd Dias Uteis": 21 },
+        descricao: "Importe de uma só vez a quantidade de colaboradores e de dias úteis por Cliente, Unidade, Setor e mês. Lançamentos que já existem para o mesmo Setor e mês são atualizados, nunca duplicados.",
+      },
     },
     compativeis: {
       grupo: "registro", icone: "🔄", tituloMenu: "Restritos (Compatíveis)",
@@ -4045,6 +4057,17 @@
         { campo: "Atividade Compativel", rotulo: "Atividade Compativel", tipo: "select", opcoes: SIM_NAO },
       ]),
       aoConstruir: comCascata(null),
+      // V 1.6: importacao por planilha Excel. Um mesmo colaborador (Cliente +
+      // Matricula) pode ter varias restricoes ao longo do tempo; a chave de
+      // atualizacao inclui o inicio da restricao.
+      importacao: {
+        chaveNatural: ["Cliente", "Matricula", "Inicio Restricao"],
+        arquivo: "restritos-compativeis",
+        nomePlanilha: "Dados",
+        colunasPrevia: ["Cliente", "Setor", "Matricula", "Funcionario", "Status Restricao", "Inicio Restricao"],
+        exemplo: { Matricula: "12345", Funcionario: "Nome do colaborador", "Inicio Restricao": "01/10/2026" },
+        descricao: "Importe várias restrições médicas de uma só vez. Restrições que já existem (mesmo Cliente, Matrícula e início da restrição) são atualizadas, nunca duplicadas.",
+      },
     },
     // As 3 telas abaixo sao o pacote "Sistema de Gestao Integrada" (ver
     // docs/bi-ergonomia-manual.md) - reproduzem, dentro do proprio BI
@@ -4941,6 +4964,13 @@
       btnNovo.textContent = "+ Novo registro";
       btnNovo.addEventListener("click", () => abrirFormNovo(chave));
       cab.appendChild(titulo);
+      if (cfg.importacao) {
+        const btnImportar = document.createElement("button");
+        btnImportar.type = "button"; btnImportar.className = "btn-cad-secundario btn-importar-excel"; btnImportar.id = "btn-importar-" + chave;
+        btnImportar.textContent = "⬆ Importar Excel";
+        btnImportar.addEventListener("click", () => abrirImportacao(chave));
+        cab.appendChild(btnImportar);
+      }
       cab.appendChild(btnNovo);
 
       const formContainer = document.createElement("div");
@@ -5036,7 +5066,71 @@
     Object.keys(CADASTROS_CONFIG).forEach((chave) => {
       const btn = document.getElementById("btn-novo-" + chave);
       if (btn) btn.disabled = !disponivel;
+      const btnImp = document.getElementById("btn-importar-" + chave);
+      if (btnImp) btnImp.disabled = !disponivel;
     });
+  }
+
+  // ------------------------------------------------------------------
+  // V 1.6 - Importacao por Excel (ver js/importador.js). Cada cadastro que
+  // declara "importacao" em CADASTROS_CONFIG ganha o botao "Importar Excel".
+  // ------------------------------------------------------------------
+  function chaveNaturalDe(valores, campos) {
+    const Imp = window.BI.Importador;
+    return campos.map((k) => Imp.norm(valores[k] == null ? "" : valores[k])).join("|");
+  }
+
+  // Mensagem de erro (ou null) se ja existe OUTRO registro com a mesma chave
+  // natural - usado pelo formulario manual para nao duplicar lancamentos.
+  function erroDuplicidade(chave, dados, mensagem) {
+    const cfg = CADASTROS_CONFIG[chave];
+    const campos = cfg.importacao.chaveNatural;
+    const k = chaveNaturalDe(dados, campos);
+    const idAtual = estadoCadastro[chave] ? estadoCadastro[chave].editandoId : null;
+    const outro = (window.BI.dados[chave] || []).find((l) => l._id !== idAtual && chaveNaturalDe(l, campos) === k);
+    return outro ? mensagem : null;
+  }
+
+  function abrirImportacao(chave) {
+    const cfg = CADASTROS_CONFIG[chave];
+    if (!cfg || !cfg.importacao) return;
+    if (!window.BI.Importador) { mostrarErro("O módulo de importação não carregou. Recarregue a página."); return; }
+    if (!window.BI.DB.estado.disponivel) { mostrarErro("Banco de dados indisponível nesta visualização. Não é possível importar agora."); return; }
+    const imp = cfg.importacao;
+    const niveisNoCadastro = NIVEIS_HIERARQUIA.filter((n) => cfg.campos.some((c) => c.campo === n && c.tipo === "cascata"));
+    const def = {
+      colecao: chave,
+      titulo: cfg.titulo,
+      campos: cfg.campos,
+      chaveNatural: imp.chaveNatural,
+      arquivo: imp.arquivo,
+      nomePlanilha: imp.nomePlanilha,
+      colunasPrevia: imp.colunasPrevia,
+      descricao: imp.descricao,
+      rotulo: (c) => T(c.rotulo || c.campo),
+    };
+    const ctx = {
+      existentes: () => window.BI.dados[chave] || [],
+      opcoesCascata: (campo, atuais) => opcoesHierarquia(campo, atuais),
+      gerarId: () => novoIdRegistro(),
+      // Aba "Referências" do modelo: combinacoes da hierarquia ja cadastradas
+      // (somente as que o usuario enxerga), ate o nivel mais profundo do cadastro.
+      referencias: () => {
+        if (!niveisNoCadastro.length) return [];
+        const fundo = niveisNoCadastro[niveisNoCadastro.length - 1];
+        const colunas = NIVEIS_HIERARQUIA.slice(0, NIVEIS_HIERARQUIA.indexOf(fundo) + 1);
+        const linhas = linhasCadastroMestre(fundo)
+          .map((l) => colunas.map((c) => l[c] || ""))
+          .sort((a, b) => a.join("|").localeCompare(b.join("|"), "pt-BR"));
+        return [{ nome: "Referências", colunas: colunas.map((c) => T(c)), linhas }];
+      },
+      exemplos: () => {
+        const fundo = niveisNoCadastro[niveisNoCadastro.length - 1];
+        const base = fundo ? linhasCadastroMestre(fundo).slice(0, 2) : [{}];
+        return base.map((l) => Object.assign({}, l, imp.exemplo || {}));
+      },
+    };
+    window.BI.Importador.abrir(def, ctx);
   }
 
   function abrirFormNovo(chave) {

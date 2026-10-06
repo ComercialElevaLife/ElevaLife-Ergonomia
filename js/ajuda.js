@@ -100,6 +100,8 @@
         "Em Registro › Absenteísmo, cada afastamento é registrado com Região Corporal, Dt Afastamento e Qtd Dias; a Dt Retorno é calculada pelo sistema.",
         "Em Registro › HHT / Dias Úteis, informam-se, por setor e mês, a quantidade de colaboradores e de dias úteis. A Taxa de Frequência é calculada como (nº de afastamentos ÷ HHT) × 1.000.000, em que HHT = colaboradores × dias úteis × 8 h (NBR 14280).",
         "Em Registro › Restritos (Compatíveis), cada restrição médica é registrada com Segmento Corporal, Status Restrição (Ativa, Em Avaliação ou Encerrada) e indicação de Atividade Compatível.",
+        "HHT / Dias Úteis e Restritos (Compatíveis) podem ser carregados por planilha: botão \"Importar Excel\" › baixar o modelo (.xlsx), preencher, enviar o arquivo e conferir a prévia. Nada é gravado até \"Confirmar importação\"; linhas com erro são ignoradas e podem ser baixadas para correção. Registros já existentes (mesmo Setor e mês, ou mesmo Cliente, Matrícula e início da restrição) são atualizados, não duplicados.",
+        "O botão \"Baixar dados atuais\" gera a planilha com os registros vigentes, para edição em lote no Excel e reenvio. Cliente, Unidade e Setor precisam estar cadastrados (aba Cadastro); a aba \"Referências\" do modelo lista as combinações válidas.",
       ],
     },
     {
@@ -258,6 +260,14 @@
   ];
 
   const HISTORICO = [
+    {
+      versao: "1.6", data: "05/10/2026",
+      itens: [
+        "Importação por Excel em HHT / Dias Úteis e Restritos (Compatíveis): modelo para baixar, leitura da planilha, prévia com situação de cada linha (novo, atualiza, sem alteração, erro) e confirmação antes de gravar.",
+        "Registros existentes são atualizados em vez de duplicados; linhas com erro são rejeitadas, com relatório para download. \"Baixar dados atuais\" permite editar em lote no Excel.",
+        "HHT / Dias Úteis passa a aceitar um único lançamento por Cliente, Unidade, Setor e mês, evitando soma em duplicidade na Taxa de Frequência.",
+      ],
+    },
     {
       versao: "1.5", data: "05/10/2026",
       itens: [

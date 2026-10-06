@@ -1054,6 +1054,61 @@
     return { total: ids.length, falhas: resultados.filter((r) => r.status === "rejected").length };
   }
 
+  // V 1.6 - gravacao em lote (importacao de planilhas Excel - ver
+  // js/importador.js). Cada item: { id, dados, criar } - criar=true faz POST
+  // (com o id, quando houver), criar=false faz PUT no id existente. Usa as
+  // MESMAS rotas e regras de empresa/permissao de salvar(); roda poucas
+  // requisicoes em paralelo e recarrega a colecao UMA vez no final (salvar()
+  // sozinho recarregaria uma vez por item). Falha de um item nao interrompe
+  // os demais: devolve { falhas: [{ indice, erro }] }.
+  async function salvarEmLote(colecaoChave, itens, aoProgredir) {
+    const falhas = [];
+    let feitos = 0;
+    const avancar = () => { feitos++; if (aoProgredir) aoProgredir(feitos); };
+
+    if (estado.modoApi) {
+      if (semInternetAgora()) throw new Error(MSG_PRECISA_INTERNET);
+      const pendentes = itens.map((item, indice) => ({ item, indice }));
+      async function trabalhador() {
+        while (pendentes.length) {
+          const { item, indice } = pendentes.shift();
+          try {
+            const corpo = anexarEmpresaId(colecaoChave, item.dados);
+            const rota = "/api/" + encodeURIComponent(colecaoChave) + (item.criar ? "" : "/" + encodeURIComponent(item.id));
+            const resp = await fetch(rota, {
+              method: item.criar ? "POST" : "PUT",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(item.criar && item.id ? Object.assign({ id: item.id }, corpo) : corpo),
+            });
+            if (!resp.ok) throw new Error(await corpoDeErro(resp));
+          } catch (erro) {
+            falhas.push({ indice, erro: erro && erro.message ? erro.message : String(erro) });
+          }
+          avancar();
+        }
+      }
+      await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador()]);
+      await recarregarColecaoApi(colecaoChave);
+      falhas.sort((a, b) => a.indice - b.indice);
+      return { falhas };
+    }
+
+    if (!estado.db) throw new Error("Banco de dados indisponível nesta visualização.");
+    const colecao = estado.db.collection(colecaoChave);
+    for (let indice = 0; indice < itens.length; indice++) {
+      const item = itens[indice];
+      try {
+        if (item.id) await colecao.doc(item.id).set(item.dados);
+        else await colecao.add(item.dados);
+      } catch (erro) {
+        falhas.push({ indice, erro: erro && erro.message ? erro.message : String(erro) });
+      }
+      avancar();
+    }
+    return { falhas };
+  }
+
   global.BI = global.BI || {};
   global.BI.DB = {
     estado,
@@ -1069,6 +1124,7 @@
     idCadastroMestre,
     iniciar,
     salvar,
+    salvarEmLote,
     excluir,
     excluirEmLote,
     enviarArquivo,

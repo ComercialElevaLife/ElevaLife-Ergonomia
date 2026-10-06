@@ -1992,3 +1992,76 @@ body.hist-aberto { overflow: hidden; }
 .config-ajuda { font-size: 13px; color: var(--texto-secundario); margin: 4px 0 12px; max-width: 760px; }
 .config-form { display: flex; flex-direction: column; gap: 12px; max-width: 520px; }
 .config-form .acao-campo input { padding: 8px 10px; }
+
+/* ==========================================================================
+   V 1.6 - Importador de planilhas Excel (js/importador.js)
+   ========================================================================== */
+.btn-importar-excel { margin-left: auto; margin-right: 8px; }
+.btn-importar-excel + .btn-novo-registro { margin-left: 0; }
+.imp-overlay {
+  position: fixed; inset: 0; z-index: 1000; background: rgba(40, 28, 30, 0.55);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.imp-modal {
+  background: var(--card); color: var(--texto); border: 1px solid var(--linha); border-radius: 10px;
+  width: min(1040px, 100%); max-height: 92vh; display: flex; flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+.imp-cabecalho { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--linha); }
+.imp-titulo { font-size: 1.05rem; font-weight: 700; color: var(--vinho); }
+.imp-fechar { background: none; border: none; font-size: 1.6rem; line-height: 1; cursor: pointer; color: var(--texto-secundario); padding: 0 6px; }
+.imp-fechar:hover { color: var(--texto); }
+.imp-corpo { padding: 16px 18px; overflow: auto; flex: 1; }
+.imp-rodape { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--linha); }
+.imp-espaco { flex: 1; }
+.imp-aviso-rodape { flex-basis: 100%; text-align: right; font-size: 0.82rem; color: var(--texto-secundario); }
+.imp-texto { margin: 0 0 10px; color: var(--texto-secundario); line-height: 1.5; }
+.imp-passos { margin: 0 0 14px 18px; padding: 0; color: var(--texto-secundario); line-height: 1.6; }
+.imp-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.imp-zona {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 26px 16px; cursor: pointer;
+  border: 2px dashed var(--vinho-suave-2); border-radius: 10px; background: var(--creme); text-align: center;
+}
+.imp-zona.sobre, .imp-zona:hover { border-color: var(--vinho); }
+.imp-zona-titulo { font-weight: 700; color: var(--vinho); }
+.imp-zona-sub { font-size: 0.85rem; color: var(--texto-secundario); }
+.imp-arquivo { margin-top: 8px; max-width: 100%; }
+.imp-erro { margin-top: 10px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--status-critical); color: var(--status-critical); background: transparent; font-size: 0.9rem; }
+.imp-arquivo-info { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+.imp-sel-aba, .imp-mapa-grade select { padding: 5px 8px; border: 1px solid var(--linha); border-radius: 6px; background: var(--card); color: var(--texto); }
+.imp-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.imp-chip { display: flex; flex-direction: column; min-width: 96px; padding: 8px 12px; border: 1px solid var(--linha); border-radius: 8px; border-left-width: 4px; }
+.imp-chip-valor { font-size: 1.3rem; font-weight: 700; line-height: 1.1; }
+.imp-chip-rotulo { font-size: 0.78rem; color: var(--texto-secundario); }
+.imp-chip.ok { border-left-color: var(--risco-baixo); }
+.imp-chip.info { border-left-color: var(--teal); }
+.imp-chip.neutro { border-left-color: var(--cinza-quente); }
+.imp-chip.erro { border-left-color: var(--status-critical); }
+.imp-mapeamento { margin-bottom: 12px; border: 1px solid var(--linha); border-radius: 8px; padding: 8px 12px; }
+.imp-mapeamento summary { cursor: pointer; font-weight: 600; color: var(--texto-secundario); }
+.imp-mapa-grade { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(160px, 2fr); gap: 6px 12px; margin-top: 10px; align-items: center; }
+.imp-opcao { display: block; margin-bottom: 10px; font-size: 0.9rem; color: var(--texto-secundario); }
+.imp-tabela-scroll { max-height: 42vh; overflow: auto; border: 1px solid var(--linha); border-radius: 8px; }
+.imp-tabela { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.imp-tabela th { max-width: 190px; position: sticky; top: 0; background: var(--creme); text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--linha); white-space: nowrap; }
+.imp-tabela td { padding: 5px 8px; border-bottom: 1px solid var(--linha); vertical-align: top; }
+.imp-detalhe { min-width: 260px; max-width: 360px; color: var(--texto-secundario); }
+.imp-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--linha); white-space: nowrap; }
+.imp-badge-novo { color: var(--risco-baixo); border-color: var(--risco-baixo); }
+.imp-badge-atualiza { color: var(--teal-escuro); border-color: var(--teal); }
+.imp-badge-igual, .imp-badge-ignorada { color: var(--cinza-quente); }
+.imp-badge-erro { color: var(--status-critical); border-color: var(--status-critical); }
+.imp-linha-erro td { background: rgba(208, 59, 59, 0.07); }
+.imp-nota { margin-top: 8px; font-size: 0.82rem; color: var(--texto-secundario); }
+.imp-progresso { padding: 24px 0; }
+.imp-barra { height: 10px; border-radius: 6px; background: var(--linha); overflow: hidden; }
+.imp-barra-cheia { height: 100%; width: 0; background: var(--teal); transition: width 0.2s; }
+.imp-final-titulo { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; }
+.imp-final-titulo.ok { color: var(--risco-baixo); }
+.imp-final-titulo.parcial { color: var(--risco-moderado); }
+.imp-final-titulo.erro { color: var(--status-critical); }
+.imp-lista-falhas { margin: 8px 0 0 18px; color: var(--texto-secundario); font-size: 0.85rem; }
+@media (max-width: 640px) {
+  .imp-mapa-grade { grid-template-columns: 1fr; }
+  .imp-overlay { padding: 8px; }
+}
