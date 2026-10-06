@@ -2098,3 +2098,6 @@ body.hist-aberto { overflow: hidden; }
   .imp-mapa-grade { grid-template-columns: 1fr; }
   .imp-overlay { padding: 8px; }
 }
+
+/* V 1.15: aviso de outras ocorrencias do mesmo fator no checklist do Inventario */
+.checklist-fator-outras { margin: 2px 0 6px 26px; font-size: 12px; color: var(--texto-secundario); }
