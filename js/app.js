@@ -3634,6 +3634,18 @@
         cabecalhoLinha.appendChild(checkbox);
         cabecalhoLinha.appendChild(textoFator);
         linha.appendChild(cabecalhoLinha);
+        // V 1.15: o mesmo fator pode ter mais de uma ocorrencia no posto (circunstancias diferentes,
+        // como no sistema anterior). O checklist edita a primeira; as demais ficam na lista do Inventario.
+        const outrasOcorrencias = (window.BI.dados.fatorRisco || []).filter((f) =>
+          f !== registroExistente && f.Cliente === linhaAval.Cliente && f.Unidade === linhaAval.Unidade && f.Setor === linhaAval.Setor &&
+          f.Cargo === linhaAval.Cargo && f["Posto Trabalho"] === linhaAval["Posto Trabalho"] && f.Atividade === linhaAval.Atividade &&
+          f.Grupo === grupo && f.Fator === fator).length;
+        if (registroExistente && outrasOcorrencias) {
+          const aviso = document.createElement("div");
+          aviso.className = "checklist-fator-outras";
+          aviso.textContent = `Este fator tem mais ${outrasOcorrencias} ${outrasOcorrencias === 1 ? "ocorrência" : "ocorrências"} neste posto (circunstâncias diferentes). Veja e edite em Registro › Inventário de Riscos.`;
+          linha.appendChild(aviso);
+        }
 
         const detalhes = document.createElement("div");
         detalhes.className = "checklist-fator-detalhes";
@@ -4172,6 +4184,8 @@
       // podem nao ter - na importacao ficam opcionais (ver "opcionais").
       importacao: {
         chaveNatural: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Data Avaliacao"],
+        // V 1.15: o mesmo local pode ter mais de uma avaliacao; so a linha IDENTICA e repetida
+        permitirRepetidas: true,
         arquivo: "historico-aep",
         nomePlanilha: "Dados",
         colunasPrevia: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Data Avaliacao"],
@@ -4212,7 +4226,7 @@
           "Historico Acidentes": ["Historico de Acidentes", "Acidentes"],
         },
         exemplo: { "Data Avaliacao": "15/03/2025", "Jornada de Trabalho": "Segunda a sexta, 08h às 17h48", "Pausas": "10 min a cada 50 min", "Rodizio": "Não há" },
-        descricao: "Importe o histórico de avaliações ergonômicas (AEP) de uma planilha Excel, inclusive a exportada do sistema anterior: na prévia você liga cada coluna do arquivo ao campo correspondente. Cliente, Unidade, Setor, Posto e Cargo precisam estar cadastrados (ou ser criados na prévia); Atividade e Data da avaliação são opcionais. Fotos não são importadas. Avaliações iguais (mesmo posto, cargo, atividade e data) são atualizadas, nunca duplicadas.",
+        descricao: "Importe o histórico de avaliações ergonômicas (AEP) de uma planilha Excel, inclusive a exportada do sistema anterior: na prévia você liga cada coluna do arquivo ao campo correspondente. Cliente, Unidade, Setor, Posto e Cargo precisam estar cadastrados (ou ser criados na prévia); Atividade e Data da avaliação são opcionais. Fotos não são importadas. Cada linha é lida individualmente: o mesmo posto, cargo, atividade e data com dados diferentes é outra avaliação do mesmo local; a linha idêntica a outra é tratada como repetida, e o que já existe no SIGE é atualizado, nunca duplicado.",
       },
     },
     fatorRisco: {
@@ -4291,8 +4305,22 @@
           rotulo: "avaliações de AEP",
           descricao: "O inventário pertence a uma avaliação (AEP) de cada posto e cargo. O SIGE cria a avaliação com os dados que a planilha tem (jornada, pausas e rodízio ficam para preencher depois) e reaproveita as que já existem.",
           chave: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"],
+          // V 1.15: se a planilha traz a data, o mesmo posto avaliado em datas diferentes gera uma AEP por data
+          dataDe: { origem: "Dt Identificacao", destino: "Data Avaliacao" },
         }],
-        descricao: "Importe o Inventário de Riscos exportado do sistema anterior (uma linha por fator de risco). Cliente, Unidade, Setor, Posto, Cargo e Atividade que ainda não existirem podem ser criados automaticamente. A Graduação do Risco é mantida como veio do sistema anterior (as linhas em que ela difere da matriz do SIGE ficam marcadas). Linhas repetidas e nomes parecidos são apresentados para revisão. Antes de gravar nada, você confere tudo na prévia.",
+        // V 1.15: cada acao das colunas "Acao para eliminacao" e "Controles administrativos e organizacionais"
+        // vira uma acao do Plano de Acao ligada ao fator (uma acao por item da celula).
+        filhos: [{
+          colecao: "planoAcao",
+          rotulo: "ações do Plano de Ação",
+          descricao: "As colunas “Ação para eliminação” (tipo Eliminação) e “Controles administrativos e organizacionais” (tipo Organizacional) viram ações do Plano de Ação, ligadas ao fator: cada item da célula (-, •, 1.) é uma ação. Responsável, e-mail e prazo não existem no sistema anterior e ficam em branco para você preencher depois no Plano de Ação. Células com “-”, “N/A” ou “Não há” não geram ação.",
+          ligacao: "Fator Risco Id",
+          textoCampo: "Acao Recomendada",
+          numeracao: { campo: "Nr Acao", agrupar: "Cliente" },
+          registros: (valores, idPai) => (window.BI.Acoes ? window.BI.Acoes.acoesDeImportacao(valores, idPai) : []),
+          rotuloGrupo: (dados) => (dados["Tipo Acao"] === "Eliminacao" ? "de eliminação" : "organizacionais"),
+        }],
+        descricao: "Importe o Inventário de Riscos exportado do sistema anterior (uma linha por fator de risco). Cliente, Unidade, Setor, Posto, Cargo e Atividade que ainda não existirem podem ser criados automaticamente. A Graduação do Risco é mantida como veio do sistema anterior (as linhas em que ela difere da matriz do SIGE ficam marcadas). Cada linha é lida individualmente: o mesmo local e fator com dados diferentes (outra avaliação) é importado; só a linha idêntica em todas as colunas é tratada como repetida. As colunas de ação viram ações do Plano de Ação. Antes de gravar nada, você confere tudo na prévia.",
       },
     },
     laudo: {
@@ -5303,6 +5331,8 @@
       avisoPlanilha: imp.avisoPlanilha,
       redirecionar: imp.redirecionar,
       derivados: imp.derivados,
+      filhos: imp.filhos,
+      permitirRepetidas: imp.permitirRepetidas,
     };
     const ctx = {
       existentes: () => window.BI.dados[chave] || [],
