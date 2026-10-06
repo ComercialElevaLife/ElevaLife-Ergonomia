@@ -32,7 +32,7 @@
   // ---------------- Login / papel ----------------
   window.ELEVA_AUTH = async function () {
     try { const eu = await req("GET", "/psico/eu"); return { admin: true, email: eu.email, papel: eu.papel }; }
-    catch (e) { return { admin: false }; }
+    catch (e) { return { admin: false, status: e.status || 0, papel: (e.body && e.body.papel) || null }; }
   };
 
   // ---------------- Banco da equipe (/api/psico) ----------------
