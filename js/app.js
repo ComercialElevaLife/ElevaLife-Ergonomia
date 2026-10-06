@@ -2127,7 +2127,8 @@
 
   async function extrairTextoPDF(arquivo) {
     const buffer = await arquivo.arrayBuffer();
-    const pdf = await window.pdfjsLib.getDocument({ data: buffer }).promise;
+    // isEvalSupported:false - V 1.7: pdf.js 3.11.174 tem a falha CVE-2024-4367 (PDF malicioso executa JS); aqui so lemos texto.
+    const pdf = await window.pdfjsLib.getDocument({ data: buffer, isEvalSupported: false }).promise;
     const partes = [];
     // Poucas paginas (inicio do documento) ja bastam pra identificar o
     // conteudo (titulo, introducao, cabecalhos de tabela) sem demorar em
