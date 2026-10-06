@@ -2,6 +2,24 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.20 — 06/10/2026
+
+- **Riscos Psicossociais · Excel do plano de ação:** removida a aba "Resumo por GHE" (ficam "Plano de ação" e, quando houver, "Ações a manter"). Service worker: cache `sige-v23`.
+
+## V 1.19 — 06/10/2026
+
+- **Riscos Psicossociais · laudo:** o capítulo "Resultados gerais da empresa" passa a ter a mesma estrutura dos GHEs — resultado HSE-IT e gráfico, interpretação por fator (probabilidade, severidade e graduação), quadro-resumo e graduação da empresa — seguido da distribuição dos GHEs por graduação. Service worker: cache `sige-v22`.
+
+## V 1.18 — 06/10/2026
+
+- **Riscos Psicossociais · matriz 5 × 5 = modelo ElevaLife** (graduação final igual à matriz de criticidade × probabilidade da empresa, com a célula Trivial em probabilidade 1 × severidade 1). A SF 1 é lida na coluna 1 (colunas 1 e 2 equivalem à SF 1); SF 2, 3 e 4 → colunas 3, 4 e 5. Service worker: cache `sige-v21`.
+
+## V 1.17 — 06/10/2026
+
+- **Riscos Psicossociais · cores das graduações** (variáveis `--g0`…`--g4`, aplicadas a risco, graduação HSE, probabilidade, severidade, EO, distribuição de respostas e checklist ISO, na tela, no Word e no Excel): trivial/muito baixo azul claro `#8CCBEB`, baixo verde `#2E8B57`, moderado amarelo `#F2C230`, alto vermelho `#C62828`, muito alto/altíssimo/crítico roxo `#6A3D9A`. Texto escuro sobre azul claro e amarelo.
+- **Laudo, por GHE:** interpretação por fator (probabilidade: média HSE-IT e graduação × resultado ISO 45003; severidade: SIF × evidência organizacional/fator atenuante com o cálculo da SF; graduação do risco), depois quadro-resumo com probabilidade, severidade e graduação de cada fator e, por fim, o plano de ação para os riscos identificados. As tabelas de graduação (empresa e GHE) mostram só probabilidade, severidade e graduação.
+- **Excel do plano:** colunas "Probabilidade do fator" e "Severidade do fator" na aba Plano de ação; aba Resumo por GHE só com Unidade, GHE e a graduação de cada fator. Service worker: cache `sige-v20`. Sem alteração na API.
+
 ## V 1.16 — 06/10/2026
 
 - **Riscos Psicossociais · Manual SIF HSE-IT ElevaLife.** SIF fixa por domínio (Demandas, Apoio da chefia e Relacionamentos 4; Controle, Apoio dos colegas, Cargo e Comunicação e mudanças 3), sem edição por empresa. Severidade Final SF = SIF × 0,75 + EOaj × 0,25 (EOaj = EO − 1), arredondada no inteiro mais próximo (0,50 sobe) — mesma tabela da V 1.15. A EO continua sugerida pela taxa de frequência (casos graves = 5) e pode ser ajustada por GHE (`eoMan`) com outros indicadores.
