@@ -500,6 +500,27 @@
       style="display:block;width:100%;height:calc(100vh - 110px);min-height:680px;border:0;border-radius:12px;background:#F5EFEA"></iframe>
     <p style="margin:.5rem 0 0;font-size:.82rem;color:#8A7A78">Prefere tela cheia? <a href="/psicossocial.html" target="_blank" rel="noopener">Abrir o módulo em uma nova aba</a>.</p>
   </section>
+  <style>
+    /* V 1.21: com a aba Riscos Psicossociais aberta, o modulo usa a largura toda (layout de computador) */
+    body.psico-ativo main { max-width: none; padding: 10px 12px 14px; }
+    body.psico-ativo #frame-psicossocial { height: calc(100vh - 92px) !important; border-radius: 10px; }
+  </style>
+  <script>
+    /* V 1.21: ao abrir a aba Riscos Psicossociais, recolhe o menu lateral (sem mudar a preferencia salva)
+       e devolve como estava ao sair. O modulo roda num iframe e o layout dele depende da largura disponivel. */
+    (function () {
+      var sec = document.getElementById("aba-psicossocial"), sb = document.getElementById("sidebar"), auto = false;
+      if (!sec || !sb) return;
+      function aplicar() {
+        var on = !sec.hidden;
+        document.body.classList.toggle("psico-ativo", on);
+        if (on && window.innerWidth > 900 && !sb.classList.contains("recolhido")) { sb.classList.add("recolhido"); auto = true; }
+        if (!on && auto) { sb.classList.remove("recolhido"); auto = false; }
+      }
+      new MutationObserver(aplicar).observe(sec, { attributes: true, attributeFilter: ["hidden"] });
+      aplicar();
+    })();
+  </script>
 
   <section id="aba-ajuda" hidden></section>
 
