@@ -2,6 +2,13 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.8 — 05/10/2026
+
+- **Importação do histórico de AEP** (Registro › Avaliação Ergonômica › "Importar Excel"), no mesmo motor da V 1.6 (`js/importador.js`): modelo para baixar, **apelidos de colunas** comuns de sistemas anteriores (Empresa, Filial, Área, Posto, Função, Data da AEP, Jornada…) reconhecidos automaticamente, mapeamento manual, prévia e confirmação. Chave natural: Cliente + Unidade + Setor + Posto + Cargo + Atividade + Data da avaliação (atualiza, não duplica).
+- Jornada, Pausas e Rodízio ficam opcionais **só na importação** (no formulário continuam obrigatórios). Fotos não são importadas. Nenhuma rota nova na API; AET e gráficos inalterados.
+- Pendente (aguarda planilha real do sistema legado): mapeamento exato das colunas e dos 5 níveis de risco legados para os 4 níveis do S.I.G.E.
+- Service worker: cache `sige-v11`.
+
 ## V 1.7 — 05/10/2026
 
 Revisão de segurança (pen test: código + testes seguros em produção). Relatório completo em `docs/relatorio-seguranca-v1.7.md`.
