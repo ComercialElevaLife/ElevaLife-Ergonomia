@@ -140,10 +140,16 @@
     },
     {
       titulo: "Riscos Psicossociais",
-      objetivo: "Reservar o módulo de gestão dos riscos psicossociais.",
-      perfis: "—",
+      objetivo: "Avaliar os fatores de risco psicossociais (NR-01) com o HSE-IT e o checklist ISO 45003 e emitir o relatório.",
+      perfis: "Administrador e Consultor (as telas de resposta do QR code são públicas)",
       passos: [
-        "Módulo em construção. A gestão dos riscos psicossociais (NR-01) será disponibilizada em versões futuras.",
+        "Cadastre a empresa pelo CNPJ e baixe a Planilha de solicitação ao cliente (unidades, colaboradores e GHEs, taxa de frequência e ações já realizadas).",
+        "Importe a planilha devolvida pelo cliente na aba Colaboradores: unidades, GHEs, taxas de frequência e ações entram de uma vez.",
+        "Divulgue o QR code da coleta (ou o código curto): cada colaborador responde uma única vez com a matrícula; a matrícula não fica ligada às respostas.",
+        "Envie o QR code do checklist ISO 45003 ao gestor do contrato.",
+        "Em Análise de risco, escolha a matriz 4x4 ou 5x5: a probabilidade vem do HSE × ISO 45003 e a severidade da taxa de frequência.",
+        "Em Plano de ação, selecione as ações da Biblioteca Mestre para os GHEs com risco moderado ou acima; para trivial/baixo, valem as ações já realizadas.",
+        "Gere o relatório em Word (ao abrir, aceite atualizar os campos para montar o sumário).",
       ],
     },
   ];
@@ -263,6 +269,12 @@
   ];
 
   const HISTORICO = [
+    {
+      versao: "1.14", data: "06/10/2026",
+      itens: [
+        "Novo módulo Riscos Psicossociais (versão de testes): coleta do questionário HSE-IT por QR code com matrícula (resposta única e anônima), checklist ISO 45003 respondido pelo gestor do contrato, análise de risco (matriz 4x4 ou 5x5) com a taxa de frequência por GHE, plano de ação com a Biblioteca Mestre de 450 ações e relatório em Word gerado automaticamente.",
+      ],
+    },
     {
       versao: "1.13", data: "06/10/2026",
       itens: [
