@@ -29,6 +29,7 @@ const rotaAuth = require("./auth");
 const rotaCnpj = require("./cnpj");
 const rotaJobs = require("./lembretesPlanoAcao");
 const rotaVerificar = require("./verificar");
+const rotaPsicossocial = require("./psicossocial");
 const { excluirArquivosRemovidos } = require("../shared/blob");
 const { aplicarAuditoria } = require("../shared/auditoria");
 const { enviarEmail, modeloPlanoAcao, ESTAGIOS_PLANO_ACAO } = require("../shared/email");
@@ -103,6 +104,12 @@ const ROTAS_ESPECIAIS = {
   // GET /api/verificar/{codigo} - V 1.3: verificacao PUBLICA (sem login) de um
   // laudo pelo codigo impresso no documento / QR Code (ver verificar.js).
   verificar: rotaVerificar.tratar,
+  // V 1.14: modulo Riscos Psicossociais (psicossocial.html). "psico" e da
+  // equipe (sessao + papel Administrador/Consultor); "psicopub" e publico,
+  // usado pelas telas do QR code (HSE-IT e checklist ISO 45003) - ver
+  // api/src/functions/psicossocial.js.
+  psico: rotaPsicossocial.tratarEquipe,
+  psicopub: rotaPsicossocial.tratarPublico,
 };
 
 async function lerPorId(container, id) {
