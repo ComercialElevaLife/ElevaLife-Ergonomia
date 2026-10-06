@@ -270,6 +270,18 @@
 
   const HISTORICO = [
     {
+      versao: "1.16", data: "06/10/2026",
+      itens: [
+        "Riscos Psicossociais: severidade conforme o Manual SIF ElevaLife (SIF fixa por domínio, Severidade Final = SIF × 0,75 + EOaj × 0,25, evidência organizacional ajustável por GHE), matriz de risco 5 × 5 e referências do manual no laudo.",
+      ],
+    },
+    {
+      versao: "1.15", data: "06/10/2026",
+      itens: [
+        "Riscos Psicossociais: nova metodologia de severidade (SIF de cada fator do HSE cruzada com a evidência organizacional obtida da taxa de frequência), classificação de risco por fator e por GHE, tela em formato de computador com as etapas em ordem de preenchimento, referências bibliográficas editáveis e ajustes de texto no laudo.",
+      ],
+    },
+    {
       versao: "1.14", data: "06/10/2026",
       itens: [
         "Novo módulo Riscos Psicossociais (versão de testes): coleta do questionário HSE-IT por QR code com matrícula (resposta única e anônima), checklist ISO 45003 respondido pelo gestor do contrato, análise de risco (matriz 4x4 ou 5x5) com a taxa de frequência por GHE, plano de ação com a Biblioteca Mestre de 450 ações e relatório em Word gerado automaticamente.",
