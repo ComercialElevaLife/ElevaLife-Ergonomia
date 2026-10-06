@@ -270,6 +270,24 @@
 
   const HISTORICO = [
     {
+      versao: "1.20", data: "06/10/2026",
+      itens: ["Riscos Psicossociais: a planilha do plano de ação deixa de ter a aba Resumo por GHE."],
+    },
+    {
+      versao: "1.19", data: "06/10/2026",
+      itens: ["Riscos Psicossociais: no laudo, o resultado geral da empresa segue o mesmo padrão dos GHEs (interpretação por fator, quadro-resumo e graduação)."],
+    },
+    {
+      versao: "1.18", data: "06/10/2026",
+      itens: ["Riscos Psicossociais: matriz 5 × 5 igual ao modelo ElevaLife (inclui a célula de risco trivial)."],
+    },
+    {
+      versao: "1.17", data: "06/10/2026",
+      itens: [
+        "Riscos Psicossociais: novo padrão de cores das graduações (muito baixo/trivial azul claro, baixo verde, moderado amarelo, alto vermelho, muito alto roxo), laudo com interpretação de probabilidade, severidade e graduação por fator e quadro-resumo por GHE, e plano de ação em Excel com probabilidade e severidade do fator.",
+      ],
+    },
+    {
       versao: "1.16", data: "06/10/2026",
       itens: [
         "Riscos Psicossociais: severidade conforme o Manual SIF ElevaLife (SIF fixa por domínio, Severidade Final = SIF × 0,75 + EOaj × 0,25, evidência organizacional ajustável por GHE), matriz de risco 5 × 5 e referências do manual no laudo.",
