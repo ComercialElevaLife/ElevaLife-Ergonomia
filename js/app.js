@@ -3877,6 +3877,48 @@
     corpo.scrollTop = 0;
   }
 
+  // V 1.10 - importacao do Inventario de Riscos exportado do sistema anterior
+  // (relatorio com Empresa, Unidade, Setor, Cargo, Posto, Grupo, Fator, Criticidade,
+  // Probabilidade, Pontuacao, Graduacao, acoes...). Matriz usada para ler a escala:
+  // a do Cliente, se ja existir; senao a que sera atribuida ao Cliente novo.
+  const MATRIZ_LEGADO_PADRAO = "Matriz 4x4";
+  const SINONIMOS_ESCALA_LEGADO = {
+    leve: "Baixa", baixo: "Baixa", baixa: "Baixa", "muito baixo": "Muito Baixa", "muito baixa": "Muito Baixa",
+    medio: "Media", media: "Media", alto: "Alta", alta: "Alta", "muito alto": "Muito Alta", "muito alta": "Muito Alta",
+  };
+  function clienteJaCadastrado(nome) {
+    return (window.BI.dados.cliente || []).some((c) => c.Cliente === nome);
+  }
+  function matrizParaImportacao(nomeCliente) {
+    const Calc = window.BI.Calc;
+    return clienteJaCadastrado(nomeCliente) ? Calc.matrizDoCliente(window.BI.dados.cliente, nomeCliente) : MATRIZ_LEGADO_PADRAO;
+  }
+  function validarLinhaInventarioLegado(v) {
+    const Calc = window.BI.Calc;
+    const nome = matrizParaImportacao(v.Cliente);
+    const novo = { Matriz: nome };
+    const avisos = [];
+    const marcas = [];
+    const pontSigeCalc = Calc.pontuacaoDaMatriz(nome, v.Probabilidade, v.Criticidade);
+    const nivelSige = Calc.nivelDaMatriz(nome, v.Probabilidade, v.Criticidade);
+    // Regra combinada com o Leo: o que veio do legado e gravado exatamente como veio;
+    // o SIGE so calcula se a planilha nao trouxer pontuacao/graduacao.
+    if (v["Pontuacao Risco"] == null && pontSigeCalc != null) novo["Pontuacao Risco"] = pontSigeCalc;
+    if (!v["Graduacao Risco"] && nivelSige) novo["Graduacao Risco"] = nivelSige;
+    if (v["Graduacao Risco"] && nivelSige && window.BI.Importador.norm(v["Graduacao Risco"]) !== window.BI.Importador.norm(nivelSige)) {
+      marcas.push("gradDiverge");
+      avisos.push(`Graduação do legado “${v["Graduacao Risco"]}” difere da matriz do SIGE (“${nivelSige}”): mantida a do legado`);
+    }
+    if (clienteJaCadastrado(v.Cliente) && nome !== MATRIZ_LEGADO_PADRAO) {
+      marcas.push("matrizDiverge");
+      avisos.push(`O cliente usa a ${nome}, o legado usava a ${MATRIZ_LEGADO_PADRAO}: escala convertida por equivalência`);
+    }
+    const hoje = window.BI.Datas.hojeISO().split("-").reverse().join("/");
+    novo.Observacao = [v.Observacao, `Importado do sistema anterior em ${hoje}.`].filter(Boolean).join("\n");
+    if (v["Propor Acao"] == null && (v["Acao Eliminacao"] || v["Controles Administrativos"])) novo["Propor Acao"] = "Sim";
+    return { valores: novo, avisos, marcas };
+  }
+
   // grupo "mestre" = aba Cadastro (setup: estrutura organizacional valida);
   // grupo "registro" = aba Registro (input operacional do dia a dia).
   const CADASTROS_CONFIG = {
@@ -4169,6 +4211,56 @@
       },
       aoSalvarDepois: async (form, idFator) => {
         if (form._editorAcoes && form._editorAcoes.temAlteracoes()) await form._editorAcoes.salvar(idFator);
+      },
+      // V 1.10: importa o Inventario de Riscos exportado do sistema anterior (nao se
+      // perde historico). Cria o que faltar na hierarquia, revisa duplicadas e nomes
+      // parecidos, pede Atividade/Data padrao (o legado nao tem) e mantem a graduacao do legado.
+      importacao: {
+        arquivo: "inventario-riscos",
+        nomePlanilha: "Dados",
+        matrizNovoCliente: MATRIZ_LEGADO_PADRAO,
+        colunasPrevia: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Grupo", "Fator", "Criticidade", "Probabilidade", "Graduacao Risco"],
+        valoresVazios: ["-", "--", "Não informado", "N/A"],
+        sobrescrever: {
+          Grupo: { tipo: "texto" }, Fator: { tipo: "texto" }, Criticidade: { tipo: "texto" }, Probabilidade: { tipo: "texto" },
+          "Pontuacao Risco": { tipo: "numero", rotulo: "Pontuação de Risco", min: 0 },
+          "Graduacao Risco": { tipo: "texto", rotulo: "Graduação do Risco" },
+        },
+        camposExtras: [
+          { campo: "Propor Acao", rotulo: "Propor ação?", tipo: "select", opcoes: SIM_NAO },
+          { campo: "Acao Eliminacao", rotulo: "Ação para eliminação", tipo: "textarea" },
+          { campo: "Controles Administrativos", rotulo: "Controles administrativos e organizacionais", tipo: "textarea" },
+        ],
+        apelidos: {
+          "Cliente": ["Empresa", "Razao Social"],
+          "Posto Trabalho": ["Posto de trabalho", "Posto"],
+          "Medida Controle Existente": ["Medida de controle existente"],
+        },
+        padroes: [
+          { campo: "Atividade", rotulo: "Atividade padrão (o sistema anterior não tem)", sugestao: "Atividade não informada – histórico" },
+          { campo: "Dt Identificacao", rotulo: "Data de identificação (o sistema anterior não tem)", sugestao: () => window.BI.Datas.hojeISO() },
+        ],
+        correspondencia: () => ({
+          campos: ["Grupo", "Fator", "Criticidade", "Probabilidade"],
+          opcoesDe: (campo, valores) => {
+            const Calc = window.BI.Calc;
+            if (campo === "Grupo") return { opcoes: Calc.GRUPOS_FATOR_RISCO };
+            if (campo === "Fator") return { opcoes: Calc.fatoresDoGrupo(valores.Grupo), contexto: valores.Grupo };
+            const matriz = matrizParaImportacao(valores.Cliente);
+            return { opcoes: Calc.escalaDaMatriz(matriz), contexto: matriz };
+          },
+          sinonimos: { Criticidade: SINONIMOS_ESCALA_LEGADO, Probabilidade: SINONIMOS_ESCALA_LEGADO },
+        }),
+        duplicidade: {
+          campos: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Grupo", "Fator", "Circunstancia Geradora"],
+          ignorarNaAssinatura: ["Observacao", "Dt Identificacao", "Pontuacao Risco", "Graduacao Risco"],
+        },
+        marcas: {
+          gradDiverge: { chip: "graduação ≠ matriz SIGE", rotulo: "Graduação do legado difere da matriz do SIGE" },
+          matrizDiverge: { chip: "matriz do cliente ≠ legado", rotulo: "Matriz do cliente difere da do legado" },
+        },
+        validarLinha: validarLinhaInventarioLegado,
+        descricao: "Importe o Inventário de Riscos exportado do sistema anterior (uma linha por fator de risco). Cliente, Unidade, Setor, Posto, Cargo e Atividade que ainda não existirem podem ser criados automaticamente. A Graduação do Risco é mantida como veio do sistema anterior (as linhas em que ela difere da matriz do SIGE ficam marcadas). Linhas repetidas e nomes parecidos são apresentados para revisão. Antes de gravar nada, você confere tudo na prévia.",
       },
     },
     laudo: {
@@ -5150,26 +5242,46 @@
     if (!window.BI.DB.estado.disponivel) { mostrarErro("Banco de dados indisponível nesta visualização. Não é possível importar agora."); return; }
     const imp = cfg.importacao;
     const niveisNoCadastro = NIVEIS_HIERARQUIA.filter((n) => cfg.campos.some((c) => c.campo === n && c.tipo === "cascata"));
+    const identidade = window.BI.DB.estado.identidade;
+    const ehAdmin = !!(identidade && identidade.papel === "Administrador");
     const def = {
       colecao: chave,
       titulo: cfg.titulo,
       campos: cfg.campos.map((c) => {
         const opcional = imp.opcionais && imp.opcionais.indexOf(c.campo) >= 0;
         const apelidos = imp.apelidos && imp.apelidos[c.campo];
-        return opcional || apelidos
-          ? Object.assign({}, c, opcional ? { obrigatorio: false } : {}, apelidos ? { apelidos } : {})
+        const sobre = imp.sobrescrever && imp.sobrescrever[c.campo];
+        return opcional || apelidos || sobre
+          ? Object.assign({}, c, opcional ? { obrigatorio: false } : {}, apelidos ? { apelidos } : {}, sobre || {})
           : c;
-      }),
+      }).concat(imp.camposExtras || []),
       chaveNatural: imp.chaveNatural,
       arquivo: imp.arquivo,
       nomePlanilha: imp.nomePlanilha,
       colunasPrevia: imp.colunasPrevia,
       descricao: imp.descricao,
       rotulo: (c) => T(c.rotulo || c.campo),
+      // V 1.10
+      valoresVazios: imp.valoresVazios,
+      padroes: imp.padroes,
+      correspondencia: imp.correspondencia ? imp.correspondencia() : null,
+      duplicidade: imp.duplicidade,
+      marcas: imp.marcas,
+      validarLinha: imp.validarLinha,
     };
     const ctx = {
       existentes: () => window.BI.dados[chave] || [],
       opcoesCascata: (campo, atuais) => opcoesHierarquia(campo, atuais),
+      // V 1.10: cria no Cadastro o que a planilha traz e ainda nao existe (so Administrador cria Cliente).
+      hierarquia: niveisNoCadastro.length ? {
+        niveis: NIVEIS_HIERARQUIA,
+        colecao: (nivel) => COLECAO_DO_NIVEL[nivel],
+        podeCriar: (nivel) => nivel !== "Cliente" || ehAdmin,
+        dadosNovo: (nivel, dados) => (nivel === "Cliente"
+          ? Object.assign({}, dados, { "Matriz Risco": imp.matrizNovoCliente || window.BI.Calc.MATRIZ_PADRAO })
+          : Object.assign({}, dados)),
+        id: (nivel, dados) => window.BI.DB.idCadastroMestre[COLECAO_DO_NIVEL[nivel]](dados),
+      } : null,
       gerarId: () => novoIdRegistro(),
       // Aba "Referências" do modelo: combinacoes da hierarquia ja cadastradas
       // (somente as que o usuario enxerga), ate o nivel mais profundo do cadastro.
