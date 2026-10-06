@@ -69,7 +69,42 @@ aside{border-right:1px solid var(--line);padding:16px;display:flex;flex-directio
 .eitem:hover{background:var(--surface-2)}
 .eitem.on{background:var(--accent-soft)}
 .eitem small{color:var(--muted);font-size:.78rem}
-main{padding:20px 20px 48px;min-width:0;max-width:1320px;width:100%}
+main{padding:22px 24px 56px;min-width:0;max-width:1480px;width:100%;margin:0 auto}
+.ctx{background:var(--card);border-bottom:1px solid var(--ln);position:sticky;top:0;z-index:5;box-shadow:0 1px 0 rgba(94,42,48,.04)}
+.ctx-in{max-width:1480px;margin:0 auto;display:flex;align-items:center;gap:.6rem;padding:.6rem 24px;flex-wrap:wrap}
+.ctx-in .sp{flex:1}
+.crumb{border:0;background:none;font-family:var(--display);font-weight:700;color:var(--wine);padding:.3rem .2rem;font-size:.95rem}
+.crumb:hover{color:var(--deep)}
+.sep{color:var(--soft);font-weight:700}
+.ctx-sel select{min-width:300px;max-width:520px;font-weight:600;color:var(--deep);background:var(--bg);border-color:var(--ln)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ehead{display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;background:var(--card);border:1px solid var(--ln);border-left:4px solid var(--wine);border-radius:14px;padding:1rem 1.2rem;margin-bottom:1.1rem;box-shadow:var(--shadow)}
+.ehead-t{flex:1 1 440px;min-width:0}
+.ehead h1{font-size:1.45rem;margin:.2rem 0 0}
+.ehead .eyebrow b{color:var(--deep);letter-spacing:.12em}
+.cwrap{display:grid;grid-template-columns:clamp(210px,20vw,250px) minmax(0,1fr);gap:1.25rem;align-items:start}
+.steps{display:flex;flex-direction:column;gap:.15rem;background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:.6rem;position:sticky;top:70px;box-shadow:var(--shadow)}
+.sgrp{font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);font-weight:700;padding:.75rem .55rem .25rem}
+.step{display:flex;gap:.65rem;align-items:center;text-align:left;border:0;background:none;padding:.5rem .55rem;border-radius:9px;color:var(--ink);width:100%}
+.step i{flex:none;width:1.65rem;height:1.65rem;border-radius:99px;display:grid;place-items:center;font-style:normal;font-size:.78rem;font-weight:700;border:1.5px solid var(--soft);color:var(--wine);background:var(--card)}
+.step b{display:block;font-size:.86rem;font-weight:600;line-height:1.2}
+.step small{display:block;font-size:.72rem;color:var(--mut);line-height:1.25;margin-top:.1rem}
+.step:hover{background:var(--bg)}
+.step.ok i{background:var(--ok);border-color:var(--ok);color:#fff}
+.step.on{background:var(--tint)}
+.step.on i{background:var(--wine);border-color:var(--wine);color:#fff}
+.step.on b{color:var(--deep)}
+.cbody{min-width:0}
+.ctitle{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;padding-bottom:.8rem;border-bottom:1px solid var(--ln)}
+.ctitle h2{margin:.15rem 0 0;font-size:1.3rem}
+.kv{display:flex;justify-content:space-between;gap:1rem}
+.kv span{color:var(--mut)}
+.kv b{color:var(--deep);text-align:right}
+.ftira{display:flex;gap:2px}
+.ftira span{width:1.7rem;height:1.4rem;border-radius:4px;background:var(--c);color:#fff;font-size:.62rem;font-weight:700;display:grid;place-items:center;cursor:default}
+.ftira span.nd{color:var(--mut)}
+@media (max-width:920px){.cwrap{grid-template-columns:1fr}.steps{position:static;flex-direction:row;flex-wrap:wrap;padding:.5rem}.sgrp{display:none}.step{width:auto;flex:1 1 180px}}
+@media (max-width:640px){.ctx-sel select{min-width:0;max-width:100%}.ctx-in,main{padding-inline:16px}}
 .head{display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:1rem}
 .head .sp{flex:1}
 .tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--line);margin-bottom:1.25rem;overflow-x:auto}
@@ -253,11 +288,11 @@ const ITENS = [ // texto do questionário ElevaLife (ordem original do instrumen
 ];
 const NEG = new Set(DIMS.filter(d=>d.neg).map(d=>d.id));
 const RISCOS = [ // por score (média 1–5), metodologia Eleva
-  {min:4.61,nome:"Risco Muito Baixo",cor:"--ok",nivel:5},
-  {min:4.00,nome:"Risco Baixo",cor:"--teal",nivel:4},
-  {min:3.00,nome:"Risco Moderado",cor:"--warn",nivel:3},
-  {min:2.00,nome:"Risco Alto",cor:"--bad",nivel:2},
-  {min:0,nome:"Risco Muito Alto",cor:"--crit",nivel:1},
+  {min:4.61,nome:"Graduação muito baixa",cor:"--ok",nivel:5},
+  {min:4.00,nome:"Graduação baixa",cor:"--teal",nivel:4},
+  {min:3.00,nome:"Graduação moderada",cor:"--warn",nivel:3},
+  {min:2.00,nome:"Graduação alta",cor:"--bad",nivel:2},
+  {min:0,nome:"Graduação muito alta",cor:"--crit",nivel:1},
 ];
 const FAV_CORES = ["--crit","--bad","--warn","--teal","--ok"]; // pior → melhor
 const INTRO = "O HSE-IT é um questionário de reconhecimento internacional, desenvolvido para identificar fatores do dia a dia que podem influenciar tanto a saúde mental quanto a qualidade do ambiente de trabalho. Sua participação é essencial: quanto mais pessoas respondem, melhor se compreende a realidade e mais certeiras são as ações de apoio ao bem-estar de todos. A aplicação do HSE-IT atende às exigências da NR-1 quanto à identificação de perigos e avaliação de riscos psicossociais.";
@@ -330,31 +365,67 @@ const uNome = id=>S.data.unidades.find(u=>u.k===id)?.nome||"—";
 const gNome = id=>S.data.ghes.find(g=>g.k===id)?.nome||"—";
 
 // ===================== ADMIN RENDER =====================
+// Etapas na ordem de preenchimento
+const ETAPAS=[
+ {k:"dados",l:"Cadastro",g:"Preparação"},
+ {k:"colab",l:"Colaboradores",g:"Preparação"},
+ {k:"coleta",l:"Coleta HSE-IT",g:"Coleta"},
+ {k:"iso",l:"Checklist ISO 45003",g:"Coleta"},
+ {k:"tf",l:"Severidade (SIF e TF)",g:"Coleta"},
+ {k:"result",l:"Resultados HSE-IT",g:"Análise"},
+ {k:"analise",l:"Análise de risco",g:"Análise"},
+ {k:"plano",l:"Plano de ação",g:"Entrega"},
+ {k:"laudo",l:"Laudo",g:"Entrega"},
+ {k:"exportar",l:"Exportar plano",g:"Entrega"},
+];
+function statusEtapas(){
+  const e=emp(), D=S.data, R=roster(), L=todasAnalises(), iso=isoAtual(), resp=D.resps.length, cl=L.filter(x=>x.cat!=null).length;
+  const risco=L.filter(x=>x.cat>=2), comPlano=risco.filter(x=>Object.keys(x.a.acoes||{}).length).length, semEO=L.filter(x=>x.eo==null).length;
+  return {
+    dados:[!!(e.razao&&prof(e.ergId)), prof(e.ergId)?"completo":"definir profissionais"],
+    colab:[R.size>0, R.size?`${R.size} pessoas`:"importar planilha"],
+    coleta:[resp>0, R.size?`${resp} de ${R.size} · ${fmt(pct(resp,R.size),0)}%`:"aguardando"],
+    iso:[!!iso, iso?iso.nome:"aguardando gestor"],
+    tf:[L.length>0&&!semEO, L.length?(semEO?`${semEO} GHE(s) sem taxa`:"completo"):"aguardando"],
+    result:[resp>0, resp?`média ${fmt(tabular(D.resps).geral)}`:"sem respostas"],
+    analise:[L.length>0&&cl===L.length, L.length?`${cl} de ${L.length} GHEs`:"aguardando"],
+    plano:[cl>0&&comPlano===risco.length, risco.length?`${comPlano} de ${risco.length} GHEs`:cl?"sem GHE em risco":"aguardando"],
+    laudo:[false,"Word"],
+    exportar:[false,"Excel"],
+  };
+}
 function render(){
   if(/^#(r|iso)-/.test(location.hash)) return; // modo colaborador / gestor
-  const app=$("#app");
+  const app=$("#app"), e=emp();
   app.innerHTML=`
   <div class="top"><div class="brand"><span class="logo"><img src="${LOGO_H}" alt="ElevaLife"></span><span class="muted">Fatores Psicossociais</span></div><div class="sp"></div>
   ${db&&db._local?'<span class="pill pend">Modo local (teste)</span>':NO_CLAUDE?"":'<span class="pill pend">Protótipo</span>'}</div>
-  <div class="shell"><aside>
-    <button class="eitem ${!S.eid?"on":""}" id="painelGeral"><span><b>Painel geral</b></span><small>Todas as empresas</small></button>
-    <div class="row" style="justify-content:space-between"><span class="eyebrow">Empresas</span><button class="btn sm primary" id="novaEmp">+ Nova</button></div>
-    <div class="elist">${S.empresas.length?S.empresas.map(e=>`<button class="eitem ${e.k===S.eid?"on":""}" data-e="${e.k}"><span>${esc(e.razao)}</span><small>${esc(e.cnpj||"")} · ${e.status==="aberta"?"coleta aberta":"coleta encerrada"}</small></button>`).join(""):`<p class="muted" style="font-size:.88rem">Nenhuma empresa cadastrada. Comece por “+ Nova”.</p>`}</div>
-  </aside><main id="main">${mainHTML()}</main></div>`;
+  <div class="ctx"><div class="ctx-in">
+    <button class="crumb ${!e?"on":""}" id="painelGeral" title="Todas as empresas">Riscos psicossociais</button><span class="sep" aria-hidden="true">›</span>
+    <label class="ctx-sel"><span class="sr">Empresa</span><select id="selEmp" aria-label="Empresa"><option value="">Painel geral · todas as empresas</option>${S.empresas.map(x=>`<option value="${x.k}" ${x.k===S.eid?"selected":""}>${esc(x.razao)}</option>`).join("")}</select></label>
+    <div class="sp"></div><button class="btn sm primary" id="novaEmp">+ Nova empresa</button></div></div>
+  <main id="main" class="${e?"emp":""}">${mainHTML()}</main>`;
   $("#novaEmp").onclick=()=>empresaModal();
   $("#painelGeral").onclick=()=>{S.eid=null;S.data=null;render()};
-  app.querySelectorAll("[data-e]").forEach(b=>b.onclick=()=>{S.eid=b.dataset.e;S.tab="painel";S.escopo="empresa";S.imp=null;loadEmpresa(S.eid)});
+  $("#selEmp").onchange=ev=>{ const v=ev.target.value; if(!v){S.eid=null;S.data=null;render();return} S.eid=v;S.tab="painel";S.escopo="empresa";S.imp=null;loadEmpresa(v); };
   bindMain();
 }
 function mainHTML(){
   const e=emp();
   if(!e) return painelGeralHTML();
   if(S.loading||!S.data) return `<div class="empty">Carregando dados de ${esc(e.razao)}…</div>`;
-  const tabs=[["painel","Painel"],["coleta","Coleta HSE"],["colab","Colaboradores"],["result","Resultados HSE"],["iso","ISO 45003"],["tf","Taxa de frequência"],["analise","Análise de risco"],["plano","Plano de ação"],["exportar","Exportar plano"],["laudo","Laudo"],["dados","Dados da empresa"]];
-  return `<div class="head"><div><div class="eyebrow">${esc(e.cnpj||"")}</div><h1>${esc(e.razao)}</h1></div><div class="sp"></div>
-    <div class="row"><button class="btn sm primary" id="gerRel">Emitir laudo (Word)</button><button class="btn sm" id="planCli">Planilha de solicitação ao cliente</button><button class="btn sm" id="refresh">Atualizar</button><button class="btn sm" id="editEmp">Editar empresa</button><button class="btn sm danger" id="delEmp">Excluir</button></div></div>
-    <div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button class="tab ${S.tab===k?"on":""}" data-tab="${k}" role="tab">${l}</button>`).join("")}</div>
-    <div id="tabbody">${({tf:tabTF,exportar:tabExportar,laudo:tabLaudo,painel:tabPainel,coleta:tabColeta,colab:tabColab,result:tabResult,iso:tabIso,analise:tabAnalise,plano:tabPlano,dados:tabDados})[S.tab]()}</div>`;
+  const st=statusEtapas(); let grp="";
+  const corpo=({tf:tabTF,exportar:tabExportar,laudo:tabLaudo,painel:tabPainel,coleta:tabColeta,colab:tabColab,result:tabResult,iso:tabIso,analise:tabAnalise,plano:tabPlano,dados:tabDados})[S.tab]();
+  const et=ETAPAS.findIndex(x=>x.k===S.tab);
+  return `<div class="ehead"><div class="ehead-t"><div class="eyebrow">${esc(e.cnpj||"sem CNPJ")}${e.codigo?` · código da coleta <b>${esc(e.codigo)}</b>`:""} · ${e.status==="aberta"?'<span class="pill ok">Coleta aberta</span>':'<span class="pill pend">Coleta encerrada</span>'}</div><h1>${esc(e.razao)}</h1></div>
+    <div class="row ehead-a"><button class="btn sm primary" id="gerRel">Emitir laudo (Word)</button><button class="btn sm" id="planCli">Planilha de solicitação ao cliente</button><button class="btn sm" id="refresh">Atualizar</button><button class="btn sm" id="editEmp">Editar empresa</button><button class="btn sm danger" id="delEmp">Excluir</button></div></div>
+   <div class="cwrap"><nav class="steps" aria-label="Etapas da avaliação">
+    <button class="step vg ${S.tab==="painel"?"on":""}" data-tab="painel"><i>◎</i><span><b>Visão geral</b><small>painel da empresa</small></span></button>
+    ${ETAPAS.map((x,i)=>{ const [ok,sub]=st[x.k]; const h=x.g!==grp?(grp=x.g,`<div class="sgrp">${x.g}</div>`):""; return h+`<button class="step ${S.tab===x.k?"on":""} ${ok?"ok":""}" data-tab="${x.k}"><i>${ok?"✓":i+1}</i><span><b>${x.l}</b><small>${esc(sub)}</small></span></button>`; }).join("")}
+   </nav>
+   <section class="cbody"><div class="ctitle"><div><div class="eyebrow">${et>=0?`Etapa ${et+1} de ${ETAPAS.length} · ${ETAPAS[et].g}`:"Visão geral"}</div><h2>${et>=0?ETAPAS[et].l:"Painel da empresa"}</h2></div>
+     <div class="row">${et>0?`<button class="btn sm" data-tab="${ETAPAS[et-1].k}">← ${ETAPAS[et-1].l}</button>`:""}${et>=0&&et<ETAPAS.length-1?`<button class="btn sm primary" data-tab="${ETAPAS[et+1].k}">${ETAPAS[et+1].l} →</button>`:et<0?(()=>{const nx=ETAPAS.find(x=>!st[x.k][0]&&!["laudo","exportar"].includes(x.k))||ETAPAS.find(x=>x.k==="laudo");return `<button class="btn sm primary" data-tab="${nx.k}">Próxima etapa: ${nx.l} →</button>`})():""}</div></div>
+    <div id="tabbody">${corpo}</div></section></div>`;
 }
 function bindMain(){
   document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render()});
@@ -668,13 +739,20 @@ function tabDados(){ const e=emp(); const opt=id=>`<option value="">Selecione…
     <label class="f">Responsável técnico (supervisão)<select id="selRt">${opt(e.rtId)}</select></label>
     <p class="note">Nome, formação e conselho de classe aparecem na metodologia e nas assinaturas do relatório.</p></div>
    <div class="panel stack"><h3>Logo do cliente</h3>${e.logo?`<div style="background:#fff;border:1px solid var(--ln);border-radius:10px;padding:12px;align-self:flex-start"><img src="${e.logo}" alt="Logo do cliente" style="max-height:90px;max-width:260px"></div>`:`<p class="muted" style="margin:0">Opcional. Aparece na capa do relatório.</p>`}
-    <div class="row"><input type="file" id="logoCli" accept="image/png,image/jpeg" aria-label="Logo do cliente">${e.logo?`<button class="btn sm danger" id="logoRm">Remover</button>`:""}</div></div></div></div>`; }
+    <div class="row"><input type="file" id="logoCli" accept="image/png,image/jpeg" aria-label="Logo do cliente">${e.logo?`<button class="btn sm danger" id="logoRm">Remover</button>`:""}</div></div></div>
+  <div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Referências bibliográficas do laudo</h3><span class="tag">vale para todos os laudos</span></div>
+    <p class="muted" style="margin:0;font-size:.88rem">Uma referência por linha, no formato ABNT. Aparecem no capítulo “Referências bibliográficas”, em ordem alfabética.</p>
+    <textarea id="refTxt" rows="9" aria-label="Referências bibliográficas">${esc(referencias().join("\n"))}</textarea>
+    <div class="row"><button class="btn sm primary" id="refSalvar">Salvar referências</button><button class="btn sm" id="refPadrao">Restaurar padrão</button></div></div></div>`; }
 function bindDados(){ bindCnpj();
   $("#gerProf").onclick=()=>profissionaisModal();
   $("#selErg").onchange=async ev=>{await saveEmp({ergId:ev.target.value});toast("Ergonomista definido")};
   $("#selRt").onchange=async ev=>{await saveEmp({rtId:ev.target.value});toast("Responsável técnico definido")};
   $("#logoCli").onchange=async ev=>{const f=ev.target.files[0]; if(!f) return; const r=await redimLogo(f); await saveEmp({logo:r.url}); toast("Logo do cliente salvo")};
   if($("#logoRm")) $("#logoRm").onclick=async()=>{await saveEmp({logo:""});};
+  const salvaRef=async t=>{ await db.doc("config/laudo").set({referencias:t,atualizadoEm:hoje()}); REFERENCIAS=t; render(); };
+  $("#refSalvar").onclick=async()=>{ const t=linhas($("#refTxt").value).sort((a,b)=>a.localeCompare(b,"pt-BR")).join("\n"); await salvaRef(t); toast("Referências salvas"); };
+  $("#refPadrao").onclick=async()=>{ await salvaRef(""); toast("Referências padrão restauradas"); };
   $("#salvaDados").onclick=async()=>{const o=lerForm(); if(!o.razao) return toast("Informe a razão social"); await saveEmp(o); toast("Dados salvos")}; }
 function empresaModal(){
   const m=document.createElement("div"); m.className="modal"; m.innerHTML=`<div class="panel stack" role="dialog" aria-label="Nova empresa"><h2>Nova empresa</h2>${formEmp()}
@@ -738,14 +816,14 @@ const ISO_SECOES=[
 const ISO_ITENS=ISO_SECOES.flatMap(([s,its],si)=>its.map(t=>({s:si,t})));
 const ISO_OPC=[["S","Sim"],["P","Parcial"],["N","Não"]];
 function isoPontos(r){ return ISO_ITENS.reduce((a,_,i)=>a+(r[i]==="S"?1:r[i]==="P"?.5:0),0); }
-function isoClasse(p){ return p>=24?{i:0,nome:"Gestão eficaz",txt:"Gestão eficaz de riscos psicossociais."}:p>=17?{i:1,nome:"Gestão intermediária",txt:"Gestão intermediária, melhorias recomendadas."}:{i:2,nome:"Alto risco",txt:"Alto risco psicossocial, ações urgentes necessárias."}; }
+function isoClasse(p){ return p>=24?{i:0,nome:"Gestão eficaz",txt:"Gestão eficaz de riscos psicossociais."}:p>=17?{i:1,nome:"Gestão intermediária",txt:"Gestão intermediária, melhorias recomendadas."}:{i:2,nome:"Gestão ineficaz",txt:"Gestão ineficaz dos riscos psicossociais, ações urgentes necessárias."}; }
 const isoCompleto=r=>!!r&&ISO_ITENS.every((_,i)=>r[i]);
 function isoAtual(){ const d=S.data?.iso; if(!d||!isoCompleto(d.r)) return null; const p=isoPontos(d.r); return {...isoClasse(p),p}; }
 
 // Matrizes (metodologia ElevaLife)
-const PROB5=[[1,2,3],[1,2,3],[2,3,4],[3,4,5],[4,5,5]]; // [HSE: MB,B,Mod,Alto,MA][ISO: eficaz, intermediária, alto risco]
-const HSE_NOMES=["Muito Baixo","Baixo","Moderado","Alto","Muito Alto"];
-const ISO_NOMES=["Gestão eficaz","Gestão intermediária","Alto risco"];
+const PROB5=[[1,2,3],[1,2,3],[2,3,4],[3,4,5],[4,5,5]]; // [HSE: MB,B,Mod,Alta,MA][ISO: eficaz, intermediária, ineficaz]
+const HSE_NOMES=["Muito baixa","Baixa","Moderada","Alta","Muito alta"]; // graduação HSE
+const ISO_NOMES=["Gestão eficaz","Gestão intermediária","Gestão ineficaz"];
 const CAT=[
  {n:"Trivial",cor:"--teal",conduta:"Nenhuma ação é requerida e nenhum registro documental precisa ser mantido."},
  {n:"Baixo",cor:"--ok",conduta:"Pode-se estudar a implantação de ações preventivas e o monitoramento do risco para assegurar que os controles sejam mantidos."},
@@ -753,31 +831,61 @@ const CAT=[
  {n:"Alto",cor:"--bad",conduta:"Além do estudo sistemático da atividade, deve haver um plano de melhoria de curto prazo aprovado pela alta direção da empresa, para eliminar ou minimizar o risco."},
  {n:"Altíssimo",cor:"--crit",conduta:"Além do estudo sistemático da atividade, deve haver um plano de melhoria de prazo imediato, aprovado pela alta direção da empresa, para eliminar o risco."},
 ];
+// Severidade (metodologia ElevaLife V 1.15): SIF do fator HSE × evidência organizacional (EO), obtida da taxa de frequência
+const SIF_NOMES=["Baixa","Moderada","Alta","Crítica"];
+const SIF_PADRAO={dem:4,ctl:3,chf:4,col:3,rel:4,car:3,mud:3};
+// Manual SIF HSE-IT ElevaLife (Tabela 3 e Tabela 4). A SIF é fixa por domínio: só muda por revisão técnica formal do método.
+const SIF_DESC=["Baixo potencial de adoecimento; efeitos transitórios e reversíveis, sem repercussão funcional relevante.","Potencial de sofrimento psicológico quando a exposição é persistente; efeitos com repercussão funcional, mas sem associação consistente com desfechos graves.","Associação consistente, em revisões sistemáticas e meta-análises, com adoecimento ocupacional e incapacidade temporária.","Associação consistente com os desfechos mais graves descritos na literatura, incluindo risco à vida e repercussões jurídicas relevantes."];
+const SIF_DESF=["Desconforto e estresse leve.","Ansiedade, fadiga, presenteísmo.","Burnout, depressão, afastamentos.","TEPT, depressão grave, ideação suicida, eventos cardiovasculares."];
+const SIF_JUST={
+ dem:["Domínio que abrange jornada, ritmo, carga e ambiente de trabalho. As estimativas conjuntas OMS/OIT relacionam jornadas prolongadas a doença isquêmica do coração, acidente vascular cerebral e depressão, com desfechos de risco à vida; a combinação de alta demanda com baixo controle associa-se a depressão clínica e a doença coronariana.","Pega et al. (2021); Rugulies et al. (2021); Kivimäki et al. (2012); Madsen et al. (2017); WHO (2022)"],
+ rel:["Domínio que abrange conflito interpessoal e comportamentos inaceitáveis, incluindo assédio. Associação consistente com depressão grave, sintomas de transtorno de estresse pós-traumático, ideação suicida e afastamentos prolongados, além de elevado impacto jurídico e reputacional.","Nielsen e Einarsen (2012); Verkuil, Atasayi e Molendijk (2015); ISO (2021); WHO (2022)"],
+ chf:["Exerce influência sistêmica sobre os demais domínios: a chefia imediata modula demandas, controle, clareza de papel e condução da mudança. Baixo apoio da liderança e injustiça organizacional apresentam associação prospectiva com transtornos mentais comuns, burnout e afastamento, e a omissão da liderança é condição necessária para a perpetuação de comportamentos hostis.","Harvey et al. (2017); Ndjaboué, Brisson e Vézina (2012); Aronsson et al. (2017); ISO (2021); HSE (2007)"],
+ ctl:["Baixa autonomia e reduzida influência sobre o próprio trabalho — isoladamente e na configuração de tensão no trabalho — associam-se de forma robusta a sintomas depressivos, burnout e incapacidade temporária.","Karasek (1979); Karasek e Theorell (1990); Theorell et al. (2015); Madsen et al. (2017)"],
+ col:["Baixo suporte social entre pares aumenta consistentemente o risco de ansiedade, sintomas depressivos e burnout, e reduz o efeito protetor sobre as demais exposições do ambiente psicossocial.","Stansfeld e Candy (2006); Harvey et al. (2017); Aronsson et al. (2017)"],
+ car:["Ambiguidade, conflito de papéis e acúmulo de funções apresentam associação consistente com transtornos mentais comuns, exaustão emocional e afastamento do trabalho.","Stansfeld e Candy (2006); Harvey et al. (2017); Aronsson et al. (2017)"],
+ mud:["Mudanças organizacionais mal conduzidas e a insegurança delas decorrente associam-se a deterioração da saúde mental, aumento do uso de serviços de saúde e incremento do risco cardiovascular; o desequilíbrio entre esforço e recompensa percebido nesses contextos agrava o quadro.","Bamberger et al. (2012); Virtanen et al. (2013); Siegrist (1996); ISO (2021)"]};
+const EO_NOMES=["Muito baixa","Baixa","Moderada","Alta","Muito alta"];
+const EO_DESC=["Ausência de evidências objetivas de materialização do dano; indicadores organizacionais estáveis e medidas de prevenção implementadas e verificadas.","Evidências pontuais, isoladas ou não recorrentes, sem padrão identificável.","Evidências recorrentes em parte dos indicadores ou concentradas em grupos específicos de trabalhadores.","Evidências consistentes e convergentes em múltiplos indicadores.","Evidências consistentes, convergentes e de magnitude relevante, incluindo desfechos graves já materializados."];
+const EO_FAIXAS=["Menor que 2%","De 2% a menos de 5%","De 5% a 20%","Acima de 20%","Casos graves registrados"];
+const SEV_IDX=[[0.75,1,1.25,1.5,1.75],[1.5,1.75,2,2.25,2.5],[2.25,2.5,2.75,3,3.25],[3,3.25,3.5,3.75,4]]; // [SIF][EO]
+const SEV_NIV=[[1,1,1,2,2],[2,2,2,2,3],[2,3,3,3,3],[3,3,4,4,4]];
+const SEV_NOMES=["Baixa","Moderada","Alta","Crítica"];
+function eoTF(tf,grave){ if(grave) return 5; if(tf==null||tf==="") return null; tf=+tf; return tf<2?1:tf<5?2:tf<=20?3:4; }
+const sevSIF=(sif,eo)=>SEV_NIV[sif-1][eo-1];
+const sifEmp=()=>({...SIF_PADRAO}); // fixa (manual SIF), igual para todas as empresas
 const MATRIZ={
- "5x5":{P:["Muito baixa","Baixa","Moderada","Alta","Muito alta"],S:["Muito baixa","Baixa","Média","Alta","Muito alta"],
-   M:[[0,1,1,2,2],[1,1,2,2,3],[1,2,2,3,4],[2,2,3,4,4],[2,3,4,4,4]],conv:x=>x,
-   faixasS:["Menor que 2%","2% a menos de 5%","5% a 20%","Acima de 20%","Acima de 20% com condições ameaçadoras à vida"]},
- "4x4":{P:["Baixa","Moderada","Alta","Muito alta"],S:["Baixa","Média","Alta","Muito alta"],
-   M:[[0,0,1,2],[0,1,2,3],[1,2,3,4],[2,3,4,4]],conv:x=>x<=2?1:x-1,
-   faixasS:["Menor que 5%","5% a 20%","Acima de 20%","Acima de 20% com condições ameaçadoras à vida"]},
+ // 5 × 5: a SF tem 4 níveis; os dois níveis mais baixos da severidade (colunas 1 e 2) equivalem à SF 1 e usam a coluna 2 da matriz original (critério conservador)
+ "5x5":{rot:"5 × 5",P:["Muito baixa","Baixa","Moderada","Alta","Muito alta"],S:["Baixa","Baixa","Moderada","Alta","Crítica"],SF:["1","1","2","3","4"],
+   M:[[1,1,1,2,2],[1,1,2,2,3],[2,2,2,3,4],[2,2,3,4,4],[3,3,4,4,4]],conv:x=>x,sconv:sf=>sf+1},
+ "4x4":{rot:"4 × 4",P:["Baixa","Moderada","Alta","Muito alta"],S:SEV_NOMES,SF:["1","2","3","4"],
+   M:[[0,0,1,2],[0,1,2,3],[1,2,3,4],[2,3,4,4]],conv:x=>x<=2?1:x-1,sconv:sf=>sf},
 };
 const mz=()=>MATRIZ[emp()?.matriz==="4x4"?"4x4":"5x5"];
-function sev5(tf,grave){ if(tf==null||tf==="") return null; tf=+tf; return tf<2?1:tf<5?2:tf<=20?3:(grave?5:4); }
 const catTag=c=>c==null?'<span class="muted">—</span>':`<span class="chip" style="--c:var(${CAT[c].cor})">${CAT[c].n}</span>`;
 const parseNum=v=>{ if(v==null) return null; const s=String(v).trim().replace("%","").replace(/\s/g,"").replace(",","."); if(s==="") return null; const n=parseFloat(s); return isNaN(n)?null:n; };
 
+// Análise por fator do HSE: probabilidade (graduação do fator × ISO) e severidade (SIF do fator × EO do grupo).
+// A graduação do grupo é a do fator de maior risco.
+function analisarFatores(T,isoI,eo){
+  const m=mz(), sif=sifEmp(), fat={};
+  DIMS.forEach(d=>{ const sc=T.dims[d.id].score, f={sif:sif[d.id],score:sc};
+    if(sc!=null){ f.hse=5-risco(sc).nivel; if(isoI!=null) f.p=m.conv(PROB5[f.hse][isoI]); }
+    if(eo!=null){ f.sf=sevSIF(f.sif,eo); f.s=m.sconv(f.sf); }
+    if(f.p&&f.s) f.cat=m.M[f.p-1][f.s-1];
+    fat[d.id]=f; });
+  const cl=DIMS.map(d=>({id:d.id,...fat[d.id]})).filter(f=>f.cat!=null).sort((x,y)=>y.cat-x.cat||(y.p*y.s)-(x.p*x.s));
+  return {fat,top:cl[0]||null};
+}
 function analisar(g){
   const T=tabular(S.data.resps.filter(r=>r.gheId===g.k)); const a=S.data.analise[g.k]||{};
   const o={g,T,a,pend:[]};
   if(!T.n) o.pend.push("respostas HSE"); else { o.hse=5-risco(T.geral).nivel; }
   const iso=isoAtual(); if(!iso) o.pend.push("ISO 45003"); else o.iso=iso.i;
-  const s5=sev5(a.tf,a.grave); if(s5==null) o.pend.push("taxa de frequência");
-  const m=mz();
-  if(o.hse!=null&&o.iso!=null){ o.p=m.conv(PROB5[o.hse][o.iso]); }
-  if(s5!=null) o.s=m.conv(s5);
-  if(o.p&&o.s) o.cat=m.M[o.p-1][o.s-1];
-  // dimensões em risco (score < 4,00 = moderado ou pior)
-  o.dims=DIMS.filter(d=>T.dims[d.id].score!=null&&Math.round(T.dims[d.id].score*100)/100<4).map(d=>d.id);
+  const eo=[1,2,3,4,5].includes(+a.eoMan)?+a.eoMan:eoTF(a.tf,a.grave); if(eo==null) o.pend.push("taxa de frequência"); else o.eo=eo;
+  const {fat,top}=analisarFatores(T,o.iso,eo); o.fat=fat;
+  if(top){ o.cat=top.cat; o.p=top.p; o.s=top.s; o.sf=top.sf; o.critico=top.id; }
+  o.dims=DIMS.filter(d=>fat[d.id].cat>=2).map(d=>d.id); // fatores com risco moderado ou acima
   return o;
 }
 function todasAnalises(){ return S.data.unidades.flatMap(u=>S.data.ghes.filter(g=>g.unidadeId===u.k).map(g=>({u,...analisar(g)}))); }
@@ -797,7 +905,7 @@ function tabIso(){
     ${d?`<div class="kpis"><div class="kpi" style="padding:0"><div class="eyebrow">Pontuação</div><div class="v">${fmt(p,1)}<small class="muted" style="font-size:.9rem"> / 33</small></div></div><div class="kpi" style="padding:0"><div class="eyebrow">Graduação</div><div style="font-weight:700;color:var(--deep);margin-top:.4rem">${comp?c.nome:"Incompleto ("+resp+"/33)"}</div></div></div>
     ${comp?`<p style="margin:0">${c.txt}</p>`:""}
     <p class="muted" style="margin:0;font-size:.85rem">Respondido por <b>${esc(d.nome||"—")}</b>${d.cargo?", "+esc(d.cargo):""}${d.data?" em "+fmtData(d.data):""}${d.editadoEm?` · ajustado pela ElevaLife em ${fmtData(d.editadoEm)}`:""}</p>`:`<div class="empty" style="padding:1rem 0">O gestor ainda não respondeu. Envie o QR code ou preencha abaixo.</div>`}
-    <p class="note">Sim = 1 ponto, Parcial = 0,5, Não = 0. De 24 a 33 pontos: gestão eficaz. De 17 a 23,5: gestão intermediária. Abaixo de 17: alto risco.</p></div></div>
+    <p class="note">Sim = 1 ponto, Parcial = 0,5, Não = 0. De 24 a 33 pontos: gestão eficaz. De 17 a 23,5: gestão intermediária. Abaixo de 17: gestão ineficaz.</p></div></div>
    <div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Respostas</h3><div class="row"><span class="muted" id="isoSt" style="font-size:.85rem"></span>${S.data.iso?`<button class="btn sm danger" id="isoLimpar">Apagar respostas</button>`:""}<button class="btn sm primary" id="isoSalvar">Salvar alterações</button></div></div>
     ${ISO_SECOES.map(([sec,its],si)=>`<div><div class="eyebrow" style="margin:.6rem 0 .3rem">${si+1}. ${sec}</div><div class="tw"><table><tbody>${its.map((t)=>{const i=ISO_ITENS.findIndex(x=>x.t===t);return `<tr><td style="width:2.5rem" class="num muted">${i+1}</td><td>${t}</td><td style="width:220px"><div class="seg" role="radiogroup" aria-label="Item ${i+1}">${ISO_OPC.map(([v,l])=>`<button class="segb ${r[i]===v?"on":""}" data-iso="${i}" data-v="${v}">${l}</button>`).join("")}</div></td></tr>`}).join("")}</tbody></table></div></div>`).join("")}
    </div></div>`;
@@ -813,35 +921,35 @@ function bindIso(){
 }
 
 // ---------- Aba Análise de risco ----------
+const FAT_AB={dem:"DE",ctl:"CT",chf:"CH",col:"CL",rel:"RE",car:"CA",mud:"MU"};
+const fatTira=x=>`<div class="ftira">${DIMS.map(d=>{const f=x.fat?.[d.id]||{};return `<span title="${esc(d.nome)}: ${f.cat!=null?CAT[f.cat].n+` (P${f.p} × SF${f.sf})`:"sem classificação"}" class="${f.cat!=null?"":"nd"}" style="--c:var(${f.cat!=null?CAT[f.cat].cor:"--ln"})">${FAT_AB[d.id]}</span>`}).join("")}</div>`;
 function tabAnalise(){
-  const L=todasAnalises(), m=mz(), iso=isoAtual(), n=m.P.length;
+  const L=todasAnalises(), m=mz(), iso=isoAtual();
   const cont={}; L.forEach(x=>{if(x.cat!=null){const k=x.p+"-"+x.s;cont[k]=(cont[k]||0)+1}});
   const distCat=CAT.map((c,i)=>L.filter(x=>x.cat===i).length);
   return `<div class="stack">
   <div class="grid g12">
    <div class="panel stack"><h3>Parâmetros</h3>
     <label class="f">Matriz de risco<select id="matriz"><option value="5x5">5 × 5</option><option value="4x4">4 × 4</option></select></label>
-    <div class="row" style="justify-content:space-between"><span class="muted">ISO 45003 (gestão)</span><b style="color:var(--deep)">${iso?`${iso.nome} · ${fmt(iso.p,1)} pts`:'<span class="err">não respondido</span>'}</b></div>
-    <div class="row" style="justify-content:space-between"><span class="muted">GHEs analisados</span><b class="num">${L.filter(x=>x.cat!=null).length} de ${L.length}</b></div>
+    <div class="kv"><span>ISO 45003 (gestão)</span><b>${iso?`${iso.nome} · ${fmt(iso.p,1)} pts`:'<span class="err">não respondido</span>'}</b></div>
+    <div class="kv"><span>GHEs classificados</span><b class="num">${L.filter(x=>x.cat!=null).length} de ${L.length}</b></div>
     <div class="row">${distCat.map((q,i)=>q?`<span>${catTag(i)} <b class="num">${q}</b></span>`:"").join(" ")}</div>
-    <label class="f">TF geral da empresa, 12 meses (%)<input type="text" id="tfGeral" inputmode="decimal" value="${emp().tfGeral!=null&&emp().tfGeral!==""?String(emp().tfGeral).replace(".",","):""}" placeholder="Média ponderada dos GHEs: ${fmt(tfGeral(),1)}"></label>
     <label class="f">Ações já realizadas pela empresa (valem para todos os GHEs, uma por linha)<textarea id="realEmp" rows="4">${esc(emp().realizadas||"")}</textarea></label>
-    <div class="row"><button class="btn sm" id="salvaParam">Salvar parâmetros</button></div>
-    <div class="stack" style="border-top:1px solid var(--ln);padding-top:.8rem"><b style="font-size:.9rem">Importar taxa de frequência e ações realizadas</b>
-     <input type="file" id="fileTF" accept=".xlsx,.xls,.csv" aria-label="Planilha do cliente com taxa de frequência">
-     <span class="muted" style="font-size:.82rem">Use a planilha de solicitação devolvida pelo cliente (abas “Taxa de frequência” e “Ações já realizadas”).</span><span id="tfSt" class="muted" style="font-size:.85rem"></span></div>
+    <div class="row"><button class="btn sm" id="salvaParam">Salvar parâmetros</button><button class="btn sm" data-goto="tf">Severidade: SIF e taxa de frequência →</button></div>
    </div>
-   <div class="panel stack"><h3>Matriz ${n} × ${n}</h3>${matrizHTML(cont)}
-    <p class="note">Probabilidade = HSE × ISO 45003. Severidade = taxa de frequência do GHE nos últimos 12 meses. O número em cada célula é a quantidade de GHEs.</p></div>
+   <div class="panel stack"><h3>Matriz ${m.rot}</h3>${matrizHTML(cont)}
+    <p class="note">Cada fator do HSE é classificado: probabilidade = graduação do fator × ISO 45003; severidade final = SIF do fator × evidência organizacional (SF = SIF × 0,75 + EOaj × 0,25). A graduação do GHE é a do fator de maior risco. O número em cada célula é a quantidade de GHEs.</p></div>
   </div>
-  <div class="panel"><h3 style="margin-bottom:.5rem">Classificação por unidade e GHE</h3><div class="tw"><table class="anl"><thead><tr><th>Unidade / GHE</th><th>HSE</th><th>Probabilidade</th><th style="width:110px">TF 12 meses (%)</th><th title="Condições ameaçadoras à vida: ideação suicida, burnout severo, hospitalização">Casos graves</th><th>Severidade</th><th>Risco</th><th>Tratamento</th></tr></thead><tbody>
-  ${S.data.unidades.map(u=>`<tr class="unit"><td colspan="8">${esc(u.nome)}</td></tr>`+L.filter(x=>x.u.k===u.k).map(x=>`<tr>
+  <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:.5rem"><h3>Classificação por unidade e GHE</h3><span class="legend">${DIMS.map(d=>`<span><b>${FAT_AB[d.id]}</b> ${d.nome}</span>`).join("")}</span></div>
+  <div class="tw"><table class="anl"><thead><tr><th>Unidade / GHE</th><th>HSE (média)</th><th>Evidência (TF)</th><th>Fatores</th><th>Fator crítico</th><th>Probabilidade</th><th>Severidade</th><th>Risco do GHE</th><th>Tratamento</th></tr></thead><tbody>
+  ${S.data.unidades.map(u=>`<tr class="unit"><td colspan="9">${esc(u.nome)}</td></tr>`+L.filter(x=>x.u.k===u.k).map(x=>`<tr>
     <td style="padding-left:1.2rem">${esc(x.g.nome)}</td>
     <td>${x.hse!=null?`<span class="num">${fmt(x.T.geral)}</span> <span class="muted" style="font-size:.8rem">${HSE_NOMES[x.hse]}</span>`:'<span class="muted">sem respostas</span>'}</td>
+    <td>${x.eo?`${x.eo} · ${EO_NOMES[x.eo-1]} <span class="muted" style="font-size:.78rem">${x.a.eoMan?"ajustada":x.a.grave?"casos graves":x.a.tf!=null?fmt(+x.a.tf,1)+"%":""}</span>`:'<span class="muted">—</span>'}</td>
+    <td>${x.T.n?fatTira(x):""}</td>
+    <td>${x.critico?esc(dimNome(x.critico)):"—"}</td>
     <td>${x.p?`${x.p} · ${m.P[x.p-1]}`:"—"}</td>
-    <td><input type="text" inputmode="decimal" class="tf" data-tf="${x.g.k}" value="${x.a.tf!=null?String(x.a.tf).replace(".",","):""}" aria-label="Taxa de frequência ${esc(x.g.nome)}" placeholder="ex.: 1,5"></td>
-    <td><input type="checkbox" data-gr="${x.g.k}" ${x.a.grave?"checked":""} aria-label="Casos graves"></td>
-    <td>${x.s?`${x.s} · ${m.S[x.s-1]}`:"—"}</td>
+    <td>${x.sf?`SF ${x.sf} · ${SEV_NOMES[x.sf-1]}`:"—"}</td>
     <td>${x.cat!=null?catTag(x.cat):`<span class="muted" style="font-size:.8rem">falta ${x.pend.join(", ")}</span>`}</td>
     <td>${x.cat==null?"":x.cat<=1?`<button class="btn sm" data-real="${x.g.k}">${x.a.realizadas?"Ver ações realizadas":"+ Ações realizadas"}</button>`:`<button class="btn sm primary" data-plano="${x.g.k}">Plano (${Object.keys(x.a.acoes||{}).length})</button>`}</td></tr>`).join("")).join("")}
   </tbody></table></div>
@@ -849,18 +957,16 @@ function tabAnalise(){
   </div>`;
 }
 function matrizHTML(cont){
-  const m=mz(), n=m.P.length; let h=`<div class="tw"><table class="mtx"><thead><tr><th rowspan="2" style="background:none"></th><th colspan="${n}" style="text-align:center">Severidade</th></tr><tr>${m.S.map((s,j)=>`<th style="text-align:center">${j+1}<br><span style="text-transform:none;letter-spacing:0;font-weight:500">${s}</span></th>`).join("")}</tr></thead><tbody>`;
+  const m=mz(), n=m.P.length; let h=`<div class="tw"><table class="mtx"><thead><tr><th rowspan="2" style="background:none"></th><th colspan="${n}" style="text-align:center">Severidade</th></tr><tr>${m.S.map((s,j)=>`<th style="text-align:center">${j+1}<br><span style="text-transform:none;letter-spacing:0;font-weight:500">${s} · SF ${m.SF[j]}</span></th>`).join("")}</tr></thead><tbody>`;
   for(let p=n;p>=1;p--){ h+=`<tr><th style="white-space:nowrap">${p} · ${m.P[p-1]}</th>`+m.S.map((_,j)=>{const c=m.M[p-1][j],q=cont[p+"-"+(j+1)];return `<td class="mc" style="--c:var(${CAT[c].cor})" title="${CAT[c].n}"><span>${CAT[c].n}</span>${q?`<b>${q}</b>`:""}</td>`}).join("")+"</tr>"; }
-  return h+`</tbody></table></div><div class="muted" style="font-size:.78rem">Linhas: probabilidade · Colunas: severidade (${m.faixasS.map((f,i)=>`${i+1} = ${f}`).join("; ")})</div>`;
+  return h+`</tbody></table></div><div class="muted" style="font-size:.78rem">Linhas: probabilidade (graduação do fator no HSE × ISO 45003) · Colunas: severidade final (SF = SIF × 0,75 + EOaj × 0,25)${m.S.length===5?". Os níveis 1 e 2 equivalem à SF 1 (Baixa)":""}</div>`;
 }
 function bindAnalise(){
-  const sel=$("#matriz"); sel.value=emp().matriz==="4x4"?"4x4":"5x5"; sel.onchange=async()=>{await saveEmp({matriz:sel.value});toast("Matriz "+sel.value+" aplicada")};
-  document.querySelectorAll("[data-tf]").forEach(i=>i.onchange=async()=>{const v=parseNum(i.value); if(i.value.trim()&&v==null){toast("Informe um número, ex.: 1,5");return} await saveAnalise(i.dataset.tf,{tf:v}); render();});
-  document.querySelectorAll("[data-gr]").forEach(c=>c.onchange=async()=>{await saveAnalise(c.dataset.gr,{grave:c.checked}); render();});
+  const sel=$("#matriz"); sel.value=emp().matriz==="4x4"?"4x4":"5x5"; sel.onchange=async()=>{await saveEmp({matriz:sel.value});toast("Matriz "+mz().rot+" aplicada")};
   document.querySelectorAll("[data-real]").forEach(b=>b.onclick=()=>realizadasModal(b.dataset.real));
   document.querySelectorAll("[data-plano]").forEach(b=>b.onclick=()=>{S.tab="plano";S.planoGhe=b.dataset.plano;render();});
-  $("#salvaParam").onclick=async()=>{const v=$("#tfGeral").value.trim(); const n=parseNum(v); if(v&&n==null) return toast("TF geral inválida"); await saveEmp({tfGeral:v?n:null,realizadas:$("#realEmp").value.trim()}); toast("Parâmetros salvos")};
-  $("#fileTF").onchange=e=>{const f=e.target.files[0]; if(f) importarTF(f);};
+  document.querySelectorAll("[data-goto]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.goto;render()});
+  $("#salvaParam").onclick=async()=>{ await saveEmp({realizadas:$("#realEmp").value.trim()}); toast("Parâmetros salvos")};
 }
 function realizadasModal(gid){
   const a=S.data.analise[gid]||{}; const g=S.data.ghes.find(x=>x.k===gid);
@@ -910,30 +1016,41 @@ function importarTF(file){
 
 
 
-// ---------- Aba Taxa de frequência ----------
+// ---------- Aba Severidade (SIF × taxa de frequência) ----------
 function tabTF(){
-  const L=todasAnalises(), m=mz(), e=emp(), partSet=new Set(S.data.part.map(p=>p.k)), faltam=L.filter(x=>x.a.tf==null).length;
+  const L=todasAnalises(), m=mz(), e=emp(), sif=sifEmp(), partSet=new Set(S.data.part.map(p=>p.k)), faltam=L.filter(x=>x.eo==null).length;
   return `<div class="stack">
   <div class="grid g2">
-   <div class="panel stack"><h3>Taxa de frequência por GHE</h3>
-    <p class="muted" style="margin:0;font-size:.88rem">Informe a taxa de frequência de afastamentos dos últimos 12 meses de cada GHE, em % (ex.: 1,5). Ela define a severidade na matriz. Os campos são salvos ao sair de cada um.</p>
-    <div class="row">${faltam?`<span class="pill pend">${faltam} GHE(s) sem taxa</span>`:`<span class="pill ok">Todos os GHEs preenchidos</span>`}</div></div>
-   <div class="panel stack"><h3>Importar da planilha do cliente</h3>
-    <input type="file" id="fileTF" accept=".xlsx,.xls,.csv" aria-label="Planilha do cliente com taxa de frequência">
-    <span class="muted" style="font-size:.82rem">Lê as abas “Taxa de frequência” e “Ações já realizadas” da planilha de solicitação devolvida pelo cliente.</span><span id="tfSt" class="muted" style="font-size:.85rem"></span>
-    <label class="f">TF geral da empresa, 12 meses (%) <span style="font-weight:400">· opcional; em branco usa a média ponderada dos GHEs (${fmt(tfGeral(),1)}%)</span><input type="text" id="tfGeral" inputmode="decimal" value="${e.tfGeral!=null&&e.tfGeral!==""?String(e.tfGeral).replace(".",","):""}"></label></div>
+   <div class="panel stack"><h3>SIF por domínio do HSE-IT</h3>
+    <p class="muted" style="margin:0;font-size:.88rem">Severidade Intrínseca do Fator: atributo do perigo, definido pela literatura científica e igual para todas as avaliações (Manual SIF ElevaLife, Tabela 4). Só muda por revisão técnica formal do método.</p>
+    <div class="tw"><table><thead><tr><th>Domínio</th><th>SIF</th><th>Referências principais</th></tr></thead><tbody>
+    ${DIMS.map(d=>`<tr><td title="${esc(SIF_JUST[d.id][0])}">${d.nome}</td><td style="white-space:nowrap"><b>${sif[d.id]}</b> · ${SIF_NOMES[sif[d.id]-1]}</td><td style="font-size:.78rem" class="muted">${esc(SIF_JUST[d.id][1])}</td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="tw"><table><thead><tr><th>SIF</th><th>Critério</th><th>Desfechos de referência</th></tr></thead><tbody>${SIF_NOMES.map((n,i)=>`<tr><td style="white-space:nowrap"><b>${i+1}</b> · ${n}</td><td style="font-size:.8rem">${SIF_DESC[i]}</td><td style="font-size:.8rem">${SIF_DESF[i]}</td></tr>`).join("")}</tbody></table></div></div>
+   <div class="panel stack"><h3>Severidade final (SF): SIF × evidência organizacional</h3><div class="codebox" style="font-size:.9rem">SF = SIF × 0,75 + EOaj × 0,25</div>
+    <div class="tw"><table class="mtx"><thead><tr><th style="background:none">SIF ↓ · EO →</th>${EO_NOMES.map((n,j)=>`<th style="text-align:center">${j+1}<br><span style="text-transform:none;letter-spacing:0;font-weight:500">${n}</span></th>`).join("")}</tr></thead><tbody>
+    ${SIF_NOMES.map((n,i)=>`<tr><th style="white-space:nowrap">${i+1} · ${n}</th>${EO_NOMES.map((_,j)=>{const v=SEV_NIV[i][j];return `<td class="mc" style="--c:var(${["--teal","--ok","--warn","--bad"][v-1]})"><span>${fmt(SEV_IDX[i][j],2)}</span><b>${v}</b></td>`}).join("")}</tr>`).join("")}
+    </tbody></table></div>
+    <div class="tw"><table><thead><tr><th>EO</th><th class="num">EOaj</th><th>Taxa de frequência</th><th>Interpretação</th></tr></thead><tbody>${EO_NOMES.map((n,i)=>`<tr><td style="white-space:nowrap"><b>${i+1}</b> · ${n}</td><td class="num">${i}</td><td style="white-space:nowrap">${EO_FAIXAS[i]}</td><td style="font-size:.82rem">${EO_DESC[i]}</td></tr>`).join("")}</tbody></table></div>
+    <p class="note">SF enquadrada no inteiro mais próximo (0,50 sobe): 1 = Baixa, 2 = Moderada, 3 = Alta, 4 = Crítica. A EO é sugerida pela taxa de frequência; “casos graves” (ideação suicida, burnout severo, hospitalização) leva ao nível 5. Ela pode ser ajustada por GHE com base em outros indicadores da empresa (afastamentos CID F, rotatividade, horas extras, denúncias, passivo trabalhista); na dúvida, adota-se o nível mais conservador.</p></div>
   </div>
-  <div class="panel"><div class="tw"><table><thead><tr><th>Unidade / GHE</th><th class="num">Pessoas</th><th class="num">Respostas</th><th style="width:120px">TF 12 meses (%)</th><th style="width:170px">Período de referência</th><th title="Ideação suicida, burnout severo, hospitalização ou outra condição ameaçadora à vida">Casos graves</th><th>Severidade (${m.S.length} níveis)</th></tr></thead><tbody>
-  ${S.data.unidades.map(u=>`<tr class="unit"><td colspan="7">${esc(u.nome)}</td></tr>`+L.filter(x=>x.u.k===u.k).map(x=>{ const ks=Object.keys(x.g.colab||{}); return `<tr>
+  <div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Taxa de frequência por GHE (últimos 12 meses)</h3>${faltam?`<span class="pill pend">${faltam} GHE(s) sem taxa</span>`:`<span class="pill ok">Todos os GHEs preenchidos</span>`}</div>
+   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));align-items:end">
+    <label class="f">Importar da planilha do cliente<input type="file" id="fileTF" accept=".xlsx,.xls,.csv" aria-label="Planilha do cliente com taxa de frequência"></label>
+    <label class="f">TF geral da empresa (%)<input type="text" id="tfGeral" inputmode="decimal" placeholder="Em branco: média ponderada dos GHEs (${fmt(tfGeral(),1)}%)" value="${e.tfGeral!=null&&e.tfGeral!==""?String(e.tfGeral).replace(".",","):""}"></label></div>
+   <span id="tfSt" class="muted" style="font-size:.85rem"></span>
+   <div class="tw"><table><thead><tr><th>Unidade / GHE</th><th class="num">Pessoas</th><th class="num">Respostas</th><th style="width:120px">TF 12 meses (%)</th><th style="width:170px">Período de referência</th><th title="Ideação suicida, burnout severo, hospitalização ou outra condição ameaçadora à vida">Casos graves</th><th>Evidência organizacional (EO)</th><th>SF por fator</th></tr></thead><tbody>
+  ${S.data.unidades.map(u=>`<tr class="unit"><td colspan="8">${esc(u.nome)}</td></tr>`+L.filter(x=>x.u.k===u.k).map(x=>{ const ks=Object.keys(x.g.colab||{}); return `<tr>
     <td style="padding-left:1.2rem">${esc(x.g.nome)}</td><td class="num">${ks.length}</td><td class="num">${ks.filter(k=>partSet.has(k)).length}</td>
     <td><input type="text" inputmode="decimal" class="tf" data-tf="${x.g.k}" value="${x.a.tf!=null?String(x.a.tf).replace(".",","):""}" placeholder="ex.: 1,5" aria-label="Taxa de frequência ${esc(x.g.nome)}"></td>
     <td><input type="text" data-tfp="${x.g.k}" value="${esc(x.a.tfPeriodo||"")}" placeholder="ex.: out/25 a set/26" aria-label="Período de referência"></td>
     <td><input type="checkbox" data-gr="${x.g.k}" ${x.a.grave?"checked":""} aria-label="Casos graves"></td>
-    <td>${x.s?`${x.s} · ${m.S[x.s-1]}`:'<span class="muted">—</span>'}</td></tr>`}).join("")).join("")}
-  </tbody></table></div>
-  <p class="note">Faixas: ${m.faixasS.map((f,i)=>`${i+1} = ${f}`).join("; ")}. “Casos graves” só eleva a severidade quando a taxa passa de 20%.</p></div></div>`;
+    <td>${(()=>{const au=eoTF(x.a.tf,x.a.grave);return `<select data-eo="${x.g.k}" aria-label="Evidência organizacional ${esc(x.g.nome)}" style="min-width:200px"><option value="">${au?`Pela TF: ${au} · ${EO_NOMES[au-1]}`:"Pela TF: —"}</option>${EO_NOMES.map((n,i)=>`<option value="${i+1}" ${+x.a.eoMan===i+1?"selected":""}>Ajustada: ${i+1} · ${n}</option>`).join("")}</select>`})()}</td>
+    <td>${x.eo?`<span class="muted" style="font-size:.8rem">${[1,2,3,4].map(v=>{const n=DIMS.filter(d=>x.fat[d.id].sf===v).length;return n?`${n}× ${SEV_NOMES[v-1].toLowerCase()}`:""}).filter(Boolean).join(" · ")}</span>`:""}</td></tr>`}).join("")).join("")}
+  </tbody></table></div></div></div>`;
 }
 function bindTF(){
+  document.querySelectorAll("[data-eo]").forEach(sl=>sl.onchange=async()=>{ await saveAnalise(sl.dataset.eo,{eoMan:sl.value?+sl.value:null}); toast(sl.value?"Evidência ajustada":"Evidência pela taxa de frequência"); render(); });
   document.querySelectorAll("[data-tf]").forEach(i=>i.onchange=async()=>{const v=parseNum(i.value); if(i.value.trim()&&v==null){toast("Informe um número, ex.: 1,5");return} await saveAnalise(i.dataset.tf,{tf:v}); toast("Taxa salva"); render();});
   document.querySelectorAll("[data-tfp]").forEach(i=>i.onchange=async()=>{await saveAnalise(i.dataset.tfp,{tfPeriodo:i.value.trim()}); toast("Período salvo");});
   document.querySelectorAll("[data-gr]").forEach(c=>c.onchange=async()=>{await saveAnalise(c.dataset.gr,{grave:c.checked}); render();});
@@ -984,7 +1101,7 @@ async function exportarPlanoExcel(btn,escopo){
     function cab(ws,titulo,sub,ncol){ ws.mergeCells(1,1,1,ncol); const t=ws.getCell(1,1); t.value=titulo; t.font=F({size:13,bold:true,color:{argb:"FFFFFFFF"}}); t.fill=fill(C.deep); t.alignment={vertical:"middle",indent:1}; ws.getRow(1).height=28;
       ws.mergeCells(2,1,2,ncol); const s2=ws.getCell(2,1); s2.value=sub; s2.font=F({italic:true,color:{argb:C.mut}}); s2.alignment={indent:1}; }
     function cabecalho(ws,row,labels){ const r=ws.getRow(row); labels.forEach((l,i)=>{const c=r.getCell(i+1); c.value=l; c.font=F({bold:true,color:{argb:"FFFFFFFF"}}); c.fill=fill(C.wine); c.alignment={vertical:"middle",wrapText:true};}); r.height=32; }
-    const sub=`${e.razao}${e.cnpj?" · CNPJ "+e.cnpj:""} · Escopo: ${nomeEsc} · Matriz ${mz().P.length}x${mz().S.length} · Gerado em ${new Date().toLocaleDateString("pt-BR")}`;
+    const sub=`${e.razao}${e.cnpj?" · CNPJ "+e.cnpj:""} · Escopo: ${nomeEsc} · Matriz ${mz().rot.replace(/ /g,"")} · Gerado em ${new Date().toLocaleDateString("pt-BR")}`;
     // Plano de ação
     const cols=[["Empresa",26],["Unidade",24],["GHE",28],["Graduação do risco",14],["Código",16],["Fator",18],["Subfator",22],["Risco encontrado",34],["Recomendação técnica",60],["Resultado esperado",36],["Hierarquia de controle",24],["Tipo de intervenção",16],["Estudo complementar",22],["Prazo",14],["Data limite",12],["Responsável",22],["Status",16],["Indicador de eficácia",34],["Evidência organizacional",28],["Achado (motivo da ação)",44],["Origem",22]];
     const ws=wb.addWorksheet("Plano de ação",{views:[{state:"frozen",ySplit:3,xSplit:3,showGridLines:false}],properties:{tabColor:{argb:C.wine}}});
@@ -1025,7 +1142,7 @@ function tabLaudo(){
     ${linha("ISO 45003",iso?`${iso.nome} (${fmt(iso.p,1)} pts)`:"pendente")}${linha("GHEs classificados",`${L.filter(x=>x.cat!=null).length} de ${L.length}`)}
     ${linha("GHEs com plano de ação (moderado ou acima)",emRisco.length)}${linha("Ações no laudo",nAc)}
     ${linha("Ergonomista",esc(prof(e.ergId)?.nome||"não definido"))}${linha("Responsável técnico",esc(prof(e.rtId)?.nome||"não definido"))}
-    <p class="note">Capítulos: apresentação, demanda, dados cadastrais, metodologia (HSE-IT, ISO 45003, probabilidade, severidade e matriz), dados e resultados gerais, resultado por unidade e GHE com gráfico, graduação e plano de ação, plano de ação consolidado, conclusão, checklist ISO 45003, perguntas do HSE-IT e encerramento com assinaturas.</p></div></div>`;
+    <p class="note">Capítulos: apresentação, demanda, dados cadastrais, metodologia (HSE-IT, ISO 45003, probabilidade, severidade por SIF × evidência organizacional e matriz), dados e resultados gerais, resultado por unidade e GHE com gráfico, graduação e plano de ação, plano de ação consolidado, conclusão, referências bibliográficas, checklist ISO 45003, perguntas do HSE-IT e encerramento com assinaturas.</p></div></div>`;
 }
 function bindLaudo(){ document.querySelectorAll("[data-goto]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.goto;render()}); $("#laudoEmitir").onclick=async()=>{ await recomendarTodos(false); gerarRelatorio($("#laudoEmitir")); }; }
 
@@ -1108,7 +1225,7 @@ function sugestoesHTML(x){
   if(!x) return "";
   const niveis=S.planoTodos?null:NIVEL_ACAO[x.cat]; const dims=x.dims.length?x.dims:DIMS.map(d=>d.id); const sel=x.a.acoes||{};
   const lista=BIBLIOTECA.filter(b=>dims.includes(b[1])&&(!niveis||niveis.includes(b[4])));
-  return `<div class="row" style="gap:1rem;font-size:.85rem"><button class="btn sm" id="recGhe">Recomendar automaticamente para este GHE</button><span>Risco ${catTag(x.cat)}</span><span class="muted">Fatores com HSE moderado ou pior: <b style="color:var(--deep)">${x.dims.length?x.dims.map(dimNome).join(", "):"nenhum (sugerindo todos os fatores)"}</b></span>
+  return `<div class="row" style="gap:1rem;font-size:.85rem"><button class="btn sm" id="recGhe">Recomendar automaticamente para este GHE</button><span>Risco ${catTag(x.cat)}</span><span class="muted">Fatores com risco moderado ou acima: <b style="color:var(--deep)">${x.dims.length?x.dims.map(dimNome).join(", "):"nenhum (sugerindo todos os fatores)"}</b></span>
    <label class="row" style="gap:.35rem"><input type="checkbox" id="planoTodos" ${S.planoTodos?"checked":""}> mostrar todos os níveis</label></div>
    <p class="note">Sugestões filtradas pelo nível ${niveis?niveis.join(" / "):"(todos)"} da biblioteca. Marque as ações que entram no plano deste GHE.</p>
    ${dims.map(d=>{const its=lista.filter(b=>b[1]===d); if(!its.length) return ""; const ns=its.filter(b=>sel[b[0]]).length;
@@ -1232,13 +1349,54 @@ function tfGeral(){ const e=emp(); if(e.tfGeral!=null&&e.tfGeral!=="") return +e
 function periodoTxt(e){ return !e.inicio?"—":e.fim?`${fmtData(e.inicio)} a ${fmtData(e.fim)}`:`a partir de ${fmtData(e.inicio)}`; }
 function linhas(t){ return String(t||"").split(/\n+/).map(x=>x.replace(/^[\s•\-–*]+/,"").trim()).filter(Boolean); }
 
+// Razão social em caixa normal no texto corrido (a planilha da Receita vem em maiúsculas)
+function nomeTxt(r){ r=String(r||"").trim(); const le=r.replace(/[^A-Za-zÀ-ÿ]/g,""); if(!le||le.replace(/[^A-ZÀ-Þ]/g,"").length/le.length<.6) return r;
+  const sig={LTDA:"Ltda.","LTDA.":"Ltda.",SA:"S.A.","S.A.":"S.A.","S/A":"S/A",ME:"ME",EPP:"EPP",EIRELI:"EIRELI",SPE:"SPE",ELEVALIFE:"ElevaLife"}, min=new Set(["e","de","da","do","das","dos","em","para"]);
+  return r.split(/(\s+)/).map((w0,i)=>{ if(/^\s+$/.test(w0)) return w0; if(w0!==w0.toUpperCase()) return w0; const w=w0.toLowerCase(), up=w0; if(sig[up]) return sig[up]; if(i>0&&min.has(w)) return w; return w.charAt(0).toUpperCase()+w.slice(1); }).join(""); }
+const REFERENCIAS_PADRAO=[ // Manual SIF HSE-IT ElevaLife + normas citadas no laudo
+ "ARONSSON, G. et al. A systematic review including meta-analysis of work environment and burnout symptoms. BMC Public Health, v. 17, art. 264, 2017.",
+ "ASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS. NBR ISO 31000: gestão de riscos — diretrizes. Rio de Janeiro: ABNT, 2018.",
+ "BAMBERGER, S. G. et al. Impact of organisational change on mental health: a systematic review. Occupational and Environmental Medicine, v. 69, n. 8, p. 592-598, 2012.",
+ "BRASIL. Ministério do Trabalho e Emprego. Norma Regulamentadora nº 1 — Disposições gerais e gerenciamento de riscos ocupacionais. Brasília, DF: MTE, 2020. Com alterações posteriores.",
+ "BRASIL. Ministério do Trabalho e Emprego. Norma Regulamentadora nº 17 — Ergonomia. Brasília, DF: MTE, 2022.",
+ "BRASIL. Ministério do Trabalho e Emprego. Portaria MTE nº 765, de 15 de maio de 2025. Prorroga o início da vigência do capítulo 1.5 da NR-1. Brasília, DF: MTE, 2025.",
+ "BRASIL. Secretaria Especial de Previdência e Trabalho. Norma Regulamentadora nº 7 — Programa de Controle Médico de Saúde Ocupacional. Redação dada pela Portaria SEPRT nº 6.734, de 9 de março de 2020.",
+ "COUSINS, R. et al. “Management Standards” and work-related stress in the UK: practical development. Work & Stress, v. 18, n. 2, p. 113-136, 2004.",
+ "EDWARDS, J. A. et al. Psychometric analysis of the UK Health and Safety Executive’s Management Standards work-related stress Indicator Tool. Work & Stress, v. 22, n. 2, p. 96-107, 2008.",
+ "EUROFOUND; EUROPEAN AGENCY FOR SAFETY AND HEALTH AT WORK. Psychosocial risks in Europe: prevalence and strategies for prevention. Luxembourg: Publications Office of the European Union, 2014.",
+ "HARVEY, S. B. et al. Can work make you mentally ill? A systematic meta-review of work-related risk factors for common mental health problems. Occupational and Environmental Medicine, v. 74, n. 4, p. 301-310, 2017.",
+ "HEALTH AND SAFETY EXECUTIVE. HSE Management Standards Indicator Tool: user manual. Bootle: HSE, [s.d.].",
+ "HEALTH AND SAFETY EXECUTIVE. Managing the causes of work-related stress: a step-by-step approach using the Management Standards. 2. ed. Sudbury: HSE Books, 2007.",
+ "INTERNATIONAL LABOUR OFFICE. Psychosocial factors at work: recognition and control. Report of the Joint ILO/WHO Committee on Occupational Health. Geneva: ILO, 1986. (Occupational Safety and Health Series, 56).",
+ "INTERNATIONAL ORGANIZATION FOR STANDARDIZATION. ISO 45001:2018 — Occupational health and safety management systems: requirements with guidance for use. Geneva: ISO, 2018.",
+ "INTERNATIONAL ORGANIZATION FOR STANDARDIZATION. ISO 45003:2021 — Occupational health and safety management: psychological health and safety at work — guidelines for managing psychosocial risks. Geneva: ISO, 2021.",
+ "KARASEK, R. A. Job demands, job decision latitude, and mental strain: implications for job redesign. Administrative Science Quarterly, v. 24, n. 2, p. 285-308, 1979.",
+ "KARASEK, R.; THEORELL, T. Healthy work: stress, productivity and the reconstruction of working life. New York: Basic Books, 1990.",
+ "KIVIMÄKI, M. et al. Job strain as a risk factor for coronary heart disease: a collaborative meta-analysis of individual participant data. The Lancet, v. 380, n. 9852, p. 1491-1497, 2012.",
+ "LEKA, S.; JAIN, A. Health impact of psychosocial hazards at work: an overview. Geneva: World Health Organization, 2010.",
+ "MACKAY, C. J. et al. “Management Standards” and work-related stress in the UK: policy background and science. Work & Stress, v. 18, n. 2, p. 91-112, 2004.",
+ "MADSEN, I. E. H. et al. Job strain as a risk factor for clinical depression: systematic review and meta-analysis with additional individual participant data. Psychological Medicine, v. 47, n. 8, p. 1342-1356, 2017.",
+ "NDJABOUÉ, R.; BRISSON, C.; VÉZINA, M. Organisational justice and mental health: a systematic review of prospective studies. Occupational and Environmental Medicine, v. 69, n. 10, p. 694-700, 2012.",
+ "NIEDHAMMER, I.; BERTRAIS, S.; WITT, K. Psychosocial work exposures and health outcomes: a meta-review of 72 literature reviews with meta-analysis. Scandinavian Journal of Work, Environment & Health, v. 47, n. 7, p. 489-508, 2021.",
+ "NIELSEN, M. B.; EINARSEN, S. Outcomes of exposure to workplace bullying: a meta-analytic review. Work & Stress, v. 26, n. 4, p. 309-332, 2012.",
+ "PEGA, F. et al. Global, regional, and national burdens of ischemic heart disease and stroke attributable to exposure to long working hours for 194 countries, 2000-2016: a systematic analysis from the WHO/ILO Joint Estimates of the Work-related Burden of Disease and Injury. Environment International, v. 154, art. 106595, 2021.",
+ "RUGULIES, R. et al. The effect of exposure to long working hours on depression: a systematic review and meta-analysis from the WHO/ILO Joint Estimates of the Work-related Burden of Disease and Injury. Environment International, v. 155, art. 106629, 2021.",
+ "SIEGRIST, J. Adverse health effects of high-effort/low-reward conditions. Journal of Occupational Health Psychology, v. 1, n. 1, p. 27-41, 1996.",
+ "STANSFELD, S.; CANDY, B. Psychosocial work environment and mental health: a meta-analytic review. Scandinavian Journal of Work, Environment & Health, v. 32, n. 6, p. 443-462, 2006.",
+ "THEORELL, T. et al. A systematic review including meta-analysis of work environment and depressive symptoms. BMC Public Health, v. 15, art. 738, 2015.",
+ "VERKUIL, B.; ATASAYI, S.; MOLENDIJK, M. L. Workplace bullying and mental health: a meta-analysis on cross-sectional and longitudinal data. PLoS ONE, v. 10, n. 8, e0135225, 2015.",
+ "VIRTANEN, M. et al. Perceived job insecurity as a risk factor for incident coronary heart disease: systematic review and meta-analysis. BMJ, v. 347, f4746, 2013.",
+ "WORLD HEALTH ORGANIZATION. WHO guidelines on mental health at work. Geneva: WHO, 2022.",
+ "WORLD HEALTH ORGANIZATION; INTERNATIONAL LABOUR ORGANIZATION. Mental health at work: policy brief. Geneva: WHO; ILO, 2022."];
+let REFERENCIAS=null; // texto salvo em config/laudo (uma referência por linha); null = padrão
+const referencias=()=>{ const t=linhas(REFERENCIAS||""); return t.length?t:REFERENCIAS_PADRAO; };
 async function gerarRelatorio(btn){
   if(!dl) return toast("Download indisponível nesta visualização");
   if(typeof docx==="undefined") return toast("Gerador de Word não carregou. Recarregue a página.");
   const lbl=btn.textContent; btn.disabled=true; btn.textContent="Gerando laudo…";
   try{
     const D=docx, e=emp(), m=mz(), L=todasAnalises(), TG=tabular(S.data.resps), iso=isoAtual(), erg=prof(e.ergId), rt=prof(e.rtId);
-    const R=roster(); const nResp=S.data.resps.length, nCad=R.size;
+    const R=roster(); const nResp=S.data.resps.length, nCad=R.size, NE=nomeTxt(e.razao), mesmoProf=!!(erg&&rt&&(erg.k===rt.k||erg.nome.trim().toLowerCase()===rt.nome.trim().toLowerCase()));
     const dt=new Date(); const mesAno=`${MESES[dt.getMonth()]} de ${dt.getFullYear()}`; const MesAno=mesAno[0].toUpperCase()+mesAno.slice(1);
     const FONT="Montserrat", FONTD="Montserrat Alternates", CW=9354;
     const run=(t,o={})=>new D.TextRun({text:String(t??""),font:FONT,size:20,color:COR.ink,...o});
@@ -1258,9 +1416,11 @@ async function gerarRelatorio(btn){
     const img=(bytes,w,h,o={})=>new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{after:120},...o,children:[new D.ImageRun({type:"png",data:bytes,transformation:{width:w,height:h}})]});
 
     function tabelaHSE(T){ const w=[4200,1400,3754];
-      return [table([hdr(["Seção","Score","Classificação de risco"],w),...DIMS.map(d=>{const s=T.dims[d.id].score;return [cell(d.nome,{w:w[0]}),cell(fmt(s),{w:w[1],align:D.AlignmentType.CENTER}),cell(risco(s)?.nome.toUpperCase()||"—",{w:w[2],fill:corRisco(s),bold:true,align:D.AlignmentType.CENTER})]}),
-        [cell("Média total do questionário",{w:w[0],bold:true,fill:"FAF5F2"}),cell(fmt(T.geral),{w:w[1],bold:true,fill:"FAF5F2",align:D.AlignmentType.CENTER}),cell(risco(T.geral)?.nome.toUpperCase()||"—",{w:w[2],fill:corRisco(T.geral),bold:true,align:D.AlignmentType.CENTER})]],w),gap()]; }
+      return [table([hdr(["Fator","Média","Graduação"],w),...DIMS.map(d=>{const s=T.dims[d.id].score;return [cell(d.nome,{w:w[0]}),cell(fmt(s),{w:w[1],align:D.AlignmentType.CENTER}),cell(risco(s)?.nome||"—",{w:w[2],fill:corRisco(s),bold:true,align:D.AlignmentType.CENTER})]}),
+        [cell("Média total do questionário",{w:w[0],bold:true,fill:"FAF5F2"}),cell(fmt(T.geral),{w:w[1],bold:true,fill:"FAF5F2",align:D.AlignmentType.CENTER}),cell(risco(T.geral)?.nome||"—",{w:w[2],fill:corRisco(T.geral),bold:true,align:D.AlignmentType.CENTER})]],w),gap()]; }
     const nomeP=p=>m.P[p-1], nomeS=s=>m.S[s-1];
+    function tabelaFatores(fat){ const w=[2354,1300,1600,1300,1400,1400];
+      return [table([hdr(["Fator","Graduação HSE","Probabilidade","SIF","Severidade final","Risco"],w),...DIMS.map(d=>{const f=fat[d.id]; return [cell(d.nome,{w:w[0]}),cell(f.hse!=null?HSE_NOMES[f.hse]:"—",{w:w[1],align:D.AlignmentType.CENTER,size:16}),cell(f.p?`${f.p} – ${nomeP(f.p)}`:"—",{w:w[2],align:D.AlignmentType.CENTER,size:16}),cell(`${f.sif} – ${SIF_NOMES[f.sif-1]}`,{w:w[3],align:D.AlignmentType.CENTER,size:16}),cell(f.sf?`SF ${f.sf} – ${SEV_NOMES[f.sf-1]}`:"—",{w:w[4],align:D.AlignmentType.CENTER,size:16}),cell(f.cat!=null?CAT[f.cat].n:"—",{w:w[5],fill:f.cat!=null?corCat(f.cat):undefined,bold:true,align:D.AlignmentType.CENTER,size:16})]})],w),gap()]; }
 
     // ---------- capa ----------
     const capa=await capaPNG(e);
@@ -1279,7 +1439,7 @@ async function gerarRelatorio(btn){
     C.push(new D.Paragraph({children:[new D.PageBreak()]}));
 
     C.push(H("Apresentação"));
-    C.push(P(`Este relatório foi elaborado pela ElevaLife com o objetivo de avaliar os fatores psicossociais relacionados ao trabalho na empresa ${e.razao}.`));
+    C.push(P(`Este relatório foi elaborado pela ElevaLife com o objetivo de avaliar os fatores psicossociais relacionados ao trabalho na empresa ${NE}.`));
     C.push(P("A iniciativa visa compreender, de forma mais aprofundada, as percepções dos trabalhadores em relação às condições de trabalho, especialmente no que se refere às demandas, ao suporte recebido, à comunicação interna, à clareza de papéis e à gestão de mudanças. Essa análise é fundamental para complementar o diagnóstico de ergonomia e subsidiar ações estratégicas de promoção da saúde mental, melhoria do clima organizacional e prevenção de riscos psicossociais."));
 
     C.push(H("Demanda do trabalho"));
@@ -1299,7 +1459,7 @@ async function gerarRelatorio(btn){
 
     C.push(H("Métodos e metodologia utilizada"));
     const pf=p=>p?`${p.nome}${p.formacao?", "+p.formacao:""} (${p.conselho})`:"[profissional não cadastrado]";
-    C.push(P(`O trabalho foi realizado pelo(a) profissional ${pf(erg)}, sob supervisão do(a) responsável técnico(a) ${pf(rt)}.`));
+    C.push(P(mesmoProf?`O trabalho foi realizado pelo(a) profissional ${pf(erg)}, que também atua como responsável técnico(a) pela avaliação.`:!rt?`O trabalho foi realizado pelo(a) profissional ${pf(erg)}.`:`O trabalho foi realizado pelo(a) profissional ${pf(erg)}, sob supervisão do(a) responsável técnico(a) ${pf(rt)}.`));
     C.push(H("Ferramenta utilizada",1));
     C.push(P(["Para a avaliação dos fatores psicossociais no ambiente de trabalho, foi utilizado o ",B("questionário HSE – Management Standards Indicator Tool"),", desenvolvido pela agência governamental britânica Health and Safety Executive. Esta ferramenta é composta por ",B("35 questões")," que avaliam a percepção dos colaboradores em relação a ",B("sete domínios psicossociais"),":"]));
     novaLista(); [["Demandas","carga de trabalho, padrões de tempo e ambiente de trabalho."],["Controle","autonomia sobre o modo de realizar o trabalho."],["Apoio da Gestão","apoio, incentivo e recursos fornecidos pelos gestores."],["Apoio dos Colegas","suporte social entre colegas de equipe."],["Relacionamentos","promoção de relações positivas e gestão de conflitos."],["Papel","clareza em relação às funções e responsabilidades."],["Mudança","como as mudanças organizacionais são gerenciadas e comunicadas."]].forEach(([a,b])=>C.push(num([B(a+": "),b])));
@@ -1310,26 +1470,43 @@ async function gerarRelatorio(btn){
     C.push(P(["Para avaliar a ",B("probabilidade de exposição aos riscos psicossociais"),", foi utilizado um ",B("checklist estruturado com base nos requisitos da ISO 45003"),", respondido pelo gestor do contrato, abordando oito áreas principais:"]));
     novaLista(); [["Análise Documental e Indicadores de Saúde Ocupacional","verifica se a empresa monitora afastamentos por doenças mentais ou osteomusculares (CID F e M), taxas de absenteísmo e turnover, acidentes relacionados a estresse ou fadiga, a existência de AETs atualizadas e a inclusão dos riscos psicossociais no PGR."],["Identificação de Riscos Psicossociais","avalia se a organização possui processos estruturados para identificação contínua dos riscos psicossociais, com participação dos trabalhadores e capacitação das lideranças."],["Organização do Trabalho e Demandas","investiga a gestão da carga de trabalho, realismo de prazos e metas, autonomia funcional, variedade de tarefas e possibilidade de descanso adequado."],["Ambiente e Cultura Organizacional","examina o comprometimento da empresa com um ambiente seguro, inclusivo e respeitoso, com políticas contra assédio e discriminação, comunicação efetiva e ações de reconhecimento."],["Suporte Social e Bem-Estar","analisa a disponibilidade de programas de suporte emocional, ações que estimulem a colaboração, canais seguros de denúncia e incentivo ao cuidado com a saúde integral."],["Gestão de Mudanças","avalia como as mudanças organizacionais são comunicadas e gerenciadas, e se há suporte emocional para os colaboradores afetados."],["Equilíbrio Trabalho-Vida Pessoal","verifica a existência de políticas de flexibilidade, respeito às pausas, áreas de descompressão e incentivo a atividades de bem-estar."],["Monitoramento e Melhoria Contínua","investiga se a empresa coleta dados sobre bem-estar e estresse, utiliza os resultados para implementar melhorias e revisa as ações periodicamente."]].forEach(([a,b])=>C.push(num([B(a+": "),b])));
     C.push(P("Cada item do checklist é respondido com “Sim” (1 ponto), “Parcial” (0,5 ponto) ou “Não” (0 ponto), e a pontuação final é interpretada da seguinte forma:"));
-    [["24 a 33 pontos: ","Gestão eficaz de riscos psicossociais."],["17 a 23,5 pontos: ","Gestão intermediária, melhorias recomendadas."],["Menos de 17 pontos: ","Alto risco psicossocial, ações urgentes necessárias."]].forEach(([a,b])=>C.push(bullet([B(a),b])));
+    [["24 a 33 pontos: ","Gestão eficaz de riscos psicossociais."],["17 a 23,5 pontos: ","Gestão intermediária, melhorias recomendadas."],["Menos de 17 pontos: ","Gestão ineficaz dos riscos psicossociais, ações urgentes necessárias."]].forEach(([a,b])=>C.push(bullet([B(a),b])));
     C.push(P("A utilização da ISO 45003 como referência metodológica permite uma avaliação mais ampla e estratégica, integrando aspectos documentais, estruturais e culturais da organização. Dessa forma, é possível identificar lacunas, priorizar ações preventivas e fortalecer a saúde mental como parte essencial da segurança do trabalho e da sustentabilidade organizacional."));
     C.push(H("Classificação da probabilidade",1));
     C.push(P("Para obter uma visão mais precisa e contextualizada dos riscos psicossociais no ambiente de trabalho, foi realizada uma análise integrada entre os resultados do questionário HSE – Management Standards Indicator Tool e a pontuação final do checklist baseado na ISO 45003. A média geral obtida no HSE reflete a percepção dos colaboradores em relação aos fatores psicossociais, enquanto o checklist da ISO 45003 permite avaliar a estrutura organizacional e as práticas de gestão voltadas à prevenção desses riscos."));
-    C.push(P("O cruzamento desses dois resultados fornece uma estimativa mais robusta da probabilidade de ocorrência de riscos psicossociais relacionados ao trabalho. Quando a média do HSE indica risco alto e a pontuação do checklist da ISO 45003 também é insatisfatória, o cenário é de alto risco psicossocial, demandando ações corretivas urgentes. Já quando ambas as ferramentas apresentam resultados positivos, considera-se que a empresa possui gestão eficaz e ambiente de trabalho favorável à saúde mental e ao bem-estar dos colaboradores."));
+    C.push(P(["A probabilidade é determinada para cada um dos sete fatores do HSE: a ",B("graduação do fator")," (calculada pela média das respostas do grupo naquele fator) é cruzada com o ",B("resultado do checklist ISO 45003"),", conforme a matriz abaixo."]));
+    C.push(P("O cruzamento desses dois resultados fornece uma estimativa mais robusta da probabilidade de ocorrência de riscos psicossociais relacionados ao trabalho. Quando o HSE indica graduação alta e o checklist da ISO 45003 aponta gestão ineficaz, a probabilidade é elevada, demandando ações corretivas urgentes. Já quando ambas as ferramentas apresentam resultados positivos, considera-se que a empresa possui gestão eficaz e ambiente de trabalho favorável à saúde mental e ao bem-estar dos colaboradores."));
     { const w=[2154,2400,2400,2400]; const pc=p=>COR[corP5[Math.round((p-1)*4/(m.P.length-1))]];
       C.push(table([[cell("HSE \\ ISO 45003",{w:w[0],fill:COR.deep,bold:true}),...ISO_NOMES.map((n,i)=>cell(n,{w:w[i+1],fill:COR.wine,bold:true,align:D.AlignmentType.CENTER}))],
-        ...HSE_NOMES.map((h,hi)=>[cell("Risco "+h,{w:w[0],fill:COR.tint,bold:true,color:COR.deep}),...[0,1,2].map(ii=>{const p=m.conv(PROB5[hi][ii]);return cell("Probabilidade "+nomeP(p),{w:w[ii+1],fill:pc(p),align:D.AlignmentType.CENTER,bold:true})})])],w)); C.push(gap()); }
+        ...HSE_NOMES.map((h,hi)=>[cell("Graduação "+h.toLowerCase(),{w:w[0],fill:COR.tint,bold:true,color:COR.deep}),...[0,1,2].map(ii=>{const p=m.conv(PROB5[hi][ii]);return cell("Probabilidade "+nomeP(p),{w:w[ii+1],fill:pc(p),align:D.AlignmentType.CENTER,bold:true})})])],w)); C.push(gap()); }
     C.push(H("Classificação da severidade do risco",1));
-    C.push(P(["A severidade dos riscos psicossociais foi determinada pela análise de ",B("dados reais de absenteísmo"),", a partir da ",B("taxa de frequência de afastamentos de cada grupo nos últimos 12 meses"),", informada pela empresa. Essa abordagem permite uma avaliação mais concreta do impacto dos fatores psicossociais no contexto organizacional."]));
-    { const S5=[["Impacto mínimo ou nenhum na saúde mental ou no desempenho do trabalhador","Menor que 2%","Desconforto momentâneo, sem interferência no desempenho"],["Impacto leve, reversível, sem necessidade de afastamento ou intervenção clínica","De 2% a menos de 5%","Estresse leve, queixas pontuais, queda momentânea de produtividade"],["Impacto significativo, com possibilidade de intervenção","De 5% a 20%","Estresse recorrente, tensão emocional, pequenos afastamentos, início de burnout"],["Impacto severo, com prejuízo funcional e necessidade de acompanhamento","Acima de 20% e afastamentos","Transtornos ansiosos, depressão leve a moderada, afastamento prolongado"],["Impacto crítico, duradouro, com possibilidade de incapacidade","Acima de 20% e condições ameaçadoras à vida","Burnout severo, depressão maior, riscos à integridade física, hospitalização, ideação suicida"]];
-      const rows=m.S.length===5?S5:[["Impacto mínimo a leve, reversível, sem necessidade de afastamento ou intervenção clínica","Menor que 5%","Desconforto momentâneo, estresse leve, queixas pontuais"],...S5.slice(2)];
-      const w=[1700,2700,1854,3100]; C.push(table([hdr(["Nível de severidade","Descrição","Taxa de frequência","Exemplo de impacto psicossocial"],w),...rows.map((r,i)=>[cell(`${i+1} – ${m.S[i]}`,{w:w[0],fill:COR[corP5[Math.round(i*4/(rows.length-1))]],bold:true,align:D.AlignmentType.CENTER}),cell(r[0],{w:w[1]}),cell(r[1],{w:w[2],align:D.AlignmentType.CENTER}),cell(r[2],{w:w[3]})])],w)); C.push(gap()); }
+    C.push(P(["A severidade segue o método ElevaLife de Severidade Intrínseca do Fator (SIF). A NR-01 determina que o nível de risco resulte da combinação entre a severidade dos possíveis danos e a probabilidade de sua ocorrência, mas não estabelece critérios prescritivos de severidade para os fatores psicossociais. A SIF separa essas duas dimensões: a ",B("severidade")," é um parâmetro pré-definido, derivado da literatura científica e estável entre organizações; a ",B("probabilidade")," é estimada a partir dos escores do HSE-IT e do contexto local (item 4.3)."]));
+    C.push(P("Em seguida, a severidade intrínseca é modulada pela Evidência Organizacional (EO), que traduz a realidade da empresa avaliada, inclusive as medidas de prevenção já implementadas, resultando na Severidade Final (SF), valor levado à matriz de risco."));
+    C.push(sub("Severidade Intrínseca do Fator (SIF)"));
+    C.push(P("A SIF é um atributo do perigo, e não da exposição: responde à pergunta “qual é o pior desfecho plausível consistentemente associado a este domínio na literatura científica?”. É atribuída antes da coleta de dados, ancorada em referências científicas e normativas rastreáveis, e comum a todas as avaliações realizadas pelo método. A escala tem quatro níveis:"));
+    { const w=[1300,1700,3754,2600]; C.push(table([hdr(["SIF","Classificação","Critério técnico de ancoragem","Desfechos de referência"],w),...SIF_NOMES.map((n,i)=>[cell(String(i+1),{w:w[0],fill:COR[["teal","ok","warn","bad"][i]],bold:true,align:D.AlignmentType.CENTER}),cell(n,{w:w[1],bold:true}),cell(SIF_DESC[i],{w:w[2],size:17}),cell(SIF_DESF[i],{w:w[3],size:17})])],w)); C.push(gap()); }
+    C.push(P("A classificação dos sete domínios do HSE-IT foi atribuída a partir das revisões sistemáticas, meta-análises e documentos normativos de referência, enquadrando cada domínio no nível correspondente ao desfecho mais grave consistentemente reportado:"));
+    { const sf=sifEmp(), w=[1800,800,4954,1800]; C.push(table([hdr(["Domínio HSE-IT","SIF","Justificativa técnica","Referências principais"],w),...DIMS.slice().sort((a,b)=>sf[b.id]-sf[a.id]).map(d=>[cell(d.nome,{w:w[0],bold:true}),cell(String(sf[d.id]),{w:w[1],fill:COR[["teal","ok","warn","bad"][sf[d.id]-1]],bold:true,align:D.AlignmentType.CENTER}),cell(SIF_JUST[d.id][0],{w:w[2],size:16}),cell(SIF_JUST[d.id][1],{w:w[3],size:15})])],w)); C.push(gap()); }
+    C.push(P("A concentração dos valores nos níveis 3 e 4 decorre do critério do pior desfecho plausível, escolha conservadora e coerente com o princípio da precaução; seu efeito sobre a capacidade de diferenciação é compensado pela probabilidade obtida no HSE-IT e pela modulação pela evidência organizacional. Os níveis 1 e 2 permanecem disponíveis e são alcançados pela Severidade Final quando a evidência organizacional é baixa."));
+    C.push(sub("Evidência Organizacional (EO)"));
+    C.push(P("A EO traduz a densidade e a consistência das evidências objetivas de materialização do dano no grupo avaliado. Nesta avaliação, foi estimada a partir da taxa de frequência de afastamentos dos últimos 12 meses informada pela empresa e do registro de casos graves (ideação suicida, burnout severo, hospitalização ou outra condição ameaçadora à vida), podendo ser ajustada com outros indicadores disponíveis, como afastamentos por transtornos mentais e comportamentais, rotatividade, horas extraordinárias, registros em canais de denúncia e passivo trabalhista. A EO é classificada em cinco níveis, convertidos em um valor ajustado (EOaj) de 0 a 4:"));
+    { const w=[1600,800,1800,5154]; C.push(table([hdr(["EO","EOaj","Taxa de frequência","Interpretação"],w),...EO_NOMES.map((n,i)=>[cell(`${i+1} – ${n}`,{w:w[0],fill:COR[corP5[i]],bold:true,align:D.AlignmentType.CENTER}),cell(String(i),{w:w[1],align:D.AlignmentType.CENTER,bold:true}),cell(EO_FAIXAS[i],{w:w[2],align:D.AlignmentType.CENTER}),cell(EO_DESC[i],{w:w[3]})])],w)); C.push(gap()); }
+    C.push(sub("Severidade Final (SF)"));
+    C.push(P("A Severidade Final é obtida pela combinação ponderada da severidade intrínseca com a evidência organizacional:"));
+    C.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{before:80,after:160},children:[run("SF = (SIF × 0,75) + (EOaj × 0,25)",{bold:true,size:24,color:COR.wine})]}));
+    C.push(P("O peso de 75% atribuído à evidência científica e de 25% à evidência organizacional permite que o contexto da empresa module a severidade, sem que a ausência de dano registrado a neutralize: uma EO muito baixa reduz a severidade potencial em, no máximo, um nível, e uma EO muito alta mantém a severidade máxima nos domínios de SIF crítica e pode elevar em um nível os domínios de severidade intermediária. A ausência de evidência de dano não constitui evidência de ausência de risco, sobretudo em desfechos de latência longa e subnotificação conhecida, como os transtornos mentais relacionados ao trabalho."));
+    C.push(P("O valor obtido, entre 0,75 e 4,00, é enquadrado no nível inteiro mais próximo, com arredondamento de 0,50 para o nível superior: 1 – Baixa, 2 – Moderada, 3 – Alta e 4 – Crítica."));
+    { const w0=1854, wc=1500, w=[w0,...Array(5).fill(wc)];
+      C.push(table([[cell("SIF \\ EO",{w:w0,fill:COR.deep,bold:true}),...EO_NOMES.map((n,j)=>cell(`${j+1} – ${n}`,{w:wc,fill:COR.wine,bold:true,align:D.AlignmentType.CENTER}))],
+        ...SIF_NOMES.map((n,i)=>[cell(`${i+1} – ${n}`,{w:w0,fill:COR.tint,bold:true,color:COR.deep}),...EO_NOMES.map((_,j)=>{const v=SEV_NIV[i][j];return cell(`${fmt(SEV_IDX[i][j],2)} (${v})`,{w:wc,fill:COR[["teal","ok","warn","bad"][v-1]],bold:true,align:D.AlignmentType.CENTER})})])],w)); C.push(gap()); }
+    C.push(P("A SF é um parâmetro de gestão de riscos ocupacionais de natureza coletiva: não constitui diagnóstico, não se aplica a indivíduos, não substitui avaliação clínica ou pericial e não estabelece nexo causal entre exposição e adoecimento de trabalhador determinado.",{spacing:{after:120,line:280}}));
     C.push(H("Resultado: graduação do risco",1));
-    C.push(P(`A graduação do risco psicossocial resulta do cruzamento da probabilidade com a severidade, em matriz ${m.P.length} × ${m.S.length}:`));
+    C.push(P(`A graduação do risco psicossocial de cada fator resulta do cruzamento da probabilidade com a Severidade Final, em matriz ${m.rot}.${m.S.length===5?" Como a Severidade Final tem quatro níveis, os dois níveis mais baixos da severidade (1 e 2) equivalem à SF 1 – Baixa.":""} A graduação do grupo ocupacional corresponde à do fator de maior risco.`));
     { const n=m.P.length, w0=2000, wc=Math.floor((CW-w0)/n), w=[w0,...Array(n).fill(wc)];
-      C.push(table([[cell("Probabilidade \\ Severidade",{w:w0,fill:COR.deep,bold:true}),...m.S.map((s,j)=>cell(`${j+1} – ${s}`,{w:wc,fill:COR.wine,bold:true,align:D.AlignmentType.CENTER}))],
+      C.push(table([[cell("Probabilidade \\ Severidade",{w:w0,fill:COR.deep,bold:true}),...m.S.map((s,j)=>cell(`${j+1} – ${s}\n(SF ${m.SF[j]})`,{w:wc,fill:COR.wine,bold:true,align:D.AlignmentType.CENTER}))],
         ...Array.from({length:n},(_,k)=>n-k).map(p=>[cell(`${p} – ${nomeP(p)}`,{w:w0,fill:COR.tint,bold:true,color:COR.deep}),...m.S.map((_,j)=>{const c=m.M[p-1][j];return cell(CAT[c].n,{w:wc,fill:corCat(c),bold:true,align:D.AlignmentType.CENTER})})])],w)); C.push(gap()); }
     { const w=[1800,7554]; C.push(table([[cell("Conduta administrativa para os riscos psicossociais",{w:CW,span:2,fill:COR.wine,bold:true})],...CAT.map((c,i)=>[cell(c.n,{w:w[0],fill:corCat(i),bold:true,align:D.AlignmentType.CENTER}),cell(c.conduta+(i>=3?" A execução do plano deve ser monitorada e avaliada até a eliminação ou minimização do risco.":""),{w:w[1]})])],w)); C.push(gap()); }
-    C.push(P("Ao final da análise dos fatores psicossociais, as recomendações são apontadas com foco na promoção da saúde mental e do bem-estar dos trabalhadores. Para os grupos com risco trivial ou baixo, mantêm-se as ações já realizadas pela empresa. Para os grupos com risco moderado ou superior, as ações são selecionadas a partir da Biblioteca Mestre de Intervenções Psicossociais da ElevaLife, priorizando medidas coletivas e organizacionais, conforme a hierarquia de controle."));
+    C.push(P("Ao final da análise dos fatores psicossociais, as recomendações são apontadas com foco na promoção da saúde mental e do bem-estar dos trabalhadores. Para os grupos com risco trivial ou baixo, mantêm-se as ações já realizadas pela empresa. Para os grupos com risco moderado ou superior, as ações são direcionadas aos fatores classificados com risco moderado ou superior e selecionadas a partir da Biblioteca Mestre de Intervenções Psicossociais da ElevaLife, priorizando medidas coletivas e organizacionais, conforme a hierarquia de controle."));
 
     C.push(H("Dados gerais"));
     C.push(P(["A coleta das respostas do questionário HSE foi realizada de forma ",B("online e anônima"),", por meio de QR code disponibilizado aos colaboradores, respeitando os princípios éticos da confidencialidade e da voluntariedade. A matrícula foi utilizada apenas para liberar o acesso e impedir respostas duplicadas, sem vínculo com as respostas."]));
@@ -1337,20 +1514,22 @@ async function gerarRelatorio(btn){
     C.push(P("As respostas foram tabuladas pela plataforma ElevaLife, que permitiu calcular:"));
     [["A ",B("média de pontuação")," por item e por fator psicossocial;"],["A ",B("distribuição de respostas")," em cada fator (percentual de respostas em cada nível de favorabilidade);"],["A identificação dos ",B("fatores com maior e menor pontuação"),", permitindo destacar áreas críticas e prioritárias para intervenção."]].forEach(x=>C.push(bullet(x)));
 
-    C.push(H("Resultados gerais"));
-    C.push(sub("Probabilidade geral"));
-    C.push(P(["Abaixo estão apresentadas as médias obtidas por fator, através do questionário HSE-IT, calculadas com base nas respostas de ",B(`${nResp} trabalhadores`),":"]));
+    C.push(H("Resultados gerais da empresa"));
+    C.push(P(["Os resultados deste capítulo referem-se à ",B(`empresa ${NE} como um todo`),`, reunindo as respostas de todas as unidades e grupos ocupacionais avaliados. Os resultados de cada unidade e grupo ocupacional estão no capítulo seguinte.`]));
+    C.push(sub("Resultado HSE-IT da empresa"));
+    C.push(P(["Abaixo estão apresentadas as médias da empresa por fator, obtidas através do questionário HSE-IT, calculadas com base nas respostas de ",B(`${nResp} trabalhadores`),":"]));
     C.push(...tabelaHSE(TG)); if(TG.n) C.push(img(chartPNG(TG),600,326));
-    const hseG=TG.n?5-risco(TG.geral).nivel:null, pG=hseG!=null&&iso?m.conv(PROB5[hseG][iso.i]):null, tfG=tfGeral(), sG=tfG!=null?m.conv(sev5(tfG,L.some(x=>x.a.grave&&x.a.tf>20))):null, cG=pG&&sG?m.M[pG-1][sG-1]:null;
-    C.push(P(["Com base nas médias obtidas através do HSE-IT, é possível identificar os fatores que mais demandam intervenção e priorização. O resultado geral da empresa é uma graduação ",B(risco(TG.geral)?.nome||"—"),"."]));
-    C.push(P(iso?["A empresa apresenta ",B(iso.nome)," dos riscos psicossociais, conforme avaliado através do checklist ISO 45003 (",B(fmt(iso.p,1)+" de 33 pontos"),")."]:["O checklist ISO 45003 não foi respondido."]));
-    if(pG) C.push(P(["Cruzando na matriz de graduação da probabilidade descrita no item 4.3 o resultado do HSE com a gestão da empresa de acordo com o checklist ISO 45003, a probabilidade geral da empresa é ",B("Probabilidade "+nomeP(pG)),"."]));
-    C.push(sub("Severidade geral"));
-    C.push(P(tfG!=null?["Com base na taxa de frequência de afastamentos da empresa nos últimos 12 meses, de ",B(fmt(tfG,1)+"%"),", foi encontrado um nível de severidade ",B(nomeS(sG)),", tendo como base a matriz de classificação da severidade descrita no item 4.4."]:["A taxa de frequência geral da empresa não foi informada."]));
-    C.push(sub("Graduação de risco geral"));
-    if(cG!=null) C.push(P(["Tendo sido classificadas de maneira geral a probabilidade e a severidade, a empresa em um contexto geral apresenta uma graduação de riscos psicossociais de ",B("Risco "+CAT[cG].n),", de acordo com a matriz de graduação de riscos descrita no item 4.5."]));
-    { const w=[3400,1500,1500,1500,1454]; const cats=CAT.map((c,i)=>L.filter(x=>x.cat===i).length);
-      C.push(P("Distribuição dos grupos ocupacionais por graduação de risco:"));
+    const tfG=tfGeral(), grG=L.some(x=>x.a.grave), eoG=eoTF(tfG,grG), AG=analisarFatores(TG,iso?iso.i:null,eoG), topG=AG.top;
+    C.push(P(["Com base nas médias obtidas através do HSE-IT, é possível identificar os fatores que mais demandam intervenção e priorização. A média geral da empresa corresponde à ",B(risco(TG.geral)?.nome.toLowerCase()||"—"),"."]));
+    C.push(sub("Probabilidade da empresa"));
+    C.push(P(iso?["A empresa apresenta ",B(iso.nome.toLowerCase())," dos riscos psicossociais, conforme o checklist ISO 45003 (",B(fmt(iso.p,1)+" de 33 pontos"),"). Cruzando esse resultado com a graduação de cada fator no HSE (item 4.3), obtém-se a probabilidade de cada fator, apresentada na tabela de graduação abaixo."]:["O checklist ISO 45003 não foi respondido; a probabilidade não pôde ser definida."]));
+    C.push(sub("Severidade da empresa"));
+    C.push(P(eoG!=null?["Com base na taxa de frequência de afastamentos da empresa nos últimos 12 meses",tfG!=null?[", de ",B(fmt(tfG,1)+"%")]:"",grG?", com registro de casos graves":"",", a evidência organizacional da empresa é ",B(`${eoG} – ${EO_NOMES[eoG-1].toLowerCase()}`),". Combinando a evidência com a SIF de cada fator (item 4.4), obtém-se a severidade final de cada fator."].flat():["A taxa de frequência geral da empresa não foi informada."]));
+    C.push(sub("Graduação de risco da empresa"));
+    if(TG.n) C.push(...tabelaFatores(AG.fat));
+    if(topG) C.push(P(["Considerando a empresa como um todo, a graduação de riscos psicossociais é ",B(CAT[topG.cat].n),`, determinada pelo fator ${dimNome(topG.id).toLowerCase()} (probabilidade ${nomeP(topG.p).toLowerCase()} e severidade final ${SEV_NOMES[topG.sf-1].toLowerCase()}), de acordo com a matriz de graduação de riscos descrita no item 4.5.`]));
+    { const cats=CAT.map((c,i)=>L.filter(x=>x.cat===i).length);
+      C.push(P("Distribuição dos grupos ocupacionais da empresa por graduação de risco:"));
       C.push(table([CAT.map((c,i)=>cell(c.n,{w:CW/5,fill:corCat(i),bold:true,align:D.AlignmentType.CENTER})),cats.map(q=>cell(String(q),{w:CW/5,align:D.AlignmentType.CENTER,bold:true,size:22}))],Array(5).fill(CW/5))); C.push(gap()); }
 
     C.push(H("Resultado por unidade e grupo ocupacional"));
@@ -1364,47 +1543,50 @@ async function gerarRelatorio(btn){
         C.push(sub(`Resultado HSE-IT (${x.T.n} respondente${x.T.n===1?"":"s"})`)); C.push(...tabelaHSE(x.T));
         C.push(sub("Análise crítica dos fatores psicossociais")); C.push(img(chartPNG(x.T),600,326));
         C.push(sub("Interpretação da probabilidade"));
-        C.push(P(["O HSE apresentou como média total do questionário ",B(risco(x.T.geral).nome),"."]));
-        C.push(P(iso?["A gestão da empresa, de acordo com o checklist ISO 45003, apresentou resultado de ",B(iso.nome.toLowerCase()),"."]:["O checklist ISO 45003 não foi respondido."]));
-        if(x.p) C.push(P(["Com os resultados do HSE e do checklist ISO 45003, é possível definir a probabilidade do grupo ocupacional como ",B("Probabilidade "+nomeP(x.p)),", de acordo com o item 4.3 deste documento."]));
+        C.push(P(["A média total do questionário no grupo corresponde à ",B(risco(x.T.geral).nome.toLowerCase()),"."]));
+        C.push(P(iso?["A gestão da empresa, de acordo com o checklist ISO 45003, apresentou resultado de ",B(iso.nome.toLowerCase()),". A probabilidade de cada fator resulta do cruzamento da graduação do fator no HSE com esse resultado, de acordo com o item 4.3 deste documento."]:["O checklist ISO 45003 não foi respondido."]));
         C.push(sub("Interpretação da severidade"));
-        C.push(P(x.s?["Com base na taxa de frequência de afastamentos do grupo nos últimos 12 meses",x.a.tfPeriodo?` (${x.a.tfPeriodo})`:"",", de ",B(fmt(+x.a.tf,1)+"%"),`${x.a.grave&&x.a.tf>20?", com registro de condições ameaçadoras à vida":""}, foi encontrado um nível de severidade `,B(nomeS(x.s)),", tendo como base a matriz de classificação da severidade descrita no item 4.4."]:["A taxa de frequência do grupo não foi informada pela empresa."]));
+        C.push(P(x.eo?[x.a.eoMan?"Com base nos indicadores organizacionais da empresa e na taxa de frequência de afastamentos do grupo nos últimos 12 meses":"Com base na taxa de frequência de afastamentos do grupo nos últimos 12 meses",x.a.tfPeriodo?` (${x.a.tfPeriodo})`:"",x.a.tf!=null?[", de ",B(fmt(+x.a.tf,1)+"%")]:"",x.a.grave?", com registro de casos graves":"",", a evidência organizacional do grupo é ",B(`${x.eo} – ${EO_NOMES[x.eo-1].toLowerCase()}`),". A severidade final de cada fator resulta da combinação dessa evidência com a SIF do fator, de acordo com a matriz descrita no item 4.4."].flat():["A taxa de frequência do grupo não foi informada pela empresa."]));
         C.push(sub("Graduação de risco (conclusão)"));
+        C.push(...tabelaFatores(x.fat));
         if(x.cat==null){ C.push(P(`A graduação do risco não pôde ser concluída: falta ${x.pend.join(", ")}.`)); continue; }
-        C.push(P(["De acordo com a interpretação de probabilidade e severidade do presente grupo ocupacional, a graduação do fator de risco psicossocial é ",B(CAT[x.cat].n),"."]));
+        const emR=x.dims.map(d=>dimNome(d).toLowerCase());
+        C.push(P(["De acordo com a interpretação de probabilidade e severidade dos fatores do presente grupo ocupacional, a graduação do fator de risco psicossocial é ",B(CAT[x.cat].n),`, determinada pelo fator ${dimNome(x.critico).toLowerCase()}.`,emR.length?` Fatores com risco moderado ou superior: ${emR.join(", ")}.`:""]));
         C.push(sub("Plano de ação"));
         if(x.cat<=1){ const it=[...realEmp,...linhas(x.a.realizadas)];
-          if(it.length){ C.push(P(`Manter as ações já realizadas pela ${e.razao}, relacionadas aos fatores psicossociais, sendo elas:`)); it.forEach(t=>{const k=t.indexOf(": ");C.push(bullet(k>0&&k<90?[B(t.slice(0,k+1)+" "),t.slice(k+2)]:[t]))}); }
+          if(it.length){ C.push(P(`Manter as ações já realizadas pela ${NE}, relacionadas aos fatores psicossociais, sendo elas:`)); it.forEach(t=>{const k=t.indexOf(": ");C.push(bullet(k>0&&k<90?[B(t.slice(0,k+1)+" "),t.slice(k+2)]:[t]))}); }
           else C.push(P(CAT[x.cat].conduta));
         } else {
           C.push(P(CAT[x.cat].conduta)); let ac=Object.entries(x.a.acoes||{});
           if(!ac.length) ac=recomendar(x).map(r=>[r.c,{auto:true,motivo:r.motivo,prazo:addDias(PRAZO_DIAS[bib(r.c)?.[10]]||90)}]);
           planoGeral.push(...ac.map(([c,v])=>({x,c,v})));
-          if(ac.length) C.push(P("As ações abaixo foram definidas a partir do cruzamento entre as respostas do grupo ao HSE-IT (itens com maior proporção de respostas desfavoráveis), a graduação do risco e a Biblioteca Mestre de Intervenções Psicossociais da ElevaLife."));
           if(!ac.length) C.push(P("Plano de ação a ser definido em conjunto com a empresa."));
-          else { const w=[1250,1300,3700,1100,2004]; C.push(table([hdr(["Código","Fator","Recomendação técnica","Prazo","Indicador de eficácia"],w),
-            ...ac.map(([c,v])=>{const b=bib(c)||[];return [cell(c,{w:w[0],size:15}),cell(dimNome(b[1])||"",{w:w[1],size:16}),cell([new D.Paragraph({spacing:{after:40},children:[run(b[3]||"",{size:16,bold:true,color:COR.deep})]}),new D.Paragraph({spacing:{after:0},children:[run(b[8]||"",{size:16})]}),...(v.motivo?[new D.Paragraph({spacing:{before:40,after:0},children:[run("Achado: "+v.motivo,{size:15,italics:true,color:COR.mut})]})]:[]),...(v.resp?[new D.Paragraph({spacing:{before:40,after:0},children:[run("Responsável: "+v.resp,{size:15,color:COR.mut})]})]:[])],{w:w[2]}),cell(`${PRAZO_NOME[b[10]]||""}${v.prazo?"\n"+fmtData(v.prazo):""}`,{w:w[3],size:16,align:D.AlignmentType.CENTER}),cell(b[12]||"",{w:w[4],size:16})]})],w)); C.push(gap()); }
-          if(realEmp.length){ C.push(P(`Além das ações acima, manter as ações já realizadas pela ${e.razao} relacionadas aos fatores psicossociais.`)); }
+          else { const w=[1250,1400,4400,2304]; C.push(table([hdr(["Código","Fator","Recomendação técnica","Indicador de eficácia"],w),
+            ...ac.map(([c,v])=>{const b=bib(c)||[];return [cell(c,{w:w[0],size:15}),cell(dimNome(b[1])||"",{w:w[1],size:16}),cell([new D.Paragraph({spacing:{after:40},children:[run(b[3]||"",{size:16,bold:true,color:COR.deep})]}),new D.Paragraph({spacing:{after:0},children:[run(b[8]||"",{size:16})]}),...(v.motivo?[new D.Paragraph({spacing:{before:40,after:0},children:[run("Achado: "+v.motivo,{size:15,italics:true,color:COR.mut})]})]:[]),...(v.resp?[new D.Paragraph({spacing:{before:40,after:0},children:[run("Responsável: "+v.resp,{size:15,color:COR.mut})]})]:[])],{w:w[2]}),cell(b[12]||"",{w:w[3],size:16})]})],w)); C.push(gap()); }
+          { const it=[...realEmp,...linhas(x.a.realizadas)]; if(it.length){ C.push(P(`Além das ações acima, manter as ações já realizadas pela ${NE} relacionadas aos fatores psicossociais, sendo elas:`)); it.forEach(t=>{const k=t.indexOf(": ");C.push(bullet(k>0&&k<90?[B(t.slice(0,k+1)+" "),t.slice(k+2)]:[t]))}); } }
         }
       }
     }
 
     if(planoGeral.length){
       C.push(H("Plano de ação consolidado",0,{pageBreakBefore:true}));
-      C.push(P(`Resumo das ${planoGeral.length} ações propostas para os grupos ocupacionais com risco moderado ou superior, ordenadas pelo prazo. As ações já realizadas pela empresa, válidas para os grupos com risco trivial ou baixo, estão descritas no item de cada grupo.`));
-      const w=[2150,1000,3604,1200,1400]; const ord_=planoGeral.slice().sort((a,b)=>(a.v.prazo||"9").localeCompare(b.v.prazo||"9"));
-      C.push(table([hdr(["Unidade / GHE","Risco","Ação","Prazo","Responsável"],w),...ord_.map(({x,c,v})=>{const b=bib(c)||[];return [cell([new D.Paragraph({spacing:{after:0},children:[run(x.u.nome,{size:15,color:COR.mut})]}),new D.Paragraph({spacing:{after:0},children:[run(x.g.nome,{size:16,bold:true})]})],{w:w[0]}),cell(CAT[x.cat].n,{w:w[1],fill:corCat(x.cat),bold:true,size:15,align:D.AlignmentType.CENTER}),cell([new D.Paragraph({spacing:{after:20},children:[run(`${c} · ${dimNome(b[1])||""}`,{size:14,color:COR.mut})]}),new D.Paragraph({spacing:{after:0},children:[run(b[7]||b[3]||"",{size:16})]})],{w:w[2]}),cell(`${PRAZO_NOME[b[10]]||""}${v.prazo?"\n"+fmtData(v.prazo):""}`,{w:w[3],size:15,align:D.AlignmentType.CENTER}),cell(v.resp||"A definir",{w:w[4],size:15})]})],w));
+      C.push(P(`Resumo das ${planoGeral.length} ações propostas para os grupos ocupacionais com risco moderado ou superior, organizadas por unidade e grupo ocupacional. As ações já realizadas pela empresa, válidas para os grupos com risco trivial ou baixo, estão descritas no item de cada grupo.`));
+      const w=[2400,1100,4254,1600]; const ord_=planoGeral.slice();
+      C.push(table([hdr(["Unidade / GHE","Risco","Ação","Responsável"],w),...ord_.map(({x,c,v})=>{const b=bib(c)||[];return [cell([new D.Paragraph({spacing:{after:0},children:[run(x.u.nome,{size:15,color:COR.mut})]}),new D.Paragraph({spacing:{after:0},children:[run(x.g.nome,{size:16,bold:true})]})],{w:w[0]}),cell(CAT[x.cat].n,{w:w[1],fill:corCat(x.cat),bold:true,size:15,align:D.AlignmentType.CENTER}),cell([new D.Paragraph({spacing:{after:20},children:[run(`${c} · ${dimNome(b[1])||""}`,{size:14,color:COR.mut})]}),new D.Paragraph({spacing:{after:0},children:[run(b[7]||b[3]||"",{size:16})]})],{w:w[2]}),cell(v.resp||"A definir",{w:w[3],size:15})]})],w));
       C.push(gap());
     }
     C.push(H("Conclusão",0,{pageBreakBefore:true}));
     const ord=DIMS.filter(d=>TG.dims[d.id].score!=null).sort((a,b)=>TG.dims[b.id].score-TG.dims[a.id].score);
     const fortes=ord.slice(0,2).map(d=>d.nome.toLowerCase()), aten=ord.slice(-2).reverse().map(d=>d.nome.toLowerCase());
-    const dist=CAT.map((c,i)=>[c.n,L.filter(x=>x.cat===i).length]).filter(([,q])=>q).map(([n,q])=>`${q} com risco ${n.toLowerCase()}`);
+    const dist=CAT.map((c,i)=>[c.n,L.filter(x=>x.cat===i).length]).filter(([,q])=>q).map(([n,q])=>`${q} com graduação ${n.toLowerCase()}`);
     C.push(P(`A aplicação do questionário HSE na empresa permitiu mapear, de forma estruturada, a percepção dos colaboradores em relação aos riscos psicossociais presentes no ambiente de trabalho. Os resultados apontam pontos fortes, como ${fortes.join(" e ")}, mas também revelam fatores de atenção, especialmente ${aten.join(" e ")}, que obtiveram as menores médias.`));
     if(dist.length) C.push(P(`Dos ${L.filter(x=>x.cat!=null).length} grupos ocupacionais classificados, ${dist.join(", ")}.`));
     C.push(P("A avaliação evidencia a importância de um olhar estratégico e preventivo para as condições psicossociais. Os fatores de atenção identificados, se não forem geridos adequadamente, podem impactar negativamente a motivação, a produtividade e o clima organizacional."));
     C.push(P("As recomendações propostas visam apoiar a empresa na construção de um ambiente mais equilibrado, saudável e engajador. A implementação dessas ações exige o envolvimento das lideranças, a escuta ativa dos colaboradores e o compromisso contínuo com a promoção de saúde no trabalho."));
     C.push(P("Reforçamos a importância de acompanhar os indicadores ao longo do tempo, por meio de novas medições e diálogos constantes com as equipes. A gestão eficaz dos fatores psicossociais é um passo essencial para fortalecer a cultura organizacional, prevenir o adoecimento e impulsionar resultados sustentáveis."));
+
+    C.push(H("Referências bibliográficas",0,{pageBreakBefore:true}));
+    referencias().forEach(t=>C.push(P(t,{alignment:D.AlignmentType.LEFT,spacing:{after:160,line:280}})));
 
     C.push(H("Checklist ISO 45003",0,{pageBreakBefore:true}));
     const di=S.data.iso;
@@ -1420,14 +1602,14 @@ async function gerarRelatorio(btn){
     C.push(P("O principal objetivo desta análise foi fornecer dados sobre as condições de trabalho a que estão sujeitos os trabalhadores da empresa, devendo, contudo, ser dada atenção especial ao atendimento das recomendações contidas no corpo do presente documento, com o objetivo de manter e assegurar as boas condições durante o desenvolvimento de suas atividades laborais."));
     C.push(P("A empresa deve organizar cronograma para estudos e atendimento às recomendações contidas neste documento."));
     C.push(P([run(`A análise foi realizada no mês de ${mesAno}, contendo `),new D.TextRun({children:[D.PageNumber.TOTAL_PAGES],font:FONT,size:20,color:COR.ink}),run(" folhas, sendo todas as páginas preenchidas no seu anverso, não contendo nada no verso, todas elas rubricadas e devidamente assinadas por extenso ao final.")]));
-    for(const p of [erg,rt].filter(Boolean)){ C.push(new D.Paragraph({spacing:{before:900,after:0},alignment:D.AlignmentType.CENTER,children:[run("____________________________________________")]}));
+    for(const p of (mesmoProf?[erg]:[erg,rt]).filter(Boolean)){ C.push(new D.Paragraph({spacing:{before:900,after:0},alignment:D.AlignmentType.CENTER,children:[run("____________________________________________")]}));
       C.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{after:0},children:[run(p.nome,{bold:true})]}));
       if(p.formacao) C.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{after:0},children:[run(p.formacao)]}));
       C.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,children:[run(p.conselho)]})); }
 
     const logoH=dataUrlBytes(LOGO_H);
     const header=new D.Header({children:[new D.Paragraph({alignment:D.AlignmentType.RIGHT,border:{bottom:{style:D.BorderStyle.SINGLE,size:6,color:COR.ln,space:6}},children:[new D.ImageRun({type:"png",data:logoH,transformation:{width:150,height:25}})]})]});
-    const footer=new D.Footer({children:[new D.Paragraph({tabStops:[{type:D.TabStopType.RIGHT,position:CW}],border:{top:{style:D.BorderStyle.SINGLE,size:6,color:COR.ln,space:6}},children:[run(`${e.razao} · Avaliação dos Fatores de Risco Psicossociais`,{size:16,color:COR.mut}),new D.TextRun({children:["\t",D.PageNumber.CURRENT],font:FONT,size:16,color:COR.wine,bold:true})]})]});
+    const footer=new D.Footer({children:[new D.Paragraph({tabStops:[{type:D.TabStopType.RIGHT,position:CW}],border:{top:{style:D.BorderStyle.SINGLE,size:6,color:COR.ln,space:6}},children:[run(`${NE} · Avaliação dos Fatores de Risco Psicossociais`,{size:16,color:COR.mut}),new D.TextRun({children:["\t",D.PageNumber.CURRENT],font:FONT,size:16,color:COR.wine,bold:true})]})]});
     const lvl=(i,t)=>({level:i,format:D.LevelFormat.DECIMAL,text:t,alignment:D.AlignmentType.LEFT,style:{paragraph:{indent:{left:[432,576,720][i],hanging:[432,576,720][i]}}}});
     const doc=new D.Document({creator:"ElevaLife",title:`Avaliação psicossocial - ${e.razao}`,features:{updateFields:true},
       styles:{default:{document:{run:{font:FONT,size:20,color:COR.ink}}},
@@ -1461,7 +1643,7 @@ function pendencias(){
   if(!roster().size) pend.push(["Importar a planilha de colaboradores","colab"]);
   if(!S.data.resps.length) pend.push(["Aguardando respostas do HSE-IT","coleta"]);
   if(!isoAtual()) pend.push(["Checklist ISO 45003 não respondido","iso"]);
-  const semTF=L.filter(x=>x.T.n&&x.a.tf==null).length; if(semTF) pend.push([`${semTF} GHE(s) sem taxa de frequência`,"tf"]);
+  const semTF=L.filter(x=>x.T.n&&x.eo==null).length; if(semTF) pend.push([`${semTF} GHE(s) sem taxa de frequência`,"tf"]);
   const semPlano=L.filter(x=>x.cat>=2&&!Object.keys(x.a.acoes||{}).length).length; if(semPlano) pend.push([`${semPlano} GHE(s) com risco moderado ou acima sem ações selecionadas`,"plano"]);
   const semReal=L.filter(x=>x.cat!=null&&x.cat<=1&&!x.a.realizadas).length; if(semReal&&!e.realizadas) pend.push([`${semReal} GHE(s) com risco trivial/baixo sem ações já realizadas informadas`,"analise"]);
   if(!prof(e.ergId)||!prof(e.rtId)) pend.push(["Definir ergonomista e responsável técnico","dados"]);
@@ -1488,7 +1670,7 @@ function tabPainel(){
    <div class="panel kpi"><div class="eyebrow">Respostas HSE</div><div class="v">${resp}</div><small class="muted">${fmt(pct(resp,tot),1)}% de adesão · ${Math.max(tot-resp,0)} pendentes</small></div>
    <div class="panel kpi"><div class="eyebrow">ISO 45003</div><div class="v" style="font-size:1.15rem;padding-top:.45rem">${iso?iso.nome:"Pendente"}</div><small class="muted">${iso?fmt(iso.p,1)+" de 33 pontos":"aguardando o gestor"}</small></div>
    <div class="panel kpi"><div class="eyebrow">HSE geral</div><div class="v">${fmt(TG.geral)}</div><small class="muted">${TG.n?risco(TG.geral).nome:"sem respostas"}</small></div>
-   <div class="panel kpi"><div class="eyebrow">GHEs classificados</div><div class="v">${nClass}<small class="muted" style="font-size:.9rem"> / ${D.ghes.length}</small></div><small class="muted">matriz ${mz().P.length}×${mz().S.length}</small></div>
+   <div class="panel kpi"><div class="eyebrow">GHEs classificados</div><div class="v">${nClass}<small class="muted" style="font-size:.9rem"> / ${D.ghes.length}</small></div><small class="muted">matriz ${mz().rot}</small></div>
    <div class="panel kpi"><div class="eyebrow">Plano de ação</div><div class="v">${it.length}</div><small class="muted">${conc} concluídas · ${fmt(pct(conc,it.length),0)}%</small></div>
   </div>
   <div class="grid g2">
@@ -1523,7 +1705,7 @@ function painelGeralHTML(){
   const E_=S.empresas, sum=k=>E_.reduce((a,e)=>a+(e.stats?.[k]||0),0);
   const tot=sum("colab"), resp=sum("resp"), cats=CAT.map((_,i)=>E_.reduce((a,e)=>a+(e.stats?.cat?.[i]||0),0)), nC=cats.reduce((a,b)=>a+b,0);
   const ac=sum("acoes"), conc=sum("concl"), abertas=E_.filter(e=>e.status==="aberta").length;
-  if(!E_.length) return `<div class="empty"><h2>Nenhuma empresa cadastrada</h2><p>Comece por “+ Nova”: cadastre a empresa pelo CNPJ, envie a planilha de solicitação ao cliente e gere o QR code da coleta.</p></div>`;
+  if(!E_.length) return `<div class="empty"><h2>Nenhuma empresa cadastrada</h2><p>Comece por “+ Nova empresa”: cadastre a empresa pelo CNPJ, envie a planilha de solicitação ao cliente e gere o QR code da coleta.</p></div>`;
   return `<div class="head"><div><div class="eyebrow">ElevaLife · Riscos psicossociais</div><h1>Painel geral</h1></div><div class="sp"></div><div class="row"><span class="muted" id="pgSt" style="font-size:.85rem"></span><button class="btn sm" id="pgAtual">Atualizar números</button></div></div>
   <div class="stack">
   <div class="kpis">
@@ -1711,6 +1893,7 @@ async function route(){
   dl = window.ELEVA_DOWNLOADS || (NO_CLAUDE ? null : await claude.use("downloads")) || dlNavegador;
   if(window.ELEVA_AUTH){ try{ AUTH_INFO=await window.ELEVA_AUTH(); ADMIN=!!AUTH_INFO.admin; }catch{ ADMIN=false; AUTH_INFO={admin:false,status:0}; } }
   if(!NO_CLAUDE){ const u=await claude.use("user"); if(u){ try{ ADMIN=(await u.isOwner())||(await u.canEdit()); PODE_ESCREVER=await u.can("data.write"); }catch{} } else ADMIN=false; }
+  if(db&&ADMIN) db.doc("config/laudo").get().then(x=>{ if(x.exists) REFERENCIAS=x.data().referencias||null; }).catch(()=>{});
   if(db&&ADMIN) db.collection("profissionais").onSnapshot(s=>{ PROFS=s.docs.map(d=>d.data()).sort((a,b)=>a.nome.localeCompare(b.nome)); if(profModal&&document.body.contains(profModal)) profModal._draw(); else if(S.tab==="dados"&&!/^#(r|iso)-/.test(location.hash)) render(); },()=>{});
   if(db&&ADMIN) db.collection("empresas").onSnapshot(s=>{ S.empresas=s.docs.map(d=>d.data()).sort((a,b)=>a.razao.localeCompare(b.razao)); if(S.eid&&!S.empresas.find(e=>e.k===S.eid)){S.eid=null;S.data=null;} if(!/^#(r|iso)-/.test(location.hash)) render(); }, ()=>{});
   addEventListener("hashchange",()=>{ if(!/^#(r|iso)-/.test(location.hash)&&S.eid&&ADMIN) loadEmpresa(S.eid); else route(); });
