@@ -3893,6 +3893,21 @@
   // (relatorio com Empresa, Unidade, Setor, Cargo, Posto, Grupo, Fator, Criticidade,
   // Probabilidade, Pontuacao, Graduacao, acoes...). Matriz usada para ler a escala:
   // a do Cliente, se ja existir; senao a que sera atribuida ao Cliente novo.
+  // V 1.15: textos distintos (sem repetir) de um campo das linhas importadas; `filtro` = regex aplicada ao texto sem acento/minusculo.
+  function textosUnicos(valoresLista, campo, filtro, semFiltro) {
+    const vistos = new Set();
+    const saida = [];
+    valoresLista.forEach((v) => {
+      const t = String(v[campo] == null ? "" : v[campo]).split("\n").map((l) => l.replace(/[ \t]+/g, " ").trim()).filter(Boolean).join("\n");
+      if (!t) return;
+      const chave = t.replace(/\s+/g, " ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      if (!semFiltro && filtro && !filtro.test(chave)) return;
+      if (vistos.has(chave)) return;
+      vistos.add(chave);
+      saida.push(t);
+    });
+    return saida.length ? saida.join("\n") : null;
+  }
   const MATRIZ_LEGADO_PADRAO = "Matriz 4x4";
   const SINONIMOS_ESCALA_LEGADO = {
     leve: "Baixa", baixo: "Baixa", baixa: "Baixa", "muito baixo": "Muito Baixa", "muito baixa": "Muito Baixa",
@@ -4303,10 +4318,24 @@
         derivados: [{
           colecao: "avaliacaoErgonomica",
           rotulo: "avaliações de AEP",
-          descricao: "O inventário pertence a uma avaliação (AEP) de cada posto e cargo. O SIGE cria a avaliação com os dados que a planilha tem (jornada, pausas e rodízio ficam para preencher depois) e reaproveita as que já existem.",
+          descricao: "O inventário pertence a uma avaliação (AEP) de cada posto e cargo. O SIGE cria a avaliação com o que a planilha tem para responder aos campos dela (o que a planilha não traz fica em branco para preencher depois) e reaproveita as que já existem, completando só os campos em branco.",
           chave: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"],
           // V 1.15: se a planilha traz a data, o mesmo posto avaliado em datas diferentes gera uma AEP por data
           dataDe: { origem: "Dt Identificacao", destino: "Data Avaliacao" },
+          // V 1.15: a AEP criada (ou ja existente e em branco) recebe o que a planilha tem para responder
+          // aos campos da avaliacao; o resto nao existe no sistema anterior e fica em branco.
+          campos: [
+            { destino: "Pausas", rotulo: "Pausas", origem: "Medidas de controle existentes que citam pausa, intervalo, almoço ou DDS",
+              gerar: (vs) => textosUnicos(vs, "Medida Controle Existente", /pausa|\bdds\b|intervalo|almoc|descanso/) },
+            { destino: "Rodizio", rotulo: "Rodízio", origem: "Medidas de controle existentes que citam rodízio de atividades",
+              gerar: (vs) => textosUnicos(vs, "Medida Controle Existente", /rodizio (de|entre|das|dos)|rodizio$/) },
+            { destino: "Descricao Atividade Observada", rotulo: "Descrição da Atividade (Tarefa Real Observada)", origem: "Fontes geradoras do posto",
+              gerar: (vs) => {
+                const lista = textosUnicos(vs, "Circunstancia Geradora", null, true);
+                return lista ? "Situações observadas no posto (importado do sistema anterior):\n" + lista.split("\n").map((t) => "- " + t).join("\n") : null;
+              } },
+          ],
+          camposEmBranco: "Jornada, Descrição do Setor, Características dos Trabalhadores e Histórico de Acidentes não existem na planilha e ficam em branco para preencher na AEP.",
         }],
         // V 1.15: cada acao das colunas "Acao para eliminacao" e "Controles administrativos e organizacionais"
         // vira uma acao do Plano de Acao ligada ao fator (uma acao por item da celula).

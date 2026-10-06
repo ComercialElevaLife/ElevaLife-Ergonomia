@@ -273,6 +273,7 @@
       versao: "1.15", data: "06/10/2026",
       itens: [
         "Importação do Inventário de Riscos: as colunas “Ação para eliminação” e “Controles administrativos e organizacionais” agora viram ações do Plano de Ação (uma por item da célula), ligadas ao fator, com tipo Eliminação ou Organizacional. Responsável, e-mail e prazo ficam em branco para preencher depois.",
+        "As AEPs criadas pela importação do inventário (e as já existentes em branco) recebem o que a planilha tem: Pausas (das medidas de controle existentes que citam pausa, almoço ou DDS) e Descrição da Atividade (das fontes geradoras do posto). Jornada, Descrição do Setor, Características dos Trabalhadores e Histórico de Acidentes não existem na planilha e ficam em branco. Campos já preenchidos nunca são alterados.",
         "Leitura linha a linha: o mesmo local e fator com dados diferentes é importado como outra avaliação (só a linha idêntica em todas as colunas é tratada como repetida). Na importação de AEP, várias avaliações do mesmo posto/cargo/atividade são aceitas. Se a planilha de inventário trouxer a data, cada data gera uma AEP.",
       ],
     },
