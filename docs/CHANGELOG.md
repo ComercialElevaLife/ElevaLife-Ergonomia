@@ -2,6 +2,13 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.9 — 06/10/2026
+
+- **Editor de Texto cobre todo o Laudo** (Cadastro › Editor de Texto, coleção `modeloLaudo`): de 12 para 48 campos, em ordem do documento — capa (lema, título, subtítulo), títulos das seções (campo "Títulos": uma linha `chave | título`), apresentação, ElevaLife, responsabilidade, demanda, fundamentação, pilares, metodologia, etapas, PDCA, técnicas, ISO/TS 20646, guias de graduação (ADM, escalas), interfaces, gravidade/probabilidade/graduação, medidas, avaliações, recomendações, referências, conclusão e texto de validação. Campo vazio = texto padrão (`js/laudo-textos.js`); sem edição, o PDF permanece idêntico ao da V 1.8. Novos marcadores: `{nFatoresISO}`, `{nGruposISO}`, `{matriz}`, `{dataBase}`, `{nomes}`, `{emissao}`, `{codigo}`, `{revisao}`.
+- **Laudo em PDF e Word (.docx):** "Gerar Laudo" produz os dois arquivos a partir do mesmo conteúdo. Novo `js/laudo-docx.js` (sem biblioteca externa): estilos Título 1/2/3, sumário como campo do Word, cabeçalho/rodapé com "Página X de Y", tabelas, imagens (logotipo, fotos, assinaturas) e QR Code nativos. `js/laudo.js` passa a ter `preparar()` (dados e texto compartilhados) e `BI.Laudo.gerarDocx`.
+- Novo campo `Arquivo Word` no cadastro de Laudo e botão "⬇ Word" na lista. API de arquivos: coleção `laudo` aceita `.docx` (assinatura PK conferida). Hash SHA-256 e verificação continuam referindo-se ao PDF.
+- Limites: cabeçalhos das colunas das tabelas e alguns rótulos estruturais seguem fixos no código. Laudos anteriores não têm Word. Service worker: cache `sige-v12`.
+
 ## V 1.8 — 05/10/2026
 
 - **Importação do histórico de AEP** (Registro › Avaliação Ergonômica › "Importar Excel"), no mesmo motor da V 1.6 (`js/importador.js`): modelo para baixar, **apelidos de colunas** comuns de sistemas anteriores (Empresa, Filial, Área, Posto, Função, Data da AEP, Jornada…) reconhecidos automaticamente, mapeamento manual, prévia e confirmação. Chave natural: Cliente + Unidade + Setor + Posto + Cargo + Atividade + Data da avaliação (atualiza, não duplica).
