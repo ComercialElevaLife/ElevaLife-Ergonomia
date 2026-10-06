@@ -4175,7 +4175,12 @@
         arquivo: "historico-aep",
         nomePlanilha: "Dados",
         colunasPrevia: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Data Avaliacao"],
-        opcionais: ["Jornada de Trabalho", "Pausas", "Rodizio"],
+        // V 1.11: Atividade e Data da avaliacao tambem sao opcionais na importacao.
+        opcionais: ["Jornada de Trabalho", "Pausas", "Rodizio", "Atividade", "Data Avaliacao"],
+        padroes: [
+          { campo: "Atividade", rotulo: "Atividade para as linhas sem atividade (opcional – em branco, não preenche)", sugestao: "" },
+          { campo: "Data Avaliacao", rotulo: "Data da avaliação para as linhas sem data (opcional – em branco, não preenche)", sugestao: "" },
+        ],
         // Nomes de coluna comuns em planilhas do sistema anterior (reconhecidos sem mapear na mao).
         apelidos: {
           "Cliente": ["Empresa", "Razao Social", "Nome da Empresa"],
@@ -4193,7 +4198,7 @@
           "Historico Acidentes": ["Historico de Acidentes", "Acidentes"],
         },
         exemplo: { "Data Avaliacao": "15/03/2025", "Jornada de Trabalho": "Segunda a sexta, 08h às 17h48", "Pausas": "10 min a cada 50 min", "Rodizio": "Não há" },
-        descricao: "Importe o histórico de avaliações ergonômicas (AEP) de uma planilha Excel, inclusive a exportada do sistema anterior: na prévia você liga cada coluna do arquivo ao campo correspondente. Cliente, Unidade, Setor, Posto, Cargo e Atividade precisam estar cadastrados. Fotos não são importadas. Avaliações iguais (mesmo posto, cargo, atividade e data) são atualizadas, nunca duplicadas.",
+        descricao: "Importe o histórico de avaliações ergonômicas (AEP) de uma planilha Excel, inclusive a exportada do sistema anterior: na prévia você liga cada coluna do arquivo ao campo correspondente. Cliente, Unidade, Setor, Posto e Cargo precisam estar cadastrados (ou ser criados na prévia); Atividade e Data da avaliação são opcionais. Fotos não são importadas. Avaliações iguais (mesmo posto, cargo, atividade e data) são atualizadas, nunca duplicadas.",
       },
     },
     fatorRisco: {
@@ -4236,9 +4241,12 @@
           "Posto Trabalho": ["Posto de trabalho", "Posto"],
           "Medida Controle Existente": ["Medida de controle existente"],
         },
+        // V 1.11: Atividade e Data da identificacao NAO sao obrigatorias na importacao
+        // (o sistema anterior nao traz). Ficam em branco; o padrao abaixo e opcional.
+        opcionais: ["Atividade", "Dt Identificacao"],
         padroes: [
-          { campo: "Atividade", rotulo: "Atividade padrão (o sistema anterior não tem)", sugestao: "Atividade não informada – histórico" },
-          { campo: "Dt Identificacao", rotulo: "Data de identificação (o sistema anterior não tem)", sugestao: () => window.BI.Datas.hojeISO() },
+          { campo: "Atividade", rotulo: "Atividade para as linhas sem atividade (opcional – em branco, não preenche)", sugestao: "" },
+          { campo: "Dt Identificacao", rotulo: "Data de identificação para as linhas sem data (opcional – em branco, não preenche)", sugestao: "" },
         ],
         correspondencia: () => ({
           campos: ["Grupo", "Fator", "Criticidade", "Probabilidade"],

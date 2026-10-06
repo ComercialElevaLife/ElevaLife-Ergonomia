@@ -81,7 +81,7 @@
         "Em Registro › Avaliação Ergonômica (AEP), o botão \"Inventário de Riscos\", na linha do posto, abre o checklist de fatores (ISO/TS 20646). Para cada fator existente, informam-se Probabilidade e Gravidade; a graduação é obtida pela matriz do cliente.",
         "Cada fator marcado requer Fonte Geradora, Consequência e Medidas de Controle Existentes, além das ações de controle vinculadas (tipo, descrição, segmento corporal, redução prevista de risco, complexidade, responsável, prazo e status). O risco residual é calculado a partir dessas ações: o previsto considera todas; o realizado, apenas as concluídas.",
         "No Mapa de Risco, cada uma das 12 dimensões (regiões corporais, Psicossocial/Cognitivo e Ambiental) recebe nota de 1 a 4. O Risco Global do posto resulta da média dessas notas.",
-        "Histórico do sistema anterior: em Registro › Inventário de Riscos (AEP), \"Importar Excel\" lê o relatório exportado do sistema anterior (uma linha por fator). Informe a Atividade padrão e a Data de identificação (o sistema anterior não as tem), marque \"Criar automaticamente os cadastros que faltam\" para gerar Cliente, Unidade, Setor, Posto, Cargo e Atividade ausentes, confira os nomes parecidos, a correspondência de valores (ex.: Leve = Baixa) e as linhas duplicadas, e confirme. A Graduação do Risco é gravada exatamente como veio; as linhas em que ela difere da matriz do S.I.G.E. ficam marcadas na prévia. Reimportar o mesmo arquivo não duplica: as linhas idênticas são puladas.",
+        "Histórico do sistema anterior: em Registro › Inventário de Riscos (AEP), \"Importar Excel\" lê o relatório exportado do sistema anterior (uma linha por fator). Atividade e Data de identificação são opcionais (o sistema anterior não as tem): se a planilha não trouxer, ficam em branco, a menos que você informe um valor na prévia. Marque \"Criar automaticamente os cadastros que faltam\" para gerar Cliente, Unidade, Setor, Posto, Cargo e Atividade ausentes, confira os nomes parecidos, a correspondência de valores (ex.: Leve = Baixa) e as linhas duplicadas, e confirme. A Graduação do Risco é gravada exatamente como veio; as linhas em que ela difere da matriz do S.I.G.E. ficam marcadas na prévia. Reimportar o mesmo arquivo não duplica: as linhas idênticas são puladas.",
       ],
     },
     {
@@ -263,6 +263,12 @@
   ];
 
   const HISTORICO = [
+    {
+      versao: "1.11", data: "06/10/2026",
+      itens: [
+        "Importações do Inventário de Riscos e da AEP: Atividade e Data (da identificação / da avaliação) deixam de ser obrigatórias. Planilhas do sistema anterior que não trazem essas colunas entram com esses campos em branco; se quiser, informe um valor para as linhas sem dado na própria prévia.",
+      ],
+    },
     {
       versao: "1.10", data: "06/10/2026",
       itens: [
