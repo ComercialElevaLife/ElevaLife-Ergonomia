@@ -264,6 +264,12 @@
 
   const HISTORICO = [
     {
+      versao: "1.12", data: "06/10/2026",
+      itens: [
+        "Importação da Avaliação Ergonômica (AEP): se a planilha for um Inventário de Riscos (traz Grupo, Fator, Criticidade, Probabilidade…), a prévia avisa para usar Registro › Inventário de Riscos (AEP) › Importar Excel, onde os fatores de risco são lidos.",
+      ],
+    },
+    {
       versao: "1.11", data: "06/10/2026",
       itens: [
         "Importações do Inventário de Riscos e da AEP: Atividade e Data (da identificação / da avaliação) deixam de ser obrigatórias. Planilhas do sistema anterior que não trazem essas colunas entram com esses campos em branco; se quiser, informe um valor para as linhas sem dado na própria prévia.",

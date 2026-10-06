@@ -1219,6 +1219,11 @@
       chip("com erro", r.erro, r.erro ? "erro" : "neutro");
       corpo.appendChild(chips);
 
+      if (def.avisoPlanilha && estado.tabela) {
+        let msgAviso = null;
+        try { msgAviso = def.avisoPlanilha(estado.tabela.cabecalhos.map(norm)); } catch (e) { msgAviso = null; }
+        if (msgAviso) corpo.appendChild(el("div", "imp-aviso-planilha", msgAviso));
+      }
       if (r.excedeu) corpo.appendChild(el("div", "imp-erro", `A planilha tem mais de ${MAX_LINHAS} linhas; somente as primeiras ${MAX_LINHAS} foram lidas. Divida o arquivo em partes.`));
       if (faltam.length) {
         corpo.appendChild(el("div", "imp-erro", "Colunas obrigatórias não encontradas na planilha: " + faltam.map((c) => rotuloDe(def, c)).join(", ") + ". Ajuste o mapeamento de colunas abaixo ou use o modelo."));

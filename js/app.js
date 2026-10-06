@@ -4177,6 +4177,15 @@
         colunasPrevia: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Data Avaliacao"],
         // V 1.11: Atividade e Data da avaliacao tambem sao opcionais na importacao.
         opcionais: ["Jornada de Trabalho", "Pausas", "Rodizio", "Atividade", "Data Avaliacao"],
+        // V 1.12: o relatorio de Inventario de Riscos do sistema anterior tambem tem Empresa/Unidade/Setor/Posto/Cargo;
+        // importado aqui, so a hierarquia entra e as avaliacoes ficam vazias. Avisa para usar a tela certa.
+        avisoPlanilha: (cabecalhos) => {
+          const tem = (...ns) => ns.some((n) => cabecalhos.indexOf(n) !== -1);
+          const sinais = [tem("grupo"), tem("fator", "fator de risco"), tem("criticidade", "gravidade"), tem("probabilidade"), tem("graduacao do risco", "pontuacao de risco")].filter(Boolean).length;
+          return sinais >= 3
+            ? "Esta planilha parece ser um Inventário de Riscos (tem Grupo, Fator, Criticidade/Probabilidade…). Aqui, na Avaliação Ergonômica, só Cliente, Unidade, Setor, Posto e Cargo seriam lidos e os fatores de risco seriam ignorados. Para importar o inventário, use Registro › Inventário de Riscos (AEP) › Importar Excel."
+            : null;
+        },
         padroes: [
           { campo: "Atividade", rotulo: "Atividade para as linhas sem atividade (opcional – em branco, não preenche)", sugestao: "" },
           { campo: "Data Avaliacao", rotulo: "Data da avaliação para as linhas sem data (opcional – em branco, não preenche)", sugestao: "" },
@@ -5276,6 +5285,7 @@
       duplicidade: imp.duplicidade,
       marcas: imp.marcas,
       validarLinha: imp.validarLinha,
+      avisoPlanilha: imp.avisoPlanilha,
     };
     const ctx = {
       existentes: () => window.BI.dados[chave] || [],
