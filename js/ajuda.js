@@ -81,7 +81,7 @@
         "Em Registro › Avaliação Ergonômica (AEP), o botão \"Inventário de Riscos\", na linha do posto, abre o checklist de fatores (ISO/TS 20646). Para cada fator existente, informam-se Probabilidade e Gravidade; a graduação é obtida pela matriz do cliente.",
         "Cada fator marcado requer Fonte Geradora, Consequência e Medidas de Controle Existentes, além das ações de controle vinculadas (tipo, descrição, segmento corporal, redução prevista de risco, complexidade, responsável, prazo e status). O risco residual é calculado a partir dessas ações: o previsto considera todas; o realizado, apenas as concluídas.",
         "No Mapa de Risco, cada uma das 12 dimensões (regiões corporais, Psicossocial/Cognitivo e Ambiental) recebe nota de 1 a 4. O Risco Global do posto resulta da média dessas notas.",
-        "Histórico do sistema anterior: em Registro › Inventário de Riscos (AEP), \"Importar Excel\" lê o relatório exportado do sistema anterior (uma linha por fator). Atividade e Data de identificação são opcionais (o sistema anterior não as tem): se a planilha não trouxer, ficam em branco, a menos que você informe um valor na prévia. A mesma importação cria a Avaliação Ergonômica (AEP) de cada posto/cargo (aproveitando as existentes), então não é preciso importar em duas telas. Marque \"Criar automaticamente os cadastros que faltam\" para gerar Cliente, Unidade, Setor, Posto, Cargo e Atividade ausentes, confira os nomes parecidos, a correspondência de valores (ex.: Leve = Baixa) e as linhas duplicadas, e confirme. A Graduação do Risco é gravada exatamente como veio; as linhas em que ela difere da matriz do S.I.G.E. ficam marcadas na prévia. Reimportar o mesmo arquivo não duplica: as linhas idênticas são puladas.",
+        "Histórico do sistema anterior: em Registro › Inventário de Riscos (AEP), \"Importar Excel\" lê o relatório exportado do sistema anterior (uma linha por fator). Atividade e Data de identificação são opcionais (o sistema anterior não as tem): se a planilha não trouxer, ficam em branco, a menos que você informe um valor na prévia. A mesma importação cria a Avaliação Ergonômica (AEP) de cada posto/cargo (aproveitando as existentes) e as ações do Plano de Ação (cada item de \"Ação para eliminação\" e de \"Controles administrativos\" vira uma ação, sem responsável e prazo), então não é preciso importar em duas telas. Cada linha é lida individualmente: o mesmo local e fator com dados diferentes é outra avaliação e é importado. Marque \"Criar automaticamente os cadastros que faltam\" para gerar Cliente, Unidade, Setor, Posto, Cargo e Atividade ausentes, confira os nomes parecidos, a correspondência de valores (ex.: Leve = Baixa) e as linhas duplicadas, e confirme. A Graduação do Risco é gravada exatamente como veio; as linhas em que ela difere da matriz do S.I.G.E. ficam marcadas na prévia. Reimportar o mesmo arquivo não duplica: as linhas idênticas são puladas.",
       ],
     },
     {
@@ -269,6 +269,14 @@
   ];
 
   const HISTORICO = [
+    {
+      versao: "1.15", data: "06/10/2026",
+      itens: [
+        "Importação do Inventário de Riscos: as colunas “Ação para eliminação” e “Controles administrativos e organizacionais” agora viram ações do Plano de Ação (uma por item da célula), ligadas ao fator, com tipo Eliminação ou Organizacional. Responsável, e-mail e prazo ficam em branco para preencher depois.",
+        "As AEPs criadas pela importação do inventário (e as já existentes em branco) recebem o que a planilha tem: Pausas (das medidas de controle existentes que citam pausa, almoço ou DDS) e Descrição da Atividade (das fontes geradoras do posto). Jornada, Descrição do Setor, Características dos Trabalhadores e Histórico de Acidentes não existem na planilha e ficam em branco. Campos já preenchidos nunca são alterados.",
+        "Leitura linha a linha: o mesmo local e fator com dados diferentes é importado como outra avaliação (só a linha idêntica em todas as colunas é tratada como repetida). Na importação de AEP, várias avaliações do mesmo posto/cargo/atividade são aceitas. Se a planilha de inventário trouxer a data, cada data gera uma AEP.",
+      ],
+    },
     {
       versao: "1.14", data: "06/10/2026",
       itens: [

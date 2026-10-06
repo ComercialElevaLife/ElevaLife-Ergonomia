@@ -537,7 +537,58 @@
     });
   }
 
+  // ---- Importacao (V 1.15) -----------------------------------------------------
+  // As colunas "Acao para eliminacao" e "Controles administrativos e organizacionais" do
+  // sistema anterior viram ACOES do Plano de Acao (uma por item). Responsavel, e-mail e prazo
+  // nao existem no legado: ficam em branco para serem preenchidos depois no Plano de Acao.
+  const semAcentos = (t) => String(t == null ? "" : t).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const SEM_ACAO = /^(?:[\s\-\u2013\u2014.]*|n\/?a|nao se aplica|nao ha|nenhum[a]?|sem acao|nao informado|nao ha necessidade)$/;
+  const MARCADOR = /^(?:[-\u2013\u2014\u2022\u00b7*]+|\d{1,2}[.)])\s*/;
+
+  function semAcao(texto) {
+    return SEM_ACAO.test(semAcentos(texto).toLowerCase().replace(/\s+/g, " ").trim().replace(/[.;]+$/, ""));
+  }
+
+  // Quebra uma celula em acoes individuais: cada linha que comeca com marcador (-, •, 1., 1)) abre
+  // uma acao; linhas sem marcador continuam a acao anterior. Sem nenhum marcador, a celula e uma acao so.
+  function separarAcoes(texto) {
+    const limpo = String(texto == null ? "" : texto).replace(/_x000[dD]_/g, "").replace(/_x000[aA]_/g, "\n").replace(/\r/g, "");
+    const linhas = limpo.split("\n").map((l) => l.trim()).filter(Boolean);
+    const temMarcador = linhas.some((l) => MARCADOR.test(l) && l.replace(MARCADOR, "").trim());
+    const itens = [];
+    if (temMarcador) {
+      linhas.forEach((l) => {
+        if (MARCADOR.test(l)) { const t = l.replace(MARCADOR, "").trim(); if (t) itens.push(t); }
+        else if (itens.length) itens[itens.length - 1] += " " + l;
+        else itens.push(l);
+      });
+    } else if (linhas.length) itens.push(linhas.join(" "));
+    return itens.map((t) => t.replace(/\s+/g, " ").trim()).filter((t) => t && !semAcao(t));
+  }
+
+  // Registros do Plano de Acao a partir de uma linha do Inventario importado.
+  function acoesDeImportacao(v, idPai) {
+    const Cl = Calc();
+    const nivel = v["Graduacao Risco"] ? Cl.nivelCanonico(v["Graduacao Risco"]) : null;
+    const mapa = ((BI.dados && BI.dados.mapaRisco) || []).find((m) => Cl.DIMENSOES.every((d) => m[d] === v[d]));
+    const base = {};
+    Cl.DIMENSOES.forEach((d) => { if (v[d]) base[d] = v[d]; });
+    const lista = [];
+    [["Acao Eliminacao", "Eliminacao"], ["Controles Administrativos", "Organizacional"]].forEach(([campo, tipo]) => {
+      separarAcoes(v[campo]).forEach((t) => {
+        lista.push(Object.assign({}, base, {
+          "Tipo Acao": tipo, "Acao Recomendada": t, "Categoria Acao": categoriaDoTipo(tipo), "Gestao Acao": "ElevaLife",
+          "Risco Atual Segmento": nivel && Cl.NIVEIS_RISCO.indexOf(nivel) >= 0 ? nivel : null,
+          "Status Execucao": "Nao iniciada", "Risco Global": mapa ? mapa["Risco Global"] : null,
+          "Fator Risco Id": idPai, "Fator Risco Nome": v.Fator || null,
+        }));
+      });
+    });
+    return lista;
+  }
+
   BI.Acoes = {
+    separarAcoes, acoesDeImportacao,
     TIPOS_PADRAO, COMPLEXIDADES, SUGESTOES, tipos, rotuloTipo, categoriaDoTipo, niveisAbaixo, acoesDoFator, resumoRisco,
     estaConcluida, criarEditor, montarTelaConfiguracoes, segmentosDisponiveis,
   };

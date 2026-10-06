@@ -480,7 +480,11 @@
     function chaveDe(valores) {
       return chaveNatural.map((k) => norm(valores[k] == null ? "" : valores[k])).join("|");
     }
-    if (chaveNatural.length) existentes.forEach((l) => { const k = chaveDe(l); if (!indiceExistentes.has(k)) indiceExistentes.set(k, l); });
+    // V 1.15: cada chave natural guarda a LISTA dos registros que ja a usam (o mesmo local pode ter
+    // mais de uma avaliacao). Cada linha da planilha casa com um registro ainda nao "reivindicado".
+    const permitirRepetidas = !!def.permitirRepetidas;
+    const reivindicados = new Set();
+    if (chaveNatural.length) existentes.forEach((l) => { const k = chaveDe(l); if (!indiceExistentes.has(k)) indiceExistentes.set(k, []); indiceExistentes.get(k).push(l); });
 
     const H = ctx.hierarquia || null;
     const permitirCriar = !!(H && opcoes.criarAusentes);
@@ -633,11 +637,26 @@
 
       if (!erros.length && chaveNatural.length) {
         const k = chaveDe(valores);
-        if (chavesVistas.has(k)) {
-          item.erros.push(`Linha repetida: mesma combinação (${rotulosChave(def).join(" + ")}) da linha ${chavesVistas.get(k)}`);
+        const camposLidos = campos.map((c) => c.campo).filter((kk) => mapa[kk] != null && mapa[kk] >= 0);
+        const assin = assinaturaDe(valores, camposLidos);
+        const vista = chavesVistas.get(k);
+        // Sem "permitirRepetidas": mesma chave = repetida. Com ela (V 1.15), so a linha IDENTICA em
+        // todas as colunas e repetida; a mesma chave com conteudo diferente e outra avaliacao do mesmo local.
+        const repetida = !!vista && (!permitirRepetidas || vista.assins.has(assin));
+        if (repetida) {
+          item.erros.push(permitirRepetidas
+            ? `Linha repetida: idêntica à linha ${vista.numero} (mesmos dados em todas as colunas)`
+            : `Linha repetida: mesma combinação (${rotulosChave(def).join(" + ")}) da linha ${vista.numero}`);
         } else {
-          chavesVistas.set(k, linha.numero);
-          const ex = indiceExistentes.get(k);
+          if (vista) { vista.assins.add(assin); item.avisos.push(`Outra avaliação do mesmo local (a linha ${vista.numero} tem a mesma combinação, com dados diferentes): lida separadamente`); }
+          else chavesVistas.set(k, { numero: linha.numero, assins: new Set([assin]) });
+          const lista = indiceExistentes.get(k) || [];
+          let ex = null;
+          if (permitirRepetidas) {
+            const livres = lista.filter((e) => !reivindicados.has(e._id));
+            ex = livres.find((e) => assinaturaDe(e, camposLidos) === assin) || livres[0] || null;
+            if (ex) reivindicados.add(ex._id);
+          } else ex = lista[0] || null;
           if (ex) {
             item.existenteId = ex._id;
             campos.forEach((c) => {
@@ -673,7 +692,7 @@
             .map((kk) => { const cc = campos.find((x) => x.campo === kk); return cc ? rotuloDe(def, cc) : kk; });
           item.dup = { onde: outro.onde, ref: outro.ref, exata, difere };
           const escolhida = opcoes.decisoes && opcoes.decisoes[linha.numero];
-          item.decisao = escolhida || (exata || outro.onde === "sistema" ? "pular" : "importar");
+          item.decisao = escolhida || (exata ? "pular" : "importar"); // V 1.15: so a IDENTICA e pulada; conteudo diferente = outra avaliacao
         }
       }
 
@@ -849,7 +868,7 @@
     if (!i.dup) return "";
     const onde = i.dup.onde === "sistema" ? "já existe no SIGE" : `mesma chave da linha ${i.dup.ref}`;
     if (i.dup.exata) return i.dup.onde === "sistema" ? "Idêntica a um registro que já existe no SIGE" : `Idêntica à linha ${i.dup.ref}`;
-    return `Parecida: ${onde}, mas difere em ${i.dup.difere.join(", ") || "outros campos"}`;
+    return `Mesmo local e fator (${onde}), mas com dados diferentes (${i.dup.difere.join(", ") || "outros campos"}): é outra avaliação e será importada. Desmarque “Importar?” para pular.`;
   }
 
   function baixarRelatorioRevisao(def, ctx, estado) {
@@ -869,7 +888,7 @@
     ]);
     const dups = a.itens.filter((i) => i.dup);
     if (dups.length) aba("Duplicadas", [["Linha", "Tipo", "Onde", "Referência", "Decisão", "Difere em"]].concat(dups.map((i) => [
-      i.numero, i.dup.exata ? "Idêntica" : "Parecida", i.dup.onde === "sistema" ? "Já no SIGE" : "Neste arquivo",
+      i.numero, i.dup.exata ? "Idêntica" : "Outra avaliação", i.dup.onde === "sistema" ? "Já no SIGE" : "Neste arquivo",
       i.dup.onde === "sistema" ? String(i.dup.ref) : `linha ${i.dup.ref}`, i.decisao === "pular" ? "Pular" : "Importar", i.dup.difere.join("; "),
     ])));
     if (a.grafias.length) aba("Grafias", [["Nível", "Dentro de", "Grafia adotada", "Variantes"]].concat(a.grafias.map((g) => [
@@ -904,27 +923,117 @@
     };
     const estado = {
       wb: null, nomeArquivo: "", aba: "", tabela: null, mapa: {}, analise: null, atualizar: true, gravando: false,
-      criarAusentes: false, derivados: {}, padroes: padroesIniciais(), correspondencias: {}, grafias: {}, decisoes: {}, filtro: "todas", abertos: {},
+      criarAusentes: false, derivados: {}, completar: {}, filhos: {}, padroes: padroesIniciais(), correspondencias: {}, grafias: {}, decisoes: {}, filtro: "todas", abertos: {},
     };
 
     // V 1.13: registros "derivados" (ex.: a AEP de cada posto/cargo do inventario) criados junto
+    // com os principais. V 1.15: quando o derivado declara "dataDe" (ex.: Data Avaliacao <- Dt Identificacao),
+    // o mesmo local com datas diferentes gera uma avaliacao POR DATA (varias avaliacoes do mesmo local).
     function planoDerivados() {
       const a = estado.analise;
       if (!a || !(def.derivados || []).length || !ctx.existentesDe) return [];
       const ativos = a.itens.filter((i) => (i.acao === "novo" || i.acao === "atualiza"));
       return def.derivados.map((d) => {
-        const existentes = new Set((ctx.existentesDe(d.colecao) || []).map((x) => d.chave.map((k) => norm(x[k] || "")).join("¦")));
-        const mapa = new Map();
-        ativos.forEach((i) => {
-          const chave = d.chave.map((k) => norm(i.valores[k] || "")).join("¦");
-          if (existentes.has(chave)) return;
-          let reg = mapa.get(chave);
-          if (!reg) { reg = { chave, dados: {}, itens: [] }; d.chave.forEach((k) => { if (i.valores[k]) reg.dados[k] = i.valores[k]; }); mapa.set(chave, reg); }
-          reg.itens.push(i);
+        const base = (x) => d.chave.map((k) => norm(x[k] || "")).join("¦");
+        const dtDe = (x, campo) => (campo && x[campo] ? String(x[campo]) : "");
+        const origem = d.dataDe ? d.dataDe.origem : null;
+        const destino = d.dataDe ? d.dataDe.destino : null;
+        const exMap = new Map();
+        (ctx.existentesDe(d.colecao) || []).forEach((x) => {
+          const b = base(x);
+          if (!exMap.has(b)) exMap.set(b, []);
+          exMap.get(b).push(x);
         });
-        const jaExistem = new Set();
-        ativos.forEach((i) => { const chave = d.chave.map((k) => norm(i.valores[k] || "")).join("¦"); if (existentes.has(chave)) jaExistem.add(chave); });
-        return { spec: d, itens: Array.from(mapa.values()), jaExistem: jaExistem.size, ativo: estado.derivados[d.colecao] !== false };
+        // V 1.15: campos que o derivado preenche com o que a planilha tem (ex.: Pausas, Descricao da Atividade)
+        const calcular = (itensDt) => {
+          const out = {};
+          (d.campos || []).forEach((c) => {
+            let v = null;
+            try { v = c.gerar(itensDt.map((i) => i.valores)); } catch (e) { v = null; }
+            if (v != null && String(v).trim() !== "") out[c.destino] = v;
+          });
+          return out;
+        };
+        const vazio = (v) => v == null || String(v).trim() === "";
+        // linhas ativas agrupadas por local e por data
+        const grupos = new Map();
+        ativos.forEach((i) => {
+          const b = base(i.valores);
+          if (!grupos.has(b)) grupos.set(b, new Map());
+          const porData = grupos.get(b);
+          const dt = dtDe(i.valores, origem);
+          if (!porData.has(dt)) porData.set(dt, []);
+          porData.get(dt).push(i);
+        });
+        const mapa = new Map();
+        const completar = [];
+        const existentesUsados = new Set();
+        grupos.forEach((porData, b) => {
+          // linhas sem data seguem a primeira data do mesmo local (nao geram avaliacao propria)
+          if (porData.size > 1 && porData.has("")) {
+            const semData = porData.get("");
+            porData.delete("");
+            const primeira = Array.from(porData.keys()).sort()[0];
+            porData.set(primeira, porData.get(primeira).concat(semData));
+          }
+          const recs = exMap.get(b) || [];
+          let adotouSemData = false;
+          Array.from(porData.keys()).sort().forEach((dt) => {
+            const itensDt = porData.get(dt);
+            let rec = null;
+            if (recs.length) {
+              if (dt === "") rec = recs.find((x) => dtDe(x, destino) === "") || recs[0];
+              else {
+                rec = recs.find((x) => dtDe(x, destino) === dt) || null;
+                if (!rec && !adotouSemData) { rec = recs.find((x) => dtDe(x, destino) === "") || null; if (rec) adotouSemData = true; }
+              }
+            }
+            const calc = calcular(itensDt);
+            if (rec) {
+              existentesUsados.add(b + "¦" + dt);
+              const faltantes = {};
+              Object.keys(calc).forEach((k) => { if (vazio(rec[k])) faltantes[k] = calc[k]; });
+              if (Object.keys(faltantes).length) completar.push({ rec, dados: faltantes, itens: itensDt });
+              return;
+            }
+            const chave = b + "¦" + dt;
+            const reg = { chave, dados: {}, itens: itensDt };
+            d.chave.forEach((k) => { if (itensDt[0].valores[k]) reg.dados[k] = itensDt[0].valores[k]; });
+            if (destino && dt) reg.dados[destino] = dt;
+            Object.assign(reg.dados, calc);
+            mapa.set(chave, reg);
+          });
+        });
+        return { spec: d, itens: Array.from(mapa.values()), completar, jaExistem: existentesUsados.size, ativo: estado.derivados[d.colecao] !== false, ativoCompletar: estado.completar[d.colecao] !== false };
+      });
+    }
+
+    // V 1.15: registros "filhos" criados a partir de cada linha gravada (ex.: cada ACAO das colunas
+    // "Acao para eliminacao" / "Controles administrativos" vira uma acao do Plano de Acao ligada ao fator).
+    // spec: { colecao, rotulo, descricao, ligacao, textoCampo, registros(valores, idPai) -> [dados], rotuloGrupo(dados) }
+    function filhosDe(spec, item, idPai) {
+      let regs = [];
+      try { regs = spec.registros(item.valores, idPai, ctx) || []; } catch (e) { regs = []; }
+      if (item.acao === "atualiza" && item.existenteId && ctx.existentesDe) {
+        const jaTem = new Set((ctx.existentesDe(spec.colecao) || []).filter((x) => x[spec.ligacao] === item.existenteId).map((x) => norm(x[spec.textoCampo] || "")));
+        regs = regs.filter((r) => !jaTem.has(norm(r[spec.textoCampo] || "")));
+      }
+      return regs;
+    }
+    function planoFilhos() {
+      const a = estado.analise;
+      if (!a || !(def.filhos || []).length) return [];
+      const ativos = a.itens.filter((i) => (i.acao === "novo" || i.acao === "atualiza") && !i.erros.length);
+      return def.filhos.map((spec) => {
+        let total = 0, linhas = 0;
+        const porGrupo = {};
+        ativos.forEach((i) => {
+          const regs = filhosDe(spec, i, "(novo)");
+          if (!regs.length) return;
+          linhas++;
+          regs.forEach((r) => { total++; const g = spec.rotuloGrupo ? spec.rotuloGrupo(r) : ""; porGrupo[g] = (porGrupo[g] || 0) + 1; });
+        });
+        return { spec, total, linhas, porGrupo, ativo: estado.filhos[spec.colecao] !== false };
       });
     }
 
@@ -1244,6 +1353,8 @@
       Object.keys(MARCAS).forEach((m) => { if (r.marcas[m]) chip(MARCAS[m].chip || MARCAS[m].rotulo || m, r.marcas[m], "alerta"); });
       if (H && estado.criarAusentes && a.plano.total) chip("cadastros a criar", a.plano.total, "info");
       planoDerivados().forEach((pd) => { if (pd.ativo && pd.itens.length) chip(pd.spec.rotulo + " a criar", pd.itens.length, "info"); });
+      planoDerivados().forEach((pd) => { if (pd.ativoCompletar && pd.completar.length) chip(pd.spec.rotulo + " existentes a completar", pd.completar.length, "info"); });
+      planoFilhos().forEach((pf) => { if (pf.ativo && pf.total) chip(pf.spec.rotulo + " a criar", pf.total, "info"); });
       chip("com erro", r.erro, r.erro ? "erro" : "neutro");
       corpo.appendChild(chips);
 
@@ -1261,7 +1372,7 @@
       const bCad = blocoCadastros();
       if (bCad) corpo.appendChild(bCad);
       planoDerivados().forEach((pd) => {
-        if (!pd.itens.length && !pd.jaExistem) return;
+        if (!pd.itens.length && !pd.jaExistem && !pd.completar.length) return;
         const bloco = el("div", "imp-bloco imp-bloco-ok");
         bloco.appendChild(el("div", "imp-bloco-titulo", `${pd.spec.rotulo}: ${pd.itens.length} a criar` + (pd.jaExistem ? ` · ${pd.jaExistem} já existem e serão aproveitadas` : "")));
         bloco.appendChild(el("div", "imp-bloco-nota", pd.spec.descricao || ""));
@@ -1275,6 +1386,37 @@
           rot.appendChild(document.createTextNode(" Criar " + pd.spec.rotulo));
           bloco.appendChild(rot);
         }
+        // V 1.15: campos que a AEP recebe da planilha e os que ficam em branco
+        if (pd.spec.campos && pd.spec.campos.length) {
+          const preenche = pd.spec.campos.map((c) => `${c.rotulo || c.destino} ← ${c.origem}`).join("; ");
+          bloco.appendChild(el("div", "imp-bloco-nota", `Preenchido com o que a planilha tem: ${preenche}. ${pd.spec.camposEmBranco || ""}`));
+          if (pd.completar.length) {
+            const rotC = document.createElement("label");
+            rotC.className = "imp-check-linha";
+            const cbC = document.createElement("input");
+            cbC.type = "checkbox"; cbC.checked = pd.ativoCompletar;
+            cbC.addEventListener("change", () => { estado.completar[pd.spec.colecao] = cbC.checked; telaPrevia(); });
+            rotC.appendChild(cbC);
+            rotC.appendChild(document.createTextNode(` Completar os campos em branco de ${pd.completar.length} ${pd.completar.length === 1 ? "avaliação já existente" : "avaliações já existentes"} (o que já está preenchido não é alterado)`));
+            bloco.appendChild(rotC);
+          }
+        }
+        corpo.appendChild(bloco);
+      });
+      planoFilhos().forEach((pf) => {
+        if (!pf.total) return;
+        const bloco = el("div", "imp-bloco imp-bloco-ok");
+        const grupos = Object.keys(pf.porGrupo).filter(Boolean).map((g) => `${pf.porGrupo[g]} ${g}`).join(" · ");
+        bloco.appendChild(el("div", "imp-bloco-titulo", `${pf.spec.rotulo}: ${pf.total} a criar` + (grupos ? ` (${grupos})` : "") + ` · vindas de ${pf.linhas} ${pf.linhas === 1 ? "linha" : "linhas"}`));
+        bloco.appendChild(el("div", "imp-bloco-nota", pf.spec.descricao || ""));
+        const rot = document.createElement("label");
+        rot.className = "imp-check-linha";
+        const cb = document.createElement("input");
+        cb.type = "checkbox"; cb.checked = pf.ativo;
+        cb.addEventListener("change", () => { estado.filhos[pf.spec.colecao] = cb.checked; telaPrevia(); });
+        rot.appendChild(cb);
+        rot.appendChild(document.createTextNode(" Criar " + pf.spec.rotulo));
+        bloco.appendChild(rot);
         corpo.appendChild(bloco);
       });
       const bGraf = blocoGrafias();
@@ -1359,7 +1501,7 @@
         tr.appendChild(el("td", null, String(i.numero)));
         const tdS = document.createElement("td");
         tdS.appendChild(el("span", "imp-badge imp-badge-" + i.acao, ROT_ACAO[i.acao]));
-        if (i.dup) tdS.appendChild(el("span", "imp-badge imp-badge-dup", i.dup.exata ? "Idêntica" : "Parecida"));
+        if (i.dup) tdS.appendChild(el("span", "imp-badge imp-badge-dup", i.dup.exata ? "Idêntica" : "Outra avaliação"));
         if (i.criar.length && !i.erros.length) tdS.appendChild(el("span", "imp-badge imp-badge-info", "Cria cadastro"));
         tr.appendChild(tdS);
         const partes = [];
@@ -1484,6 +1626,18 @@
       if (ctx.existentesDe && (def.derivados || []).length) {
         const gravSet = new Set(gravaveis);
         for (const pd of planoDerivados()) {
+          // V 1.15: preenche so os campos EM BRANCO de registros que ja existem (ex.: AEP criada vazia antes), nunca sobrescreve
+          if (pd.ativoCompletar && pd.completar.length) {
+            const upd = pd.completar.filter((r) => r.itens.some((i) => gravSet.has(i)))
+              .map((r) => { const dados = Object.assign({}, r.rec, r.dados); delete dados._id; return { id: r.rec._id, dados, criar: false, ref: r }; });
+            if (upd.length) {
+              texto.textContent = `Completando ${pd.spec.rotulo} existentes…`;
+              let resU;
+              try { resU = await BI.DB.salvarEmLote(pd.spec.colecao, upd, () => {}); } catch (e) { resU = { falhas: upd.map((_, indice) => ({ indice, erro: e && e.message ? e.message : String(e) })) }; }
+              if (resU.falhas.length) falhasCadastro.push({ numero: "-", erro: `${pd.spec.rotulo} existentes: ${resU.falhas.length} não puderam ser completadas (${resU.falhas[0].erro})` });
+              if (upd.length - resU.falhas.length) derivadosCriados.push({ rotulo: pd.spec.rotulo + " existentes completadas", qtd: upd.length - resU.falhas.length, semSufixo: true });
+            }
+          }
           if (!pd.ativo) continue;
           const regs = pd.itens.filter((r) => r.itens.some((i) => gravSet.has(i)));
           if (!regs.length) continue;
@@ -1527,7 +1681,34 @@
       const falhouIdx = new Set(resultado.falhas.map((f) => f.indice));
       let criados = 0, atualizados = 0;
       lote.forEach((l, idx) => { if (falhouIdx.has(idx)) return; if (l.criar) criados++; else atualizados++; });
-      telaFinal({ criados, atualizados, cadastros: cadastrosCriados, derivados: derivadosCriados, falhas: falhasCadastro.concat(falhas), naoGravados: bloqueadas });
+
+      // 3) registros filhos (ex.: acoes do Plano de Acao), ligados ao registro principal que acabou de ser gravado
+      const falhasFilhos = [];
+      if ((def.filhos || []).length) {
+        estado.gravando = true;
+        for (const pf of planoFilhos()) {
+          if (!pf.ativo || !pf.total) continue;
+          texto.textContent = `Criando ${pf.spec.rotulo}…`;
+          const proximo = {};
+          const nr = pf.spec.numeracao || null;
+          if (nr) (ctx.existentesDe(pf.spec.colecao) || []).forEach((x) => { const g = x[nr.agrupar] || ""; proximo[g] = Math.max(proximo[g] || 0, Number(x[nr.campo]) || 0); });
+          const loteF = [];
+          lote.forEach((l, idx) => {
+            if (falhouIdx.has(idx)) return;
+            filhosDe(pf.spec, l.ref, l.id).forEach((dados) => {
+              if (nr) { const g = dados[nr.agrupar] || ""; proximo[g] = (proximo[g] || 0) + 1; dados[nr.campo] = proximo[g]; }
+              loteF.push({ id: ctx.gerarId ? ctx.gerarId(dados) : null, dados, criar: true, ref: l.ref });
+            });
+          });
+          if (!loteF.length) continue;
+          let resF;
+          try { resF = await BI.DB.salvarEmLote(pf.spec.colecao, loteF, () => {}); } catch (e) { resF = { falhas: loteF.map((_, indice) => ({ indice, erro: e && e.message ? e.message : String(e) })) }; }
+          resF.falhas.forEach((f) => falhasFilhos.push({ numero: loteF[f.indice].ref.numero, erro: `${pf.spec.rotulo}: ${f.erro}` }));
+          derivadosCriados.push({ rotulo: pf.spec.rotulo, qtd: loteF.length - resF.falhas.length });
+        }
+        estado.gravando = false;
+      }
+      telaFinal({ criados, atualizados, cadastros: cadastrosCriados, derivados: derivadosCriados, falhas: falhasCadastro.concat(falhas, falhasFilhos), naoGravados: bloqueadas });
     }
 
     function telaFinal(res) {
@@ -1540,7 +1721,7 @@
       const chips = el("div", "imp-chips");
       const lista = [["criados", res.criados, "ok"], ["atualizados", res.atualizados, "info"]];
       if (res.cadastros) lista.push(["cadastros criados", res.cadastros, "info"]);
-      (res.derivados || []).forEach((d) => { if (d.qtd) lista.push([d.rotulo + " criadas", d.qtd, "info"]); });
+      (res.derivados || []).forEach((d) => { if (d.qtd) lista.push([d.semSufixo ? d.rotulo : d.rotulo + " criadas", d.qtd, "info"]); });
       if (res.naoGravados) lista.push(["registros não gravados", res.naoGravados, "erro"]);
       lista.push(["falhas ao gravar", res.falhas.length, res.falhas.length ? "erro" : "neutro"]);
       lista.forEach(([rot, val, cls]) => {
