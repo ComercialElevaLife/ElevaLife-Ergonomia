@@ -492,7 +492,7 @@
     const novos = new Map();
 
     // ---- passo 1: ler e converter cada linha (sem olhar o cadastro ainda)
-    const lidas = tabela.linhas.slice(0, MAX_LINHAS).map((linha) => {
+    const lidas = tabela.linhas.slice(0, def.maxLinhas || MAX_LINHAS).map((linha) => {
       const valores = {};
       const erros = [];
       const l = { linha, valores, erros, avisos: [], marcas: [], padroesDe: [] };
@@ -699,7 +699,7 @@
     const plano = planoDe((i) => !i.erros.length && (i.acao === "novo" || i.acao === "atualiza"));
     const pendente = planoDe((i) => i.soCriacao || (!i.erros.length && i.criar.length));
 
-    const resumo = { total: itens.length, novo: 0, atualiza: 0, igual: 0, erro: 0, ignorada: 0, pulada: 0, duplicadas: 0, aguardaCadastro: 0, marcas: {}, excedeu: tabela.linhas.length > MAX_LINHAS };
+    const resumo = { total: itens.length, novo: 0, atualiza: 0, igual: 0, erro: 0, ignorada: 0, pulada: 0, duplicadas: 0, aguardaCadastro: 0, marcas: {}, excedeu: tabela.linhas.length > (def.maxLinhas || MAX_LINHAS) };
     itens.forEach((i) => {
       resumo[i.acao] = (resumo[i.acao] || 0) + 1;
       if (i.dup) resumo.duplicadas++;
@@ -995,7 +995,7 @@
 
       const zona = el("label", "imp-zona");
       zona.appendChild(el("span", "imp-zona-titulo", "Selecionar planilha preenchida"));
-      zona.appendChild(el("span", "imp-zona-sub", "Arquivos .xlsx, .xls ou .csv · até " + MAX_LINHAS + " linhas"));
+      zona.appendChild(el("span", "imp-zona-sub", "Arquivos .xlsx, .xls ou .csv · até " + (def.maxLinhas || MAX_LINHAS) + " linhas"));
       const entrada = document.createElement("input");
       entrada.type = "file";
       entrada.accept = ".xlsx,.xls,.csv";
@@ -1252,7 +1252,7 @@
         try { msgAviso = def.avisoPlanilha(estado.tabela.cabecalhos.map(norm)); } catch (e) { msgAviso = null; }
         if (msgAviso) corpo.appendChild(el("div", "imp-aviso-planilha", msgAviso));
       }
-      if (r.excedeu) corpo.appendChild(el("div", "imp-erro", `A planilha tem mais de ${MAX_LINHAS} linhas; somente as primeiras ${MAX_LINHAS} foram lidas. Divida o arquivo em partes.`));
+      if (r.excedeu) corpo.appendChild(el("div", "imp-erro", `A planilha tem mais de ${def.maxLinhas || MAX_LINHAS} linhas; somente as primeiras ${def.maxLinhas || MAX_LINHAS} foram lidas. Divida o arquivo em partes.`));
       if (faltam.length) {
         corpo.appendChild(el("div", "imp-erro", "Colunas obrigatórias não encontradas na planilha: " + faltam.map((c) => rotuloDe(def, c)).join(", ") + ". Ajuste o mapeamento de colunas abaixo ou use o modelo."));
       }

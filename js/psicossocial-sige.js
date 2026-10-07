@@ -52,7 +52,6 @@
   window.ELEVA_AUTH = async function () {
     try {
       const eu = await req("GET", "/psico/eu", null, { tentativas: 3 });
-      if (eu.semVinculo) return { admin: false, cliente: false, status: 403, semVinculo: true, papel: eu.papel };
       const cliente = eu.papel === "UsuarioCliente";
       return { admin: !cliente, cliente, email: eu.email, papel: eu.papel };
     } catch (e) { return { admin: false, cliente: false, status: e.status || 0, papel: (e.body && e.body.papel) || null }; }
@@ -62,6 +61,40 @@
     empresas: () => req("GET", "/psico/cli-empresas").then((d) => d.empresas || []),
     dados: (eid) => req("GET", "/psico/cli-dados?e=" + encodeURIComponent(eid)),
     salvarIso: (eid, doc) => req("PUT", "/psico/cli-iso?e=" + encodeURIComponent(eid), doc),
+  };
+  // V 1.27: cadastro unico - empresas, unidades, setores/GHE, colaboradores,
+  // ergonomistas e Registro (Mapa de Risco, Inventario e Plano de Acao) vem da
+  // API generica do SIGE (/api/{colecao}), com as mesmas regras de perfil.
+  const cacheSige = new Map();
+  window.ELEVA_SIGE = {
+    async listar(colecao, empresaId, semCache) {
+      const k = colecao + "|" + (empresaId || "");
+      const c = cacheSige.get(k);
+      if (!semCache && c && Date.now() - c.t < 8000) return c.docs;
+      const d = await req("GET", "/" + encodeURIComponent(colecao) + (empresaId ? "?empresa=" + encodeURIComponent(empresaId) : ""));
+      const docs = Array.isArray(d) ? d : (d.itens || d.docs || []);
+      cacheSige.set(k, { t: Date.now(), docs });
+      return docs;
+    },
+    // POST na API do SIGE e upsert (cria ou atualiza pelo id).
+    async salvar(colecao, doc) {
+      const r = await req("POST", "/" + encodeURIComponent(colecao), doc, { tentativas: 4 });
+      for (const k of cacheSige.keys()) if (k.startsWith(colecao + "|")) cacheSige.delete(k);
+      return r;
+    },
+    async excluir(colecao, id) {
+      await req("DELETE", "/" + encodeURIComponent(colecao) + "/" + encodeURIComponent(id), null, { tentativas: 4 }).catch((e) => { if (e.status !== 404) throw e; });
+      for (const k of cacheSige.keys()) if (k.startsWith(colecao + "|")) cacheSige.delete(k);
+    },
+    // Arquivo do Storage (ex.: logotipo do cliente) como data URL.
+    async arquivo(chave) {
+      const r = await fetch(BASE + "/arquivos?chave=" + encodeURIComponent(chave), { credentials: "same-origin" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const b = await r.blob();
+      return await new Promise((ok, erro) => { const f = new FileReader(); f.onload = () => ok(f.result); f.onerror = erro; f.readAsDataURL(b); });
+    },
+    // Avisa o SIGE (janela pai) que o Registro mudou, para recarregar os paineis.
+    avisarRegistro() { try { if (window.parent !== window) window.parent.postMessage({ tipo: "psico-registro" }, location.origin); } catch (e) {} },
   };
   window.ELEVA_EQUIPE = {
     notificarAcao: (eid, gid, cod, info, forcar) => req("POST", "/psico/notificar-acao", { e: eid, g: gid, c: cod, info, forcar: !!forcar }, { tentativas: 3 }),

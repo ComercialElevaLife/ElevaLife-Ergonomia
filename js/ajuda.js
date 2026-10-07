@@ -41,9 +41,12 @@
       objetivo: "Estabelecer a estrutura organizacional do cliente e as configurações do laudo, pré-requisitos para qualquer lançamento.",
       perfis: "Administrador e Consultor. O Usuário Cliente apenas consulta.",
       passos: [
-        "A estrutura é cadastrada na sequência Cliente › Unidade › Setor › Posto de Trabalho › Cargo › Atividade. Cada nível aceita somente valores do nível anterior (listas em cascata), o que preserva a padronização da nomenclatura.",
+        "A estrutura é cadastrada na sequência Cliente › Unidade › Setor / GHE › Posto de Trabalho › Cargo › Atividade. Cada nível aceita somente valores do nível anterior (listas em cascata), o que preserva a padronização da nomenclatura.",
         "No cadastro do Cliente, define-se a Matriz de Risco (3x3, 4x4 ou 5x5), que determina a graduação do Inventário de Riscos. O logotipo do cliente compõe a identidade visual da tela quando somente esse cliente está filtrado e é utilizado na capa do laudo.",
-        "Em Cadastro estão também as configurações do laudo: Ergonomistas (registro profissional e assinatura), Certificado Calibração e Editor de Texto.",
+        "No cadastro do Cliente, marcam-se os Serviços contratados (Gestão de Risco, Gestão de Absenteísmo, Gestão de Restritos e Riscos Psicossociais). A aba de um serviço não contratado continua no menu, mas mostra o aviso de que a empresa não possui o serviço e orienta a procurar o time de especialistas da ElevaLife. Clientes antigos, sem nenhuma marcação, continuam com todos os serviços.",
+        "Em Setor / GHE, o campo \"É setor ou GHE?\" indica se o registro é um setor ou um grupo homogêneo de exposição (GHE). Os Riscos Psicossociais usam os dois da mesma forma.",
+        "Em Colaboradores, cadastra-se cada pessoa com unidade, setor/GHE, matrícula e nome (há importação por planilha, até 12 mil linhas por arquivo). A matrícula é a chave: é ela que o colaborador digita para responder o questionário HSE-IT.",
+        "Em Cadastro estão também as configurações do laudo: Ergonomistas (registro profissional e assinatura, usados também no laudo de Riscos Psicossociais), Certificado Calibração e Editor de Texto.",
         "Os lançamentos em Registro dependem dessa estrutura; recomenda-se concluí-la antes do início das avaliações.",
       ],
     },
@@ -140,16 +143,31 @@
     },
     {
       titulo: "Riscos Psicossociais",
-      objetivo: "Avaliar os fatores de risco psicossociais (NR-01) com o HSE-IT e o checklist ISO 45003 e emitir o relatório.",
-      perfis: "Administrador e Consultor (as telas de resposta do QR code são públicas)",
+      objetivo: "Avaliar os fatores de risco psicossociais (NR-01) com o HSE-IT e o checklist ISO 45003, integrar os riscos e as ações ao Registro e emitir o laudo.",
+      perfis: "Administrador e Consultor (ergonomista) nas empresas vinculadas. O Usuário Cliente responde o ISO 45003, acompanha as respostas do HSE-IT e o plano de ação. As telas de resposta do QR code são públicas.",
       passos: [
-        "Cadastre a empresa pelo CNPJ e baixe a Planilha de solicitação ao cliente (unidades, colaboradores e GHEs, taxa de frequência e ações já realizadas).",
-        "Importe a planilha devolvida pelo cliente na aba Colaboradores: unidades, GHEs, taxas de frequência e ações entram de uma vez.",
-        "Divulgue o QR code da coleta (ou o código curto): cada colaborador responde uma única vez com a matrícula; a matrícula não fica ligada às respostas.",
-        "Envie o QR code do checklist ISO 45003 ao gestor do contrato.",
-        "Em Análise de risco, escolha a matriz 4x4 ou 5x5: a probabilidade vem do HSE × ISO 45003 e a severidade da taxa de frequência.",
-        "Em Plano de ação, selecione as ações da Biblioteca Mestre para os GHEs com risco moderado ou acima; para trivial/baixo, valem as ações já realizadas.",
-        "Gere o relatório em Word (ao abrir, aceite atualizar os campos para montar o sumário).",
+        "Comece pelo Cadastro do SIGE: Cliente (com o serviço Riscos Psicossociais marcado e a Matriz de Risco), Unidade, Setor / GHE e Colaboradores. Não existe cadastro separado no módulo.",
+        "Diagnóstico organizacional: envie o QR code do checklist ISO 45003 ao gestor do contrato (ou preencha pela ElevaLife) e informe a taxa de frequência de afastamentos de cada setor/GHE, com casos graves e, se necessário, o ajuste da evidência organizacional. Ali também ficam as ações já realizadas pela empresa e a planilha de solicitação ao cliente.",
+        "HSE-IT: divulgue o QR code da coleta (ou o código curto). Cada colaborador responde uma única vez com a matrícula; a matrícula não fica ligada às respostas. A aba mostra a adesão por unidade e setor/GHE e os resultados.",
+        "Análise de risco: resumo por empresa, unidade e setor/GHE, com probabilidade, severidade e graduação de cada um dos 7 fatores, e gráfico com a quantidade de fatores por graduação (com filtros). A matriz é a do cadastro do cliente.",
+        "Integração com o Registro: cada setor/GHE classificado gera uma linha \"Risco psicossocial\" no Mapa de Risco e uma linha por fator no Inventário de Riscos; cada ação recomendada vira uma ação no Plano de Ação, com origem \"Riscos Psicossociais\". Nos indicadores, cada linha conta como 1.",
+        "Plano de ação: a ação é a mesma do Registro › Plano de Ação. Com prazo, responsável e e-mail preenchidos, o responsável recebe um e-mail com a ação e o prazo; os lembretes automáticos do SIGE também valem. Para concluir, anexe a evidência no Registro. O quadro \"Ajustar ações recomendadas\" inclui ou retira ações de um setor/GHE.",
+        "Laudo: escolha o ergonomista e o responsável técnico (do cadastro de Ergonomistas do SIGE) e emita o PDF. Os textos padrão ficam no Editor de texto (edição só pelo Administrador).",
+      ],
+    },
+    {
+      titulo: "Riscos Psicossociais: probabilidade, severidade e graduação",
+      objetivo: "Explicar como cada fator do HSE-IT é graduado na matriz de risco do cliente.",
+      perfis: "Todos os perfis.",
+      passos: [
+        "Graduação do fator no HSE-IT: média das respostas do setor/GHE em cada um dos 7 fatores (Demandas, Controle, Apoio da chefia, Apoio dos colegas, Relacionamentos, Cargo e Comunicação e mudanças), com os itens negativos invertidos. Média ≥ 4,61 = muito baixa; ≥ 4,00 = baixa; ≥ 3,00 = moderada; ≥ 2,00 = alta; abaixo = muito alta.",
+        "Checklist ISO 45003: 33 itens (Sim = 1, Parcial = 0,5, Não = 0). De 24 a 33 pontos, gestão eficaz; de 17 a 23,5, gestão intermediária; abaixo de 17, gestão ineficaz.",
+        "Probabilidade: a graduação do fator no HSE-IT é cruzada com o resultado do ISO 45003, resultando em uma probabilidade de 1 a 5 (ex.: graduação alta com gestão intermediária = 4). Esse valor é convertido proporcionalmente para a escala da matriz do cliente (5 níveis na 5x5, 4 na 4x4, 3 na 3x3).",
+        "Severidade Intrínseca do Fator (SIF): fixa por fator, definida pela literatura científica (Manual SIF ElevaLife): Demandas, Relacionamentos e Apoio da chefia = 4 (crítica); Controle, Apoio dos colegas, Cargo e Comunicação e mudanças = 3 (alta).",
+        "Evidência organizacional (EO): sugerida pela taxa de frequência de afastamentos dos últimos 12 meses do setor/GHE (menor que 2% = 1; de 2% a menos de 5% = 2; de 5% a 20% = 3; acima de 20% = 4; casos graves = 5) e ajustável com outros indicadores (afastamentos CID F, rotatividade, horas extras, denúncias). O valor ajustado (EOaj) vai de 0 a 4.",
+        "Severidade final: SF = SIF × 0,75 + EOaj × 0,25 (de 0,75 a 4,00), convertida proporcionalmente para a escala de severidade da matriz do cliente, com arredondamento de 0,50 para cima.",
+        "Graduação: a probabilidade e a severidade são cruzadas na matriz do cliente (a mesma do Inventário de Riscos: pontuação = probabilidade × severidade, agrupada em níveis). A graduação do setor/GHE é a do fator de maior risco. Cores: muito baixo azul-claro, baixo verde, moderado amarelo, alto vermelho e muito alto/altíssimo roxo.",
+        "Ações: setores/GHE com risco moderado ou acima recebem ações da Biblioteca Mestre de Intervenções Psicossociais, escolhidas pelos itens com mais respostas desfavoráveis (moderado: 5 ações; alto: 7; altíssimo/muito alto: 9), priorizando medidas coletivas e organizacionais. Nos de risco baixo, mantêm-se as ações já realizadas pela empresa.",
       ],
     },
   ];
@@ -159,6 +177,24 @@
   // lane = indice da raia; col = coluna (esquerda -> direita).
   // ------------------------------------------------------------------
   const FLUXOS = [
+    {
+      titulo: "Riscos Psicossociais",
+      resumo: "Do cadastro do cliente ao laudo, com os riscos e as ações levados ao Registro.",
+      lanes: ["Equipe ElevaLife", "Cliente", "Sistema"],
+      nos: [
+        { id: "a", tipo: "inicio", lane: 0, col: 0, texto: "Cliente com o serviço Riscos Psicossociais" },
+        { id: "b", tipo: "tarefa", lane: 0, col: 1, texto: "Cadastra unidades, setores/GHE e colaboradores" },
+        { id: "c", tipo: "tarefa", lane: 1, col: 2, texto: "Colaboradores respondem o HSE-IT (QR code)" },
+        { id: "d", tipo: "tarefa", lane: 1, col: 3, texto: "Gestor responde o checklist ISO 45003" },
+        { id: "e", tipo: "tarefa", lane: 0, col: 2, texto: "Informa a taxa de frequência por setor/GHE" },
+        { id: "f", tipo: "tarefa", lane: 2, col: 4, texto: "Gradua os 7 fatores na matriz do cliente" },
+        { id: "g", tipo: "decisao", lane: 2, col: 5, texto: "Moderado ou acima?" },
+        { id: "h", tipo: "tarefa", lane: 2, col: 6, texto: "Recomenda ações e leva ao Registro" },
+        { id: "i", tipo: "tarefa", lane: 0, col: 6, texto: "Define prazo e responsável (e-mail)" },
+        { id: "j", tipo: "fim", lane: 0, col: 7, texto: "Emite o laudo em PDF" },
+      ],
+      fluxo: [["a", "b"], ["b", "c"], ["c", "d"], ["b", "e"], ["d", "f"], ["e", "f"], ["f", "g"], ["g", "h", "Sim"], ["g", "j", "Não"], ["h", "i"], ["i", "j"]],
+    },
     {
       titulo: "Implantação de um cliente",
       resumo: "Do convite dos usuários à estrutura do cliente pronta para receber registros.",
@@ -270,8 +306,13 @@
 
   const HISTORICO = [
     {
-      versao: "1.26", data: "07/10/2026",
-      itens: ["Usuários: vínculo separado para as empresas do SIGE e para as empresas de Riscos Psicossociais, com a opção de cliente ou ergonomista não vinculado a cada um (ergonomista pode ter todas as empresas do psicossocial). Quem não é vinculado ao SIGE entra direto em Riscos Psicossociais. Planilha do plano de ação mais enxuta e prazo em branco quando não foi informado."],
+      versao: "1.27", data: "07/10/2026",
+      itens: [
+        "SIGE e Riscos Psicossociais viram um pacote único: um só cadastro de empresa (com os serviços contratados e a matriz de risco), Setor / GHE, Colaboradores e Ergonomistas no Cadastro do SIGE.",
+        "Abas de serviço não contratado continuam no menu, com o aviso para procurar o time de especialistas da ElevaLife.",
+        "Riscos Psicossociais: Diagnóstico organizacional (ISO 45003 + taxa de frequência), Análise de risco com resumo por fator e gráfico com filtros, graduação pela matriz do cliente; riscos e ações levados ao Mapa de Risco, Inventário de Riscos e Plano de Ação do Registro (cada linha conta 1).",
+        "Usuários: uma lista única de empresas vinculadas (ergonomista e cliente só acessam as suas). Plano de ação em Excel mais enxuto e prazo em branco quando não informado.",
+      ],
     },
     {
       versao: "1.25", data: "07/10/2026",

@@ -14,7 +14,7 @@
   "use strict";
 
   const BI = (global.BI = global.BI || {});
-  BI.VERSAO = "1.26"; // versao do sistema - exibida no rodape e em Ajuda > Versao (ver docs/CHANGELOG.md)
+  BI.VERSAO = "1.27"; // versao do sistema - exibida no rodape e em Ajuda > Versao (ver docs/CHANGELOG.md)
 
   const FILTROS_GLOBAIS = "Cliente, Unidade, Setor, Posto, Cargo e Atividade";
   // Ano/Mes filtra pela data lancada no proprio registro; registro sem essa
@@ -43,7 +43,7 @@
       fonte: "Registro › Mapa de Risco (1 linha = 1 posto/atividade avaliado).",
       calculo: "O Risco Global de cada posto corresponde à média das 12 notas (1 a 4) atribuídas no Mapa de Risco: Col. Cervical, Tronco, Ombros, Cotovelos, Punhos, Mãos/Dedos, Joelhos, Pernas, Tornozelos, Pés/Dedos, Psicossocial/Cognitivo e Ambiental. Média ≥ 2,70 = Muito Alto; ≥ 2,15 = Alto; ≥ 1,55 = Moderado; abaixo = Baixo. O card contabiliza os postos por nível; o percentual é a quantidade dividida pelo total de postos filtrados.",
       filtros: POR_DATA("data da avaliação do Mapa de Risco"),
-      cuidado: "A metodologia difere da do Inventário de Riscos, que utiliza a matriz de risco do cliente. Os dois indicadores não devem ser comparados diretamente, pois medem universos distintos (postos e fatores). Ao selecionar o número, o sistema lista os postos.",
+      cuidado: "Os Riscos Psicossociais entram aqui com uma linha \"Risco psicossocial\" por setor/GHE (posto \"Risco psicossocial\"), que conta como 1 e tem o Risco Global igual à graduação psicossocial do setor/GHE. A metodologia difere da do Inventário de Riscos, que utiliza a matriz de risco do cliente. Os dois indicadores não devem ser comparados diretamente, pois medem universos distintos (postos e fatores). Ao selecionar o número, o sistema lista os postos.",
     },
     {
       id: "chart-top-setores", aba: "ergo", grupo: "Mapa de Risco e Plano de Ação", titulo: "Top 3 Setores críticos",
@@ -59,7 +59,7 @@
       fonte: "Registro › Plano de Ação.",
       calculo: STATUS_ACAO + " Com filtro de Ano/Mês, a ação é considerada se a Dt Programada ou a Dt Conclusão estiver no período.",
       filtros: COM_ANO_MES,
-      cuidado: "Pela regra vigente, o status \"Em andamento\" ocorre apenas na data exata do prazo: ação com prazo futuro permanece \"Não iniciado\" e, vencido o prazo sem conclusão, passa a \"Atrasada\".",
+      cuidado: "As ações do plano de Riscos Psicossociais (origem \"Riscos Psicossociais\") entram aqui e cada uma conta como 1. Pela regra vigente, o status \"Em andamento\" ocorre apenas na data exata do prazo: ação com prazo futuro permanece \"Não iniciado\" e, vencido o prazo sem conclusão, passa a \"Atrasada\".",
     },
     {
       id: "chart-plano-criticos", aba: "ergo", grupo: "Mapa de Risco e Plano de Ação", titulo: "Plano de Ação - Postos Críticos",
@@ -116,7 +116,7 @@
     {
       id: "tiles-fatorrisco-graduacao", aba: "ergo", grupo: "AEP - Avaliação Ergonômica e Inventário de Riscos", titulo: "Inventário de Riscos - Graduação do Risco",
       mostra: "Distribuição dos fatores de risco (ISO/TS 20646) por nível de graduação.",
-      fonte: "Registro › Inventário de Riscos (AEP): 1 linha = 1 fator marcado \"Existe fator de risco: Sim\" em um posto.",
+      fonte: "Registro › Inventário de Riscos (AEP): 1 linha = 1 fator marcado \"Existe fator de risco: Sim\" em um posto. Os Riscos Psicossociais entram com 1 linha por fator do HSE-IT em cada setor/GHE (grupo \"Fatores psicossociais (HSE-IT)\"), cada uma contando 1.",
       calculo: "A graduação decorre da matriz de risco configurada no cliente (Probabilidade × Gravidade; 3x3, 4x4 ou 5x5). Para adequação aos quatro níveis do painel: Muito Baixo e Baixo = Baixo; Moderado = Moderado; Alto = Alto; Altíssimo = Muito Alto. Fatores marcados \"Não\" não entram.",
       filtros: POR_DATA("data da identificação do fator"),
       cuidado: "Em clientes com matriz 5x5, os níveis são agrupados em quatro neste painel. O nível exato de cada fator permanece na tabela do Inventário.",

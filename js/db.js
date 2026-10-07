@@ -49,6 +49,9 @@
     "configuracao",
     // V 1.3: cadastro global de ergonomistas (assinatura do laudo).
     "ergonomista",
+    // V 1.27: colaboradores (matricula/nome por setor ou GHE) - questionario
+    // HSE-IT dos Riscos Psicossociais.
+    "colaborador",
   ];
 
   const estado = {
@@ -77,7 +80,7 @@
       mapaRisco: [], planoAcao: [], absenteismo: [], compativeis: [],
       cliente: [], unidade: [], setor: [], cargo: [], posto: [], atividade: [],
       avaliacaoErgonomica: [], fatorRisco: [], laudo: [], aet: [], diasUteis: [],
-      certificadoCalibracao: [], modeloLaudo: [], configuracao: [], ergonomista: [],
+      certificadoCalibracao: [], modeloLaudo: [], configuracao: [], ergonomista: [], colaborador: [],
     },
     inscricoes: [],
   };
@@ -121,7 +124,9 @@
   // colecao usado em COLECOES/CADASTROS_CONFIG - evita um switch/if grande
   // em app.js sempre que uma dessas 6 tabelas precisa "renomear" um
   // registro (editar um campo-chave = excluir o id antigo, salvar no novo).
-  const idCadastroMestre = { cliente: idCliente, unidade: idUnidade, setor: idSetor, cargo: idCargo, posto: idPosto, atividade: idAtividade };
+  // V 1.27: colaborador = Cliente + Matricula (a mesma matricula nunca duplica na empresa).
+  const idColaborador = (dados) => idPorCampos(dados, ["Cliente", "Matricula"]);
+  const idCadastroMestre = { cliente: idCliente, unidade: idUnidade, setor: idSetor, cargo: idCargo, posto: idPosto, atividade: idAtividade, colaborador: idColaborador };
 
   function docParaLinha(doc) {
     const dados = doc.data() || {};
@@ -1136,6 +1141,9 @@
     sairDaConta,
     criarUsuario,
     reenviarConvite,
+    // V 1.27: recarrega colecoes da API (ex.: o modulo Riscos Psicossociais
+    // atualizou Mapa de Risco, Inventario e Plano de Acao).
+    recarregar: (chaves) => (estado.modoApi ? Promise.all((chaves || []).map((c) => recarregarColecaoApi(c))) : Promise.resolve([])),
     fila: {
       listar: () => (global.BI.Offline ? global.BI.Offline.fila.listar() : Promise.resolve([])),
       descartar: (seq) => descartarEntrada(filaCache.find((e) => e.seq === seq)),

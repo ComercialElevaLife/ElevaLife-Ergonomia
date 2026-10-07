@@ -41,7 +41,17 @@
   // e os 4 graus de risco da NR-4 (Quadro I), usado tambem pra dimensionar
   // CIPA/PPRA no sistema de gestao atual da ElevaLife.
   const ESTADOS_BR = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
-  const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
+  // V 1.27 - servicos que a empresa contrata (cada um e uma aba do menu). Aba de
+// servico nao contratado continua visivel, mas mostra o aviso para procurar o
+// time de especialistas da ElevaLife (ver aplicarServicosContratados).
+const SERVICOS_SIGE = [
+  { valor: "ergo", label: "Gestão de Risco" },
+  { valor: "medocup", label: "Gestão de Absenteísmo" },
+  { valor: "compativeis", label: "Gestão de Restritos" },
+  { valor: "psicossocial", label: "Riscos Psicossociais" },
+];
+const TIPOS_SETOR = ["Setor", "GHE"];
+const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // Pools do pacote "Sistema de Gestao Integrada" (Avaliacao Ergonomica,
   // Inventario de Riscos, Laudos - ver docs/bi-ergonomia-manual.md). Status
   // e Tipo de Laudo seguem o vocabulario visto no sistema legado.
@@ -1824,7 +1834,10 @@
         // Cada cliente pode ter uma matriz de tamanho diferente (3x3/4x4/5x5
         // ou uma variante propria), reproduzindo o campo "Matriz para
         // Avaliacao" do sistema de gestao atual da ElevaLife.
-        { campo: "Matriz Risco", rotulo: "Matriz de Risco (NR-01)", tipo: "select", obrigatorio: true, opcoes: Calc ? Calc.NOMES_MATRIZ_RISCO : [] },
+        { campo: "Matriz Risco", rotulo: "Matriz de Risco (NR-01) · vale para o Inventário de Riscos e os Riscos Psicossociais", tipo: "select", obrigatorio: true, opcoes: Calc ? Calc.NOMES_MATRIZ_RISCO : [] },
+        // V 1.27: servicos contratados (abas do menu).
+        { campo: "Servicos", rotulo: "Serviços contratados", tipo: "checklist", colunas: true, opcoes: SERVICOS_SIGE,
+          nota: "Os serviços não marcados continuam aparecendo no menu, com o aviso de que a empresa não possui o serviço." },
       ], "Identificação"),
       // Cadastro ampliado de empresa (pedido do Leo) - todos opcionais pra
       // nao quebrar/obrigar preencher de novo os clientes ja cadastrados
@@ -1875,7 +1888,22 @@
     return [
       { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
       { campo: "Unidade", rotulo: "Unidade", tipo: "cascata", obrigatorio: true },
-      { campo: "Setor", rotulo: "Nome do Setor", tipo: "texto", obrigatorio: true, sugestoesLista: SETORES_POOL, sugestoesDinamicas: true },
+      { campo: "Setor", rotulo: "Nome do Setor / GHE", tipo: "texto", obrigatorio: true, sugestoesLista: SETORES_POOL, sugestoesDinamicas: true },
+      // V 1.27: o mesmo cadastro serve para Setor ou GHE (grupo homogeneo de
+      // exposicao, usado nos Riscos Psicossociais).
+      { campo: "Tipo Setor", rotulo: "É setor ou GHE?", tipo: "select", opcoes: TIPOS_SETOR },
+    ];
+  }
+  // V 1.27: colaboradores (antes so existiam dentro do modulo psicossocial) -
+  // a matricula identifica a pessoa no questionario HSE-IT (QR code).
+  function camposCadastroColaborador() {
+    return [
+      { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
+      { campo: "Unidade", rotulo: "Unidade", tipo: "cascata", obrigatorio: true },
+      { campo: "Setor", rotulo: "Setor / GHE", tipo: "cascata", obrigatorio: true },
+      { campo: "Matricula", rotulo: "Matrícula", tipo: "texto", obrigatorio: true },
+      { campo: "Nome", rotulo: "Nome do colaborador", tipo: "texto", obrigatorio: true },
+      { campo: "Cargo Colaborador", rotulo: "Cargo (opcional)", tipo: "texto" },
     ];
   }
   function camposCadastroPosto() {
@@ -3939,12 +3967,32 @@
       aoConstruir: comCascata(null),
     },
     setor: {
-      grupo: "mestre", icone: "🗂️", tituloMenu: "Setor",
-      titulo: "Cadastro de Setor",
-      colunasTabela: ["Cliente", "Unidade", "Setor"],
+      grupo: "mestre", icone: "🗂️", tituloMenu: "Setor / GHE",
+      titulo: "Cadastro de Setor / GHE",
+      colunasTabela: ["Cliente", "Unidade", "Setor", "Tipo Setor"],
       colunasData: [], camposData: [],
       campos: camposCadastroSetor(),
       aoConstruir: comCascata(ligarSugestoesNivelProprio("Setor", "setor", SETORES_POOL)),
+    },
+    // V 1.27: colaboradores (questionario HSE-IT dos Riscos Psicossociais).
+    colaborador: {
+      grupo: "mestre", icone: "👥", tituloMenu: "Colaboradores",
+      titulo: "Cadastro de Colaboradores",
+      colunasTabela: ["Cliente", "Unidade", "Setor", "Matricula", "Nome"],
+      colunasData: [], camposData: [],
+      campos: camposCadastroColaborador(),
+      aoConstruir: comCascata(null),
+      importacao: {
+        chaveNatural: ["Cliente", "Matricula"],
+        arquivo: "colaboradores",
+        nomePlanilha: "Colaboradores",
+        colunasPrevia: ["Cliente", "Unidade", "Setor", "Matricula", "Nome"],
+        opcionais: ["Cargo Colaborador"],
+        apelidos: { Matricula: ["matricula", "matrícula", "registro", "re", "chapa"], Nome: ["nome", "colaborador", "funcionario", "funcionário", "nome completo"], Setor: ["setor", "ghe", "setor/ghe", "setor / ghe"] },
+        exemplo: { Matricula: "000123", Nome: "Maria da Silva", "Cargo Colaborador": "Auxiliar administrativo" },
+        maxLinhas: 12000,
+        descricao: "Importe a lista de colaboradores com unidade, setor/GHE, matrícula e nome. A matrícula é a chave: a mesma matrícula na mesma empresa é atualizada, nunca duplicada. É ela que o colaborador digita para responder o questionário HSE-IT.",
+      },
     },
     posto: {
       grupo: "mestre", icone: "📍", tituloMenu: "Posto de Trabalho",
@@ -4839,6 +4887,17 @@
         campoDiv.appendChild(el);
         grade.appendChild(campoDiv);
         return; // ja registrou form._campos, anexou o campo e o campoDiv na grade - pula o trecho comum abaixo
+      } else if (def.tipo === "checklist") {
+        // V 1.27: lista de caixas de marcar (ex.: "Serviços contratados" no
+        // Cliente, "Empresas vinculadas" no Usuario). def.opcoes: lista de
+        // textos ou {valor, label, sub}; def.busca: mostra campo de busca.
+        // O valor e um array (como o multiselect).
+        campoDiv.className += " campo-form-largo";
+        const campoFake = { value: Array.isArray(valorInicial) ? valorInicial.slice() : [] };
+        form._campos[def.campo] = campoFake;
+        campoDiv.appendChild(construirChecklist(def, campoFake));
+        grade.appendChild(campoDiv);
+        return;
       } else if (def.tipo === "personalizado") {
         // V 1.2: bloco montado por quem declara o campo (def.construir) - ex.:
         // o editor de acoes do Inventario. Nao entra nos dados do registro
@@ -4953,6 +5012,48 @@
     return form;
   }
 
+  // V 1.27 - lista de caixas de marcar com busca opcional (ver tipo "checklist").
+  function construirChecklist(def, campoFake) {
+    const caixa = document.createElement("div");
+    caixa.className = "checklist-form";
+    const marcados = new Set(campoFake.value);
+    const sincronizar = () => { campoFake.value = Array.from(marcados); };
+    let busca = null;
+    if (def.busca) {
+      busca = document.createElement("input");
+      busca.type = "search"; busca.className = "checklist-busca"; busca.placeholder = def.placeholderBusca || "Buscar…";
+      caixa.appendChild(busca);
+    }
+    const lista = document.createElement("div");
+    lista.className = "checklist-lista" + (def.colunas ? " checklist-colunas" : "");
+    caixa.appendChild(lista);
+    if (def.nota) { const n = document.createElement("p"); n.className = "checklist-nota"; n.textContent = def.nota; caixa.appendChild(n); }
+    const itens = () => (typeof def.opcoes === "function" ? def.opcoes() : (def.opcoes || []))
+      .map((op) => (op && typeof op === "object" ? op : { valor: op, label: op }));
+    function desenhar() {
+      const q = busca ? busca.value.trim().toLowerCase() : "";
+      lista.innerHTML = "";
+      const vis = itens().filter((it) => !q || (String(it.label) + " " + String(it.sub || "")).toLowerCase().includes(q));
+      if (!vis.length) {
+        const v = document.createElement("div"); v.className = "checklist-vazio";
+        v.textContent = q ? "Nada encontrado." : (def.vazio || "Nenhuma opção cadastrada.");
+        lista.appendChild(v); return;
+      }
+      vis.forEach((it) => {
+        const l = document.createElement("label"); l.className = "checklist-item";
+        const c = document.createElement("input"); c.type = "checkbox"; c.checked = marcados.has(it.valor);
+        c.addEventListener("change", () => { if (c.checked) marcados.add(it.valor); else marcados.delete(it.valor); sincronizar(); });
+        const t = document.createElement("span"); t.textContent = T(it.label);
+        if (it.sub) { const sm = document.createElement("small"); sm.textContent = it.sub; t.appendChild(sm); }
+        l.appendChild(c); l.appendChild(t); lista.appendChild(l);
+      });
+    }
+    if (busca) busca.addEventListener("input", desenhar);
+    desenhar();
+    caixa._redesenhar = desenhar;
+    return caixa;
+  }
+
   function lerValoresFormulario(cfg, form) {
     const dados = {};
     let erro = null;
@@ -4967,10 +5068,12 @@
         valor = el.value === "" ? null : Number(el.value);
       } else if (def.tipo === "multiselect") {
         valor = Array.from(el.selectedOptions || []).map((o) => o.value);
+      } else if (def.tipo === "checklist") {
+        valor = Array.isArray(el.value) ? el.value.slice() : [];
       } else {
         valor = el.value === "" ? null : el.value;
       }
-      const vazio = def.tipo === "multiselect" ? valor.length === 0 : (valor === null || valor === "");
+      const vazio = def.tipo === "multiselect" || def.tipo === "checklist" ? valor.length === 0 : (valor === null || valor === "");
       if ((def.tipo === "data" || def.tipo === "mes") && el.validationMessage && !erro) {
         erro = `${T(def.rotulo || def.campo)}: ${el.validationMessage}`;
         campoComErro = def.campo;
@@ -5288,6 +5391,7 @@
           : c;
       }).concat(imp.camposExtras || []),
       chaveNatural: imp.chaveNatural,
+      maxLinhas: imp.maxLinhas,
       arquivo: imp.arquivo,
       nomePlanilha: imp.nomePlanilha,
       colunasPrevia: imp.colunasPrevia,
@@ -5317,7 +5421,8 @@
           : Object.assign({}, dados)),
         id: (nivel, dados) => window.BI.DB.idCadastroMestre[COLECAO_DO_NIVEL[nivel]](dados),
       } : null,
-      gerarId: () => novoIdRegistro(),
+      // V 1.27: colaborador tem id pela chave (Cliente + Matricula) - reimportar nunca duplica.
+      gerarId: (dados) => (chave === "colaborador" && dados ? window.BI.DB.idCadastroMestre.colaborador(dados) : novoIdRegistro()),
       existentesDe: (colecao) => window.BI.dados[colecao] || [],
       abrirOutra: (outraChave, arquivoInicial) => abrirImportacao(outraChave, arquivoInicial),
       // Aba "Referências" do modelo: combinacoes da hierarquia ja cadastradas
@@ -5890,6 +5995,7 @@
     if (window.BI.Indicadores) window.BI.Indicadores.fecharPopover();
     atualizarEstadoExportacao();
     expandirGrupoSidebar(GRUPO_DA_ABA[aba] ? aba : null);
+    try { aplicarServicosContratados(); } catch (_) { /* dados ainda nao carregados */ }
   }
 
   function configurarAbas() {
@@ -6398,9 +6504,43 @@
   // ------------------------------------------------------------------
   // Orquestracao
   // ------------------------------------------------------------------
+  // V 1.27 - servicos contratados (campo "Servicos" do Cliente). A aba de um
+  // servico continua no menu; se nenhuma empresa do filtro (ou das empresas do
+  // usuario) tem o servico, o conteudo da aba da lugar a um aviso. Cliente
+  // antigo, sem o campo, conta como tendo todos os servicos.
+  function empresaTemServico(c, servico) {
+    return !Array.isArray(c.Servicos) || c.Servicos.indexOf(servico) >= 0;
+  }
+  function aplicarServicosContratados() {
+    const clientes = (window.BI.dados && window.BI.dados.cliente) || [];
+    const filtroCli = (window.BI.filtros && window.BI.filtros.Cliente) || [];
+    const escopo = filtroCli.length ? clientes.filter((c) => filtroCli.indexOf(c.Cliente) >= 0) : clientes;
+    SERVICOS_SIGE.forEach((sv) => {
+      if (sv.valor === "psicossocial") return; // o proprio modulo avisa, pela empresa escolhida nele
+      const sec = document.getElementById("aba-" + sv.valor);
+      if (!sec) return;
+      const semServico = escopo.length > 0 && !escopo.some((c) => empresaTemServico(c, sv.valor));
+      sec.classList.toggle("sem-servico", semServico);
+      let aviso = sec.querySelector(":scope > .aviso-servico");
+      if (!semServico) { if (aviso) aviso.remove(); return; }
+      if (!aviso) { aviso = document.createElement("div"); aviso.className = "aviso-servico"; sec.insertBefore(aviso, sec.firstChild); }
+      const nomes = escopo.map((c) => c.Cliente).slice(0, 4).join(", ") + (escopo.length > 4 ? "…" : "");
+      aviso.innerHTML = "";
+      const h = document.createElement("h3"); h.textContent = sv.label;
+      const p1 = document.createElement("p");
+      const b = document.createElement("span"); b.className = "empresas"; b.textContent = nomes;
+      p1.appendChild(document.createTextNode(escopo.length === 1 ? "A empresa " : "As empresas selecionadas ("));
+      p1.appendChild(b);
+      p1.appendChild(document.createTextNode(escopo.length === 1 ? " não possui o serviço " + sv.label + "." : ") não possuem o serviço " + sv.label + "."));
+      const p2 = document.createElement("p"); p2.textContent = "Caso queira saber mais, procure o time de especialistas da ElevaLife.";
+      aviso.appendChild(h); aviso.appendChild(p1); aviso.appendChild(p2);
+    });
+  }
+
   function renderizarTudo() {
     try {
       renderizarTudoInterno();
+      aplicarServicosContratados();
     } catch (erro) {
       console.error("BI Ergonomia - erro ao renderizar:", erro);
       mostrarErro(erro && erro.message ? erro.message : String(erro));
@@ -6539,149 +6679,17 @@
     return [
       { campo: "Email", rotulo: "E-mail", tipo: "texto", obrigatorio: true },
       { campo: "Papel", rotulo: "Papel", tipo: "select", obrigatorio: true, opcoes: PAPEIS_USUARIO },
-      // V 1.26: as empresas vinculadas sairam daqui e viraram dois quadros
-      // proprios (SIGE e Riscos Psicossociais) - ver montarVinculosUsuario.
+      // V 1.27: lista unica de empresas (vale para o SIGE inteiro, inclusive
+      // Riscos Psicossociais) - caixas de marcar com busca.
+      {
+        campo: "EmpresasVinculadas",
+        rotulo: "Empresas vinculadas",
+        tipo: "checklist", busca: true, placeholderBusca: "Buscar empresa…",
+        opcoes: () => (window.BI.dados.cliente || []).map((c) => ({ valor: c.id || c._id, label: c.Cliente, sub: c.CNPJ || "" }))
+          .sort((a, b) => String(a.label).localeCompare(String(b.label), "pt-BR")),
+        nota: "Ergonomista (Consultor) e cliente só acessam as empresas marcadas. O Administrador vê todas, independente desta lista.",
+      },
     ];
-  }
-
-  // ------------------------------------------------------------------
-  // V 1.26 - Vinculos do usuario por modulo (pedido do Alexandre): um quadro
-  // com as empresas do SIGE (clientes) e outro com as empresas do modulo
-  // Riscos Psicossociais, cada um com a opcao "nao vinculado". Ergonomista
-  // (Consultor) pode ainda ter "todas as empresas do psicossocial". Regras
-  // aplicadas no backend em api/src/shared/tenant.js (vinculosDoDoc).
-  // ------------------------------------------------------------------
-  const NOME_PAPEL_VINC = { UsuarioCliente: "Cliente", Consultor: "Ergonomista", Administrador: "Administrador" };
-  async function carregarEmpresasPsico() {
-    if (estadoUsuarios.psicoEmpresas) return estadoUsuarios.psicoEmpresas;
-    const lista = [];
-    let t = null;
-    do {
-      const resp = await fetch("/api/psico/col?c=empresas" + (t ? "&t=" + encodeURIComponent(t) : ""), { credentials: "same-origin" });
-      if (!resp.ok) throw new Error("HTTP " + resp.status);
-      const d = await resp.json();
-      (d.docs || []).forEach((x) => { if (x.data) lista.push({ valor: x.id, label: x.data.razao || x.id, sub: x.data.cnpj || "" }); });
-      t = d.next || null;
-    } while (t);
-    lista.sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
-    estadoUsuarios.psicoEmpresas = lista;
-    return lista;
-  }
-  function garantirEstiloVinculos() {
-    if (document.getElementById("estilo-vinculos-usuario")) return;
-    const st = document.createElement("style");
-    st.id = "estilo-vinculos-usuario";
-    st.textContent = [
-      ".vinc-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin:6px 0 4px}",
-      ".vinc-box{border:1px solid var(--borda,#E4DCD6);border-radius:10px;padding:12px 14px;margin:0;min-width:0;background:#fff}",
-      ".vinc-box legend{font-weight:700;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;padding:0 6px;color:#5E2A30}",
-      ".vinc-modo{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;font-size:.88rem}",
-      ".vinc-modo label{display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:500;text-transform:none;letter-spacing:0}",
-      ".vinc-busca{width:100%;box-sizing:border-box;margin-bottom:6px}",
-      ".vinc-lista{max-height:190px;overflow:auto;border:1px solid var(--borda,#E4DCD6);border-radius:8px;padding:4px 0}",
-      ".vinc-lista label{display:flex;gap:8px;align-items:flex-start;padding:5px 10px;font-size:.88rem;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:500}",
-      ".vinc-lista label:hover{background:#F5EFEA}.vinc-lista small{display:block;color:#8A7A78;font-size:.75rem}",
-      ".vinc-lista.desativada{opacity:.45;pointer-events:none}",
-      ".vinc-nota{font-size:.78rem;color:#8A7A78;margin:6px 0 0}",
-      ".vinc-vazio{padding:8px 10px;font-size:.85rem;color:#8A7A78}",
-    ].join("");
-    document.head.appendChild(st);
-  }
-  // Monta os dois quadros dentro do formulario e devolve ler() -> campos para o POST/PUT.
-  function montarVinculosUsuario(form, valores) {
-    garantirEstiloVinculos();
-    const grade = document.createElement("div");
-    grade.className = "vinc-grade";
-    const selPapel = form._campos && form._campos["Papel"];
-    const papelAtual = () => (selPapel && selPapel.value) || valores.Papel || "UsuarioCliente";
-    const marcadosSige = new Set(valores.EmpresasVinculadas || []);
-    const marcadosPsico = new Set(valores.EmpresasPsico || []);
-    const nomeUnico = "vinc" + Math.random().toString(36).slice(2, 8);
-
-    function quadro(titulo, chave, modos, carregar, marcados) {
-      const fs = document.createElement("fieldset");
-      fs.className = "vinc-box";
-      const lg = document.createElement("legend"); lg.textContent = titulo; fs.appendChild(lg);
-      const modoDiv = document.createElement("div"); modoDiv.className = "vinc-modo"; fs.appendChild(modoDiv);
-      const busca = document.createElement("input"); busca.type = "search"; busca.className = "vinc-busca"; busca.placeholder = "Buscar empresa…"; fs.appendChild(busca);
-      const lista = document.createElement("div"); lista.className = "vinc-lista"; fs.appendChild(lista);
-      const nota = document.createElement("p"); nota.className = "vinc-nota"; fs.appendChild(nota);
-      let itens = [];
-      let modo = null;
-      function desenharModos() {
-        const papel = papelAtual(), quem = NOME_PAPEL_VINC[papel] || "Usuário";
-        const opcoes = modos(papel, quem);
-        if (!opcoes.find((o) => o.v === modo)) modo = opcoes[0].v;
-        modoDiv.innerHTML = "";
-        opcoes.forEach((o) => {
-          const l = document.createElement("label");
-          const r = document.createElement("input"); r.type = "radio"; r.name = nomeUnico + chave; r.value = o.v; r.checked = o.v === modo;
-          r.addEventListener("change", () => { modo = o.v; atualizar(); });
-          l.appendChild(r); l.appendChild(document.createTextNode(o.l));
-          modoDiv.appendChild(l);
-        });
-        const adm = papel === "Administrador";
-        fs.querySelectorAll("input").forEach((i) => { i.disabled = adm; });
-        nota.textContent = adm ? "Administrador vê todas as empresas, independente desta lista." : (opcoes.find((o) => o.v === modo) || {}).nota || "";
-        atualizar();
-      }
-      function atualizar() {
-        const papel = papelAtual();
-        lista.classList.toggle("desativada", modo !== "marcadas" || papel === "Administrador");
-        busca.disabled = modo !== "marcadas" || papel === "Administrador";
-        const o = modos(papel, NOME_PAPEL_VINC[papel] || "Usuário").find((x) => x.v === modo);
-        if (papel !== "Administrador") nota.textContent = (o && o.nota) || "";
-      }
-      function desenharLista() {
-        const q = busca.value.trim().toLowerCase();
-        lista.innerHTML = "";
-        const vis = itens.filter((it) => !q || (it.label + " " + (it.sub || "")).toLowerCase().includes(q));
-        if (!vis.length) { const d = document.createElement("div"); d.className = "vinc-vazio"; d.textContent = itens.length ? "Nenhuma empresa encontrada." : "Nenhuma empresa cadastrada."; lista.appendChild(d); return; }
-        vis.forEach((it) => {
-          const l = document.createElement("label");
-          const c = document.createElement("input"); c.type = "checkbox"; c.checked = marcados.has(it.valor);
-          c.addEventListener("change", () => { if (c.checked) marcados.add(it.valor); else marcados.delete(it.valor); });
-          const t = document.createElement("span"); t.textContent = it.label;
-          if (it.sub) { const sm = document.createElement("small"); sm.textContent = it.sub; t.appendChild(sm); }
-          l.appendChild(c); l.appendChild(t); lista.appendChild(l);
-        });
-      }
-      busca.addEventListener("input", desenharLista);
-      Promise.resolve().then(carregar).then((r) => { itens = r || []; desenharLista(); })
-        .catch(() => { lista.innerHTML = ""; const d = document.createElement("div"); d.className = "vinc-vazio"; d.textContent = "Não foi possível carregar a lista agora."; lista.appendChild(d); });
-      lista.innerHTML = '<div class="vinc-vazio">Carregando…</div>';
-      return { fs, desenharModos, setModo: (m) => { modo = m; }, getModo: () => modo };
-    }
-
-    const sige = quadro("Empresas do SIGE", "s", (papel, quem) => [
-      { v: "marcadas", l: "Vinculado às empresas marcadas abaixo", nota: "Acesso aos painéis, registros e cadastros do SIGE dessas empresas." },
-      { v: "nenhuma", l: `${quem} não vinculado ao SIGE`, nota: "Sem acesso aos painéis do SIGE; entra direto em Riscos Psicossociais." },
-    ], () => (window.BI.dados.cliente || []).map((c) => ({ valor: c.id || c._id, label: c.Cliente || c.id, sub: c.CNPJ || "" })).sort((a, b) => String(a.label).localeCompare(String(b.label), "pt-BR")), marcadosSige);
-    sige.setModo(valores.SigeVinculo === "nenhuma" ? "nenhuma" : "marcadas");
-
-    const psico = quadro("Empresas do Psicossocial", "p", (papel, quem) => [
-      ...(papel === "Consultor" ? [{ v: "todas", l: "Todas as empresas do psicossocial", nota: "O ergonomista vê todas as empresas cadastradas no módulo, inclusive as novas." }] : []),
-      { v: "marcadas", l: "Vinculado às empresas marcadas abaixo", nota: papel === "UsuarioCliente" ? "O cliente responde o ISO 45003, acompanha as respostas do HSE-IT e o plano de ação dessas empresas." : "O ergonomista só vê essas empresas; as que ele cadastrar entram no vínculo dele." },
-      { v: "nenhuma", l: `${quem} não vinculado ao Psicossocial`, nota: "Sem acesso ao módulo Riscos Psicossociais." },
-    ], carregarEmpresasPsico, marcadosPsico);
-    const legadoPsico = valores.PsicoVinculo || (valores.Papel === "Consultor" ? "todas" : "marcadas");
-    psico.setModo(legadoPsico);
-
-    grade.appendChild(sige.fs); grade.appendChild(psico.fs);
-    form.insertBefore(grade, form._erroEl);
-    sige.desenharModos(); psico.desenharModos();
-    if (selPapel) selPapel.addEventListener("change", () => { sige.desenharModos(); psico.desenharModos(); });
-
-    return function ler() {
-      const papel = papelAtual();
-      const sm = sige.getModo(), pm = psico.getModo();
-      return {
-        SigeVinculo: papel === "Administrador" ? "marcadas" : sm,
-        EmpresasVinculadas: sm === "nenhuma" ? [] : Array.from(marcadosSige),
-        PsicoVinculo: papel === "Administrador" ? "todas" : pm,
-        EmpresasPsico: pm === "marcadas" ? Array.from(marcadosPsico) : [],
-      };
-    };
   }
   const CFG_USUARIOS = { campos: camposUsuario() };
 
@@ -6692,9 +6700,6 @@
       const resp = await fetch("/api/usuarios", { credentials: "same-origin" });
       if (!resp.ok) throw new Error("Falha ao carregar usuários (HTTP " + resp.status + ").");
       estadoUsuarios.lista = await resp.json();
-      // V 1.26: nomes das empresas do psicossocial para a coluna da lista.
-      estadoUsuarios.psicoEmpresas = null;
-      await carregarEmpresasPsico().catch(() => { estadoUsuarios.psicoEmpresas = null; });
     } catch (e) {
       // Sem internet (coleta offline em campo) não é erro do sistema: a
       // lista de usuários só existe online e o indicador na tela já avisa.
@@ -6710,12 +6715,6 @@
   function nomesClientesPorId(ids) {
     const mapa = {};
     (window.BI.dados.cliente || []).forEach((c) => { mapa[c.id || c._id] = c.Cliente; });
-    return (ids || []).map((id) => mapa[id] || id).join(", ");
-  }
-
-  function nomesPsicoPorId(ids) {
-    const mapa = {};
-    (estadoUsuarios.psicoEmpresas || []).forEach((e) => { mapa[e.valor] = e.label; });
     return (ids || []).map((id) => mapa[id] || id).join(", ");
   }
 
@@ -6752,7 +6751,6 @@
     if (estadoUsuarios.editandoId && form._campos && form._campos["Email"]) {
       form._campos["Email"].disabled = true;
     }
-    const lerVinculos = montarVinculosUsuario(form, estadoUsuarios.valoresForm || {});
     form._btnCancelar.addEventListener("click", () => fecharFormUsuario());
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
@@ -6762,7 +6760,7 @@
         form._erroEl.textContent = erro;
         return;
       }
-      Object.assign(dados, lerVinculos());
+
       dados.Email = String(dados.Email || "").trim().toLowerCase();
       try {
         if (estadoUsuarios.editandoId) {
@@ -6813,7 +6811,7 @@
     thead.innerHTML = "";
     tbody.innerHTML = "";
     const trHead = document.createElement("tr");
-    ["E-mail", "Papel", "Empresas do SIGE", "Empresas do Psicossocial", "Status", "Ações"].forEach((c) => {
+    ["E-mail", "Papel", "Empresas Vinculadas", "Status", "Ações"].forEach((c) => {
       const th = document.createElement("th");
       th.textContent = c;
       if (c === "Ações") th.className = "col-acoes";
@@ -6827,14 +6825,14 @@
     if (estadoUsuarios.carregando) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 6; td.className = "sem-dados"; td.textContent = "Carregando...";
+      td.colSpan = 5; td.className = "sem-dados"; td.textContent = "Carregando...";
       tr.appendChild(td); tbody.appendChild(tr);
       return;
     }
     if (!estadoUsuarios.lista.length) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 6; td.className = "sem-dados"; td.textContent = "Nenhum usuário cadastrado ainda.";
+      td.colSpan = 5; td.className = "sem-dados"; td.textContent = "Nenhum usuário cadastrado ainda.";
       tr.appendChild(td); tbody.appendChild(tr);
       return;
     }
@@ -6843,10 +6841,7 @@
       const tdEmail = document.createElement("td"); tdEmail.textContent = u.Email || "-";
       const tdPapel = document.createElement("td"); tdPapel.textContent = u.Papel || "-";
       const tdEmpresas = document.createElement("td");
-      tdEmpresas.textContent = u.Papel === "Administrador" ? "Todas" : u.SigeVinculo === "nenhuma" ? "Não vinculado" : (nomesClientesPorId(u.EmpresasVinculadas) || "-");
-      const tdPsico = document.createElement("td");
-      const pv = u.PsicoVinculo || (u.Papel === "Consultor" ? "todas" : "marcadas");
-      tdPsico.textContent = u.Papel === "Administrador" || pv === "todas" ? "Todas" : pv === "nenhuma" ? "Não vinculado" : (nomesPsicoPorId(u.EmpresasPsico) || (u.Papel === "UsuarioCliente" ? "Pelo cliente do SIGE" : "-"));
+      tdEmpresas.textContent = u.Papel === "Administrador" ? "Todas" : (nomesClientesPorId(u.EmpresasVinculadas) || "-");
       const statusConta = u.StatusConta || "Convidado";
       const tdStatus = document.createElement("td");
       const badgeStatus = document.createElement("span");
@@ -6869,7 +6864,7 @@
         btnExcluir.addEventListener("click", () => excluirUsuario(u.id, u.Email));
         tdAcoes.appendChild(btnEditar); tdAcoes.appendChild(btnExcluir);
       }
-      tr.appendChild(tdEmail); tr.appendChild(tdPapel); tr.appendChild(tdEmpresas); tr.appendChild(tdPsico); tr.appendChild(tdStatus); tr.appendChild(tdAcoes);
+      tr.appendChild(tdEmail); tr.appendChild(tdPapel); tr.appendChild(tdEmpresas); tr.appendChild(tdStatus); tr.appendChild(tdAcoes);
       tbody.appendChild(tr);
     });
   }
@@ -7173,28 +7168,6 @@
     carregarUsuarios();
   }
 
-  // V 1.26 - usuario "nao vinculado ao SIGE" (so usa Riscos Psicossociais)
-  // nao ve os paineis/registros/cadastros do SIGE e entra direto no
-  // modulo; usuario "nao vinculado ao Psicossocial" nao ve o modulo.
-  // Administrador ve tudo. O backend aplica as mesmas regras.
-  function configurarVinculosModulos() {
-    const identidade = window.BI.DB.estado.identidade;
-    if (!identidade || !identidade.papel || identidade.papel === "Administrador") return;
-    const nav = document.getElementById("nav-abas");
-    if (!nav) return;
-    const grupoPsico = nav.querySelector('.sidebar-nav-grupo[data-grupo-nav="psicossocial"]');
-    const semPsico = identidade.psicoVinculo === "nenhuma";
-    const semSige = identidade.sigeVinculo === "nenhuma";
-    if (semPsico && grupoPsico) grupoPsico.hidden = true;
-    if (semSige && !semPsico) {
-      ["ergo", "medocup", "compativeis"].forEach((a) => { const b = nav.querySelector('button[data-aba="' + a + '"]'); if (b) b.hidden = true; });
-      ["registro", "cadastro"].forEach((g) => { const el = nav.querySelector('.sidebar-nav-grupo[data-grupo-nav="' + g + '"]'); if (el) el.hidden = true; });
-      const filtros = document.getElementById("btn-abrir-filtros"); if (filtros) filtros.hidden = true;
-      document.body.classList.add("so-psicossocial");
-      ativarAba("psicossocial");
-    }
-  }
-
   // V 1.2 - Configuracoes do sistema (so Administrador): nomes dos tipos de
   // acao do Plano de Acao. Ver js/acoes.js/montarTelaConfiguracoes.
   function configurarConfiguracoes() {
@@ -7306,7 +7279,6 @@
       // o app inteiro) e/ou o item de menu "Usuarios".
       configurarTelaAcesso();
       configurarUsuarios();
-      configurarVinculosModulos();
       configurarConfiguracoes();
       configurarBotaoSair();
       esconderCarregamento();
