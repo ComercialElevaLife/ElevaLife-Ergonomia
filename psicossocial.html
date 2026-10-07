@@ -519,7 +519,7 @@ function bindMain(ab){
   document.querySelectorAll("[data-goto]").forEach(b=>{ if(!b.onclick) b.onclick=()=>{S.tab=b.dataset.goto;render();scrollTo(0,0)}; });
   document.querySelectorAll("[data-abrir]").forEach(x=>x.onclick=()=>selecionarEmpresa(x.dataset.abrir));
   const global=SEM_EMPRESA.has(ab.k);
-  if(!global&&!emp()){ if(ab.k==="diag"&&!EH_CLIENTE()){ bindPainelGeral(); bindMigracao(); } return; }
+  if(!global&&!emp()){ if(ab.k==="diag"&&!EH_CLIENTE()){ bindPainelGeral(); bindMigracao(); bindEmpresasTeste(); } return; }
   if(!global&&emp()&&emp().temPsico===false) return;
   if(global||(S.data&&!S.loading)){ const f=fnAba(ab.k,1); if(f) f(); }
 }
@@ -531,7 +531,7 @@ function semServicoHTML(e){
 function semEmpresaHTML(k){
   if(EH_CLIENTE()) return S.empresas.length?`<div class="panel stack"><h3>Selecione a empresa</h3><div class="tw"><table><thead><tr><th>Empresa</th><th>CNPJ</th><th>Coleta</th></tr></thead><tbody>${S.empresas.map(e=>`<tr class="clk" data-abrir="${e.k}"><td><b>${esc(e.razao)}</b></td><td>${esc(e.cnpj||"")}</td><td>${e.status==="aberta"?'<span class="pill ok">Aberta</span>':'<span class="pill pend">Encerrada</span>'}</td></tr>`).join("")}</tbody></table></div></div>`
     :`<div class="panel empty"><h3>Nenhuma empresa liberada</h3><p>Seu usuário ainda não está vinculado a uma avaliação psicossocial. Fale com a ElevaLife.</p></div>`;
-  if(k==="diag") return painelGeralHTML()+migracaoHTML();
+  if(k==="diag") return painelGeralHTML()+migracaoHTML()+empresasTesteHTML();
   if(!S.empresas.length) return `<div class="panel empty"><h3>Nenhuma empresa cadastrada</h3><p>As empresas são cadastradas no SIGE, em <b>Cadastro › Cliente</b> (marque o serviço Riscos Psicossociais). Unidades, setores/GHE e colaboradores também ficam no cadastro do SIGE.</p></div>`;
   const st=e=>e.stats||{};
   const cols={diag:[["ISO 45003",e=>st(e).iso?`<b>${esc(st(e).iso)}</b>`:'<span class="muted">pendente</span>']],
@@ -1032,7 +1032,7 @@ function analisar(g){
   const o={g,T,a,pend:[]};
   if(!T.n) o.pend.push("respostas HSE"); else { o.hse=5-risco(T.geral).nivel; }
   const iso=isoAtual(); if(!iso) o.pend.push("ISO 45003"); else o.iso=iso.i;
-  const eo=[1,2,3,4,5].includes(+a.eoMan)?+a.eoMan:eoTF(a.tf,a.grave); if(eo==null) o.pend.push("taxa de frequência"); else o.eo=eo;
+  const eo=eoTF(a.tf,a.grave); if(eo==null) o.pend.push("taxa de frequência"); else o.eo=eo;
   const {fat,top}=analisarFatores(T,o.iso,eo); o.fat=fat;
   if(top){ o.cat=top.cat; o.p=top.p; o.s=top.s; o.sf=top.sf; o.critico=top.id; o.nivel=top.nivel; o.pont=top.pont; }
   o.dims=DIMS.filter(d=>fat[d.id].cat>=2).map(d=>d.id); // fatores com risco moderado ou acima
@@ -1194,7 +1194,7 @@ function tabTF(){
     ${SIF_NOMES.map((n,i)=>`<tr><th style="white-space:nowrap">${i+1} · ${n}</th>${EO_NOMES.map((_,j)=>{const v=SEV_NIV[i][j];return `<td class="mc" style="--c:var(${["--g1","--g2","--g3","--g4"][v-1]})"><span>${fmt(SEV_IDX[i][j],2)}</span><b>${v}</b></td>`}).join("")}</tr>`).join("")}
     </tbody></table></div>
     <div class="tw"><table><thead><tr><th>EO</th><th class="num">EOaj</th><th>Taxa de frequência</th><th>Interpretação</th></tr></thead><tbody>${EO_NOMES.map((n,i)=>`<tr><td style="white-space:nowrap"><b>${i+1}</b> · ${n}</td><td class="num">${i}</td><td style="white-space:nowrap">${EO_FAIXAS[i]}</td><td style="font-size:.82rem">${EO_DESC[i]}</td></tr>`).join("")}</tbody></table></div>
-    <p class="note">SF enquadrada no inteiro mais próximo (0,50 sobe): 1 = Baixa, 2 = Moderada, 3 = Alta, 4 = Crítica. A EO é sugerida pela taxa de frequência; “casos graves” (ideação suicida, burnout severo, hospitalização) leva ao nível 5. Ela pode ser ajustada por GHE com base em outros indicadores da empresa (afastamentos CID F, rotatividade, horas extras, denúncias, passivo trabalhista); na dúvida, adota-se o nível mais conservador.</p></div>
+    <p class="note">SF enquadrada no inteiro mais próximo (0,50 sobe): 1 = Baixa, 2 = Moderada, 3 = Alta, 4 = Crítica. A EO é definida pela taxa de frequência; “casos graves” (ideação suicida, burnout severo, hospitalização) leva ao nível 5.</p></div>
   </div>
   <div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Taxa de frequência por GHE (últimos 12 meses)</h3>${faltam?`<span class="pill pend">${faltam} GHE(s) sem taxa</span>`:`<span class="pill ok">Todos os GHEs preenchidos</span>`}</div>
    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));align-items:end">
@@ -1207,7 +1207,7 @@ function tabTF(){
     <td><input type="text" inputmode="decimal" class="tf" data-tf="${x.g.k}" value="${x.a.tf!=null?String(x.a.tf).replace(".",","):""}" placeholder="ex.: 1,5" aria-label="Taxa de frequência ${esc(x.g.nome)}"></td>
     <td><input type="text" data-tfp="${x.g.k}" value="${esc(x.a.tfPeriodo||"")}" placeholder="ex.: out/25 a set/26" aria-label="Período de referência"></td>
     <td><input type="checkbox" data-gr="${x.g.k}" ${x.a.grave?"checked":""} aria-label="Casos graves"></td>
-    <td>${(()=>{const au=eoTF(x.a.tf,x.a.grave);return `<select data-eo="${x.g.k}" aria-label="Evidência organizacional ${esc(x.g.nome)}" style="min-width:200px"><option value="">${au?`Pela TF: ${au} · ${EO_NOMES[au-1]}`:"Pela TF: —"}</option>${EO_NOMES.map((n,i)=>`<option value="${i+1}" ${+x.a.eoMan===i+1?"selected":""}>Ajustada: ${i+1} · ${n}</option>`).join("")}</select>`})()}</td>
+    <td>${(()=>{const au=eoTF(x.a.tf,x.a.grave);return au?`<b>${au}</b> · ${EO_NOMES[au-1]}`:'<span class="muted">informe a TF</span>'})()}</td>
     <td>${x.eo?`<span class="muted" style="font-size:.8rem">${[1,2,3,4].map(v=>{const n=DIMS.filter(d=>x.fat[d.id].sf===v).length;return n?`${n}× ${SEV_NOMES[v-1].toLowerCase()}`:""}).filter(Boolean).join(" · ")}</span>`:""}</td></tr>`}).join("")).join("")}
   </tbody></table></div></div>
   ${(()=>{ const iso=isoAtual(), tfG=tfGeral(), eoG=eoTF(tfG,L.some(x=>x.a.grave)), AG=analisarFatores(tabular(S.data.resps),iso?iso.i:null,eoG);
@@ -1219,7 +1219,6 @@ function tabTF(){
   </div>`;
 }
 function bindTF(){
-  document.querySelectorAll("[data-eo]").forEach(sl=>sl.onchange=async()=>{ await saveAnalise(sl.dataset.eo,{eoMan:sl.value?+sl.value:null}); toast(sl.value?"Evidência ajustada":"Evidência pela taxa de frequência"); render(); });
   document.querySelectorAll("[data-tf]").forEach(i=>i.onchange=async()=>{const v=parseNum(i.value); if(i.value.trim()&&v==null){toast("Informe um número, ex.: 1,5");return} await saveAnalise(i.dataset.tf,{tf:v}); toast("Taxa salva"); render();});
   document.querySelectorAll("[data-tfp]").forEach(i=>i.onchange=async()=>{await saveAnalise(i.dataset.tfp,{tfPeriodo:i.value.trim()}); toast("Período salvo");});
   document.querySelectorAll("[data-gr]").forEach(c=>c.onchange=async()=>{await saveAnalise(c.dataset.gr,{grave:c.checked}); render();});
@@ -1688,7 +1687,7 @@ function tabDiag(){
   ${tabIso()}
   <div class="eyebrow" style="margin-top:.4rem">2 · Taxa de frequência por setor/GHE — evidência organizacional</div>
   <div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Taxa de frequência por setor/GHE (últimos 12 meses)</h3>${faltam?`<span class="pill pend">${faltam} setor(es)/GHE sem taxa</span>`:`<span class="pill ok">Todos preenchidos</span>`}</div>
-   <p class="muted" style="margin:0;font-size:.86rem">A taxa de frequência de afastamentos indica a evidência organizacional (EO), que ajusta a severidade de cada fator. Pode ser ajustada manualmente com base em outros indicadores (afastamentos CID F, rotatividade, horas extras, denúncias). A explicação completa está em <b>Ajuda › Manual › Riscos Psicossociais</b>.</p>
+   <p class="muted" style="margin:0;font-size:.86rem">A taxa de frequência de afastamentos define a evidência organizacional (EO), que modula a severidade de cada fator (casos graves registrados levam a EO ao nível 5). A explicação completa está em <b>Ajuda › Manual › Riscos Psicossociais</b>.</p>
    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));align-items:end">
     <label class="f">Importar da planilha do cliente<input type="file" id="fileTF" accept=".xlsx,.xls,.csv" aria-label="Planilha do cliente com taxa de frequência"></label>
     <label class="f">TF geral da empresa (%)<input type="text" id="tfGeral" inputmode="decimal" placeholder="Em branco: média ponderada (${fmt(tfGeral(),1)}%)" value="${e.tfGeral!=null&&e.tfGeral!==""?String(e.tfGeral).replace(".",","):""}"></label></div>
@@ -1699,10 +1698,10 @@ function tabDiag(){
     <td><input type="text" inputmode="decimal" class="tf" data-tf="${x.g.k}" value="${x.a.tf!=null?String(x.a.tf).replace(".",","):""}" placeholder="ex.: 1,5" aria-label="Taxa de frequência ${esc(x.g.nome)}"></td>
     <td><input type="text" data-tfp="${x.g.k}" value="${esc(x.a.tfPeriodo||"")}" placeholder="ex.: out/25 a set/26" aria-label="Período de referência"></td>
     <td><input type="checkbox" data-gr="${x.g.k}" ${x.a.grave?"checked":""} aria-label="Casos graves"></td>
-    <td><select data-eo="${x.g.k}" aria-label="Evidência organizacional ${esc(x.g.nome)}" style="min-width:200px"><option value="">${au?`Pela TF: ${au} · ${EO_NOMES[au-1]}`:"Pela TF: —"}</option>${EO_NOMES.map((n,i)=>`<option value="${i+1}" ${+x.a.eoMan===i+1?"selected":""}>Ajustada: ${i+1} · ${n}</option>`).join("")}</select></td>
+    <td>${au?`<b>${au}</b> · ${EO_NOMES[au-1]}`:'<span class="muted">informe a TF</span>'}</td>
     <td><button class="btn sm" data-real="${x.g.k}">${x.a.realizadas?"Ver ("+linhas(x.a.realizadas).length+")":"+ Incluir"}</button></td></tr>`}).join("")).join("")}
   </tbody></table></div>
-   <details class="acg"><summary><b>Faixas da taxa de frequência</b> <span class="muted">· como a EO é sugerida</span></summary>
+   <details class="acg"><summary><b>Faixas da taxa de frequência</b> <span class="muted">· como a EO é definida</span></summary>
     <div class="tw" style="margin-top:.5rem"><table><thead><tr><th>EO</th><th>Taxa de frequência</th><th>Interpretação</th></tr></thead><tbody>${EO_NOMES.map((n,i)=>`<tr><td style="white-space:nowrap"><b>${i+1}</b> · ${n}</td><td style="white-space:nowrap">${EO_FAIXAS[i]}</td><td style="font-size:.82rem">${EO_DESC[i]}</td></tr>`).join("")}</tbody></table></div></details></div>
   <div class="eyebrow" style="margin-top:.4rem">3 · Ações já realizadas pela empresa</div>
   <div class="grid g2">
@@ -1719,7 +1718,6 @@ function tabDiag(){
 }
 function bindDiag(){
   bindIso();
-  document.querySelectorAll("[data-eo]").forEach(sl=>sl.onchange=async()=>{ await saveAnalise(sl.dataset.eo,{eoMan:sl.value?+sl.value:null}); toast(sl.value?"Evidência ajustada":"Evidência pela taxa de frequência"); render(); agendarSincronizacao(); });
   document.querySelectorAll("[data-tf]").forEach(i=>i.onchange=async()=>{const v=parseNum(i.value); if(i.value.trim()&&v==null){toast("Informe um número, ex.: 1,5");return} await saveAnalise(i.dataset.tf,{tf:v}); toast("Taxa salva"); render(); agendarSincronizacao();});
   document.querySelectorAll("[data-tfp]").forEach(i=>i.onchange=async()=>{await saveAnalise(i.dataset.tfp,{tfPeriodo:i.value.trim()}); toast("Período salvo");});
   document.querySelectorAll("[data-gr]").forEach(c=>c.onchange=async()=>{await saveAnalise(c.dataset.gr,{grave:c.checked}); render(); agendarSincronizacao();});
@@ -2109,12 +2107,12 @@ const TEXTOS_PADRAO={
  iso_pontuacao:"Cada item do checklist é respondido com “Sim” (1 ponto), “Parcial” (0,5 ponto) ou “Não” (0 ponto), e a pontuação final é interpretada da seguinte forma:",
  iso_faixas:"24 a 33 pontos: Gestão eficaz de riscos psicossociais.\n17 a 23,5 pontos: Gestão intermediária, melhorias recomendadas.\nMenos de 17 pontos: Gestão ineficaz dos riscos psicossociais, ações urgentes necessárias.",
  iso_fecho:"A utilização da ISO 45003 como referência metodológica permite uma avaliação mais ampla e estratégica, integrando aspectos documentais, estruturais e culturais da organização. Dessa forma, é possível identificar lacunas, priorizar ações preventivas e fortalecer a saúde mental como parte essencial da segurança do trabalho e da sustentabilidade organizacional.",
- prob_texto:"Para obter uma visão mais precisa e contextualizada dos riscos psicossociais no ambiente de trabalho, foi realizada uma análise integrada entre os resultados do questionário HSE – Management Standards Indicator Tool e a pontuação final do checklist baseado na ISO 45003. A média geral obtida no HSE reflete a percepção dos colaboradores em relação aos fatores psicossociais, enquanto o checklist da ISO 45003 permite avaliar a estrutura organizacional e as práticas de gestão voltadas à prevenção desses riscos.\n\nA probabilidade é determinada para cada um dos sete fatores do HSE: a **graduação do fator** (calculada pela média das respostas do grupo naquele fator) é cruzada com o **resultado do checklist ISO 45003**, conforme a matriz abaixo.\n\nO cruzamento desses dois resultados fornece uma estimativa mais robusta da probabilidade de ocorrência de riscos psicossociais relacionados ao trabalho. Quando o HSE indica graduação alta e o checklist da ISO 45003 aponta gestão ineficaz, a probabilidade é elevada, demandando ações corretivas urgentes. Já quando ambas as ferramentas apresentam resultados positivos, considera-se que a empresa possui gestão eficaz e ambiente de trabalho favorável à saúde mental e ao bem-estar dos colaboradores.\n\nO cruzamento resulta em uma probabilidade de cinco níveis, convertida proporcionalmente para a escala da matriz de risco adotada pela empresa (**{matriz}**), a mesma usada no Inventário de Riscos.",
+ prob_texto:"Para obter uma visão mais precisa e contextualizada dos riscos psicossociais no ambiente de trabalho, foi realizada uma análise integrada entre os resultados do questionário HSE – Management Standards Indicator Tool e a pontuação final do checklist baseado na ISO 45003. A média geral obtida no HSE reflete a percepção dos colaboradores em relação aos fatores psicossociais, enquanto o checklist da ISO 45003 permite avaliar a estrutura organizacional e as práticas de gestão voltadas à prevenção desses riscos.\n\nA probabilidade é determinada para cada um dos sete fatores do HSE: a **graduação do fator** (calculada pela média das respostas do grupo naquele fator) é cruzada com o **resultado do checklist ISO 45003**, conforme a matriz abaixo.\n\nO cruzamento desses dois resultados fornece uma estimativa mais robusta da probabilidade de ocorrência de riscos psicossociais relacionados ao trabalho. Quando o HSE indica graduação alta e o checklist da ISO 45003 aponta gestão ineficaz, a probabilidade é elevada, demandando ações corretivas urgentes. Já quando ambas as ferramentas apresentam resultados positivos, considera-se que a empresa possui gestão eficaz e ambiente de trabalho favorável à saúde mental e ao bem-estar dos colaboradores.\n\nO cruzamento resulta em uma probabilidade de cinco níveis, levada à escala da matriz de risco adotada pela empresa (**{matriz}**) por equivalência de níveis, a mesma usada no Inventário de Riscos.",
  sev_intro:"A severidade segue o método ElevaLife de Severidade Intrínseca do Fator (SIF). A NR-01 determina que o nível de risco resulte da combinação entre a severidade dos possíveis danos e a probabilidade de sua ocorrência, mas não estabelece critérios prescritivos de severidade para os fatores psicossociais. A SIF separa essas duas dimensões: a **severidade** é um parâmetro pré-definido, derivado da literatura científica e estável entre organizações; a **probabilidade** é estimada a partir dos escores do HSE-IT e do contexto local (item 4.3).\n\nEm seguida, a severidade intrínseca é modulada pela Evidência Organizacional (EO), que traduz a realidade da empresa avaliada, inclusive as medidas de prevenção já implementadas, resultando na Severidade Final (SF), valor levado à matriz de risco.",
  sif_texto:"A SIF é um atributo do perigo, e não da exposição: responde à pergunta “qual é o pior desfecho plausível consistentemente associado a este domínio na literatura científica?”. É atribuída antes da coleta de dados, ancorada em referências científicas e normativas rastreáveis, e comum a todas as avaliações realizadas pelo método. A escala tem quatro níveis:",
  sif_classificacao:"A classificação dos sete domínios do HSE-IT foi atribuída a partir das revisões sistemáticas, meta-análises e documentos normativos de referência, enquadrando cada domínio no nível correspondente ao desfecho mais grave consistentemente reportado:",
  sif_concentracao:"A concentração dos valores nos níveis 3 e 4 decorre do critério do pior desfecho plausível, escolha conservadora e coerente com o princípio da precaução; seu efeito sobre a capacidade de diferenciação é compensado pela probabilidade obtida no HSE-IT e pela modulação pela evidência organizacional. Os níveis 1 e 2 permanecem disponíveis e são alcançados pela Severidade Final quando a evidência organizacional é baixa.",
- eo_texto:"A EO traduz a densidade e a consistência das evidências objetivas de materialização do dano no grupo avaliado. Nesta avaliação, foi estimada a partir da taxa de frequência de afastamentos dos últimos 12 meses informada pela empresa e do registro de casos graves (ideação suicida, burnout severo, hospitalização ou outra condição ameaçadora à vida), podendo ser ajustada com outros indicadores disponíveis, como afastamentos por transtornos mentais e comportamentais, rotatividade, horas extraordinárias, registros em canais de denúncia e passivo trabalhista. A EO é classificada em cinco níveis, convertidos em um valor ajustado (EOaj) de 0 a 4:",
+ eo_texto:"A EO traduz a densidade e a consistência das evidências objetivas de materialização do dano no grupo avaliado. Nesta avaliação, foi estimada a partir da taxa de frequência de afastamentos dos últimos 12 meses informada pela empresa e do registro de casos graves (ideação suicida, burnout severo, hospitalização ou outra condição ameaçadora à vida). A EO é classificada em cinco níveis, convertidos em um valor ajustado (EOaj) de 0 a 4:",
  sf_texto:"A Severidade Final é obtida pela combinação ponderada da severidade intrínseca com a evidência organizacional:",
  sf_pesos:"O peso de 75% atribuído à evidência científica e de 25% à evidência organizacional permite que o contexto da empresa module a severidade, sem que a ausência de dano registrado a neutralize: uma EO muito baixa reduz a severidade potencial em, no máximo, um nível, e uma EO muito alta mantém a severidade máxima nos domínios de SIF crítica e pode elevar em um nível os domínios de severidade intermediária. A ausência de evidência de dano não constitui evidência de ausência de risco, sobretudo em desfechos de latência longa e subnotificação conhecida, como os transtornos mentais relacionados ao trabalho.\n\nO valor obtido, entre 0,75 e 4,00, é enquadrado no nível inteiro mais próximo, com arredondamento de 0,50 para o nível superior, o que resulta nos quatro níveis de severidade do método (1 – Baixa, 2 – Moderada, 3 – Alta e 4 – Crítica). Esses níveis são levados às colunas de severidade da matriz de risco adotada pela empresa (**{matriz}**) por equivalência, conforme a tabela a seguir.",
  sf_limites:"A SF é um parâmetro de gestão de riscos ocupacionais de natureza coletiva: não constitui diagnóstico, não se aplica a indivíduos, não substitui avaliação clínica ou pericial e não estabelece nexo causal entre exposição e adoecimento de trabalhador determinado.",
@@ -2143,7 +2141,7 @@ const EDITOR_SECOES=[
  ["Referências bibliográficas",[["__referencias","Uma referência por linha (ABNT)"]]],
 ];
 let TEXTOS_SALVOS={};
-const textoLaudo=k=>{ const v=TEXTOS_SALVOS[k]; if(k==="sf_pesos"&&v&&/convertido proporcionalmente/.test(v)) return TEXTOS_PADRAO[k]||""; return v!=null&&String(v).trim()?String(v):TEXTOS_PADRAO[k]||""; }; // V 1.27: texto antigo da conversão proporcional não vale mais
+const textoLaudo=k=>{ const v=TEXTOS_SALVOS[k]; if((k==="sf_pesos"||k==="prob_texto")&&v&&/convertid[oa] proporcionalmente/.test(v)) return TEXTOS_PADRAO[k]||""; if(k==="eo_texto"&&v&&/podendo ser ajustada/.test(v)) return TEXTOS_PADRAO[k]||""; /* V 1.27: sem ajuste manual da EO */ return v!=null&&String(v).trim()?String(v):TEXTOS_PADRAO[k]||""; }; // V 1.27: texto antigo da conversão proporcional não vale mais
 const preencherMarc=(t,vars)=>String(t).replace(/\{(\w+)\}/g,(m,k)=>vars[k]!=null?vars[k]:m);
 
 // ===================== LAUDO EM PDF (V 1.25) =====================
@@ -2303,7 +2301,7 @@ async function gerarRelatorio(btn){
       car:"pela associação da falta de clareza de papéis com exaustão emocional e afastamentos",
       mud:"pela associação de mudanças mal conduzidas com piora da saúde mental e insegurança no trabalho"};
     const EO_FALA=["praticamente não há evidências de dano","as evidências de dano são pontuais","há evidências recorrentes de dano","há evidências consistentes de dano","há evidências consistentes e relevantes de dano, incluindo casos graves"];
-    const eoFonte=x=>x.a.eoMan?"segundo os indicadores organizacionais da empresa":x.a.grave?(x.a.tf!=null?`registro de casos graves e taxa de frequência de afastamentos de ${fmt(+x.a.tf,1)}% nos últimos 12 meses`:"registro de casos graves"):`taxa de frequência de afastamentos de ${fmt(+x.a.tf,1)}% nos últimos 12 meses`;
+    const eoFonte=x=>x.a.grave?(x.a.tf!=null?`registro de casos graves e taxa de frequência de afastamentos de ${fmt(+x.a.tf,1)}% nos últimos 12 meses`:"registro de casos graves"):`taxa de frequência de afastamentos de ${fmt(+x.a.tf,1)}% nos últimos 12 meses`;
     function textoFator(x,d,i){ const f=x.fat[d.id], out=[], quem=x.quem||"do grupo", resp=x.quem?"dos trabalhadores da empresa":"do grupo";
       out.push(P([{x:d.nome,b:true,c:COR.wine,s:10.5}],{sb:8,sa:3,keep:true,al:"l"}));
       const gHse=HSE_NOMES[f.hse].toLowerCase(), pN=f.p?nomeP(f.p).toLowerCase():"", sN=f.s?m.S[f.s-1].toLowerCase():"";
@@ -2332,6 +2330,13 @@ async function gerarRelatorio(btn){
     const pf=p=>p?`${p.nome}${p.formacao?", "+p.formacao:""} (${p.conselho})`:"[profissional não cadastrado]";
     C.push(P(mesmoProf?`O trabalho foi realizado pelo(a) profissional ${pf(erg)}, que também atua como responsável técnico(a) pela avaliação.`:!rt?`O trabalho foi realizado pelo(a) profissional ${pf(erg)}.`:`O trabalho foi realizado pelo(a) profissional ${pf(erg)}, sob supervisão do(a) responsável técnico(a) ${pf(rt)}.`));
     C.push(H("Ferramenta utilizada",1)); C.push(...paras("ferramenta_intro")); C.push(...itens("ferramenta_dominios",true)); C.push(...paras("ferramenta_escala"));
+    { // V 1.27: tabulação do HSE-IT (sempre gerada a partir do questionário usado pelo sistema)
+      const w=[2600,3354,3400];
+      C.push(P("Os itens de cada fator e o sentido da pontuação são os do instrumento original do HSE (Health and Safety Executive): os 12 itens redigidos de forma negativa, de Demandas e Relacionamentos, têm a pontuação invertida.",{keep:true,sa:4}));
+      C.push(table([hdr(["Fator","Itens do questionário","Pontuação"],w),...DIMS.map(d=>[cell(d.nome,{bold:true}),cell(ITENS.map((it,i)=>it[0]===d.id?i+1:null).filter(Boolean).join(", "),{align:"c"}),cell(d.neg?"Invertida: Nunca = 5 … Sempre = 1":"Direta: Nunca = 1 … Sempre = 5",{align:"c"})])],w,{keep:true})); C.push(gap());
+      C.push(P("A média de cada fator é a média de todas as respostas dos seus itens, de 1 a 5 (quanto menor, maior o risco). A média geral do questionário é a média dos sete fatores. A graduação segue as faixas abaixo:",{keep:true,sa:4}));
+      const fx=[["4,61 a 5,00",0],["4,00 a 4,60",1],["3,00 a 3,99",2],["2,00 a 2,99",3],["1,00 a 1,99",4]], w2=[4677,4677];
+      C.push(table([hdr(["Média do fator","Graduação HSE-IT"],w2),...fx.map(([t,i])=>[cell(t,{align:"c"}),cell(RISCOS[i].nome,{align:"c",bold:true,fill:COR[RISCOS[i].cor.slice(2)]})])],w2,{keep:true})); C.push(gap()); }
     C.push(H("Checklist de avaliação de riscos psicossociais (ISO 45003)",1)); C.push(...paras("iso_intro")); C.push(...itens("iso_areas",true)); C.push(...paras("iso_pontuacao")); C.push(...itens("iso_faixas",false)); C.push(...paras("iso_fecho"));
     C.push(H("Classificação da probabilidade",1)); C.push(...paras("prob_texto"));
     { const w=[2154,2400,2400,2400]; const pc=p=>corNivel(nomeP(p));
@@ -2453,7 +2458,7 @@ async function gerarRelatorio(btn){
       C.push(table(rows,w)); } else C.push(P("O checklist ISO 45003 não foi respondido."));
 
     C.push(H("Perguntas HSE-IT",0,{pageBreakBefore:true}));
-    DIMS.forEach(d=>{ C.push(sub(d.nome)); ITENS.forEach(([dim,t])=>{ if(dim===d.id) C.push(bullet(t)); }); });
+    DIMS.forEach(d=>{ C.push(sub(d.nome+(d.neg?" (pontuação invertida)":""))); ITENS.forEach(([dim,t],i)=>{ if(dim===d.id) C.push(bullet(`${i+1}. ${t}`)); }); });
 
     C.push(H("Encerramento",0,{pageBreakBefore:true}));
     C.push(...paras("encerramento"));
@@ -2576,6 +2581,57 @@ function bindPainelGeral(){
     finally{ S.eid=salvo.eid; S.data=salvo.data; b.disabled=false; render(); } };
 }
 // ---------- V 1.27: migração das empresas cadastradas no módulo antes do cadastro único ----------
+// ---------- V 1.27: empresas fictícias para teste (só Administrador) ----------
+// Três empresas com respostas do HSE-IT montadas para dar graduação muito baixa, moderada e muito alta em todos os
+// fatores; ISO 45003 em gestão intermediária (20 pontos); taxa de frequência 0% em todos os setores/GHE (EO 1).
+const EMPRESAS_TESTE=[
+  {nome:"EMPRESA TESTE HSE MUITO BAIXA LTDA",padrao:[5,5,5,4]},   // médias ≈ 4,75
+  {nome:"EMPRESA TESTE HSE MODERADA LTDA",padrao:[3,4,3,4,4]},    // médias ≈ 3,60
+  {nome:"EMPRESA TESTE HSE MUITO ALTA LTDA",padrao:[1,2,1,2,1]},  // médias ≈ 1,40
+];
+const TESTE_UNIDADE="Unidade Teste", TESTE_SETORES=[["Administrativo","Setor"],["Operação","GHE"]], TESTE_POR_SETOR=10;
+function empresasTesteHTML(){
+  if(!EH_ADMIN()||!SIGE()) return "";
+  const existe=EMPRESAS_TESTE.filter(t=>S.empresas.some(e=>e.clienteId===sigeSlug([t.nome])));
+  return `<details class="panel stack" style="margin-top:1rem"><summary style="cursor:pointer"><b>Empresas de teste</b> <span class="muted" style="font-size:.85rem">· para testar a taxa de frequência e a graduação</span></summary>
+   <p class="muted" style="margin:.6rem 0 0;font-size:.88rem">Cria três clientes fictícios no cadastro do SIGE (${EMPRESAS_TESTE.map(t=>esc(t.nome)).join(", ")}), cada um com 1 unidade, 2 setores/GHE e ${TESTE_POR_SETOR*2} colaboradores, todos com o HSE-IT respondido (graduação muito baixa, moderada e muito alta em todos os fatores), checklist ISO 45003 em gestão intermediária e taxa de frequência 0%. Matriz 5x5 (pode trocar no cadastro do cliente).</p>
+   <div class="row"><button class="btn sm primary" id="tstCriar">${existe.length?"Recriar empresas de teste":"Criar empresas de teste"}</button>${existe.length?`<button class="btn sm danger" id="tstExcluir">Excluir empresas de teste</button>`:""}<span class="muted" id="tstSt" style="font-size:.85rem"></span></div></details>`;
+}
+async function criarEmpresaTeste(t,st){
+  const SG=SIGE(), cid=sigeSlug([t.nome]), eid=EID_PREFIXO+cid, H=hoje();
+  await SG.salvar("cliente",{id:cid,EmpresaId:cid,Cliente:t.nome,CNPJ:"",Cidade:"Teste",Estado:"MG","Matriz Risco":"Matriz 5x5",Servicos:["psicossocial"],Observacao:"Empresa fictícia para testes (V 1.27)"});
+  await SG.salvar("unidade",{id:sigeSlug([t.nome,TESTE_UNIDADE]),EmpresaId:cid,Cliente:t.nome,Unidade:TESTE_UNIDADE});
+  for(const [nomeS,tipo] of TESTE_SETORES) await SG.salvar("setor",{id:sigeSlug([t.nome,TESTE_UNIDADE,nomeS]),EmpresaId:cid,Cliente:t.nome,Unidade:TESTE_UNIDADE,Setor:nomeS,"Tipo Setor":tipo});
+  const base=900000+EMPRESAS_TESTE.indexOf(t)*1000; let n=0;
+  await E(eid).set({v:127,k:eid,clienteId:cid,razao:t.nome,cnpj:"",codigo:"TST"+(EMPRESAS_TESTE.indexOf(t)+1)+gerarCodigo().slice(0,3),status:"aberta",inicio:H});
+  for(const [nomeS] of TESTE_SETORES){ const uid_=sigeSlug([t.nome,TESTE_UNIDADE]), gid=sigeSlug([t.nome,TESTE_UNIDADE,nomeS]);
+    for(let j=0;j<TESTE_POR_SETOR;j++){ const mat=String(base+(++n)); st.textContent=`${t.nome}: colaborador ${n} de ${TESTE_SETORES.length*TESTE_POR_SETOR}…`;
+      await SG.salvar("colaborador",{id:sigeSlug([t.nome,mat]),EmpresaId:cid,Cliente:t.nome,Unidade:TESTE_UNIDADE,Setor:nomeS,Matricula:mat,Nome:`Colaborador Teste ${n}`});
+      const r=ITENS.map(([dim],i)=>{ const f=t.padrao[(i+j)%t.padrao.length]; return NEG.has(dim)?6-f:f; });
+      await E(eid).collection("respostas").doc("rteste"+n).set({k:"rteste"+n,unidadeId:uid_,gheId:gid,r,data:H});
+      await E(eid).collection("participacao").doc(matKey(mat)).set({k:matKey(mat),respondido:true,unidadeId:uid_,gheId:gid,termo:"aceito",termoVersao:TERMO_VERSAO+" (teste)"}); }
+    await E(eid).collection("analise").doc(gid).set({k:gid,tf:0}); }
+  const iso={}; for(let i=0;i<33;i++) iso[i]=i<18?"S":i<22?"P":"N"; // 18 + 4 × 0,5 = 20 pontos: gestão intermediária
+  await E(eid).collection("iso").doc("main").set({nome:"Gestor Teste",cargo:"Gestor do contrato",email:"",data:H,r:iso,origem:"teste"});
+}
+async function excluirEmpresaTeste(t,st){
+  const SG=SIGE(), cid=sigeSlug([t.nome]), eid=EID_PREFIXO+cid;
+  for(const col of ["planoAcao","fatorRisco","mapaRisco","colaborador","setor","unidade"]){ const l=await SG.listar(col,cid,true).catch(()=>[]);
+    for(const r of l){ st.textContent=`${t.nome}: excluindo ${col}…`; await SG.excluir(col,r.id); } }
+  if(db.excluirEmpresa) await db.excluirEmpresa(eid); else await E(eid).delete();
+  await SG.excluir("cliente",cid);
+}
+function bindEmpresasTeste(){
+  const st=$("#tstSt"), cr=$("#tstCriar"), ex=$("#tstExcluir"); if(!cr) return;
+  cr.onclick=async()=>{ if(cr.dataset.armed!=="1"){ cr.dataset.armed="1"; cr.textContent="Confirmar: criar as 3 empresas"; return; }
+    cr.disabled=true; if(ex) ex.disabled=true;
+    try{ for(const t of EMPRESAS_TESTE) await criarEmpresaTeste(t,st); st.textContent="Empresas de teste criadas."; SIGE().avisarRegistro(); await carregarEmpresas(); toast("3 empresas de teste criadas"); render(); }
+    catch(err){ st.className="err"; st.textContent="Falhou: "+(err.message||err)+". Pode clicar de novo (os registros são atualizados, sem duplicar)."; cr.disabled=false; cr.dataset.armed=""; cr.textContent="Criar empresas de teste"; } };
+  if(ex) ex.onclick=async()=>{ if(ex.dataset.armed!=="1"){ ex.dataset.armed="1"; ex.textContent="Confirmar: excluir as 3 empresas de teste"; return; }
+    ex.disabled=true; cr.disabled=true;
+    try{ for(const t of EMPRESAS_TESTE) await excluirEmpresaTeste(t,st); st.textContent="Empresas de teste excluídas."; SIGE().avisarRegistro(); await carregarEmpresas(); toast("Empresas de teste excluídas"); render(); }
+    catch(err){ st.className="err"; st.textContent="Falhou: "+(err.message||err)+". Pode clicar de novo."; ex.disabled=false; ex.dataset.armed=""; } };
+}
 function migracaoHTML(){
   if(!EH_ADMIN()||!SIGE()||!S.legado.length) return "";
   const cls=S.empresas;
