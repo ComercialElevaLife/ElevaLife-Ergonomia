@@ -67,6 +67,10 @@ const COLECOES = [
   // certificacao e imagem da assinatura) usado no Laudo (responsavel tecnico
   // e ergonomista executor). Container criado sob demanda.
   "ergonomista",
+  // V 1.27: colaboradores (Cliente, Unidade, Setor/GHE, Matricula, Nome) -
+  // base do questionario HSE-IT dos Riscos Psicossociais. Container criado
+  // sob demanda (particao /EmpresaId).
+  "colaborador",
 ];
 
 // Colecoes sem dono (nenhuma amarrada a uma empresa-cliente especifica) -
@@ -183,9 +187,33 @@ async function avaliarPlanoAcaoComArquivos(existente, novo, identidade, context)
 // Notificacoes do Plano de Acao disparadas na gravacao (best-effort - nunca
 // derrubam o registro): "atribuida" (so na criacao ou troca do e-mail do
 // responsavel) e "evidDispensa" (Administrador concluiu sem evidencia).
+// V 1.27: acao com origem "Riscos Psicossociais" usa o e-mail proprio do
+// modulo (texto pedido pelo Alexandre) e so sai com responsavel, e-mail e
+// prazo preenchidos; reenvia quando um dos tres muda (ou a pedido: _reenviarPsico).
+async function notificarAcaoPsico(context, container, resource, reenviar) {
+  try {
+    const email = String(resource["E-mail Responsavel"] || "").trim();
+    if (!resource["Responsavel Acao"] || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !resource["Dt Programada"]) return resource;
+    if (resource["Dt Conclusao"] || resource["Status Execucao"] === "Concluida") return resource;
+    const assinatura = [resource["Responsavel Acao"], email.toLowerCase(), resource["Dt Programada"]].join("|");
+    if (!reenviar && resource._notifPsico && resource._notifPsico.assinatura === assinatura) return resource;
+    await enviarEmail({
+      para: email,
+      assunto: `Ação sob sua responsabilidade · Riscos psicossociais · ${resource.Cliente || ""}`,
+      htmlCorpo: rotaPsicossocial.emailAcaoPsico(resource),
+    });
+    const atualizado = Object.assign({}, resource, { _notifPsico: { assinatura, em: new Date().toISOString() } });
+    const { resource: salvo } = await container.items.upsert(atualizado);
+    return salvo || atualizado;
+  } catch (erro) {
+    context.error("Falha ao enviar e-mail de acao psicossocial (Plano de Acao)", erro);
+    return resource;
+  }
+}
+
 async function notificarPlanoAcao(context, existente, resource) {
   try {
-    if (precisaNotificarAtribuicao(existente, resource)) {
+    if (resource.Origem !== "Riscos Psicossociais" && precisaNotificarAtribuicao(existente, resource)) {
       await enviarEmail({
         para: resource["E-mail Responsavel"],
         assunto: ESTAGIOS_PLANO_ACAO.atribuida.assunto(resource),
@@ -241,7 +269,7 @@ async function tratar(request, context) {
     };
   }
 
-  const container = ["configuracao", "ergonomista"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
+  const container = ["configuracao", "ergonomista", "colaborador"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
   const id = request.params.id;
   if (COLECOES_SO_ADMIN_GRAVA.includes(colecao) && request.method !== "GET" && identidade.papel !== "Administrador") {
     return { status: 403, jsonBody: { erro: "Só Administrador pode alterar as configurações do sistema." } };
@@ -261,6 +289,15 @@ async function tratar(request, context) {
             return { status: 404, jsonBody: { erro: "Não encontrado." } };
           }
           return { jsonBody: item };
+        }
+        // V 1.27: ?empresa=<EmpresaId> restringe a lista a uma empresa (so
+        // estreita o que o papel ja permite ver - usado pelos Riscos Psicossociais).
+        const soEmpresa = request.query && request.query.get ? request.query.get("empresa") : null;
+        if (soEmpresa && !COLECOES_GLOBAIS.includes(colecao)) {
+          if (!podeVerEmpresa(identidade, soEmpresa)) return { jsonBody: [] };
+          const campo = colecao === "cliente" ? "c.id" : "c.EmpresaId";
+          const { resources } = await container.items.query({ query: `SELECT * FROM c WHERE ${campo} = @e`, parameters: [{ name: "@e", value: soEmpresa }] }).fetchAll();
+          return { jsonBody: resources };
         }
         return { jsonBody: await listarComFiltro(container, colecao, identidade) };
       }
@@ -296,9 +333,12 @@ async function tratar(request, context) {
           paraGravar = avaliacao.doc;
         }
         const doc = aplicarAuditoria(jaExistia, paraGravar, identidade.email);
-        const { resource } = await container.items.upsert(doc);
+        const reenviarPsico = colecao === "planoAcao" && !!doc._reenviarPsico;
+        if (colecao === "planoAcao") delete doc._reenviarPsico;
+        let { resource } = await container.items.upsert(doc);
         if (colecao === "planoAcao") {
           await notificarPlanoAcao(context, jaExistia, resource);
+          if (resource.Origem === "Riscos Psicossociais") resource = await notificarAcaoPsico(context, container, resource, reenviarPsico);
         }
         return { status: 201, jsonBody: resource };
       }
@@ -327,9 +367,12 @@ async function tratar(request, context) {
           mesclado = avaliacao.doc;
         }
         const doc = aplicarAuditoria(existente, mesclado, identidade.email);
-        const { resource } = await container.item(id, empresaIdDoDocumento(colecao, doc)).replace(doc);
+        const reenviarPsico = colecao === "planoAcao" && !!doc._reenviarPsico;
+        if (colecao === "planoAcao") delete doc._reenviarPsico;
+        let { resource } = await container.item(id, empresaIdDoDocumento(colecao, doc)).replace(doc);
         if (colecao === "planoAcao") {
           await notificarPlanoAcao(context, existente, resource);
+          if (resource.Origem === "Riscos Psicossociais") resource = await notificarAcaoPsico(context, container, resource, reenviarPsico);
         }
         // Tirou uma foto/arquivo do registro: apaga o arquivo do Storage tambem.
         await excluirArquivosRemovidos(existente, resource, empresaIdFinal, context);

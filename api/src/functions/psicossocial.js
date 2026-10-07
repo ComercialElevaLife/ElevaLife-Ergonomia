@@ -189,28 +189,24 @@ async function excluirEmpresaLote(eid, limiteMs = 20000) {
 // ------------------------------------------------------------------
 // Rota da EQUIPE
 // ------------------------------------------------------------------
-// V 1.26: empresas do psicossocial que a pessoa pode ver (ver shared/tenant.js).
-// null = todas; Set = so essas; "nenhuma" = sem acesso ao modulo.
+// V 1.27: cadastro unico com o SIGE. A empresa do modulo e o Cliente do SIGE:
+// eid = "e_sige-" + id do cliente. Unidades, setores/GHE e colaboradores ficam
+// nos containers do SIGE (unidade, setor, colaborador); o modulo guarda so a
+// coleta, respostas, ISO 45003 e analise. Quem nao e Administrador so acessa as
+// empresas vinculadas ao seu usuario (EmpresasVinculadas), como no resto do SIGE.
+const EID_SIGE = "e_sige-";
+const clienteDoEid = (eid) => (String(eid || "").startsWith(EID_SIGE) ? String(eid).slice(EID_SIGE.length) : null);
 function escopoPsico(identidade) {
   if (identidade.papel === PAPEIS.ADMIN) return null;
-  const v = identidade.psicoVinculo || (identidade.papel === PAPEIS.CONSULTOR ? "todas" : "marcadas");
-  if (v === "nenhuma") return "nenhuma";
-  if (v === "todas" && identidade.papel === PAPEIS.CONSULTOR) return null;
-  return new Set(identidade.empresasPsico || []);
+  return new Set((identidade.empresasVinculadas || []).map((id) => EID_SIGE + id));
 }
-const SEM_VINCULO_PSICO = { status: 403, jsonBody: { erro: "Seu usuário não está vinculado ao módulo de Riscos Psicossociais. Fale com o Administrador.", semVinculo: true } };
-// Consultor com empresas marcadas que cadastra uma empresa nova: ela entra
-// no vinculo dele automaticamente (senao ele mesmo perderia o acesso).
-async function vincularEmpresaAoUsuario(identidade, eid) {
-  const { obterContainer } = require("../shared/cosmos");
-  const c = obterContainer("usuarios");
-  const { resources } = await c.items.query({ query: "SELECT * FROM c WHERE LOWER(c.Email) = @email", parameters: [{ name: "@email", value: identidade.email }] }).fetchAll();
-  const doc = resources[0]; if (!doc) return;
-  const lista = Array.isArray(doc.EmpresasPsico) ? doc.EmpresasPsico : [];
-  if (lista.includes(eid)) return;
-  doc.EmpresasPsico = lista.concat(eid); doc.PsicoVinculo = "marcadas";
-  await c.item(doc.id, doc.id).replace(doc);
+// Documentos de um container do SIGE para uma empresa (particao /EmpresaId).
+async function listarSige(nome, clienteId) {
+  const c = nome === "colaborador" ? await garantirContainer(nome) : obterContainerSige(nome);
+  const { resources } = await comRetentativa(() => c.items.query({ query: "SELECT * FROM c WHERE c.EmpresaId = @e", parameters: [{ name: "@e", value: clienteId }] }, { partitionKey: clienteId }).fetchAll());
+  return resources || [];
 }
+function obterContainerSige(nome) { return require("../shared/cosmos").obterContainer(nome); }
 
 async function tratarEquipe(request, context) {
   let identidade;
@@ -224,8 +220,7 @@ async function tratarEquipe(request, context) {
   const acao = String(request.params.id || "");
   const caminho = request.query.get("c") || "";
   const escopo = escopoPsico(identidade);
-  if (acao === "eu" && request.method === "GET") return { jsonBody: { email: identidade.email, papel: identidade.papel, semVinculo: escopo === "nenhuma" } };
-  if (escopo === "nenhuma") return SEM_VINCULO_PSICO;
+  if (acao === "eu" && request.method === "GET") return { jsonBody: { email: identidade.email, papel: identidade.papel } };
   if (identidade.papel === PAPEIS.CLIENTE) {
     try { return await tratarCliente(request, context, identidade, acao); }
     catch (erro) { context.error("Falha em /api/psico/" + acao + " (cliente)", erro); return { status: 500, jsonBody: { erro: "Falha ao acessar os dados." } }; }
@@ -236,20 +231,20 @@ async function tratarEquipe(request, context) {
   const ehAdmin = identidade.papel === PAPEIS.ADMIN;
   const soAdmin = () => ({ status: 403, jsonBody: { erro: "Somente o Administrador pode fazer esta alteração. Solicite ao coordenador." } });
   try {
-    // Ergonomista vinculado so a algumas empresas do psicossocial.
+    // Ergonomista (Consultor): so as empresas vinculadas ao usuario.
     if (escopo instanceof Set) {
       const pt = caminho.split("/");
-      if ((acao === "col" || acao === "doc") && pt[0] === "empresas" && pt.length >= 2) {
-        if (!escopo.has(pt[1])) {
-          const novaEmpresa = acao === "doc" && request.method === "PUT" && pt.length === 2 && !(await lerDoc(caminho));
-          if (!novaEmpresa) return { status: 403, jsonBody: { erro: "Sem acesso a esta empresa." } };
-          await vincularEmpresaAoUsuario(identidade, pt[1]);
-        }
+      if ((acao === "col" || acao === "doc") && pt[0] === "empresas" && pt.length >= 2 && !escopo.has(pt[1])) {
+        return { status: 403, jsonBody: { erro: "Sem acesso a esta empresa." } };
       }
       if (acao === "col" && request.method === "GET" && caminho === "empresas") {
         const pg = await listarPagina(caminho, request.query.get("t") || null);
         return { jsonBody: { docs: pg.docs.filter((d) => escopo.has(d.id)), next: pg.next } };
       }
+    }
+    if (acao === "migrar" && request.method === "POST") {
+      if (!ehAdmin) return soAdmin();
+      return { jsonBody: await migrarEmpresa(await request.json().catch(() => ({}))) };
     }
     if (acao === "notificar-acao" && request.method === "POST") {
       return await notificarAcao(request, context, identidade, escopo);
@@ -301,7 +296,7 @@ async function tratarEquipe(request, context) {
 // ------------------------------------------------------------------
 const matKey = (m) => String(m ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/^0+(?=.)/, "");
 const hoje = () => new Date().toISOString().slice(0, 10);
-const eidValido = (e) => /^e_[A-Za-z0-9_\-.]{1,120}$/.test(String(e || ""));
+const eidValido = (e) => /^e_[A-Za-z0-9_\-.]{1,200}$/.test(String(e || ""));
 const isoCompleto = (r) => !!r && Array.from({ length: 33 }, (_, i) => r[i]).every((v) => v === "S" || v === "P" || v === "N");
 
 async function empresa(eid) {
@@ -318,6 +313,15 @@ function invalidarIndice(caminho) {
   if (p[0] === "empresas" && p.length >= 3 && p[2] === "ghes") indices.delete(p[1]);
 }
 async function carregarIndice(eid) {
+  const cid = clienteDoEid(eid);
+  if (cid) { // V 1.27: colaboradores do cadastro do SIGE
+    const [uns, sets, cols] = await Promise.all([listarSige("unidade", cid), listarSige("setor", cid), listarSige("colaborador", cid)]);
+    const uId = new Map(uns.map((u) => [u.Unidade, u.id]));
+    const gInfo = new Map(sets.filter((g) => uId.has(g.Unidade)).map((g) => [g.Unidade + "|" + g.Setor, { k: g.id, nome: g.Setor, unidadeId: uId.get(g.Unidade), unidadeNome: g.Unidade }]));
+    const mapa = new Map();
+    for (const c of cols) { const g = gInfo.get(c.Unidade + "|" + c.Setor); if (g && c.Matricula != null) mapa.set(matKey(c.Matricula), { g, nome: c.Nome || "" }); }
+    return mapa;
+  }
   const ghes = await listarColecao(`empresas/${eid}/ghes`);
   const mapa = new Map();
   for (const { data: g } of ghes) {
@@ -369,8 +373,8 @@ async function tratarPublico(request, context) {
       if (!g) return { jsonBody: { erro: "nao_encontrada" } };
       const p = await lerDoc(`empresas/${eid}/participacao/${k}`);
       if (p && p.dados && p.dados.respondido === true) return { jsonBody: { erro: "ja_respondeu" } };
-      const u = await lerDoc(`empresas/${eid}/unidades/${g.unidadeId}`);
-      return { jsonBody: { colab: { k, gheId: g.k, unidadeId: g.unidadeId, ghe: g.nome, unidade: u ? u.dados.nome : "—", primeiro: g.primeiroNome || "colaborador(a)" } } };
+      const u = g.unidadeNome ? null : await lerDoc(`empresas/${eid}/unidades/${g.unidadeId}`);
+      return { jsonBody: { colab: { k, gheId: g.k, unidadeId: g.unidadeId, ghe: g.nome, unidade: g.unidadeNome || (u ? u.dados.nome : "—"), primeiro: g.primeiroNome || "colaborador(a)" } } };
     }
     if (acao === "resposta" && request.method === "POST") {
       const b = await request.json().catch(() => ({}));
@@ -435,18 +439,126 @@ async function tratarPublico(request, context) {
 }
 
 // ------------------------------------------------------------------
+// V 1.27 - Migracao das empresas cadastradas no modulo antes do cadastro unico
+// (empresa, unidades, GHEs e colaboradores vao para o cadastro do SIGE; coleta,
+// respostas, ISO 45003 e analise vao para a nova chave "e_sige-<cliente>").
+// Feita em etapas curtas (o cliente repete a chamada ate "fim"), nada e apagado:
+// a empresa antiga fica marcada com "migradoPara" e perde o codigo da coleta,
+// que passa para a nova (os QR codes ja distribuidos continuam valendo).
+// ------------------------------------------------------------------
+const sigeSlug = (partes) => { let x = partes.join("|").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); x = x.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); return x.slice(0, 180) || "registro"; };
+async function lerSigePorId(nome, id) {
+  const c = nome === "ergonomista" ? await garantirContainer(nome) : obterContainerSige(nome);
+  const { resources } = await comRetentativa(() => c.items.query({ query: "SELECT * FROM c WHERE c.id = @id", parameters: [{ name: "@id", value: id }] }).fetchAll());
+  return (resources || [])[0] || null;
+}
+async function gravarSige(nome, doc) {
+  const c = ["colaborador", "ergonomista"].includes(nome) ? await garantirContainer(nome) : obterContainerSige(nome);
+  const agora = new Date().toISOString();
+  const d = Object.assign({ _criadoEm: agora, _criadoPor: "migracao-psicossocial", _editadoEm: agora, _editadoPor: "migracao-psicossocial" }, doc);
+  await comRetentativa(() => c.items.upsert(d));
+  return d;
+}
+async function emLotes(itens, fn, limiteMs, ini, paralelo = 20) {
+  let i = 0;
+  while (i < itens.length && Date.now() - ini < limiteMs) { await Promise.all(itens.slice(i, i + paralelo).map(fn)); i += paralelo; }
+  return Math.min(i, itens.length);
+}
+async function migrarEmpresa(b) {
+  const ini = Date.now(), LIM = 18000;
+  const old = String(b.e || "");
+  if (!eidValido(old) || old.startsWith(EID_SIGE)) return { erro: "Empresa inválida." };
+  const ext = await lerDoc(`empresas/${old}`); if (!ext) return { erro: "Empresa não encontrada." };
+  const E0 = ext.dados || {};
+  const [uns, ghes] = await Promise.all([listarColecao(`empresas/${old}/unidades`), listarColecao(`empresas/${old}/ghes`)]);
+  const uNome = new Map(uns.map((u) => [u.id, (u.data && u.data.nome) || u.id]));
+  const etapa = b.etapa || "cadastro";
+  let cli = b.cliente && b.cliente !== "novo" ? await lerSigePorId("cliente", String(b.cliente)) : null;
+  if (b.cliente && b.cliente !== "novo" && !cli) return { erro: "Cliente do SIGE não encontrado." };
+  if (etapa === "cadastro") {
+    if (!cli) {
+      const id = sigeSlug([E0.razao || old]);
+      cli = await lerSigePorId("cliente", id);
+      if (!cli) cli = await gravarSige("cliente", { id, EmpresaId: id, Cliente: E0.razao || old, CNPJ: E0.cnpj || "", "Matriz Risco": E0.matriz === "4x4" ? "Matriz 4x4" : "Matriz 5x5", Servicos: ["psicossocial"], Telefone: E0.telefone || "", CNAE: E0.cnae || "", "Grau Risco NR4": E0.grau || "", Logradouro: E0.endereco || "" });
+    } else if (Array.isArray(cli.Servicos) && !cli.Servicos.includes("psicossocial")) {
+      cli = await gravarSige("cliente", Object.assign({}, cli, { Servicos: cli.Servicos.concat("psicossocial") }));
+    }
+    const cid = cli.id;
+    await emLotes(uns, (u) => gravarSige("unidade", { id: sigeSlug([cli.Cliente, uNome.get(u.id)]), Cliente: cli.Cliente, Unidade: uNome.get(u.id), EmpresaId: cid }), 60000, ini);
+    await emLotes(ghes, (g) => gravarSige("setor", { id: sigeSlug([cli.Cliente, uNome.get(g.data.unidadeId) || "", g.data.nome]), Cliente: cli.Cliente, Unidade: uNome.get(g.data.unidadeId) || "", Setor: g.data.nome, "Tipo Setor": "GHE", EmpresaId: cid }), 60000, ini);
+    const nColab = ghes.reduce((a, g) => a + Object.keys((g.data && g.data.colab) || {}).length, 0);
+    return { etapa: "colaboradores", cliente: cid, cursor: 0, unidades: uns.length, ghes: ghes.length, colaboradores: nColab };
+  }
+  const cid = cli.id, novo = EID_SIGE + cid;
+  const gNovo = new Map(ghes.map((g) => [g.id, sigeSlug([cli.Cliente, uNome.get(g.data.unidadeId) || "", g.data.nome])]));
+  const uNovo = new Map(uns.map((u) => [u.id, sigeSlug([cli.Cliente, uNome.get(u.id)])]));
+  if (etapa === "colaboradores") {
+    const lista = [];
+    ghes.forEach((g) => Object.entries((g.data && g.data.colab) || {}).forEach(([k, v]) => lista.push({ g: g.data, mat: String((v || [])[0] || k), nome: (v || [])[1] || "" })));
+    lista.sort((a, b2) => (a.mat > b2.mat ? 1 : -1));
+    const de = +b.cursor || 0;
+    const feitos = await emLotes(lista.slice(de), (x) => gravarSige("colaborador", { id: sigeSlug([cli.Cliente, x.mat]), Cliente: cli.Cliente, Unidade: uNome.get(x.g.unidadeId) || "", Setor: x.g.nome, Matricula: x.mat, Nome: x.nome, EmpresaId: cid }), LIM, ini);
+    const cursor = de + feitos;
+    return cursor < lista.length ? { etapa: "colaboradores", cliente: cid, cursor, total: lista.length } : { etapa: "dados", cliente: cid, cursor: { i: 0, t: null }, total: lista.length };
+  }
+  if (etapa === "dados") {
+    const COLS = ["participacao", "respostas", "analise", "iso"];
+    let { i, t } = b.cursor || { i: 0, t: null }; let copiados = +b.copiados || 0;
+    while (i < COLS.length && Date.now() - ini < LIM) {
+      const col = COLS[i];
+      const pg = await listarPagina(`empresas/${old}/${col}`, t);
+      await emLotes(pg.docs, async (d) => {
+        let id = d.id; const dados = Object.assign({}, d.data);
+        if (dados.gheId && gNovo.has(dados.gheId)) dados.gheId = gNovo.get(dados.gheId);
+        if (dados.unidadeId && uNovo.has(dados.unidadeId)) dados.unidadeId = uNovo.get(dados.unidadeId);
+        if (col === "analise") { id = gNovo.get(d.id) || d.id; dados.k = id; }
+        await gravarDoc(`empresas/${novo}/${col}/${id}`, dados);
+      }, 120000, ini, 25);
+      copiados += pg.docs.length;
+      if (pg.next) t = pg.next; else { i++; t = null; }
+    }
+    return i < COLS.length ? { etapa: "dados", cliente: cid, cursor: { i, t }, copiados } : { etapa: "finalizar", cliente: cid, copiados };
+  }
+  if (etapa === "finalizar") {
+    // profissionais do modulo -> ergonomistas do SIGE (pelo nome)
+    const mapaProf = {};
+    for (const pid of [E0.ergId, E0.rtId].filter(Boolean)) {
+      const p = await lerDoc(`profissionais/${pid}`); if (!p || !p.dados || !p.dados.nome) continue;
+      const cont = await garantirContainer("ergonomista");
+      const { resources } = await comRetentativa(() => cont.items.query("SELECT * FROM c").fetchAll());
+      const achado = (resources || []).find((x) => String(x.Nome || "").trim().toLowerCase() === String(p.dados.nome).trim().toLowerCase());
+      mapaProf[pid] = achado ? achado.id : (await gravarSige("ergonomista", { id: crypto.randomUUID(), EmpresaId: "GLOBAL", Nome: p.dados.nome, Titulo: p.dados.formacao || "", Registro: p.dados.conselho || "" })).id;
+    }
+    const atual = await lerDoc(`empresas/${novo}`);
+    const base = atual ? atual.dados : {};
+    await gravarDoc(`empresas/${novo}`, Object.assign({}, base, { v: 127, k: novo, clienteId: cid, razao: cli.Cliente, cnpj: cli.CNPJ || E0.cnpj || "",
+      codigo: E0.codigo || base.codigo || "", status: E0.status || base.status || "aberta", inicio: E0.inicio || "", fim: E0.fim || "", realizadas: E0.realizadas || base.realizadas || "",
+      tfGeral: E0.tfGeral != null ? E0.tfGeral : base.tfGeral, ergId: mapaProf[E0.ergId] || base.ergId || "", rtId: mapaProf[E0.rtId] || base.rtId || "", logo: E0.logo || base.logo || "", stats: E0.stats || base.stats, migradoDe: old }));
+    await gravarDoc(`empresas/${old}`, Object.assign({}, E0, { migradoPara: novo, codigoAntigo: E0.codigo || "", codigo: "", migradoEm: new Date().toISOString() }));
+    indices.delete(old); indices.delete(novo);
+    return { etapa: "fim", cliente: cid, eid: novo };
+  }
+  return { erro: "Etapa desconhecida." };
+}
+
+// ------------------------------------------------------------------
 // Perfil CLIENTE (UsuarioCliente do SIGE)
 // ------------------------------------------------------------------
-// Cliente ve a empresa do psicossocial se ela estiver marcada no usuario
-// (EmpresasPsico) ou ligada a um cliente do SIGE ao qual ele esta vinculado.
-function clienteVeEmpresa(identidade, e) {
-  if (!e || identidade.psicoVinculo === "nenhuma") return false;
-  if ((identidade.empresasPsico || []).includes(e.k)) return true;
-  return !!(e.clienteId && podeVerEmpresa(identidade, e.clienteId));
-}
+// V 1.27: o cliente ve as empresas vinculadas ao seu usuario no SIGE que tem o
+// servico Riscos Psicossociais (ou cadastro antigo, sem a lista de servicos).
+const temServicoPsico = (c) => !Array.isArray(c.Servicos) || c.Servicos.includes("psicossocial");
 async function empresasDoCliente(identidade) {
-  const todas = await listarColecao("empresas");
-  return todas.map((x) => x.data).filter((e) => clienteVeEmpresa(identidade, e));
+  const ids = identidade.empresasVinculadas || [];
+  if (!ids.length) return [];
+  const cont = obterContainerSige("cliente");
+  const { resources } = await comRetentativa(() => cont.items.query({ query: "SELECT * FROM c WHERE ARRAY_CONTAINS(@ids, c.id)", parameters: [{ name: "@ids", value: ids }] }).fetchAll());
+  const out = [];
+  for (const c of resources || []) {
+    if (!temServicoPsico(c)) continue;
+    const ext = (await lerDoc(`empresas/${EID_SIGE}${c.id}`)) || null; const x = ext ? ext.dados : {};
+    out.push({ k: EID_SIGE + c.id, clienteId: c.id, razao: c.Cliente, cnpj: c.CNPJ || "", codigo: x.codigo || "", status: x.status || "", inicio: x.inicio || "", fim: x.fim || "" });
+  }
+  return out.sort((a, b) => String(a.razao).localeCompare(String(b.razao), "pt-BR"));
 }
 async function tratarCliente(request, context, identidade, acao) {
   if (acao === "cli-empresas" && request.method === "GET") {
@@ -455,19 +567,23 @@ async function tratarCliente(request, context, identidade, acao) {
   }
   const eid = String(request.query.get("e") || "");
   if (!eidValido(eid)) return { status: 400, jsonBody: { erro: "Empresa inválida." } };
-  const e = await empresa(eid);
-  if (!clienteVeEmpresa(identidade, e)) return { status: 403, jsonBody: { erro: "Sem acesso a esta empresa." } };
+  const cid = clienteDoEid(eid);
+  if (!cid || !podeVerEmpresa(identidade, cid)) return { status: 403, jsonBody: { erro: "Sem acesso a esta empresa." } };
+  const e = (await empresa(eid)) || { k: eid };
   if (acao === "cli-dados" && request.method === "GET") {
-    const [unidades, ghes, part, analise, iso] = await Promise.all([
-      listarColecao(`empresas/${eid}/unidades`), listarColecao(`empresas/${eid}/ghes`),
-      listarColecao(`empresas/${eid}/participacao`), listarColecao(`empresas/${eid}/analise`), lerDoc(`empresas/${eid}/iso/main`)]);
+    const [uns, sets, cols, plano, part, iso] = await Promise.all([
+      listarSige("unidade", cid), listarSige("setor", cid), listarSige("colaborador", cid), listarSige("planoAcao", cid),
+      listarColecao(`empresas/${eid}/participacao`), lerDoc(`empresas/${eid}/iso/main`)]);
     const resp = {};
     part.forEach(({ data: p }) => { if (p && p.respondido === true) resp[p.gheId] = (resp[p.gheId] || 0) + 1; });
+    const uId = new Map(uns.map((u) => [u.Unidade, u.id]));
+    const total = {}; cols.forEach((c) => { const k = c.Unidade + "|" + c.Setor; total[k] = (total[k] || 0) + 1; });
+    const st = (r) => (r["Dt Conclusao"] || r["Status Execucao"] === "Concluida" ? "concluida" : r["Status Execucao"] === "Em andamento" ? "andamento" : "pendente");
     return { jsonBody: {
-      empresa: { k: e.k, razao: e.razao, cnpj: e.cnpj, codigo: e.codigo, status: e.status, inicio: e.inicio, fim: e.fim },
-      unidades: unidades.map((x) => ({ k: x.data.k, nome: x.data.nome })),
-      ghes: ghes.map(({ data: g }) => ({ k: g.k, nome: g.nome, unidadeId: g.unidadeId, total: Object.keys(g.colab || {}).length, respostas: resp[g.k] || 0 })),
-      acoes: analise.flatMap(({ data: a }) => Object.entries((a && a.acoes) || {}).map(([c, v]) => ({ g: a.k, c, prazo: v.prazo && (v.prazoManual || v.resp || v.email || v.notif) ? v.prazo : "", resp: v.resp || "", status: v.status || "pendente", conclusao: v.conclusao || "" }))),
+      empresa: { k: eid, razao: e.razao || "", cnpj: e.cnpj || "", codigo: e.codigo || "", status: e.status || "", inicio: e.inicio || "", fim: e.fim || "" },
+      unidades: uns.map((u) => ({ k: u.id, nome: u.Unidade })),
+      ghes: sets.filter((g) => uId.has(g.Unidade)).map((g) => ({ k: g.id, nome: g.Setor, tipo: g["Tipo Setor"] === "GHE" ? "GHE" : "Setor", unidadeId: uId.get(g.Unidade), total: total[g.Unidade + "|" + g.Setor] || 0, respostas: resp[g.id] || 0 })),
+      acoes: plano.filter((r) => r.Origem === "Riscos Psicossociais" && r.Psico).map((r) => ({ g: r.Psico.g, c: r.Psico.c || r["Nr Acao"] || "", prazo: r["Dt Programada"] || "", resp: r["Responsavel Acao"] || "", status: st(r), conclusao: r["Dt Conclusao"] || "", acao: r["Acao Recomendada"] || "", risco: r.Psico.risco || "", fator: r.Psico.fator || "" })),
       iso: iso ? iso.dados : null,
     } };
   }
@@ -549,4 +665,11 @@ async function notificarAcao(request, context, identidade, escopo) {
   return { jsonBody: { ok: true, em: notif.em } };
 }
 
-module.exports = { tratarEquipe, tratarPublico };
+// V 1.27: e-mail ao responsavel de uma acao do Plano de Acao com origem
+// "Riscos Psicossociais" (disparado pela gravacao em entidades.js).
+function emailAcaoPsico(r) {
+  const p = r.Psico || {};
+  return modeloAcaoPsico({ empresa: { razao: r.Cliente }, unidade: r.Unidade, ghe: r.Setor,
+    acao: { resp: r["Responsavel Acao"], titulo: p.risco || r["Nr Acao"] || "Ação do plano", recomendacao: r["Acao Recomendada"] || "", fator: p.fator || "", indicador: p.indicador || "", prazo: r["Dt Programada"] } });
+}
+module.exports = { tratarEquipe, tratarPublico, emailAcaoPsico };
