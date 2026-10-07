@@ -2,6 +2,20 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.26 — 07/10/2026
+
+- **Usuários · vínculos por módulo (SIGE e Riscos Psicossociais).**
+  - Tela de Usuários (`js/app.js`): o campo único "Empresas Vinculadas" (Ctrl/Cmd + clique) virou dois quadros com caixas de seleção e busca:
+    - **Empresas do SIGE:** "Vinculado às empresas marcadas" ou "Cliente/Ergonomista não vinculado ao SIGE".
+    - **Empresas do Psicossocial** (lista das empresas cadastradas no módulo): "Todas as empresas do psicossocial" (só ergonomista), "Vinculado às empresas marcadas" ou "Cliente/Ergonomista não vinculado ao Psicossocial".
+    - A lista de usuários mostra as duas colunas.
+  - Novos campos no usuário: `SigeVinculo` ("marcadas" | "nenhuma"), `PsicoVinculo` ("todas" | "marcadas" | "nenhuma") e `EmpresasPsico` (ids das empresas do módulo). Usuários antigos continuam como estavam (SIGE pelas empresas marcadas; ergonomista com todas as empresas do psicossocial; cliente pelas empresas do psicossocial ligadas ao cliente do SIGE).
+  - API: `shared/tenant.js` (`vinculosDoDoc`, `vinculosDoCorpo`, identidade com `sigeVinculo`, `psicoVinculo`, `empresasPsico`), `/api/me`, `/api/usuarios` (GET/PUT) e convite (`auth.js`) gravam e devolvem os vínculos. Consultor só convida cliente para empresas do psicossocial às quais ele mesmo está vinculado.
+  - Riscos Psicossociais (`psicossocial.js`): ergonomista com empresas marcadas só lista e acessa essas empresas (403 nas demais, inclusive no e-mail do plano); empresa nova cadastrada por ele entra no vínculo dele automaticamente. Cliente vê as empresas marcadas no usuário ou ligadas ao seu cliente do SIGE. "Não vinculado ao Psicossocial" bloqueia o módulo (mensagem na tela).
+  - Menu do SIGE: quem é "não vinculado ao SIGE" não vê os painéis, Registro, Cadastro e Filtros e entra direto em Riscos Psicossociais; quem é "não vinculado ao Psicossocial" não vê o módulo. Administrador vê tudo.
+- **Plano de ação em Excel:** saíram as colunas Risco encontrado, Resultado esperado, Indicador de eficácia, Evidência organizacional e Origem; "Achado (motivo da ação)" ocupa o lugar de Risco encontrado. Ordem: Empresa, Unidade, GHE, Graduação, Código, Fator, Probabilidade, Severidade, Subfator, Achado, Recomendação técnica, Hierarquia, Tipo de intervenção, Estudo complementar, Prazo sugerido, Prazo, Responsável, E-mail, Status.
+- **Prazo só quando informado:** versões anteriores preenchiam o prazo sozinhas ao recomendar a ação. Agora esse prazo automático é descartado quando ninguém mexeu na ação (sem responsável, e-mail ou aviso enviado) e o prazo fica em branco na tela, no Excel e para o cliente; prazo digitado no sistema é marcado (`prazoManual`) e sempre aparece.
+
 ## V 1.25 — 07/10/2026
 
 - **Riscos Psicossociais · navegação por subabas, perfis de acesso, plano de ação com e-mail e laudo em PDF.**
