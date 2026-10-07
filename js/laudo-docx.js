@@ -287,16 +287,16 @@
     {
       const defG = mapaDe("Gravidade"); const defP = mapaDe("Probabilidade"); const defN = mapaDe("Graduacao");
       B.push(paragrafos("Risco Intro"), H2("s81", "8.1 Gravidade e probabilidade"));
-      B.push(tbl([26, 74], escala.map((g, i) => [{ t: `${ROTULO_ESCALA[g] || g} (${i + 1})`, b: true }, defG[g] || ""]), { cab: ["Gravidade", "Efeitos"], zebra: true }));
-      B.push(tbl([26, 74], escala.map((g, i) => [{ t: `${ROTULO_ESCALA[g] || g} (${i + 1})`, b: true }, defP[g] || ""]), { cab: ["Probabilidade", "Perfil de exposição qualitativa"], zebra: true }));
+      B.push(tbl([26, 74], escala.map((g, i) => [{ t: `${Calc.rotuloEscala(nomeMatriz, g)} (${i + 1})`, b: true }, defG[g] || ""]), { cab: ["Gravidade", "Efeitos"], zebra: true }));
+      B.push(tbl([26, 74], escala.map((g, i) => [{ t: `${Calc.rotuloEscala(nomeMatriz, g)} (${i + 1})`, b: true }, defP[g] || ""]), { cab: ["Probabilidade", "Perfil de exposição qualitativa"], zebra: true }));
       B.push(H2("s82", "8.2 Matriz de risco e graduação"), paragrafos("Matriz Intro"));
       {
         const n = escala.length; const rows = [];
         rows.push([{ t: "", fundo: "FFFFFF" }, { t: "GRAVIDADE", b: true, cor: "FFFFFF", fundo: C.vinho, jc: "center", span: n, tam: 8 }]);
-        rows.push([{ t: "PROBABILIDADE", b: true, cor: "FFFFFF", fundo: C.vinho, tam: 7.5 }].concat(escala.map((g) => ({ t: ROTULO_ESCALA[g] || g, b: true, cor: "FFFFFF", fundo: C.vinhoM, jc: "center", tam: 8 }))));
+        rows.push([{ t: "PROBABILIDADE", b: true, cor: "FFFFFF", fundo: C.vinho, tam: 7.5 }].concat(escala.map((g) => ({ t: Calc.rotuloEscala(nomeMatriz, g), b: true, cor: "FFFFFF", fundo: C.vinhoM, jc: "center", tam: 8 }))));
         for (let r = 0; r < n; r++) {
           const prob = escala[n - 1 - r];
-          rows.push([{ t: ROTULO_ESCALA[prob] || prob, b: true, fundo: C.creme, jc: "right", tam: 8 }].concat(escala.map((g) => ({ t: String(Calc.pontuacaoDaMatriz(nomeMatriz, prob, g)), b: true, jc: "center", pilula: hex(corNivel(Calc.nivelDaMatriz(nomeMatriz, prob, g))), tam: 10 }))));
+          rows.push([{ t: Calc.rotuloEscala(nomeMatriz, prob), b: true, fundo: C.creme, jc: "right", tam: 8 }].concat(escala.map((g) => ({ t: String(Calc.pontuacaoDaMatriz(nomeMatriz, prob, g)), b: true, jc: "center", pilula: hex(corNivel(Calc.nivelDaMatriz(nomeMatriz, prob, g))), tam: 10 }))));
         }
         B.push(tbl([16].concat(escala.map(() => 84 / n)), rows, { bordaBranca: true, semBorda: true, margemV: 70 }));
       }
@@ -360,7 +360,7 @@
         B.push(tbl([1, 1, 1], [[
           ["Circunstância geradora", fr["Circunstancia Geradora"]], ["Consequência", fr.Consequencia], ["Medida de controle existente", fr["Medida Controle Existente"] || "Nenhuma medida de controle existente."],
         ].map(([t, v]) => ({ paras: par(run(t.toUpperCase(), { b: true, cor: C.cinza, tam: 6.5 }), { depois: 20 }) + par(run(String(v || "-"), { tam: 8.5, cor: C.texto }), { depois: 0 }), fundo: "FFFFFF", v: "top" }))], { semBorda: true }));
-        B.push(par(run(`Gravidade ${ROTULO_ESCALA[fr.Criticidade] || fr.Criticidade || "-"}  ×  Probabilidade ${ROTULO_ESCALA[fr.Probabilidade] || fr.Probabilidade || "-"}  =  Pontuação ${p != null ? p : "-"}`, { tam: 8.5, cor: C.texto }), { depois: 60 }));
+        B.push(par(run(`Gravidade ${Calc.rotuloEscala(nomeMatriz, fr.Criticidade) || "-"}  ×  Probabilidade ${Calc.rotuloEscala(nomeMatriz, fr.Probabilidade) || "-"}  =  Pontuação ${p != null ? p : "-"}`, { tam: 8.5, cor: C.texto }), { depois: 60 }));
         const acoesF = acoesDe(fr); const resumo = acoesF.length ? Acoes.resumoRisco(g, acoesF) : null;
         const lbl = (t) => ({ t, b: true, cor: C.cinza, tam: 7, fundo: "FFFFFF" });
         const cels = [lbl("RISCO DO FATOR"), { t: rotCanon(Calc.nivelCanonico(g)), pilula: hex(corNivel(g)), tam: 8 }];

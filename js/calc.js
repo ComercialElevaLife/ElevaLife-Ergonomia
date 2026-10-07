@@ -118,9 +118,14 @@
   }
 
   const MATRIZES_RISCO = {
+    // Modelo ElevaLife da 3x3 (Probabilidade x Criticidade, Leve/Media/Alta):
+    // pontuacao 1-2 = Baixo (verde), 3-4 = Moderado (amarelo), 6-9 = Alto (vermelho).
+    // Os valores gravados continuam "Baixa/Media/Alta"; "Baixa" e exibido como "Leve".
     "Matriz 3x3": {
       escala: ["Baixa", "Media", "Alta"],
       niveis: ["Baixo", "Moderado", "Alto"],
+      rotulos: { Baixa: "Leve", Media: "Média", Alta: "Alta" },
+      nivelPorPontuacao: (pontuacao) => (pontuacao <= 2 ? 0 : pontuacao <= 4 ? 1 : 2),
     },
     "Matriz 4x4": {
       escala: ["Baixa", "Media", "Alta", "Muito Alta"],
@@ -138,12 +143,19 @@
     },
   };
   Object.keys(MATRIZES_RISCO).forEach((nome) => {
-    MATRIZES_RISCO[nome].grade = construirGradeSimetrica(MATRIZES_RISCO[nome].niveis.length);
+    const m = MATRIZES_RISCO[nome];
+    m.grade = construirGradeSimetrica(m.niveis.length);
+    if (m.nivelPorPontuacao) m.grade.forEach((linha) => linha.forEach((c) => { c.nivelIdx = m.nivelPorPontuacao(c.pontuacao); }));
   });
   const NOMES_MATRIZ_RISCO = Object.keys(MATRIZES_RISCO);
 
   function matrizPorNome(nomeMatriz) { return MATRIZES_RISCO[nomeMatriz] || MATRIZES_RISCO[MATRIZ_PADRAO]; }
   function escalaDaMatriz(nomeMatriz) { return matrizPorNome(nomeMatriz).escala; }
+  // Rotulo de exibicao de um valor da escala (ex.: na 3x3, "Baixa" aparece como "Leve").
+  function rotuloEscala(nomeMatriz, valor) {
+    const r = matrizPorNome(nomeMatriz).rotulos;
+    return (r && r[valor]) || (valor === "Media" ? "Média" : valor);
+  }
   function celulaDaMatriz(nomeMatriz, probabilidade, gravidade) {
     const m = matrizPorNome(nomeMatriz);
     const p = m.escala.indexOf(probabilidade);
@@ -815,7 +827,7 @@
     MATRIZ_PADRAO,
     NOMES_CLASSIFICACAO_AET,
     classificarTextoAET,
-    escalaDaMatriz,
+    escalaDaMatriz, rotuloEscala,
     nivelDaMatriz,
     pontuacaoDaMatriz,
     matrizDoCliente,

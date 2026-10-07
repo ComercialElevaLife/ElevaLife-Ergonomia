@@ -438,13 +438,13 @@
         const y0 = y;
         fonte("bold", 7.5); preencher(PAL.vinho); doc.rect(x0 + lab + eixo, y0, cw * n, ch * 0.8, "F");
         doc.setTextColor(255, 255, 255); doc.text("GRAVIDADE", x0 + lab + eixo + (cw * n) / 2, y0 + 11, { align: "center" });
-        escala.forEach((g, i) => { preencher(PAL.vinhoM); doc.rect(x0 + lab + eixo + i * cw, y0 + ch * 0.8, cw, ch * 0.8, "F"); doc.setTextColor(255, 255, 255); fonte("bold", 7); doc.text(ROTULO_ESCALA[g] || g, x0 + lab + eixo + i * cw + cw / 2, y0 + ch * 0.8 + 10.5, { align: "center" }); });
+        escala.forEach((g, i) => { preencher(PAL.vinhoM); doc.rect(x0 + lab + eixo + i * cw, y0 + ch * 0.8, cw, ch * 0.8, "F"); doc.setTextColor(255, 255, 255); fonte("bold", 7); doc.text(Calc.rotuloEscala(nomeMatriz, g), x0 + lab + eixo + i * cw + cw / 2, y0 + ch * 0.8 + 10.5, { align: "center" }); });
         const yl = y0 + ch * 1.6;
         preencher(PAL.vinho); doc.rect(x0, yl, lab, ch * n, "F");
         doc.setTextColor(255, 255, 255); fonte("bold", 7); doc.text("PROBABILIDADE", x0 + 9.5, yl + (ch * n) / 2 + 28, { angle: 90 });
         for (let r = 0; r < n; r++) {
           const prob = escala[n - 1 - r]; const yy = yl + r * ch;
-          preencher(PAL.creme); doc.rect(x0 + lab, yy, eixo, ch, "F"); cor(PAL.texto); fonte("bold", 7); doc.text(ROTULO_ESCALA[prob] || prob, x0 + lab + eixo - 4, yy + ch / 2 + 2.5, { align: "right" });
+          preencher(PAL.creme); doc.rect(x0 + lab, yy, eixo, ch, "F"); cor(PAL.texto); fonte("bold", 7); doc.text(Calc.rotuloEscala(nomeMatriz, prob), x0 + lab + eixo - 4, yy + ch / 2 + 2.5, { align: "right" });
           escala.forEach((g, i) => {
             const nivel = Calc.nivelDaMatriz(nomeMatriz, prob, g);
             preencher(corNivel(nivel)); doc.rect(x0 + lab + eixo + i * cw, yy, cw, ch, "F");
@@ -649,8 +649,8 @@
       const defGravidade = mapaDe("Gravidade"); const defProbabilidade = mapaDe("Probabilidade"); const defNivel = mapaDe("Graduacao");
       paragrafos("Risco Intro");
       h2("s81", "8.1 Gravidade e probabilidade");
-      tabela(["Gravidade", "Efeitos"], escala.map((g, i) => [{ t: `${ROTULO_ESCALA[g] || g} (${i + 1})`, negrito: true }, defGravidade[g] || ""]), [26, 74]);
-      tabela(["Probabilidade", "Perfil de exposição qualitativa"], escala.map((g, i) => [{ t: `${ROTULO_ESCALA[g] || g} (${i + 1})`, negrito: true }, defProbabilidade[g] || ""]), [26, 74]);
+      tabela(["Gravidade", "Efeitos"], escala.map((g, i) => [{ t: `${Calc.rotuloEscala(nomeMatriz, g)} (${i + 1})`, negrito: true }, defGravidade[g] || ""]), [26, 74]);
+      tabela(["Probabilidade", "Perfil de exposição qualitativa"], escala.map((g, i) => [{ t: `${Calc.rotuloEscala(nomeMatriz, g)} (${i + 1})`, negrito: true }, defProbabilidade[g] || ""]), [26, 74]);
       h2("s82", "8.2 Matriz de risco e graduação");
       paragrafos("Matriz Intro");
       desenharMatriz();
@@ -748,7 +748,7 @@
           y += hc + 6;
           // formula e risco
           fonte("normal", 7.8); cor(PAL.texto);
-          doc.text(`Gravidade ${ROTULO_ESCALA[fr.Criticidade] || fr.Criticidade || "-"}  ×  Probabilidade ${ROTULO_ESCALA[fr.Probabilidade] || fr.Probabilidade || "-"}  =  Pontuação ${p != null ? p : "-"}`, M, y + 8); y += 18;
+          doc.text(`Gravidade ${Calc.rotuloEscala(nomeMatriz, fr.Criticidade) || "-"}  ×  Probabilidade ${Calc.rotuloEscala(nomeMatriz, fr.Probabilidade) || "-"}  =  Pontuação ${p != null ? p : "-"}`, M, y + 8); y += 18;
           const acoesF = acoesDe(fr);
           const resumo = acoesF.length ? Acoes.resumoRisco(g, acoesF) : null;
           garantir(20);

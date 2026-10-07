@@ -3008,7 +3008,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     return Array.from(set).sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
   }
 
-  function repopularSelectCascata(el, opcoes, valorDesejado) {
+  function repopularSelectCascata(el, opcoes, valorDesejado, rotulo) {
     const atual = valorDesejado != null ? valorDesejado : el.value;
     el.innerHTML = "";
     const optBranco = document.createElement("option");
@@ -3018,7 +3018,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     opcoes.forEach((v) => {
       const opt = document.createElement("option");
       opt.value = v;
-      opt.textContent = T(v);
+      opt.textContent = rotulo ? rotulo(v) : T(v);
       el.appendChild(opt);
     });
     el.value = opcoes.includes(atual) ? atual : "";
@@ -3477,8 +3477,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     function atualizarMatriz(valorDesejadoCriticidade, valorDesejadoProbabilidade) {
       const nomeMatriz = nomeMatrizAtual();
       const escala = Calc.escalaDaMatriz(nomeMatriz);
-      repopularSelectCascata(form._campos["Criticidade"], escala, valorDesejadoCriticidade);
-      repopularSelectCascata(form._campos["Probabilidade"], escala, valorDesejadoProbabilidade);
+      const rotuloEsc = (v) => Calc.rotuloEscala(nomeMatriz, v);
+      repopularSelectCascata(form._campos["Criticidade"], escala, valorDesejadoCriticidade, rotuloEsc);
+      repopularSelectCascata(form._campos["Probabilidade"], escala, valorDesejadoProbabilidade, rotuloEsc);
       const elMatriz = form._campos["Matriz"];
       elMatriz.textContent = nomeMatriz;
       elMatriz.dataset.valorReal = nomeMatriz;
@@ -3681,7 +3682,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         function selecaoEscala(valorAtual) {
           const sel = document.createElement("select");
           sel.appendChild(document.createElement("option"));
-          escala.forEach((v) => { const o = document.createElement("option"); o.value = v; o.textContent = v; sel.appendChild(o); });
+          escala.forEach((v) => { const o = document.createElement("option"); o.value = v; o.textContent = Calc.rotuloEscala(nomeMatriz, v); sel.appendChild(o); });
           sel.value = valorAtual || "";
           if (!podeEditar) sel.disabled = true;
           return sel;
