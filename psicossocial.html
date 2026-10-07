@@ -980,10 +980,17 @@ const sifEmp=()=>({...SIF_PADRAO}); // fixa (manual SIF), igual para todas as em
 const NOMES_CAT=["Muito Baixo","Baixo","Moderado","Alto","Altíssimo"];
 const NIVEL_CAT=n=>{ n=String(n||"").toLowerCase(); return /muito baix|trivial/.test(n)?0:/^(baix|leve)/.test(n)?1:/moderad|^m[eé]di/.test(n)?2:/muito alt|alt[ií]ssim|cr[ií]tic/.test(n)?4:/^alt/.test(n)?3:null; };
 const rotEscala=x=>String(x).replace(/^Media$/,"Média");
-const MATRIZES_LOCAL={"Matriz 3x3":[["Baixa","Media","Alta"],["Baixo","Moderado","Alto"]],"Matriz 4x4":[["Baixa","Media","Alta","Muito Alta"],["Baixo","Moderado","Alto","Muito Alto"]],"Matriz 5x5":[["Muito Baixa","Baixa","Media","Alta","Muito Alta"],["Muito Baixo","Baixo","Moderado","Alto","Altíssimo"]]};
-function celulaLocal(nome,p,s){ const d=MATRIZES_LOCAL[nome]||MATRIZES_LOCAL["Matriz 5x5"], n=d[0].length, pont=(p+1)*(s+1);
-  const i=nome==="Matriz 3x3"?(pont<=2?0:pont<=4?1:2):Math.min(n-1,Math.floor((pont-1)/(n*n)*n)); // 3x3: modelo ElevaLife (1–2 / 3–4 / 6–9)
-  return {nivel:d[1][i],pontuacao:pont}; }
+// Cópia das matrizes modelo ElevaLife de js/calc.js (só para o protótipo sem SIGE): [escala, níveis, grade[prob][sev] = índice do nível]
+const MATRIZES_LOCAL={"Matriz 3x3":[["Baixa","Media","Alta"],["Baixo","Moderado","Alto"],[[0,0,1],[0,1,2],[1,2,2]]],
+  "Matriz 4x4":[["Baixa","Media","Alta","Muito Alta"],["Muito Baixo","Baixo","Moderado","Alto","Muito Alto"],[[0,1,1,2],[1,1,2,3],[1,2,2,3],[2,3,3,4]]],
+  "Matriz 5x5":[["Muito Baixa","Baixa","Media","Alta","Muito Alta"],["Muito Baixo","Baixo","Moderado","Alto","Altíssimo"],[[0,1,1,2,2],[1,1,2,2,3],[1,2,2,3,4],[2,2,3,4,4],[2,3,4,4,4]]]};
+function celulaLocal(nome,p,s){ const d=MATRIZES_LOCAL[nome]||MATRIZES_LOCAL["Matriz 5x5"]; return {nivel:d[1][d[2][p][s]],pontuacao:(p+1)*(s+1)}; }
+// Metodologia ElevaLife (V 1.27): equivalência entre os níveis do método e as escalas de cada matriz, pelo nome do nível.
+// Probabilidade do método (cruzamento HSE-IT × ISO 45003): 1 Muito baixa · 2 Baixa · 3 Moderada · 4 Alta · 5 Muito alta.
+// Severidade Final do método (Manual SIF, Tabela 6): SF enquadrada no inteiro mais próximo (0,50 para cima) → 1 Baixa · 2 Moderada · 3 Alta · 4 Crítica.
+const CONV_PROB={3:[1,1,2,3,3],4:[1,1,2,3,4],5:[1,2,3,4,5]};   // 3x3: Leve/Média/Alta · 4x4: Leve/Média/Alta/Muito Alta · 5x5: direto
+const CONV_SEV={3:[1,2,3,3],4:[1,2,3,4],5:[1,3,4,5]};          // 5x5: Baixa → col. 1, Moderada → 3, Alta → 4, Crítica → 5 (modelo ElevaLife)
+const nivelSF=sf=>Math.min(4,Math.max(1,Math.floor(sf+0.5+1e-9))); // Tabela 6 do Manual SIF
 let MZ_CACHE=null;
 function mz(){
   const nome=emp()?.matriz||"Matriz 5x5"; if(MZ_CACHE&&MZ_CACHE.nome===nome) return MZ_CACHE;
@@ -998,8 +1005,8 @@ function mz(){
   CAT.forEach((c,i)=>{ c.n=NOMES_CAT[i]; }); M.forEach((l,p)=>l.forEach((c,q)=>{ if(c!=null) CAT[c].n=NV[p][q]; }));
   const rotM=v=>C&&C.rotuloEscala?C.rotuloEscala(nome,v):(nome==="Matriz 3x3"&&v==="Baixa"?"Leve":rotEscala(v));
   MZ_CACHE={nome,rot:`${n} × ${n}`,n,P:esc_.map(rotM),S:esc_.map(rotM),esc:esc_,M,NV,PT,cats,
-    conv:p5=>Math.round(1+(p5-1)*(n-1)/4),             // probabilidade 1–5 → 1–n
-    sevN:sf=>Math.min(n,Math.max(1,Math.round(1+(sf-0.75)*(n-1)/3.25)))}; // severidade 0,75–4,00 → 1–n
+    conv:p5=>(CONV_PROB[n]||CONV_PROB[5])[p5-1],          // probabilidade do método (1–5) → escala da matriz
+    sevN:sf=>(CONV_SEV[n]||CONV_SEV[5])[nivelSF(sf)-1]};  // SF (0,75–4,00) → nível do método (1–4) → escala da matriz
   return MZ_CACHE;
 }
 const catsMatriz=()=>mz().cats;
@@ -1014,7 +1021,7 @@ function analisarFatores(T,isoI,eo){
   const m=mz(), sif=sifEmp(), fat={};
   DIMS.forEach(d=>{ const sc=T.dims[d.id].score, f={sif:sif[d.id],score:sc};
     if(sc!=null){ f.hse=5-risco(sc).nivel; if(isoI!=null){ f.p5=PROB5[f.hse][isoI]; f.p=m.conv(f.p5); } }
-    if(eo!=null){ f.sfc=SEV_IDX[f.sif-1][eo-1]; f.s=m.sevN(f.sfc); f.sf=f.s; }
+    if(eo!=null){ f.sfc=SEV_IDX[f.sif-1][eo-1]; f.sfn=nivelSF(f.sfc); f.s=m.sevN(f.sfc); f.sf=f.s; }
     if(f.p&&f.s){ f.cat=m.M[f.p-1][f.s-1]; f.nivel=m.NV[f.p-1][f.s-1]; f.pont=m.PT[f.p-1][f.s-1]; }
     fat[d.id]=f; });
   const cl=DIMS.map(d=>({id:d.id,...fat[d.id]})).filter(f=>f.cat!=null).sort((x,y)=>y.cat-x.cat||(y.pont||0)-(x.pont||0));
@@ -1253,7 +1260,7 @@ async function exportarPlanoExcel(btn,escopo){
   if(!dl) return toast("Download indisponível nesta visualização");
   if(typeof ExcelJS==="undefined") return toast("Gerador de Excel não carregou. Recarregue a página.");
   const lbl=btn.textContent; btn.disabled=true; btn.textContent="Gerando planilha…";
-  try{
+  try{ if(SIGE()){ try{ await carregarEmpresas(); }catch{} MZ_CACHE=null; } await ajustarPlanosAuto(); // V 1.27: matriz e plano atualizados antes de gerar
     const e=emp(), {rows,mant,L}=linhasPlano(escopo);
     const nomeEsc=escopo==="empresa"?"Empresa inteira":escopo.startsWith("u:")?uNome(escopo.slice(2)):`${uNome(S.data.ghes.find(g=>g.k===escopo.slice(2))?.unidadeId)} › ${gNome(escopo.slice(2))}`;
     const C={wine:"FF8B3A42",deep:"FF5E2A30",tint:"FFEBD9DB",mut:"FF8A7A78",ink:"FF3A2A2E",ln:"FFEADDE0"};
@@ -1325,7 +1332,7 @@ function bindLaudo(){
   document.querySelectorAll("[data-goto]").forEach(b=>b.onclick=ev=>{ev.preventDefault();S.tab=b.dataset.goto;render();scrollTo(0,0)});
   $("#selErg").onchange=async ev=>{await saveEmp({ergId:ev.target.value});toast("Ergonomista definido")};
   $("#selRt").onchange=async ev=>{await saveEmp({rtId:ev.target.value});toast("Responsável técnico definido")};
-  $("#laudoEmitir").onclick=async()=>{ if(SIGE()){ try{ await carregarEmpresas(); }catch{} MZ_CACHE=null; } await recomendarTodos(false); gerarRelatorio($("#laudoEmitir")); };
+  $("#laudoEmitir").onclick=async()=>{ if(SIGE()){ try{ await carregarEmpresas(); }catch{} MZ_CACHE=null; } await recomendarTodos(false); await ajustarPlanosAuto(); gerarRelatorio($("#laudoEmitir")); };
 }
 
 // ---------- Aba Editor de texto ----------
@@ -1386,7 +1393,27 @@ async function aplicarRecomendacao(x,forcar){ // grava no plano do GHE (mantém 
   const a=S.data.analise[x.g.k]||{}; if(!forcar&&(a.planoAuto||Object.keys(a.acoes||{}).length)) return false;
   const rec=recomendar(x); if(!rec.length) return false; const acoes=forcar?{}:{...(a.acoes||{})};
   rec.forEach(r=>{ acoes[r.c]=acoes[r.c]||{resp:"",email:"",prazo:"",status:"pendente",auto:true,motivo:r.motivo}; });
-  await saveAnalise(x.g.k,{acoes,planoAuto:hoje()}); return true;
+  await saveAnalise(x.g.k,{acoes,planoAuto:hoje(),planoCat:x.cat,planoManual:false}); return true;
+}
+// V 1.27: o plano recomendado automaticamente acompanha a análise. Enquanto a equipe não mexeu no plano do setor/GHE
+// (nenhuma ação incluída ou retirada à mão, nenhum responsável, e-mail, prazo, status ou evidência), ele é refeito
+// sempre que a graduação ou os achados mudam (novas respostas do HSE-IT, taxa de frequência, EO, ISO 45003 ou matriz).
+function acaoIntocada(x,c,v){
+  if(!v||!v.auto||v.resp||v.email||v.prazo||v.conclusao||(v.status&&v.status!=="pendente")) return false;
+  if(SIGE()&&S.data.plano){ const r=S.data.plano[idPlanoPsico(x.g.k,c)];
+    if(r&&(r["Responsavel Acao"]||r["E-mail Responsavel"]||r["Dt Programada"]||r["Dt Conclusao"]||(r["Status Execucao"]&&r["Status Execucao"]!=="Nao iniciada")||(Array.isArray(r.Evidencias)&&r.Evidencias.length))) return false; }
+  return true;
+}
+async function ajustarPlanosAuto(){
+  if(!S.data||EH_CLIENTE()) return 0; let n=0;
+  for(const x of todasAnalises()){ const a=S.data.analise[x.g.k]; if(!a||!a.planoAuto||a.planoManual) continue;
+    const atual=a.acoes||{}; if(!Object.keys(atual).every(c=>acaoIntocada(x,c,atual[c]))) continue;
+    const rec=x.cat!=null&&x.cat>=2?recomendar(x):[], novo={};
+    rec.forEach(r=>{ novo[r.c]={resp:"",email:"",prazo:"",status:"pendente",auto:true,motivo:r.motivo}; });
+    const igual=Object.keys(novo).length===Object.keys(atual).length&&Object.keys(novo).every(c=>atual[c]&&atual[c].motivo===novo[c].motivo);
+    if(igual&&a.planoCat===x.cat) continue;
+    await saveAnalise(x.g.k,{acoes:novo,planoAuto:hoje(),planoCat:x.cat??null}); n++; }
+  return n;
 }
 async function recomendarTodos(forcar){ let n=0; for(const x of todasAnalises()) if(x.cat>=2&&await aplicarRecomendacao(x,forcar)) n++; return n; }
 
@@ -1448,7 +1475,7 @@ function bindSelecaoAcoes(){
   document.querySelectorAll("[data-ac]").forEach(c=>c.onchange=async()=>{ const gid=S.planoGhe, a=S.data.analise[gid]||{}, acoes={...(a.acoes||{})}, b=bib(c.dataset.ac);
     if(c.checked) acoes[b[0]]={resp:"",email:"",prazo:"",status:"pendente"}; else delete acoes[b[0]];
     const open=[...document.querySelectorAll("details.acg")].map(d=>d.open), y=scrollY;
-    await saveAnalise(gid,{acoes}); S.selAberto=true; render(); document.querySelectorAll("details.acg").forEach((d,i)=>{if(open[i])d.open=true}); scrollTo(0,y); agendarSincronizacao(); });
+    await saveAnalise(gid,{acoes,planoManual:true}); S.selAberto=true; render(); document.querySelectorAll("details.acg").forEach((d,i)=>{if(open[i])d.open=true}); scrollTo(0,y); agendarSincronizacao(); });
   const sa=$("#selAcoes"); if(sa) sa.addEventListener("toggle",()=>{S.selAberto=sa.open;});
 }
 function sugestoesHTML(x){
@@ -1471,10 +1498,10 @@ function bindPlano(){
   document.querySelectorAll("[data-ac]").forEach(c=>c.onchange=async()=>{ const gid=S.planoGhe, a=S.data.analise[gid]||{}, acoes={...(a.acoes||{})}, b=bib(c.dataset.ac);
     if(c.checked) acoes[b[0]]={resp:"",email:"",prazo:"",status:"pendente"}; else delete acoes[b[0]];
     const open=[...document.querySelectorAll("details.acg")].map(d=>d.open);
-    await saveAnalise(gid,{acoes}); render(); document.querySelectorAll("details.acg").forEach((d,i)=>{if(open[i])d.open=true}); });
+    await saveAnalise(gid,{acoes,planoManual:true}); render(); document.querySelectorAll("details.acg").forEach((d,i)=>{if(open[i])d.open=true}); });
   document.querySelectorAll("[data-fs]").forEach(b=>b.onclick=()=>{S.planoFiltro=b.dataset.fs;render()});
   document.querySelectorAll("[data-pr]").forEach(i=>i.onchange=async()=>{ const [gid,c]=i.dataset.pr.split("|"); const a=S.data.analise[gid]; const acoes={...a.acoes}; acoes[c]={...acoes[c],[i.dataset.f]:i.value}; await saveAnalise(gid,{acoes}); if(i.dataset.f==="status") render(); else toast("Salvo"); });
-  document.querySelectorAll("[data-rm]").forEach(b=>b.onclick=async()=>{ if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Confirmar";return} const [gid,c]=b.dataset.rm.split("|"); const acoes={...S.data.analise[gid].acoes}; delete acoes[c]; await saveAnalise(gid,{acoes}); render(); });
+  document.querySelectorAll("[data-rm]").forEach(b=>b.onclick=async()=>{ if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Confirmar";return} const [gid,c]=b.dataset.rm.split("|"); const acoes={...S.data.analise[gid].acoes}; delete acoes[c]; await saveAnalise(gid,{acoes,planoManual:true}); render(); });
   document.querySelectorAll("[data-real]").forEach(b=>b.onclick=()=>realizadasModal(b.dataset.real));
 }
 
@@ -1532,7 +1559,7 @@ async function sincronizarRegistro(manual){
   if(!SIGE()||EH_CLIENTE()||!S.data||!S.data.reg) return;
   if(SYNC.rodando){ SYNC.pendente=true; return; }
   SYNC.rodando=true; const eid=S.eid, st=()=>$("#syncSt");
-  try{
+  try{ await ajustarPlanosAuto(); // V 1.27: plano automático acompanha a graduação antes de ir para o Registro
     if(await recomendarTodos(false)) render(); // GHEs com risco e ainda sem ações recebem a recomendação da biblioteca
     if(S.eid!==eid) return;
     const e=emp(), iso=isoAtual(), L=todasAnalises().filter(x=>x.cat!=null), D=S.data;
@@ -2089,7 +2116,7 @@ const TEXTOS_PADRAO={
  sif_concentracao:"A concentração dos valores nos níveis 3 e 4 decorre do critério do pior desfecho plausível, escolha conservadora e coerente com o princípio da precaução; seu efeito sobre a capacidade de diferenciação é compensado pela probabilidade obtida no HSE-IT e pela modulação pela evidência organizacional. Os níveis 1 e 2 permanecem disponíveis e são alcançados pela Severidade Final quando a evidência organizacional é baixa.",
  eo_texto:"A EO traduz a densidade e a consistência das evidências objetivas de materialização do dano no grupo avaliado. Nesta avaliação, foi estimada a partir da taxa de frequência de afastamentos dos últimos 12 meses informada pela empresa e do registro de casos graves (ideação suicida, burnout severo, hospitalização ou outra condição ameaçadora à vida), podendo ser ajustada com outros indicadores disponíveis, como afastamentos por transtornos mentais e comportamentais, rotatividade, horas extraordinárias, registros em canais de denúncia e passivo trabalhista. A EO é classificada em cinco níveis, convertidos em um valor ajustado (EOaj) de 0 a 4:",
  sf_texto:"A Severidade Final é obtida pela combinação ponderada da severidade intrínseca com a evidência organizacional:",
- sf_pesos:"O peso de 75% atribuído à evidência científica e de 25% à evidência organizacional permite que o contexto da empresa module a severidade, sem que a ausência de dano registrado a neutralize: uma EO muito baixa reduz a severidade potencial em, no máximo, um nível, e uma EO muito alta mantém a severidade máxima nos domínios de SIF crítica e pode elevar em um nível os domínios de severidade intermediária. A ausência de evidência de dano não constitui evidência de ausência de risco, sobretudo em desfechos de latência longa e subnotificação conhecida, como os transtornos mentais relacionados ao trabalho.\n\nO valor obtido, entre 0,75 e 4,00, é convertido proporcionalmente para a escala de severidade da matriz de risco adotada pela empresa (**{matriz}**), com arredondamento de 0,50 para o nível superior: 0,75 corresponde ao nível mais baixo da escala e 4,00 ao mais alto.",
+ sf_pesos:"O peso de 75% atribuído à evidência científica e de 25% à evidência organizacional permite que o contexto da empresa module a severidade, sem que a ausência de dano registrado a neutralize: uma EO muito baixa reduz a severidade potencial em, no máximo, um nível, e uma EO muito alta mantém a severidade máxima nos domínios de SIF crítica e pode elevar em um nível os domínios de severidade intermediária. A ausência de evidência de dano não constitui evidência de ausência de risco, sobretudo em desfechos de latência longa e subnotificação conhecida, como os transtornos mentais relacionados ao trabalho.\n\nO valor obtido, entre 0,75 e 4,00, é enquadrado no nível inteiro mais próximo, com arredondamento de 0,50 para o nível superior, o que resulta nos quatro níveis de severidade do método (1 – Baixa, 2 – Moderada, 3 – Alta e 4 – Crítica). Esses níveis são levados às colunas de severidade da matriz de risco adotada pela empresa (**{matriz}**) por equivalência, conforme a tabela a seguir.",
  sf_limites:"A SF é um parâmetro de gestão de riscos ocupacionais de natureza coletiva: não constitui diagnóstico, não se aplica a indivíduos, não substitui avaliação clínica ou pericial e não estabelece nexo causal entre exposição e adoecimento de trabalhador determinado.",
  recomendacoes:"Ao final da análise dos fatores psicossociais, as recomendações são apontadas com foco na promoção da saúde mental e do bem-estar dos trabalhadores. Para os grupos com risco baixo ou muito baixo, mantêm-se as ações já realizadas pela empresa. Para os grupos com risco moderado ou superior, as ações são direcionadas aos fatores classificados com risco moderado ou superior e selecionadas a partir da Biblioteca Mestre de Intervenções Psicossociais da ElevaLife, priorizando medidas coletivas e organizacionais, conforme a hierarquia de controle.",
  dados_coleta:"A coleta das respostas do questionário HSE foi realizada de forma **online e anônima**, por meio de QR code disponibilizado aos colaboradores, respeitando os princípios éticos da confidencialidade e da voluntariedade. A matrícula foi utilizada apenas para liberar o acesso e impedir respostas duplicadas, sem vínculo com as respostas.\n\nO questionário foi aplicado {periodo}para {nCad} colaboradores cadastrados em {nUnid} unidades e {nGhe} setores ou grupos ocupacionais (GHE). {resumoParticipacao}\n\nAs respostas foram tabuladas pela plataforma ElevaLife, que permitiu calcular:",
@@ -2116,7 +2143,7 @@ const EDITOR_SECOES=[
  ["Referências bibliográficas",[["__referencias","Uma referência por linha (ABNT)"]]],
 ];
 let TEXTOS_SALVOS={};
-const textoLaudo=k=>{ const v=TEXTOS_SALVOS[k]; return v!=null&&String(v).trim()?String(v):TEXTOS_PADRAO[k]||""; };
+const textoLaudo=k=>{ const v=TEXTOS_SALVOS[k]; if(k==="sf_pesos"&&v&&/convertido proporcionalmente/.test(v)) return TEXTOS_PADRAO[k]||""; return v!=null&&String(v).trim()?String(v):TEXTOS_PADRAO[k]||""; }; // V 1.27: texto antigo da conversão proporcional não vale mais
 const preencherMarc=(t,vars)=>String(t).replace(/\{(\w+)\}/g,(m,k)=>vars[k]!=null?vars[k]:m);
 
 // ===================== LAUDO EM PDF (V 1.25) =====================
@@ -2328,16 +2355,16 @@ async function gerarRelatorio(btn){
     C.push(P([{x:"SF = (SIF × 0,75) + (EOaj × 0,25)",b:true,c:COR.wine,s:12}],{al:"c",sb:4,sa:10}));
     C.push(...paras("sf_pesos"));
     { // faixas da Severidade Final para cada nível de severidade da matriz do cliente — sempre gerada, conforme a matriz
-      const faixas=[]; for(let k=1;k<=m.n;k++){ const vs=[]; for(let v=75;v<=400;v++){ if(m.sevN(v/100)===k) vs.push(v/100); } if(vs.length) faixas.push({k,a:vs[0],b:vs[vs.length-1]}); }
-      C.push(P([`Na `,B(m.nome),`, os valores de SF correspondem aos seguintes níveis de severidade:`],{keep:true,sa:4}));
-      const w=[4677,4677]; C.push(table([hdr(["Severidade Final (SF)",`Severidade na ${m.nome}`],w),...faixas.map(f=>[cell(f.a===f.b?fmt(f.a,2):`de ${fmt(f.a,2)} a ${fmt(f.b,2)}`,{align:"c"}),cell(`${f.k} – ${m.S[f.k-1]}`,{align:"c",bold:true,fill:corNivel(m.S[f.k-1])})])],w,{keep:true})); C.push(gap()); }
+      const faixas=[1,2,3,4].map(l=>{ const vs=[]; for(let v=75;v<=400;v+=25){ if(nivelSF(v/100)===l) vs.push(v/100); } return {l,a:vs[0],b:vs[vs.length-1],k:m.sevN(vs[0])}; });
+      if(/convertido proporcionalmente|por equivalência/.test(preencherMarc(textoLaudo("sf_pesos"),{}))===false) C.push(P([`Cada nível de severidade do método corresponde a uma coluna de severidade da `,B(m.nome),`:`],{keep:true,sa:4}));
+      const w=[3118,3118,3118]; C.push(table([hdr(["Severidade Final (SF)","Nível de severidade do método",`Severidade na ${m.nome}`],w),...faixas.map(f=>[cell(f.a===f.b?fmt(f.a,2):`de ${fmt(f.a,2)} a ${fmt(f.b,2)}`,{align:"c"}),cell(`${f.l} – ${SEV_NOMES[f.l-1]}`,{align:"c",bold:true,fill:COR[["g1","g2","g3","g4"][f.l-1]]}),cell(`${f.k} – ${m.S[f.k-1]}`,{align:"c",bold:true,fill:corNivel(m.S[f.k-1])})])],w,{keep:true})); C.push(gap()); }
     { const w0=1854, wc=1500, w=[w0,...Array(5).fill(wc)];
       C.push(table([[cell("SIF \\ EO",{fill:COR.deep,bold:true}),...EO_NOMES.map((n,j)=>cell(`${j+1} – ${n}`,{fill:COR.wine,bold:true,align:"c"}))],
         ...SIF_NOMES.map((n,i)=>[cell(`${i+1} – ${n}`,{fill:COR.tint,bold:true,color:COR.deep}),...EO_NOMES.map((_,j)=>{const v=m.sevN(SEV_IDX[i][j]), nm=m.S[v-1];return cell(`${fmt(SEV_IDX[i][j],2)} · ${nm}`,{fill:corNivel(nm),bold:true,align:"c"})})])],w,{keep:true})); C.push(gap()); }
     C.push(P([{x:`Na tabela, cada valor de SF já aparece convertido para a escala de severidade da ${m.nome}.`,i:true,c:COR.mut,s:8.5}],{sa:6}));
     C.push(...paras("sf_limites"));
     C.push(H("Resultado: graduação do risco",1));
-    C.push(P(`A graduação do risco psicossocial de cada fator resulta do cruzamento da probabilidade com a Severidade Final na ${m.nome} (${m.rot}), definida no cadastro da empresa e usada também no Inventário de Riscos. Cada célula tem uma pontuação (probabilidade × severidade), e as pontuações são agrupadas em ${m.cats.length} níveis de graduação. A graduação do setor ou grupo ocupacional corresponde à do fator de maior risco.`));
+    C.push(P(`A graduação do risco psicossocial de cada fator resulta do cruzamento da probabilidade com a Severidade Final na ${m.nome} (${m.rot}), definida no cadastro da empresa e usada também no Inventário de Riscos. Cada célula tem uma pontuação (probabilidade × severidade) e a graduação definida na matriz modelo da ElevaLife, em ${m.cats.length} níveis. A graduação do setor ou grupo ocupacional corresponde à do fator de maior risco.`));
     { const n=m.P.length, w0=2000, wc=Math.floor((CW-w0)/m.S.length), w=[w0,...Array(m.S.length).fill(wc)];
       C.push(table([[cell("Probabilidade \\ Severidade",{fill:COR.deep,bold:true}),...m.S.map((s,j)=>cell(`${j+1} – ${s}`,{fill:COR.wine,bold:true,align:"c"}))],
         ...Array.from({length:n},(_,k)=>n-k).map(p=>[cell(`${p} – ${nomeP(p)}`,{fill:COR.tint,bold:true,color:COR.deep}),...m.S.map((_,j)=>{const c=m.M[p-1][j];return cell(`${m.NV[p-1][j]} (${m.PT[p-1][j]})`,{fill:corCat(c),bold:true,align:"c"})})])],w,{keep:true})); C.push(gap()); }
