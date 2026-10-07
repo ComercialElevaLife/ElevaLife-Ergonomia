@@ -1619,7 +1619,7 @@ const legendaHTML=itens=>`<div class="legend">${itens.map(([l,c,n])=>`<span><i s
 const caixaGrafico=(id,h=240)=>`<div style="position:relative;height:${h}px"><canvas id="${id}" aria-label="Gráfico"></canvas></div>`;
 
 // ---------- Status das ações do plano ----------
-function statusAcao(v){ const h=hoje(); if(v.status==="concluida") return "Concluída"; if(v.prazo&&v.prazo<h) return "Atrasada"; return v.status==="andamento"?"Em andamento":"Não iniciada"; }
+function statusAcao(v){ const h=hoje(); if(v.status==="concluida") return "Concluída"; if(v.prazo&&v.prazo<h) return "Atrasada"; return v.prazo||v.status==="andamento"?"Em andamento":"Não iniciada"; } // V 1.27: com prazo = em andamento; prazo vencido = atrasada
 const statusTag=s=>`<span class="chip" style="--c:${STATUS_COR[s]}">${s}</span>`;
 
 // ---------- Aba Cadastro de empresa ----------
@@ -1826,7 +1826,7 @@ function bindPlanoG(){
   vis.forEach(el=>el.onchange=async()=>{ const [gid,c]=el.dataset.pg.split("|"), fld=el.dataset.f; let val=el.value.trim();
     if(fld==="email"&&val&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val)) return toast("E-mail inválido");
     if(SIGE()&&S.data.plano) return salvarCampoPlano(gid,c,fld,val);
-    const a=S.data.analise[gid]; const acoes={...a.acoes}; acoes[c]={...acoes[c],[fld]:val}; if(fld==="prazo") acoes[c].prazoManual=!!val; if(fld==="status"&&val==="concluida"&&!acoes[c].conclusao) acoes[c].conclusao=hoje(); if(fld==="status"&&val!=="concluida") delete acoes[c].conclusao;
+    const a=S.data.analise[gid]; const acoes={...a.acoes}; acoes[c]={...acoes[c],[fld]:val}; if(fld==="prazo"){ acoes[c].prazoManual=!!val; if(acoes[c].status!=="concluida") acoes[c].status=val?"andamento":"pendente"; } if(fld==="status"&&val==="concluida"&&!acoes[c].conclusao) acoes[c].conclusao=hoje(); if(fld==="status"&&val!=="concluida") delete acoes[c].conclusao;
     await saveAnalise(gid,{acoes}); const v=acoes[c];
     if(["prazo","resp","email"].includes(fld)&&v.prazo&&v.resp&&v.email&&(!v.notif||v.notif.assinatura!==[v.resp,v.email,v.prazo].join("|"))) await notificarResponsavel(gid,c,false); else toast("Salvo");
     render(); });
@@ -1844,6 +1844,8 @@ async function salvarCampoPlano(gid,c,fld,val){
   if(fld==="status"){ novo["Status Execucao"]=STATUS_SIGE[val]||"Nao iniciada"; if(val!=="concluida") novo["Dt Conclusao"]=""; }
   else if(fld==="_reenviar") novo._reenviarPsico=val;
   else novo[mapa[fld]]=val;
+  // V 1.27: com prazo, a ação vai para "Em andamento"; sem prazo (e não concluída), volta para "Não iniciada"
+  if(fld==="prazo"&&!novo["Dt Conclusao"]&&novo["Status Execucao"]!=="Concluida") novo["Status Execucao"]=val?"Em andamento":"Nao iniciada";
   try{ const r=await SIGE().salvar("planoAcao",novo); S.data.plano[id]=r&&r.id?r:novo;
     const v=vDeLinhaPlano(S.data.plano[id]);
     toast(fld==="_reenviar"?`E-mail reenviado para ${v.email}`:v.resp&&v.email&&v.prazo&&["prazo","resp","email"].includes(fld)?`Salvo · e-mail enviado para ${v.email}`:"Salvo");
@@ -2452,7 +2454,7 @@ async function gerarRelatorio(btn){
 
     C.push(H("Checklist ISO 45003",0,{pageBreakBefore:true}));
     const di=S.data.iso;
-    if(di&&isoCompleto(di.r)){ C.push(P(["Respondido por ",B(di.nome||"—"),di.cargo?`, ${di.cargo}`:"",di.data?`, em ${fmtData(di.data)}`:"",". Pontuação: ",B(fmt(iso.p,1)+" de 33")," – ",B(iso.nome),"."]));
+    if(di&&isoCompleto(di.r)){ C.push(P(["Respondido por ",B(di.nome||"—"),di.cargo?`, ${di.cargo}`:"",(di.editadoEm||di.data)?`, em ${fmtData([di.data,di.editadoEm].filter(Boolean).sort().pop())}`:"",". Pontuação: ",B(fmt(iso.p,1)+" de 33")," – ",B(iso.nome),"."]));
       const w=[600,7154,1600]; const rot={S:"Sim",P:"Parcial",N:"Não"}; const rows=[hdr(["Nº","Pergunta","Resposta"],w)];
       ISO_SECOES.forEach(([sec,its],si)=>{ rows.push([cell(`${si+1}. ${sec}`,{span:3,fill:COR.tint,bold:true,color:COR.deep})]); its.forEach(t=>{const i=ISO_ITENS.findIndex(q=>q.t===t);const v=di.r[i];rows.push([cell(String(i+1),{align:"c"}),cell(t,{}),cell(rot[v]||"—",{bold:true,align:"c",fill:v==="S"?COR.g1:v==="P"?COR.g2:COR.g3})])}); });
       C.push(table(rows,w)); } else C.push(P("O checklist ISO 45003 não foi respondido."));
@@ -2886,7 +2888,7 @@ async function route(){
   let assProfs="", assEmps="";
   // V 1.27: empresas = clientes do SIGE; ergonomistas = cadastro de ergonomistas do SIGE
   if(SIGE()&&ADMIN){ try{ await carregarEmpresas(); }catch(err){ console.error(err); }
-    SIGE().listar("ergonomista").then(l=>{ PROFS=l.map(p=>({k:p.id,nome:p.Nome||"",formacao:p.Titulo||"",conselho:p.Registro||"",assinatura:p.Assinatura||null})).filter(p=>p.nome).sort((a,b)=>a.nome.localeCompare(b.nome)); if(S.tab==="laudo"&&!digitando()) render(); }).catch(()=>{}); }
+    SIGE().listar("ergonomista").then(l=>{ PROFS=l.map(p=>({k:p.id,nome:p.Nome||"",formacao:(window.BI&&BI.Calc&&BI.Calc.formatarCargo?BI.Calc.formatarCargo(p.Titulo):p.Titulo)||"",conselho:p.Registro||"",assinatura:p.Assinatura||null})).filter(p=>p.nome).sort((a,b)=>a.nome.localeCompare(b.nome)); if(S.tab==="laudo"&&!digitando()) render(); }).catch(()=>{}); }
   if(db&&ADMIN&&!SIGE()) db.collection("profissionais").onSnapshot(s=>{ const l=s.docs.map(d=>d.data()).sort((a,b)=>a.nome.localeCompare(b.nome)), ass=JSON.stringify(l); if(ass===assProfs) return; assProfs=ass; PROFS=l; if(profModal&&document.body.contains(profModal)) profModal._draw(); else if(["profs","laudo"].includes(S.tab)&&!digitando()&&!/^#(r|iso)-/.test(location.hash)) render(); },()=>{});
   if(db&&ADMIN&&!SIGE()) db.collection("empresas").onSnapshot(s=>{ const l=s.docs.map(d=>d.data()).sort((a,b)=>a.razao.localeCompare(b.razao)), ass=JSON.stringify(l); if(ass===assEmps) return; const primeira=!assEmps; assEmps=ass; S.empresas=l; if(S.eid&&!S.empresas.find(e=>e.k===S.eid)){S.eid=null;S.data=null;} if(!/^#(r|iso)-/.test(location.hash)&&(primeira||!digitando())) render(); }, ()=>{});
   addEventListener("hashchange",()=>{ if(!/^#(r|iso)-/.test(location.hash)&&S.eid&&ADMIN) loadEmpresa(S.eid); else route(); });
