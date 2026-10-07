@@ -553,6 +553,10 @@
           ativa = d.ativa || ativa; marcar(); if (!sec.hidden) expandir(true);
         }
         if (d.tipo === "psico-ativa") { ativa = d.aba; marcar(); }
+        // V 1.27: o modulo gravou riscos/acoes no Registro - recarrega os paineis do SIGE.
+        if (d.tipo === "psico-registro" && window.BI && window.BI.DB && window.BI.DB.recarregar) {
+          clearTimeout(window.__psicoReg); window.__psicoReg = setTimeout(function () { window.BI.DB.recarregar(["mapaRisco", "fatorRisco", "planoAcao", "unidade", "setor", "colaborador"]); }, 800);
+        }
       });
     })();
   </script>
