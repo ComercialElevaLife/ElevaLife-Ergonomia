@@ -403,6 +403,7 @@ const ORIGEM_PSICO="Riscos Psicossociais";
 function limparPrazosAutomaticos(a){ Object.values((a&&a.acoes)||{}).forEach(v=>{ if(v&&v.prazo&&!v.prazoManual&&!v.resp&&!v.email&&!v.notif) v.prazo=""; }); }
 async function loadEmpresa(eid){
   S.loading=true; MZ_CACHE=null; render();
+  if(SIGE()&&!EH_CLIENTE()){ try{ await carregarEmpresas(); }catch{} MZ_CACHE=null; if(!emp()){ S.loading=false; render(); return; } } // matriz e dados do cadastro sempre atuais
   try{ S.data=await lerDados(eid); }catch(err){ S.loading=false; S.data=null; S.erroCarga=err&&err.message||"Falha ao carregar"; render(); return; }
   S.erroCarga=null; S.loading=false; render();
   const e=emp();
@@ -454,7 +455,9 @@ function avisarPai(tipo,extra){ if(!EMB()) return; try{ parent.postMessage(Objec
 function publicarAbas(){ avisarPai("psico-abas",{abas:abasPermitidas().map(a=>({k:a.k,l:a.l,i:a.i})),ativa:abaAtual().k}); }
 let ultimaAbaAvisada=null;
 addEventListener("message",ev=>{ if(ev.origin!==location.origin||!ev.data||ev.source!==parent) return;
-  if(ev.data.tipo==="psico-ir"&&ABAS.find(a=>a.k===ev.data.aba)){ S.tab=ev.data.aba; if(/^#(r|iso)-/.test(location.hash)) return; render(); scrollTo(0,0); } });
+  if(ev.data.tipo==="psico-ir"&&ABAS.find(a=>a.k===ev.data.aba)){ S.tab=ev.data.aba; if(/^#(r|iso)-/.test(location.hash)) return; render(); scrollTo(0,0);
+    // V 1.27: o cadastro do cliente (matriz, serviços, nome) pode ter mudado no SIGE enquanto o módulo estava aberto
+    if(SIGE()&&!EH_CLIENTE()) carregarEmpresas().then(()=>{ MZ_CACHE=null; render(); }).catch(()=>{}); } });
 
 function render(){
   if(!EM_RENDER) for(const k in MEMO) delete MEMO[k];
@@ -1298,7 +1301,7 @@ function bindLaudo(){
   document.querySelectorAll("[data-goto]").forEach(b=>b.onclick=ev=>{ev.preventDefault();S.tab=b.dataset.goto;render();scrollTo(0,0)});
   $("#selErg").onchange=async ev=>{await saveEmp({ergId:ev.target.value});toast("Ergonomista definido")};
   $("#selRt").onchange=async ev=>{await saveEmp({rtId:ev.target.value});toast("Responsável técnico definido")};
-  $("#laudoEmitir").onclick=async()=>{ await recomendarTodos(false); gerarRelatorio($("#laudoEmitir")); };
+  $("#laudoEmitir").onclick=async()=>{ if(SIGE()){ try{ await carregarEmpresas(); }catch{} MZ_CACHE=null; } await recomendarTodos(false); gerarRelatorio($("#laudoEmitir")); };
 }
 
 // ---------- Aba Editor de texto ----------
@@ -2114,11 +2117,15 @@ function renderPDF(blocos,opc){
     function linhas(runs,larg,tamBase){ const ws=palavras(runs), out=[]; let lin=[],w=0;
       ws.forEach(p=>{ fonte(p.b,p.s||tamBase); p.w=doc.getTextWidth(p.t); fonte(p.b,p.s||tamBase); p.e=doc.getTextWidth(" ");
         const prev=lin[lin.length-1]; const nw=lin.length?w+(prev.esp?prev.e:0)+p.w:p.w;
+        if(p.w>larg){ // palavra maior que a coluna (ex.: códigos): quebra por caractere
+          let resto=p.t; if(lin.length){ out.push(lin); lin=[]; w=0; }
+          while(resto){ let k=resto.length; while(k>1&&doc.getTextWidth(resto.slice(0,k))>larg) k--; const q={...p,t:resto.slice(0,k),esp:false}; q.w=doc.getTextWidth(q.t); resto=resto.slice(k); if(resto){ out.push([q]); } else { q.esp=p.esp; lin=[q]; w=q.w; } }
+          return; }
         if(nw>larg&&lin.length){ out.push(lin); lin=[p]; w=p.w; } else { lin.push(p); w=nw; } });
       if(lin.length) out.push(lin); return out; }
     function escreverLinha(lin,x,yy,larg,al,ultima,tamBase,corBase){
       const soma=lin.reduce((a,p)=>a+p.w,0), nEsp=lin.slice(0,-1).filter(p=>p.esp).length, espN=lin.slice(0,-1).reduce((a,p)=>a+(p.esp?p.e:0),0);
-      let gap=null; if(al==="j"&&!ultima&&nEsp>0) gap=(larg-soma)/nEsp;
+      let gap=null; if(al==="j"&&!ultima&&nEsp>0){ gap=(larg-soma)/nEsp; const e0=lin[0].e||2.5; if(gap>e0*3.2) gap=null; } // evita espaços enormes em linhas curtas
       let cx=x; const tw=soma+espN; if(al==="c") cx=x+(larg-tw)/2; else if(al==="r") cx=x+larg-tw;
       lin.forEach((p,k)=>{ fonte(p.b,p.s||tamBase); corT(p.c||corBase); doc.text(p.t,cx,yy); cx+=p.w+(k<lin.length-1&&p.esp?(gap!=null?gap:p.e):0); });
     }
@@ -2145,14 +2152,16 @@ function renderPDF(blocos,opc){
       const medir=(row)=>{ let x=0, ci=0; return row.map(cel=>{ const span=cel.span||1, larg=ws.slice(ci,ci+span).reduce((a,v)=>a+v,0); ci+=span;
         const blocos=cel.p.map(pp=>{ const tam=pp.s||8.5; const ls=linhas(pp.runs,larg-pad*2,tam); return {pp,ls,tam,lh:tam*1.32}; });
         const h=blocos.reduce((a,bl)=>a+bl.ls.length*bl.lh+(bl.pp.sa||0),0)+padV*2; const r={cel,larg,blocos,h,x}; x+=larg; return r; }); };
-      const linhasM=b.rows.map(medir).map(ms=>({ms,h:Math.max(14,...ms.map(m=>m.h))}));
-      const desenharLinha=(lm)=>{ let x=ML; lm.ms.forEach(m=>{ if(m.cel.f){ corF(m.cel.f); doc.rect(x,y,m.larg,lm.h,"F"); }
-          let yy=y+padV; const hTxt=m.h-padV*2; yy+=Math.max(0,(lm.h-padV*2-hTxt)/2);
+      const linhasM=b.rows.map(medir).map((ms,i)=>({ms,cab:!!(b.hdr&&i===0),h:Math.max(b.hdr&&i===0?17:15,...ms.map(m=>m.h+(b.hdr&&i===0?2:0)))}));
+      if(b.zebra!==false) linhasM.forEach((lm,i)=>{ if(lm.cab||i%2===(b.hdr?0:1)) return; lm.ms.forEach(m=>{ if(!m.cel.f) m.zebra=true; }); });
+      const desenharLinha=(lm)=>{ let x=ML; lm.ms.forEach(m=>{ if(m.cel.f){ corF(m.cel.f); doc.rect(x,y,m.larg,lm.h,"F"); } else if(m.zebra){ corF("FBF7F5"); doc.rect(x,y,m.larg,lm.h,"F"); }
+          let yy=y+padV; const hTxt=m.h-padV*2; if(!(b.va==="t"&&!lm.cab)) yy+=Math.max(0,(lm.h-padV*2-hTxt)/2);
           m.blocos.forEach(bl=>{ bl.ls.forEach((lin,i)=>{ escreverLinha(lin,x+pad,yy+bl.tam*.95,m.larg-pad*2,bl.pp.al||"l",true,bl.tam,bl.pp.c||m.cel.c||COR.ink); yy+=bl.lh; }); yy+=bl.pp.sa||0; });
           corL(COR.ln,.5); doc.rect(x,y,m.larg,lm.h,"S"); x+=m.larg; }); y+=lm.h; };
       const altTot=linhasM.reduce((a,l)=>a+l.h,0);
       if(b.keep&&altTot<LIM-TOP&&y+altTot>LIM) novaPag();
       const cab=b.hdr?linhasM[0]:null;
+      if(cab&&linhasM[1]&&y+cab.h+linhasM[1].h>LIM) novaPag(); // cabeçalho nunca fica sozinho no fim da página
       linhasM.forEach((lm,i)=>{ if(y+lm.h>LIM){ novaPag(); if(cab&&i>0) desenharLinha(cab); } desenharLinha(lm); });
       y+=b.sa!=null?b.sa:8;
     }
@@ -2209,7 +2218,7 @@ async function gerarRelatorio(btn){
     const cp=(runs,o={})=>({runs:toRuns(runs),s:o.s||8,sa:o.sa||0,al:o.al||"l",c:o.c});
     const cell=(t,o={})=>({p:Array.isArray(t)&&t.length&&t[0]&&t[0].runs?t:[{runs:[{x:String(t??""),b:!!o.bold}],s:(o.size||17)/2,al:o.align||"l"}],f:o.fill,span:o.span,c:corTexto(o)});
     const C_={CENTER:"c",LEFT:"l"};
-    const table=(rows,widths,o={})=>({t:"tb",w:widths,rows,hdr:o.header!==false,keep:!!o.keep});
+    const table=(rows,widths,o={})=>({t:"tb",w:widths,rows,hdr:o.header!==false,keep:!!o.keep,va:o.va,zebra:o.zebra});
     const hdr=(labels,widths)=>labels.map((l,i)=>cell(l,{w:widths[i],fill:COR.wine,bold:true}));
     const gap=()=>({t:"esp",h:4});
     const img=(d,w,h)=>({t:"img",d,w:w*.75,h:h*.75});
@@ -2267,6 +2276,12 @@ async function gerarRelatorio(btn){
     { const w=[2154,2400,2400,2400]; const pc=p=>corNivel(nomeP(p));
       C.push(table([[cell("HSE \\ ISO 45003",{fill:COR.deep,bold:true}),...ISO_NOMES.map(n=>cell(n,{fill:COR.wine,bold:true,align:"c"}))],
         ...HSE_NOMES.map((h,hi)=>[cell("Graduação "+h.toLowerCase(),{fill:COR.tint,bold:true,color:COR.deep}),...[0,1,2].map(ii=>{const p=m.conv(PROB5[hi][ii]);return cell("Probabilidade "+nomeP(p),{fill:pc(p),align:"c",bold:true})})])],w,{keep:true})); C.push(gap()); }
+    { // conversão da probabilidade (1 a 5) para a escala da matriz do cliente — sempre gerada, conforme a matriz
+      const grupos=[]; for(let p5=1;p5<=5;p5++){ const k=m.conv(p5); const g=grupos.find(x=>x.k===k); if(g) g.v.push(p5); else grupos.push({k,v:[p5]}); }
+      const juntar=v=>v.length>1?v.slice(0,-1).join(", ")+" e "+v[v.length-1]:String(v[0]);
+      if(m.n===5) C.push(P([`Na `,B(m.nome),`, que também tem cinco níveis de probabilidade, o resultado do cruzamento é usado diretamente (1 – ${nomeP(1)} a 5 – ${nomeP(5)}).`]));
+      else { C.push(P([`Na `,B(m.nome),` (${m.n} níveis de probabilidade), o cruzamento acima é lido assim:`],{keep:true,sa:4}));
+        const w=[4677,4677]; C.push(table([hdr(["Cruzamento HSE-IT × ISO 45003",`Probabilidade na ${m.nome}`],w),...grupos.map(g=>[cell(juntar(g.v),{align:"c"}),cell(`${g.k} – ${nomeP(g.k)}`,{align:"c",bold:true,fill:corNivel(nomeP(g.k))})])],w,{keep:true})); C.push(gap()); } }
     C.push(H("Classificação da severidade do risco",1)); C.push(...paras("sev_intro"));
     C.push(sub("Severidade Intrínseca do Fator (SIF)")); C.push(...paras("sif_texto"));
     { const w=[1300,1700,3754,2600]; C.push(table([hdr(["SIF","Classificação","Critério técnico de ancoragem","Desfechos de referência"],w),...SIF_NOMES.map((n,i)=>[cell(String(i+1),{fill:COR[["g1","g2","g3","g4"][i]],bold:true,align:"c"}),cell(n,{bold:true}),cell(SIF_DESC[i],{size:16}),cell(SIF_DESF[i],{size:16})])],w,{keep:true})); C.push(gap()); }
@@ -2278,6 +2293,10 @@ async function gerarRelatorio(btn){
     C.push(sub("Severidade Final (SF)")); C.push(...paras("sf_texto"));
     C.push(P([{x:"SF = (SIF × 0,75) + (EOaj × 0,25)",b:true,c:COR.wine,s:12}],{al:"c",sb:4,sa:10}));
     C.push(...paras("sf_pesos"));
+    { // faixas da Severidade Final para cada nível de severidade da matriz do cliente — sempre gerada, conforme a matriz
+      const faixas=[]; for(let k=1;k<=m.n;k++){ const vs=[]; for(let v=75;v<=400;v++){ if(m.sevN(v/100)===k) vs.push(v/100); } if(vs.length) faixas.push({k,a:vs[0],b:vs[vs.length-1]}); }
+      C.push(P([`Na `,B(m.nome),`, os valores de SF correspondem aos seguintes níveis de severidade:`],{keep:true,sa:4}));
+      const w=[4677,4677]; C.push(table([hdr(["Severidade Final (SF)",`Severidade na ${m.nome}`],w),...faixas.map(f=>[cell(f.a===f.b?fmt(f.a,2):`de ${fmt(f.a,2)} a ${fmt(f.b,2)}`,{align:"c"}),cell(`${f.k} – ${m.S[f.k-1]}`,{align:"c",bold:true,fill:corNivel(m.S[f.k-1])})])],w,{keep:true})); C.push(gap()); }
     { const w0=1854, wc=1500, w=[w0,...Array(5).fill(wc)];
       C.push(table([[cell("SIF \\ EO",{fill:COR.deep,bold:true}),...EO_NOMES.map((n,j)=>cell(`${j+1} – ${n}`,{fill:COR.wine,bold:true,align:"c"}))],
         ...SIF_NOMES.map((n,i)=>[cell(`${i+1} – ${n}`,{fill:COR.tint,bold:true,color:COR.deep}),...EO_NOMES.map((_,j)=>{const v=m.sevN(SEV_IDX[i][j]), nm=m.S[v-1];return cell(`${fmt(SEV_IDX[i][j],2)} · ${nm}`,{fill:corNivel(nm),bold:true,align:"c"})})])],w,{keep:true})); C.push(gap()); }
@@ -2304,10 +2323,10 @@ async function gerarRelatorio(btn){
       if(!topG) C.push(P("A graduação do risco da empresa não pôde ser concluída por falta de dados (checklist ISO 45003 ou taxa de frequência)."));
     }
 
-    C.push(H("Resultado por unidade e grupo ocupacional")); C.push(...paras("ghe_intro"));
-    const realEmp=linhas(e.realizadas); const planoGeral=[];
+    C.push(H("Resultado por unidade e grupo ocupacional",0,{pageBreakBefore:true})); C.push(...paras("ghe_intro"));
+    const realEmp=linhas(e.realizadas); const planoGeral=[]; let nUni=0;
     for(const u of S.data.unidades){ const gs=L.filter(x=>x.u.k===u.k); if(!gs.length) continue;
-      C.push(H(/^unidade\b/i.test(u.nome.trim())?u.nome.trim():"Unidade – "+u.nome,1,{pageBreakBefore:true}));
+      C.push(H(/^unidade\b/i.test(u.nome.trim())?u.nome.trim():"Unidade – "+u.nome,1,{pageBreakBefore:nUni++>0}));
       for(const x of gs){
         C.push(H("Grupo ocupacional – "+x.g.nome,2));
         if(!x.T.n){ C.push(P("Não houve respostas ao questionário HSE-IT neste grupo ocupacional durante o período de aplicação. A classificação de risco não pôde ser realizada.")); continue; }
@@ -2328,8 +2347,8 @@ async function gerarRelatorio(btn){
           if(!ac.length) ac=recomendar(x).map(r=>[r.c,{auto:true,motivo:r.motivo,prazo:""}]);
           planoGeral.push(...ac.map(([c,v])=>({x,c,v})));
           if(!ac.length) C.push(P("Plano de ação a ser definido em conjunto com a empresa."));
-          else { const w=[1250,1400,4400,2304]; C.push(table([hdr(["Código","Fator","Recomendação técnica","Indicador de eficácia"],w),
-            ...ac.map(([c,v])=>{const b=bib(c)||[];return [cell(c,{size:14}),cell(dimNome(b[1])||"",{size:15}),cell([cp([{x:b[3]||"",b:true,c:COR.deep}],{s:8,sa:2}),cp([{x:b[8]||""}],{s:8}),...(v.motivo?[cp([{x:"Achado: "+v.motivo,c:COR.mut}],{s:7.5})]:[])]),cell(b[12]||"",{size:15})]})],w)); C.push(gap()); }
+          else { const w=[2000,4850,2504]; C.push(table([hdr(["Fator · código","Recomendação técnica","Indicador de eficácia"],w),
+            ...ac.map(([c,v])=>{const b=bib(c)||[];return [cell([cp([{x:dimNome(b[1])||"",b:true,c:COR.deep}],{s:8,sa:2}),cp([{x:c,c:COR.mut}],{s:6.8})]),cell([cp([{x:b[3]||"",b:true,c:COR.deep}],{s:8.2,sa:2}),cp([{x:b[8]||""}],{s:8,sa:v.motivo?3:0}),...(v.motivo?[cp([{x:"Achado: "+v.motivo,c:COR.mut}],{s:7.2})]:[])]),cell(b[12]||"",{size:15})]})],w,{va:"t"})); C.push(gap()); }
           { const it=[...realEmp,...linhas(x.a.realizadas)]; if(it.length){ C.push(P(`Além das ações acima, manter as ações já realizadas pela ${NE} relacionadas aos fatores psicossociais, sendo elas:`)); it.forEach(t=>{const k=t.indexOf(": ");C.push(bullet(k>0&&k<90?[B(t.slice(0,k+1)+" "),t.slice(k+2)]:[t]))}); } }
         }
       }
