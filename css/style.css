@@ -243,6 +243,9 @@ h1, h2, h3, .titulo-marca {
   text-align: center;
 }
 .tela-acesso-marca { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 28px; }
+/* V 1.27: logotipo completo da ElevaLife (bordô no fundo claro, branco no fundo vinho) */
+.carregando-app .logo-marca-completa { height: 46px; width: auto; }
+.tela-acesso-marca .logo-marca-completa { height: 46px; width: auto; margin-bottom: 8px; }
 .tela-acesso-marca .logo-mark {
   height: 56px;
   width: auto;
