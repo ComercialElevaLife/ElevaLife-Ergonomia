@@ -3612,6 +3612,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function abrirInventarioChecklist(linhaAval) {
+    if (ehUsuarioCliente()) return;
     const Calc = window.BI.Calc;
     const painel = obterPainelChecklist();
     const podeEditar = window.BI.DB.estado.disponivel;
@@ -5243,6 +5244,15 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       btnNovo.textContent = "+ Novo registro";
       btnNovo.addEventListener("click", () => abrirFormNovo(chave));
       cab.appendChild(titulo);
+      // V 1.27: baixar a aba em Excel (todos os perfis; o cliente so consulta).
+      if (cfg.grupo === "registro" || cfg.grupo === "mestre") {
+        const btnExcel = document.createElement("button");
+        btnExcel.type = "button"; btnExcel.className = "btn-cad-secundario btn-baixar-excel"; btnExcel.id = "btn-excel-" + chave;
+        btnExcel.textContent = "⬇ Baixar Excel";
+        btnExcel.title = "Baixa esta aba em planilha Excel, com a busca e os filtros aplicados";
+        btnExcel.addEventListener("click", () => exportarCadastroExcel(chave));
+        cab.appendChild(btnExcel);
+      }
       if (cfg.importacao) {
         const btnImportar = document.createElement("button");
         btnImportar.type = "button"; btnImportar.className = "btn-cad-secundario btn-importar-excel"; btnImportar.id = "btn-importar-" + chave;
@@ -5370,7 +5380,44 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     return outro ? mensagem : null;
   }
 
+  // V 1.27 - perfil Usuario Cliente: sem acesso ao Cadastro; no Registro so
+  // consulta e baixa cada aba em Excel (sem incluir, editar, importar ou
+  // excluir). A API recusa qualquer gravacao desse perfil (entidades.js).
+  function ehUsuarioCliente() {
+    const i = window.BI.DB && window.BI.DB.estado.identidade;
+    return !!(i && i.papel === "UsuarioCliente");
+  }
+  function configurarPerfilCliente() {
+    document.body.classList.toggle("perfil-cliente", ehUsuarioCliente());
+  }
+  // Baixa em Excel a aba do Cadastro/Registro como esta na tela (busca e filtros aplicados).
+  function exportarCadastroExcel(chave) {
+    if (typeof XLSX === "undefined") { mostrarErro("A biblioteca de exportação Excel não carregou (script externo bloqueado ou indisponível)."); return; }
+    const cfg = CADASTROS_CONFIG[chave];
+    const linhas = linhasFiltradasCadastro(chave).linhas;
+    const defs = cfg.campos.filter((c) => !["personalizado", "arquivo"].includes(c.tipo));
+    const hoje = hojeMeiaNoite();
+    const dados = linhas.map((l) => {
+      const o = {};
+      defs.forEach((d) => {
+        let v = l[d.campo];
+        if (Array.isArray(v)) v = v.join(", ");
+        else if (v && typeof v === "object") v = "";
+        if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) v = BI.Datas.isoParaBR(v);
+        o[T(d.rotulo || d.campo)] = v == null ? "" : v;
+      });
+      if (chave === "planoAcao") o[T("Status Acao")] = window.BI.Calc.statusDaLinhaAcao(l, hoje);
+      if (l.Origem) o.Origem = l.Origem;
+      return o;
+    });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(dados.length ? dados : [{ "Sem registros": "" }]);
+    XLSX.utils.book_append_sheet(wb, ws, String(T(cfg.tituloMenu || chave)).replace(/[^A-Za-zÀ-ÿ0-9 ()_-]/g, "-").slice(0, 31));
+    XLSX.writeFile(wb, `sige-${chave}-${hoje.toISOString().slice(0, 10)}.xlsx`);
+  }
+
   function abrirImportacao(chave, inicial) {
+    if (ehUsuarioCliente()) return;
     const cfg = CADASTROS_CONFIG[chave];
     if (!cfg || !cfg.importacao) return;
     if (!window.BI.Importador) { mostrarErro("O módulo de importação não carregou. Recarregue a página."); return; }
@@ -5446,6 +5493,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function abrirFormNovo(chave) {
+    if (ehUsuarioCliente()) return;
     const estado = estadoCadastro[chave];
     estado.editandoId = null;
     estado.formAberto = true;
@@ -5457,6 +5505,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function abrirFormEditar(chave, id) {
+    if (ehUsuarioCliente()) return;
     const linha = (window.BI.dados[chave] || []).find((l) => l._id === id);
     if (!linha) return;
     const estado = estadoCadastro[chave];
@@ -5547,6 +5596,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function excluirRegistro(chave, id) {
+    if (ehUsuarioCliente()) return;
     if (!window.BI.DB.estado.disponivel) return;
     if (!window.confirm("Excluir este registro definitivamente? Essa ação não pode ser desfeita.")) return;
     window.BI.DB.excluir(chave, id).catch((e) => {
@@ -5766,18 +5816,18 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         if (cfg.temInventarioChecklist) {
           const btnChecklist = document.createElement("button");
           btnChecklist.type = "button";
-          btnChecklist.className = "btn-acao-linha btn-acao-linha-checklist";
+          btnChecklist.className = "btn-acao-linha btn-acao-linha-checklist btn-acao-editar";
           btnChecklist.textContent = "📋 Inventário de Riscos";
           btnChecklist.title = "Abre a checklist de fatores de risco (ISO TS-20646) para este posto";
           btnChecklist.addEventListener("click", () => abrirInventarioChecklist(linha));
           tdAcoes.appendChild(btnChecklist);
         }
         const btnEditar = document.createElement("button");
-        btnEditar.type = "button"; btnEditar.className = "btn-acao-linha"; btnEditar.textContent = "Editar";
+        btnEditar.type = "button"; btnEditar.className = "btn-acao-linha btn-acao-editar"; btnEditar.textContent = "Editar";
         btnEditar.disabled = !podeEditar;
         btnEditar.addEventListener("click", () => abrirFormEditar(chave, linha._id));
         const btnExcluir = document.createElement("button");
-        btnExcluir.type = "button"; btnExcluir.className = "btn-acao-linha excluir"; btnExcluir.textContent = "Excluir";
+        btnExcluir.type = "button"; btnExcluir.className = "btn-acao-linha excluir btn-acao-excluir"; btnExcluir.textContent = "Excluir";
         btnExcluir.disabled = !podeEditar;
         btnExcluir.addEventListener("click", () => excluirRegistro(chave, linha._id));
         const btnDetalhes = document.createElement("button");
@@ -5981,6 +6031,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // Registro) abre sozinha e a outra recolhe - navegar para Ergo/Med
   // Ocup/Compativeis recolhe as duas.
   function ativarAba(aba) {
+    if (aba === "cadastro" && ehUsuarioCliente()) aba = "ergo";
     const nav = document.getElementById("nav-abas");
     const botoes = Array.from(nav.querySelectorAll("button[data-aba]"));
     const btn = botoes.find((b) => b.dataset.aba === aba);
@@ -6857,10 +6908,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       }
       if (ehAdmin) {
         const btnEditar = document.createElement("button");
-        btnEditar.type = "button"; btnEditar.className = "btn-acao-linha"; btnEditar.textContent = "Editar";
+        btnEditar.type = "button"; btnEditar.className = "btn-acao-linha btn-acao-editar"; btnEditar.textContent = "Editar";
         btnEditar.addEventListener("click", () => abrirFormEditarUsuario(u.id));
         const btnExcluir = document.createElement("button");
-        btnExcluir.type = "button"; btnExcluir.className = "btn-acao-linha excluir"; btnExcluir.textContent = "Excluir";
+        btnExcluir.type = "button"; btnExcluir.className = "btn-acao-linha excluir btn-acao-excluir"; btnExcluir.textContent = "Excluir";
         btnExcluir.addEventListener("click", () => excluirUsuario(u.id, u.Email));
         tdAcoes.appendChild(btnEditar); tdAcoes.appendChild(btnExcluir);
       }
@@ -7279,6 +7330,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // o app inteiro) e/ou o item de menu "Usuarios".
       configurarTelaAcesso();
       configurarUsuarios();
+      configurarPerfilCliente();
       configurarConfiguracoes();
       configurarBotaoSair();
       esconderCarregamento();

@@ -136,7 +136,7 @@
       objetivo: "Definir quem acessa o sistema, com qual escopo, e padronizar parâmetros comuns a todos os clientes.",
       perfis: "Administrador e Consultor (Usuários); Administrador (Configurações).",
       passos: [
-        "Administrador: visualiza todas as empresas, gerencia usuários e define as Configurações. Consultor: visualiza as empresas vinculadas e pode convidar usuários. Usuário Cliente: consulta somente as empresas vinculadas.",
+        "Administrador: visualiza todas as empresas, gerencia usuários e define as Configurações. Consultor: visualiza as empresas vinculadas e pode convidar usuários. Usuário Cliente: consulta somente as empresas vinculadas, não acessa o Cadastro e, no Registro, apenas consulta e baixa cada aba em Excel.",
         "Para conceder acesso: Usuários › Novo usuário, informando e-mail, perfil e empresas vinculadas. O convite é enviado por e-mail.",
         "Em Configurações, o Administrador ajusta os nomes dos tipos de ação do Plano de Ação (Eliminação, Engenharia / Adequação e Organizacional), válidos para todos os clientes.",
       ],
@@ -311,7 +311,7 @@
         "SIGE e Riscos Psicossociais viram um pacote único: um só cadastro de empresa (com os serviços contratados e a matriz de risco), Setor / GHE, Colaboradores e Ergonomistas no Cadastro do SIGE.",
         "Abas de serviço não contratado continuam no menu, com o aviso para procurar o time de especialistas da ElevaLife.",
         "Riscos Psicossociais: Diagnóstico organizacional (ISO 45003 + taxa de frequência), Análise de risco com resumo por fator e gráfico com filtros, graduação pela matriz do cliente; riscos e ações levados ao Mapa de Risco, Inventário de Riscos e Plano de Ação do Registro (cada linha conta 1).",
-        "Usuários: uma lista única de empresas vinculadas (ergonomista e cliente só acessam as suas). Plano de ação em Excel mais enxuto e prazo em branco quando não informado.",
+        "Usuários: uma lista única de empresas vinculadas (ergonomista e cliente só acessam as suas). O cliente não acessa o Cadastro e, no Registro, só consulta e baixa em Excel. Botão Baixar Excel em cada aba do Cadastro e do Registro. Plano de ação em Excel mais enxuto e prazo em branco quando não informado.",
       ],
     },
     {
