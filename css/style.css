@@ -2120,3 +2120,12 @@ body.hist-aberto { overflow: hidden; }
   .imp-mapa-grade { grid-template-columns: 1fr; }
   .imp-overlay { padding: 8px; }
 }
+
+/* V 1.27 - perfil Usuario Cliente: sem Cadastro; Registro somente consulta e Excel */
+body.perfil-cliente .sidebar-nav-grupo[data-grupo-nav="cadastro"],
+body.perfil-cliente .bloco-cadastro .btn-novo-registro,
+body.perfil-cliente .bloco-cadastro .btn-importar-excel,
+body.perfil-cliente .bloco-cadastro .col-selecao,
+body.perfil-cliente .bloco-cadastro .barra-selecao,
+body.perfil-cliente .bloco-cadastro .btn-acao-editar,
+body.perfil-cliente .bloco-cadastro .btn-acao-excluir { display: none !important; }
