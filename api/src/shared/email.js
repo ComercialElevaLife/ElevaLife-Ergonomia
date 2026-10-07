@@ -106,10 +106,18 @@ async function enviarEmail({ para, assunto, htmlCorpo }) {
   }
 }
 
+// V 1.27: logotipo oficial (versão branca) no cabeçalho vinho dos e-mails. Usa a URL pública do
+// SIGE (variável URL_PUBLICA); sem ela, o e-mail sai só com o texto, como antes.
+function logoEmailHtml() {
+  const base = (process.env.URL_PUBLICA || "").replace(/\/+$/, "");
+  return base ? `<img src="${base}/img/logo-elevalife-branco.png" alt="ElevaLife" height="30" style="display:block;height:30px;width:auto;margin:0 0 10px;border:0">` : "";
+}
+
 function modeloConvite({ nomeApp, link }) {
   return `
     <div style="font-family:Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;color:#2a1a1a">
       <div style="background:#5c1a2b;color:#fff;padding:20px 24px;border-radius:10px 10px 0 0">
+        ${logoEmailHtml()}
         <div style="font-weight:700;font-size:18px">${nomeApp}</div>
         <div style="font-size:12px;opacity:.85">ElevaLife · 15 anos elevando pessoas e resultados</div>
       </div>
@@ -129,6 +137,7 @@ function modeloRedefinicao({ nomeApp, link }) {
   return `
     <div style="font-family:Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;color:#2a1a1a">
       <div style="background:#5c1a2b;color:#fff;padding:20px 24px;border-radius:10px 10px 0 0">
+        ${logoEmailHtml()}
         <div style="font-weight:700;font-size:18px">${nomeApp}</div>
         <div style="font-size:12px;opacity:.85">ElevaLife · 15 anos elevando pessoas e resultados</div>
       </div>
@@ -244,6 +253,7 @@ function modeloPlanoAcao({ nomeApp, estagio, acao, paraAdmin }) {
   return `
     <div style="font-family:Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#2a1a1a">
       <div style="background:${cfg.cor};color:#fff;padding:20px 24px;border-radius:10px 10px 0 0">
+        ${logoEmailHtml()}
         <div style="font-weight:700;font-size:18px">${nomeApp}</div>
         <div style="font-size:12px;opacity:.85">ElevaLife · 15 anos elevando pessoas e resultados</div>
       </div>
@@ -264,4 +274,5 @@ function modeloPlanoAcao({ nomeApp, estagio, acao, paraAdmin }) {
     </div>`;
 }
 
-module.exports = { enviarEmail, modeloConvite, modeloRedefinicao, modeloPlanoAcao, formatarDataBR, ESTAGIOS_PLANO_ACAO };
+module.exports = {
+  logoEmailHtml, enviarEmail, modeloConvite, modeloRedefinicao, modeloPlanoAcao, formatarDataBR, ESTAGIOS_PLANO_ACAO };
