@@ -52,6 +52,7 @@
   window.ELEVA_AUTH = async function () {
     try {
       const eu = await req("GET", "/psico/eu", null, { tentativas: 3 });
+      if (eu.semVinculo) return { admin: false, cliente: false, status: 403, semVinculo: true, papel: eu.papel };
       const cliente = eu.papel === "UsuarioCliente";
       return { admin: !cliente, cliente, email: eu.email, papel: eu.papel };
     } catch (e) { return { admin: false, cliente: false, status: e.status || 0, papel: (e.body && e.body.papel) || null }; }

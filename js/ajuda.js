@@ -270,6 +270,10 @@
 
   const HISTORICO = [
     {
+      versao: "1.26", data: "07/10/2026",
+      itens: ["Usuários: vínculo separado para as empresas do SIGE e para as empresas de Riscos Psicossociais, com a opção de cliente ou ergonomista não vinculado a cada um (ergonomista pode ter todas as empresas do psicossocial). Quem não é vinculado ao SIGE entra direto em Riscos Psicossociais. Planilha do plano de ação mais enxuta e prazo em branco quando não foi informado."],
+    },
+    {
       versao: "1.25", data: "07/10/2026",
       itens: ["Riscos Psicossociais com subabas no menu lateral (Cadastro de empresa, Colaboradores, Checklist ISO 45003, HSE-IT, Severidade, Probabilidade, Análise de risco, Plano de ação, Laudo, Ergonomistas e Editor de texto), ocupando a tela inteira; acesso por perfil (Administrador, Ergonomista e Cliente); plano de ação com prazo, responsável e e-mail, aviso automático por e-mail ao responsável e gráfico de status; laudo emitido em PDF com textos editáveis no Editor de texto; gráficos no padrão do SIGE."],
     },

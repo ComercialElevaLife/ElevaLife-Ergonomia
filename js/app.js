@@ -6539,13 +6539,149 @@
     return [
       { campo: "Email", rotulo: "E-mail", tipo: "texto", obrigatorio: true },
       { campo: "Papel", rotulo: "Papel", tipo: "select", obrigatorio: true, opcoes: PAPEIS_USUARIO },
-      {
-        campo: "EmpresasVinculadas",
-        rotulo: "Empresas Vinculadas (Ctrl/Cmd + clique para marcar mais de uma - Administrador vê todas, independente desta lista)",
-        tipo: "multiselect",
-        opcoes: () => (window.BI.dados.cliente || []).map((c) => ({ valor: c.id || c._id, label: c.Cliente })),
-      },
+      // V 1.26: as empresas vinculadas sairam daqui e viraram dois quadros
+      // proprios (SIGE e Riscos Psicossociais) - ver montarVinculosUsuario.
     ];
+  }
+
+  // ------------------------------------------------------------------
+  // V 1.26 - Vinculos do usuario por modulo (pedido do Alexandre): um quadro
+  // com as empresas do SIGE (clientes) e outro com as empresas do modulo
+  // Riscos Psicossociais, cada um com a opcao "nao vinculado". Ergonomista
+  // (Consultor) pode ainda ter "todas as empresas do psicossocial". Regras
+  // aplicadas no backend em api/src/shared/tenant.js (vinculosDoDoc).
+  // ------------------------------------------------------------------
+  const NOME_PAPEL_VINC = { UsuarioCliente: "Cliente", Consultor: "Ergonomista", Administrador: "Administrador" };
+  async function carregarEmpresasPsico() {
+    if (estadoUsuarios.psicoEmpresas) return estadoUsuarios.psicoEmpresas;
+    const lista = [];
+    let t = null;
+    do {
+      const resp = await fetch("/api/psico/col?c=empresas" + (t ? "&t=" + encodeURIComponent(t) : ""), { credentials: "same-origin" });
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const d = await resp.json();
+      (d.docs || []).forEach((x) => { if (x.data) lista.push({ valor: x.id, label: x.data.razao || x.id, sub: x.data.cnpj || "" }); });
+      t = d.next || null;
+    } while (t);
+    lista.sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+    estadoUsuarios.psicoEmpresas = lista;
+    return lista;
+  }
+  function garantirEstiloVinculos() {
+    if (document.getElementById("estilo-vinculos-usuario")) return;
+    const st = document.createElement("style");
+    st.id = "estilo-vinculos-usuario";
+    st.textContent = [
+      ".vinc-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin:6px 0 4px}",
+      ".vinc-box{border:1px solid var(--borda,#E4DCD6);border-radius:10px;padding:12px 14px;margin:0;min-width:0;background:#fff}",
+      ".vinc-box legend{font-weight:700;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;padding:0 6px;color:#5E2A30}",
+      ".vinc-modo{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;font-size:.88rem}",
+      ".vinc-modo label{display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:500;text-transform:none;letter-spacing:0}",
+      ".vinc-busca{width:100%;box-sizing:border-box;margin-bottom:6px}",
+      ".vinc-lista{max-height:190px;overflow:auto;border:1px solid var(--borda,#E4DCD6);border-radius:8px;padding:4px 0}",
+      ".vinc-lista label{display:flex;gap:8px;align-items:flex-start;padding:5px 10px;font-size:.88rem;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:500}",
+      ".vinc-lista label:hover{background:#F5EFEA}.vinc-lista small{display:block;color:#8A7A78;font-size:.75rem}",
+      ".vinc-lista.desativada{opacity:.45;pointer-events:none}",
+      ".vinc-nota{font-size:.78rem;color:#8A7A78;margin:6px 0 0}",
+      ".vinc-vazio{padding:8px 10px;font-size:.85rem;color:#8A7A78}",
+    ].join("");
+    document.head.appendChild(st);
+  }
+  // Monta os dois quadros dentro do formulario e devolve ler() -> campos para o POST/PUT.
+  function montarVinculosUsuario(form, valores) {
+    garantirEstiloVinculos();
+    const grade = document.createElement("div");
+    grade.className = "vinc-grade";
+    const selPapel = form._campos && form._campos["Papel"];
+    const papelAtual = () => (selPapel && selPapel.value) || valores.Papel || "UsuarioCliente";
+    const marcadosSige = new Set(valores.EmpresasVinculadas || []);
+    const marcadosPsico = new Set(valores.EmpresasPsico || []);
+    const nomeUnico = "vinc" + Math.random().toString(36).slice(2, 8);
+
+    function quadro(titulo, chave, modos, carregar, marcados) {
+      const fs = document.createElement("fieldset");
+      fs.className = "vinc-box";
+      const lg = document.createElement("legend"); lg.textContent = titulo; fs.appendChild(lg);
+      const modoDiv = document.createElement("div"); modoDiv.className = "vinc-modo"; fs.appendChild(modoDiv);
+      const busca = document.createElement("input"); busca.type = "search"; busca.className = "vinc-busca"; busca.placeholder = "Buscar empresa…"; fs.appendChild(busca);
+      const lista = document.createElement("div"); lista.className = "vinc-lista"; fs.appendChild(lista);
+      const nota = document.createElement("p"); nota.className = "vinc-nota"; fs.appendChild(nota);
+      let itens = [];
+      let modo = null;
+      function desenharModos() {
+        const papel = papelAtual(), quem = NOME_PAPEL_VINC[papel] || "Usuário";
+        const opcoes = modos(papel, quem);
+        if (!opcoes.find((o) => o.v === modo)) modo = opcoes[0].v;
+        modoDiv.innerHTML = "";
+        opcoes.forEach((o) => {
+          const l = document.createElement("label");
+          const r = document.createElement("input"); r.type = "radio"; r.name = nomeUnico + chave; r.value = o.v; r.checked = o.v === modo;
+          r.addEventListener("change", () => { modo = o.v; atualizar(); });
+          l.appendChild(r); l.appendChild(document.createTextNode(o.l));
+          modoDiv.appendChild(l);
+        });
+        const adm = papel === "Administrador";
+        fs.querySelectorAll("input").forEach((i) => { i.disabled = adm; });
+        nota.textContent = adm ? "Administrador vê todas as empresas, independente desta lista." : (opcoes.find((o) => o.v === modo) || {}).nota || "";
+        atualizar();
+      }
+      function atualizar() {
+        const papel = papelAtual();
+        lista.classList.toggle("desativada", modo !== "marcadas" || papel === "Administrador");
+        busca.disabled = modo !== "marcadas" || papel === "Administrador";
+        const o = modos(papel, NOME_PAPEL_VINC[papel] || "Usuário").find((x) => x.v === modo);
+        if (papel !== "Administrador") nota.textContent = (o && o.nota) || "";
+      }
+      function desenharLista() {
+        const q = busca.value.trim().toLowerCase();
+        lista.innerHTML = "";
+        const vis = itens.filter((it) => !q || (it.label + " " + (it.sub || "")).toLowerCase().includes(q));
+        if (!vis.length) { const d = document.createElement("div"); d.className = "vinc-vazio"; d.textContent = itens.length ? "Nenhuma empresa encontrada." : "Nenhuma empresa cadastrada."; lista.appendChild(d); return; }
+        vis.forEach((it) => {
+          const l = document.createElement("label");
+          const c = document.createElement("input"); c.type = "checkbox"; c.checked = marcados.has(it.valor);
+          c.addEventListener("change", () => { if (c.checked) marcados.add(it.valor); else marcados.delete(it.valor); });
+          const t = document.createElement("span"); t.textContent = it.label;
+          if (it.sub) { const sm = document.createElement("small"); sm.textContent = it.sub; t.appendChild(sm); }
+          l.appendChild(c); l.appendChild(t); lista.appendChild(l);
+        });
+      }
+      busca.addEventListener("input", desenharLista);
+      Promise.resolve().then(carregar).then((r) => { itens = r || []; desenharLista(); })
+        .catch(() => { lista.innerHTML = ""; const d = document.createElement("div"); d.className = "vinc-vazio"; d.textContent = "Não foi possível carregar a lista agora."; lista.appendChild(d); });
+      lista.innerHTML = '<div class="vinc-vazio">Carregando…</div>';
+      return { fs, desenharModos, setModo: (m) => { modo = m; }, getModo: () => modo };
+    }
+
+    const sige = quadro("Empresas do SIGE", "s", (papel, quem) => [
+      { v: "marcadas", l: "Vinculado às empresas marcadas abaixo", nota: "Acesso aos painéis, registros e cadastros do SIGE dessas empresas." },
+      { v: "nenhuma", l: `${quem} não vinculado ao SIGE`, nota: "Sem acesso aos painéis do SIGE; entra direto em Riscos Psicossociais." },
+    ], () => (window.BI.dados.cliente || []).map((c) => ({ valor: c.id || c._id, label: c.Cliente || c.id, sub: c.CNPJ || "" })).sort((a, b) => String(a.label).localeCompare(String(b.label), "pt-BR")), marcadosSige);
+    sige.setModo(valores.SigeVinculo === "nenhuma" ? "nenhuma" : "marcadas");
+
+    const psico = quadro("Empresas do Psicossocial", "p", (papel, quem) => [
+      ...(papel === "Consultor" ? [{ v: "todas", l: "Todas as empresas do psicossocial", nota: "O ergonomista vê todas as empresas cadastradas no módulo, inclusive as novas." }] : []),
+      { v: "marcadas", l: "Vinculado às empresas marcadas abaixo", nota: papel === "UsuarioCliente" ? "O cliente responde o ISO 45003, acompanha as respostas do HSE-IT e o plano de ação dessas empresas." : "O ergonomista só vê essas empresas; as que ele cadastrar entram no vínculo dele." },
+      { v: "nenhuma", l: `${quem} não vinculado ao Psicossocial`, nota: "Sem acesso ao módulo Riscos Psicossociais." },
+    ], carregarEmpresasPsico, marcadosPsico);
+    const legadoPsico = valores.PsicoVinculo || (valores.Papel === "Consultor" ? "todas" : "marcadas");
+    psico.setModo(legadoPsico);
+
+    grade.appendChild(sige.fs); grade.appendChild(psico.fs);
+    form.insertBefore(grade, form._erroEl);
+    sige.desenharModos(); psico.desenharModos();
+    if (selPapel) selPapel.addEventListener("change", () => { sige.desenharModos(); psico.desenharModos(); });
+
+    return function ler() {
+      const papel = papelAtual();
+      const sm = sige.getModo(), pm = psico.getModo();
+      return {
+        SigeVinculo: papel === "Administrador" ? "marcadas" : sm,
+        EmpresasVinculadas: sm === "nenhuma" ? [] : Array.from(marcadosSige),
+        PsicoVinculo: papel === "Administrador" ? "todas" : pm,
+        EmpresasPsico: pm === "marcadas" ? Array.from(marcadosPsico) : [],
+      };
+    };
   }
   const CFG_USUARIOS = { campos: camposUsuario() };
 
@@ -6556,6 +6692,9 @@
       const resp = await fetch("/api/usuarios", { credentials: "same-origin" });
       if (!resp.ok) throw new Error("Falha ao carregar usuários (HTTP " + resp.status + ").");
       estadoUsuarios.lista = await resp.json();
+      // V 1.26: nomes das empresas do psicossocial para a coluna da lista.
+      estadoUsuarios.psicoEmpresas = null;
+      await carregarEmpresasPsico().catch(() => { estadoUsuarios.psicoEmpresas = null; });
     } catch (e) {
       // Sem internet (coleta offline em campo) não é erro do sistema: a
       // lista de usuários só existe online e o indicador na tela já avisa.
@@ -6571,6 +6710,12 @@
   function nomesClientesPorId(ids) {
     const mapa = {};
     (window.BI.dados.cliente || []).forEach((c) => { mapa[c.id || c._id] = c.Cliente; });
+    return (ids || []).map((id) => mapa[id] || id).join(", ");
+  }
+
+  function nomesPsicoPorId(ids) {
+    const mapa = {};
+    (estadoUsuarios.psicoEmpresas || []).forEach((e) => { mapa[e.valor] = e.label; });
     return (ids || []).map((id) => mapa[id] || id).join(", ");
   }
 
@@ -6607,6 +6752,7 @@
     if (estadoUsuarios.editandoId && form._campos && form._campos["Email"]) {
       form._campos["Email"].disabled = true;
     }
+    const lerVinculos = montarVinculosUsuario(form, estadoUsuarios.valoresForm || {});
     form._btnCancelar.addEventListener("click", () => fecharFormUsuario());
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
@@ -6616,6 +6762,7 @@
         form._erroEl.textContent = erro;
         return;
       }
+      Object.assign(dados, lerVinculos());
       dados.Email = String(dados.Email || "").trim().toLowerCase();
       try {
         if (estadoUsuarios.editandoId) {
@@ -6666,7 +6813,7 @@
     thead.innerHTML = "";
     tbody.innerHTML = "";
     const trHead = document.createElement("tr");
-    ["E-mail", "Papel", "Empresas Vinculadas", "Status", "Ações"].forEach((c) => {
+    ["E-mail", "Papel", "Empresas do SIGE", "Empresas do Psicossocial", "Status", "Ações"].forEach((c) => {
       const th = document.createElement("th");
       th.textContent = c;
       if (c === "Ações") th.className = "col-acoes";
@@ -6680,14 +6827,14 @@
     if (estadoUsuarios.carregando) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 5; td.className = "sem-dados"; td.textContent = "Carregando...";
+      td.colSpan = 6; td.className = "sem-dados"; td.textContent = "Carregando...";
       tr.appendChild(td); tbody.appendChild(tr);
       return;
     }
     if (!estadoUsuarios.lista.length) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 5; td.className = "sem-dados"; td.textContent = "Nenhum usuário cadastrado ainda.";
+      td.colSpan = 6; td.className = "sem-dados"; td.textContent = "Nenhum usuário cadastrado ainda.";
       tr.appendChild(td); tbody.appendChild(tr);
       return;
     }
@@ -6695,7 +6842,11 @@
       const tr = document.createElement("tr");
       const tdEmail = document.createElement("td"); tdEmail.textContent = u.Email || "-";
       const tdPapel = document.createElement("td"); tdPapel.textContent = u.Papel || "-";
-      const tdEmpresas = document.createElement("td"); tdEmpresas.textContent = nomesClientesPorId(u.EmpresasVinculadas) || "-";
+      const tdEmpresas = document.createElement("td");
+      tdEmpresas.textContent = u.Papel === "Administrador" ? "Todas" : u.SigeVinculo === "nenhuma" ? "Não vinculado" : (nomesClientesPorId(u.EmpresasVinculadas) || "-");
+      const tdPsico = document.createElement("td");
+      const pv = u.PsicoVinculo || (u.Papel === "Consultor" ? "todas" : "marcadas");
+      tdPsico.textContent = u.Papel === "Administrador" || pv === "todas" ? "Todas" : pv === "nenhuma" ? "Não vinculado" : (nomesPsicoPorId(u.EmpresasPsico) || (u.Papel === "UsuarioCliente" ? "Pelo cliente do SIGE" : "-"));
       const statusConta = u.StatusConta || "Convidado";
       const tdStatus = document.createElement("td");
       const badgeStatus = document.createElement("span");
@@ -6718,7 +6869,7 @@
         btnExcluir.addEventListener("click", () => excluirUsuario(u.id, u.Email));
         tdAcoes.appendChild(btnEditar); tdAcoes.appendChild(btnExcluir);
       }
-      tr.appendChild(tdEmail); tr.appendChild(tdPapel); tr.appendChild(tdEmpresas); tr.appendChild(tdStatus); tr.appendChild(tdAcoes);
+      tr.appendChild(tdEmail); tr.appendChild(tdPapel); tr.appendChild(tdEmpresas); tr.appendChild(tdPsico); tr.appendChild(tdStatus); tr.appendChild(tdAcoes);
       tbody.appendChild(tr);
     });
   }
@@ -7022,6 +7173,28 @@
     carregarUsuarios();
   }
 
+  // V 1.26 - usuario "nao vinculado ao SIGE" (so usa Riscos Psicossociais)
+  // nao ve os paineis/registros/cadastros do SIGE e entra direto no
+  // modulo; usuario "nao vinculado ao Psicossocial" nao ve o modulo.
+  // Administrador ve tudo. O backend aplica as mesmas regras.
+  function configurarVinculosModulos() {
+    const identidade = window.BI.DB.estado.identidade;
+    if (!identidade || !identidade.papel || identidade.papel === "Administrador") return;
+    const nav = document.getElementById("nav-abas");
+    if (!nav) return;
+    const grupoPsico = nav.querySelector('.sidebar-nav-grupo[data-grupo-nav="psicossocial"]');
+    const semPsico = identidade.psicoVinculo === "nenhuma";
+    const semSige = identidade.sigeVinculo === "nenhuma";
+    if (semPsico && grupoPsico) grupoPsico.hidden = true;
+    if (semSige && !semPsico) {
+      ["ergo", "medocup", "compativeis"].forEach((a) => { const b = nav.querySelector('button[data-aba="' + a + '"]'); if (b) b.hidden = true; });
+      ["registro", "cadastro"].forEach((g) => { const el = nav.querySelector('.sidebar-nav-grupo[data-grupo-nav="' + g + '"]'); if (el) el.hidden = true; });
+      const filtros = document.getElementById("btn-abrir-filtros"); if (filtros) filtros.hidden = true;
+      document.body.classList.add("so-psicossocial");
+      ativarAba("psicossocial");
+    }
+  }
+
   // V 1.2 - Configuracoes do sistema (so Administrador): nomes dos tipos de
   // acao do Plano de Acao. Ver js/acoes.js/montarTelaConfiguracoes.
   function configurarConfiguracoes() {
@@ -7133,6 +7306,7 @@
       // o app inteiro) e/ou o item de menu "Usuarios".
       configurarTelaAcesso();
       configurarUsuarios();
+      configurarVinculosModulos();
       configurarConfiguracoes();
       configurarBotaoSair();
       esconderCarregamento();
