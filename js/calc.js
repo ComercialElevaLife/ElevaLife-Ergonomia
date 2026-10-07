@@ -117,35 +117,43 @@
     return grade;
   }
 
+  // V 1.27: matrizes modelo ElevaLife (enviadas pelo Alexandre em 06/10/2026 e 07/10/2026). A graduacao
+  // de cada celula vem da matriz modelo (cores: azul-claro muito baixo, verde baixo, amarelo moderado,
+  // vermelho alto, roxo muito alto/altissimo) - nao de uma faixa generica de pontuacao, porque a mesma
+  // pontuacao pode ter graduacoes diferentes (ex.: na 5x5, 2x2 = 4 e Baixo, mas 1x4 = 4 e Moderado).
+  // grade[probabilidade][gravidade] = indice em "niveis"; pontuacao = probabilidade x gravidade.
+  // Os valores gravados da escala continuam os mesmos ("Baixa", "Media"...); "rotulos" e so exibicao.
   const MATRIZES_RISCO = {
-    // Modelo ElevaLife da 3x3 (Probabilidade x Criticidade, Leve/Media/Alta):
-    // pontuacao 1-2 = Baixo (verde), 3-4 = Moderado (amarelo), 6-9 = Alto (vermelho).
-    // Os valores gravados continuam "Baixa/Media/Alta"; "Baixa" e exibido como "Leve".
     "Matriz 3x3": {
       escala: ["Baixa", "Media", "Alta"],
       niveis: ["Baixo", "Moderado", "Alto"],
       rotulos: { Baixa: "Leve", Media: "Média", Alta: "Alta" },
-      nivelPorPontuacao: (pontuacao) => (pontuacao <= 2 ? 0 : pontuacao <= 4 ? 1 : 2),
+      modelo: [[0, 0, 1], [0, 1, 2], [1, 2, 2]],
     },
     "Matriz 4x4": {
       escala: ["Baixa", "Media", "Alta", "Muito Alta"],
-      niveis: ["Baixo", "Moderado", "Alto", "Muito Alto"],
+      niveis: ["Muito Baixo", "Baixo", "Moderado", "Alto", "Muito Alto"],
+      rotulos: { Baixa: "Leve", Media: "Média", Alta: "Alta", "Muito Alta": "Muito Alta" },
+      modelo: [[0, 1, 1, 2], [1, 1, 2, 3], [1, 2, 2, 3], [2, 3, 3, 4]],
     },
     "Matriz 5x5": {
       escala: ["Muito Baixa", "Baixa", "Media", "Alta", "Muito Alta"],
       niveis: ["Muito Baixo", "Baixo", "Moderado", "Alto", "Altíssimo"],
+      rotulos: { "Muito Baixa": "Muito Baixa", Baixa: "Baixa", Media: "Moderada", Alta: "Alta", "Muito Alta": "Muito Alta" },
+      modelo: [[0, 1, 1, 2, 2], [1, 1, 2, 2, 3], [1, 2, 2, 3, 4], [2, 2, 3, 4, 4], [2, 3, 4, 4, 4]],
     },
-    // Exemplo de variante propria de um cliente (mesmo formato 5x5, so
-    // ilustrando que a matriz e configuravel por empresa).
+    // Variante 5x5 de um cliente: mesma matriz modelo 5x5 ate que o modelo proprio seja informado.
     "Matriz 5x5 Gerdau": {
       escala: ["Muito Baixa", "Baixa", "Media", "Alta", "Muito Alta"],
       niveis: ["Muito Baixo", "Baixo", "Moderado", "Alto", "Altíssimo"],
+      rotulos: { "Muito Baixa": "Muito Baixa", Baixa: "Baixa", Media: "Moderada", Alta: "Alta", "Muito Alta": "Muito Alta" },
+      modelo: [[0, 1, 1, 2, 2], [1, 1, 2, 2, 3], [1, 2, 2, 3, 4], [2, 2, 3, 4, 4], [2, 3, 4, 4, 4]],
     },
   };
   Object.keys(MATRIZES_RISCO).forEach((nome) => {
     const m = MATRIZES_RISCO[nome];
-    m.grade = construirGradeSimetrica(m.niveis.length);
-    if (m.nivelPorPontuacao) m.grade.forEach((linha) => linha.forEach((c) => { c.nivelIdx = m.nivelPorPontuacao(c.pontuacao); }));
+    m.grade = construirGradeSimetrica(m.escala.length);
+    if (m.modelo) m.grade.forEach((linha, p) => linha.forEach((c, g) => { c.nivelIdx = m.modelo[p][g]; }));
   });
   const NOMES_MATRIZ_RISCO = Object.keys(MATRIZES_RISCO);
 
