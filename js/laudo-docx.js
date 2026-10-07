@@ -220,7 +220,7 @@
     }
     B.push(H1("s3", "3. Responsabilidade técnica e execução", false), paragrafos("Responsabilidade"));
     B.push(tbl([1, 1], [[["Responsável técnico", responsavel], ["Ergonomista executor", executor]].map(([papel, p]) => ({
-      paras: par(run(papel.toUpperCase(), { cor: C.cinza, tam: 7 }), { depois: 20 }) + par(run(p ? p.Nome : "-", { b: true, cor: C.vinhoE, tam: 11 }), { depois: 20 }) + par(run([p && p.Titulo, p && p.Registro].filter(Boolean).join("\n") || " ", { tam: 8.5, cor: C.texto }), { depois: 0 }),
+      paras: par(run(papel.toUpperCase(), { cor: C.cinza, tam: 7 }), { depois: 20 }) + par(run(p ? p.Nome : "-", { b: true, cor: C.vinhoE, tam: 11 }), { depois: 20 }) + par(run([p && Calc.formatarCargo(p.Titulo), p && p.Registro].filter(Boolean).join("\n") || " ", { tam: 8.5, cor: C.texto }), { depois: 0 }),
       fundo: "FFFFFF", v: "top",
     }))], { margemV: 90 }));
     B.push(H1("s4", "4. Demanda do trabalho", false), paragrafos("Demanda Intro"), lista(linhasDe("Demanda")));
@@ -399,7 +399,7 @@
       B.push(tbl(ass.map(() => 1), [ass.map((p) => ({
         paras: (p._assinatura && imgs[p._assinatura] ? imagemPar(p._assinatura, 150, 48, { jc: "center", depois: 0, nome: "Assinatura de " + p.Nome }) : par("", { depois: 600 }))
           + par(run(p.Nome || "-", { b: true, tam: 10, cor: C.texto }), { jc: "center", depois: 20, antes: 40, bordaEsq: null })
-          + par(run([p.Titulo, p.Registro].filter(Boolean).join(" · ") || " ", { tam: 8, cor: C.cinza }), { jc: "center", depois: 0 }),
+          + par(run([Calc.formatarCargo(p.Titulo), p.Registro].filter(Boolean).join(" · ") || " ", { tam: 8, cor: C.cinza }), { jc: "center", depois: 0 }),
         fundo: "FFFFFF", v: "bottom", bordas: '<w:bottom w:val="single" w:sz="6" w:space="0" w:color="C99AA0"/>',
       }))], { semBorda: true, bordaBranca: true, margemV: 40 }));
       B.push(par("", { depois: 120 }));

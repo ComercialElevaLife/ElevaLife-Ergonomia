@@ -347,14 +347,31 @@
     return new Date(str + "T00:00:00");
   }
 
+  // V 1.27: formacao/cargo do profissional nos laudos. Texto gravado todo em maiusculas
+  // ("FISIOTERAPEUTA ERGONOMISTA") vira "Fisioterapeuta Ergonomista", mantendo siglas
+  // conhecidas (ABERGO, CREFITO, NR...) e preposicoes em minusculas. Texto ja com
+  // minusculas fica como foi digitado.
+  const SIGLAS_CARGO = ["ABERGO", "CREFITO", "CREA", "CRM", "CRP", "COREN", "CRF", "CRN", "CREF", "CFT", "NR", "NR-17", "NR-01", "ISO", "SESMT", "SST", "MBA", "PHD", "AET", "AEP", "CPE", "CBO", "RT", "TST", "II", "III", "IV", "UFMG", "PUC", "USP", "MG", "SP", "RJ"];
+  const MINUSCULAS_CARGO = ["de", "da", "do", "das", "dos", "e", "em", "com", "para", "a", "o", "na", "no", "nas", "nos", "pela", "pelo"];
+  function formatarCargo(t) {
+    const s = String(t || "").trim();
+    if (!s || /[a-zà-ÿ]/.test(s)) return s;
+    return s.toLowerCase().replace(/[a-zà-ÿ0-9]+(?:-[a-zà-ÿ0-9]+)*/g, (w, pos) => {
+      const up = w.toUpperCase();
+      if (SIGLAS_CARGO.includes(up)) return up;
+      if (pos > 0 && MINUSCULAS_CARGO.includes(w)) return w;
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    });
+  }
+
   function calcularStatusAcao(dtProgramadaStr, dtConclusaoStr, hoje) {
     const prog = paraData(dtProgramadaStr);
     const concl = paraData(dtConclusaoStr);
     if (!prog && !concl) return "Nao Iniciado";
     if (!prog && concl) return "Concluida";
     if (!concl && prog < hoje) return "Atrasada";
-    if (!concl && prog <= hoje) return "Em Andamento";
-    if (!concl) return "Nao Iniciado"; // programada no futuro, ainda nao iniciada
+    // V 1.27: acao com prazo definido ja esta em andamento (pedido da diretoria ElevaLife)
+    if (!concl) return "Em Andamento";
     if (concl > prog) return "Concluida com atraso";
     return "Concluida";
   }
@@ -847,6 +864,7 @@
     rotuloNivel,
     construirMapaCores,
     calcularStatusAcao,
+    formatarCargo,
     statusDaLinhaAcao,
     calcularRiscoGlobal,
     nivelCanonico,

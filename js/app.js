@@ -3276,6 +3276,16 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       };
       dc.addEventListener("input", aoMudarData);
       dc.addEventListener("change", aoMudarData);
+      // V 1.27: com prazo definido, a acao passa a "Em andamento" (sem prazo e nao concluida, volta a "Nao iniciada")
+      const dp = C["Dt Programada"];
+      if (dp) {
+        const aoMudarPrazo = () => {
+          if (dc.value || st.value === "Concluida") return;
+          st.value = dp.value ? "Em andamento" : "Nao iniciada";
+        };
+        dp.addEventListener("change", aoMudarPrazo);
+        if (dp.value && st.value === "Nao iniciada" && !dc.value) st.value = "Em andamento";
+      }
     }
 
     // Bloco da excecao do Administrador.

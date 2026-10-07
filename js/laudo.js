@@ -559,7 +559,7 @@
           fonte("normal", 6.5); cor(PAL.cinza); doc.text(papel.toUpperCase(), x + 9, y + 12);
           fonte("bold", 10); cor(PAL.vinhoE); doc.text(p ? p.Nome : "-", x + 9, y + 26);
           fonte("normal", 7.5); cor(PAL.texto);
-          doc.text(doc.splitTextToSize([p && p.Titulo, p && p.Registro].filter(Boolean).join("\n") || " ", w - 18), x + 9, y + 38);
+          doc.text(doc.splitTextToSize([p && Calc.formatarCargo(p.Titulo), p && p.Registro].filter(Boolean).join("\n") || " ", w - 18), x + 9, y + 38);
         });
         y += 70;
       }
@@ -829,7 +829,7 @@
           traco(PAL.suave2, 0.8); doc.line(x, ySig + 54, x + w, ySig + 54);
           fonte("bold", 9); cor(PAL.texto); doc.text(p.Nome || "-", x + w / 2, ySig + 66, { align: "center" });
           fonte("normal", 7.2); cor(PAL.cinza);
-          doc.text(doc.splitTextToSize([p.Titulo, p.Registro].filter(Boolean).join(" · ") || " ", w), x + w / 2, ySig + 77, { align: "center" });
+          doc.text(doc.splitTextToSize([Calc.formatarCargo(p.Titulo), p.Registro].filter(Boolean).join(" · ") || " ", w), x + w / 2, ySig + 77, { align: "center" });
         });
         y = ySig + 100;
         // cliente
