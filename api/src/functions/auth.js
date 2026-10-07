@@ -21,7 +21,7 @@
 "use strict";
 
 const { obterContainer } = require("../shared/cosmos");
-const { resolverIdentidade, PAPEIS } = require("../shared/tenant");
+const { resolverIdentidade, PAPEIS, vinculosDoCorpo } = require("../shared/tenant");
 const {
   gerarHashSenha,
   conferirSenha,
@@ -117,14 +117,16 @@ async function enviarConvite(request, container, doc, { reenvio }) {
 // SEMPRE dispara um convite por e-mail agora, nao existe mais "criar sem
 // convidar" (pedido do Leo: toda pessoa nova tem que receber o convite).
 // Faz upsert pelo e-mail (nunca cria um segundo documento pro mesmo e-mail).
-async function criarOuConvidarUsuario(request, container, { Email, Papel, EmpresasVinculadas, id }, identidade) {
+async function criarOuConvidarUsuario(request, container, { Email, Papel, EmpresasVinculadas, id, SigeVinculo, PsicoVinculo, EmpresasPsico }, identidade) {
   const crypto = require("crypto");
   const email = normalizarEmail(Email);
   if (!email) return { erro: { status: 400, jsonBody: { erro: "E-mail é obrigatório." } } };
   if (!PAPEIS_VALIDOS.has(Papel)) {
     return { erro: { status: 400, jsonBody: { erro: `Papel inválido. Use um de: ${Array.from(PAPEIS_VALIDOS).join(", ")}.` } } };
   }
-  const empresas = Array.isArray(EmpresasVinculadas) ? EmpresasVinculadas.filter((e) => typeof e === "string" && e) : [];
+  // V 1.26: vinculos separados para o SIGE e para Riscos Psicossociais (ver shared/tenant.js).
+  const vinc = vinculosDoCorpo({ SigeVinculo, PsicoVinculo, EmpresasPsico }, Papel);
+  const empresas = vinc.SigeVinculo === "nenhuma" ? [] : (Array.isArray(EmpresasVinculadas) ? EmpresasVinculadas.filter((e) => typeof e === "string" && e) : []);
 
   // V 1.7 (revisao de seguranca): so o Administrador define papeis altos e
   // vincula empresas livremente. Um Consultor so convida UsuarioCliente e
@@ -138,6 +140,10 @@ async function criarOuConvidarUsuario(request, container, { Email, Papel, Empres
     const minhas = (identidade && identidade.empresasVinculadas) || [];
     if (empresas.some((e) => !minhas.includes(e))) {
       return { erro: { status: 403, jsonBody: { erro: "Você só pode vincular o usuário a empresas às quais você mesmo está vinculado." } } };
+    }
+    const meuPsico = identidade && identidade.psicoVinculo;
+    if (vinc.EmpresasPsico.length && meuPsico !== "todas" && vinc.EmpresasPsico.some((e) => !((identidade && identidade.empresasPsico) || []).includes(e))) {
+      return { erro: { status: 403, jsonBody: { erro: "Você só pode vincular o usuário a empresas do psicossocial às quais você mesmo está vinculado." } } };
     }
   }
 
@@ -156,6 +162,7 @@ async function criarOuConvidarUsuario(request, container, { Email, Papel, Empres
   const doc = existente || { id: id || crypto.randomUUID(), Email: email };
   doc.Papel = Papel;
   doc.EmpresasVinculadas = empresas;
+  Object.assign(doc, vinc);
 
   const { link, avisoEmail } = await enviarConvite(request, container, doc, { reenvio: Boolean(existente) });
   return { doc, link, avisoEmail };

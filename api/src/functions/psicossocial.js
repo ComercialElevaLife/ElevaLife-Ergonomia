@@ -189,6 +189,29 @@ async function excluirEmpresaLote(eid, limiteMs = 20000) {
 // ------------------------------------------------------------------
 // Rota da EQUIPE
 // ------------------------------------------------------------------
+// V 1.26: empresas do psicossocial que a pessoa pode ver (ver shared/tenant.js).
+// null = todas; Set = so essas; "nenhuma" = sem acesso ao modulo.
+function escopoPsico(identidade) {
+  if (identidade.papel === PAPEIS.ADMIN) return null;
+  const v = identidade.psicoVinculo || (identidade.papel === PAPEIS.CONSULTOR ? "todas" : "marcadas");
+  if (v === "nenhuma") return "nenhuma";
+  if (v === "todas" && identidade.papel === PAPEIS.CONSULTOR) return null;
+  return new Set(identidade.empresasPsico || []);
+}
+const SEM_VINCULO_PSICO = { status: 403, jsonBody: { erro: "Seu usuário não está vinculado ao módulo de Riscos Psicossociais. Fale com o Administrador.", semVinculo: true } };
+// Consultor com empresas marcadas que cadastra uma empresa nova: ela entra
+// no vinculo dele automaticamente (senao ele mesmo perderia o acesso).
+async function vincularEmpresaAoUsuario(identidade, eid) {
+  const { obterContainer } = require("../shared/cosmos");
+  const c = obterContainer("usuarios");
+  const { resources } = await c.items.query({ query: "SELECT * FROM c WHERE LOWER(c.Email) = @email", parameters: [{ name: "@email", value: identidade.email }] }).fetchAll();
+  const doc = resources[0]; if (!doc) return;
+  const lista = Array.isArray(doc.EmpresasPsico) ? doc.EmpresasPsico : [];
+  if (lista.includes(eid)) return;
+  doc.EmpresasPsico = lista.concat(eid); doc.PsicoVinculo = "marcadas";
+  await c.item(doc.id, doc.id).replace(doc);
+}
+
 async function tratarEquipe(request, context) {
   let identidade;
   try {
@@ -200,8 +223,10 @@ async function tratarEquipe(request, context) {
   if (!identidade) return { status: 401, jsonBody: { erro: "Não autenticado." } };
   const acao = String(request.params.id || "");
   const caminho = request.query.get("c") || "";
+  const escopo = escopoPsico(identidade);
+  if (acao === "eu" && request.method === "GET") return { jsonBody: { email: identidade.email, papel: identidade.papel, semVinculo: escopo === "nenhuma" } };
+  if (escopo === "nenhuma") return SEM_VINCULO_PSICO;
   if (identidade.papel === PAPEIS.CLIENTE) {
-    if (acao === "eu" && request.method === "GET") return { jsonBody: { email: identidade.email, papel: identidade.papel } };
     try { return await tratarCliente(request, context, identidade, acao); }
     catch (erro) { context.error("Falha em /api/psico/" + acao + " (cliente)", erro); return { status: 500, jsonBody: { erro: "Falha ao acessar os dados." } }; }
   }
@@ -211,11 +236,23 @@ async function tratarEquipe(request, context) {
   const ehAdmin = identidade.papel === PAPEIS.ADMIN;
   const soAdmin = () => ({ status: 403, jsonBody: { erro: "Somente o Administrador pode fazer esta alteração. Solicite ao coordenador." } });
   try {
-    if (acao === "eu" && request.method === "GET") {
-      return { jsonBody: { email: identidade.email, papel: identidade.papel } };
+    // Ergonomista vinculado so a algumas empresas do psicossocial.
+    if (escopo instanceof Set) {
+      const pt = caminho.split("/");
+      if ((acao === "col" || acao === "doc") && pt[0] === "empresas" && pt.length >= 2) {
+        if (!escopo.has(pt[1])) {
+          const novaEmpresa = acao === "doc" && request.method === "PUT" && pt.length === 2 && !(await lerDoc(caminho));
+          if (!novaEmpresa) return { status: 403, jsonBody: { erro: "Sem acesso a esta empresa." } };
+          await vincularEmpresaAoUsuario(identidade, pt[1]);
+        }
+      }
+      if (acao === "col" && request.method === "GET" && caminho === "empresas") {
+        const pg = await listarPagina(caminho, request.query.get("t") || null);
+        return { jsonBody: { docs: pg.docs.filter((d) => escopo.has(d.id)), next: pg.next } };
+      }
     }
     if (acao === "notificar-acao" && request.method === "POST") {
-      return await notificarAcao(request, context, identidade);
+      return await notificarAcao(request, context, identidade, escopo);
     }
     if (!ehAdmin && request.method !== "GET") {
       const pt = String(request.method === "DELETE" && acao === "empresa" ? "empresa" : caminho).split("/");
@@ -400,9 +437,16 @@ async function tratarPublico(request, context) {
 // ------------------------------------------------------------------
 // Perfil CLIENTE (UsuarioCliente do SIGE)
 // ------------------------------------------------------------------
+// Cliente ve a empresa do psicossocial se ela estiver marcada no usuario
+// (EmpresasPsico) ou ligada a um cliente do SIGE ao qual ele esta vinculado.
+function clienteVeEmpresa(identidade, e) {
+  if (!e || identidade.psicoVinculo === "nenhuma") return false;
+  if ((identidade.empresasPsico || []).includes(e.k)) return true;
+  return !!(e.clienteId && podeVerEmpresa(identidade, e.clienteId));
+}
 async function empresasDoCliente(identidade) {
   const todas = await listarColecao("empresas");
-  return todas.map((x) => x.data).filter((e) => e && e.clienteId && podeVerEmpresa(identidade, e.clienteId));
+  return todas.map((x) => x.data).filter((e) => clienteVeEmpresa(identidade, e));
 }
 async function tratarCliente(request, context, identidade, acao) {
   if (acao === "cli-empresas" && request.method === "GET") {
@@ -412,7 +456,7 @@ async function tratarCliente(request, context, identidade, acao) {
   const eid = String(request.query.get("e") || "");
   if (!eidValido(eid)) return { status: 400, jsonBody: { erro: "Empresa inválida." } };
   const e = await empresa(eid);
-  if (!e || !e.clienteId || !podeVerEmpresa(identidade, e.clienteId)) return { status: 403, jsonBody: { erro: "Sem acesso a esta empresa." } };
+  if (!clienteVeEmpresa(identidade, e)) return { status: 403, jsonBody: { erro: "Sem acesso a esta empresa." } };
   if (acao === "cli-dados" && request.method === "GET") {
     const [unidades, ghes, part, analise, iso] = await Promise.all([
       listarColecao(`empresas/${eid}/unidades`), listarColecao(`empresas/${eid}/ghes`),
@@ -423,7 +467,7 @@ async function tratarCliente(request, context, identidade, acao) {
       empresa: { k: e.k, razao: e.razao, cnpj: e.cnpj, codigo: e.codigo, status: e.status, inicio: e.inicio, fim: e.fim },
       unidades: unidades.map((x) => ({ k: x.data.k, nome: x.data.nome })),
       ghes: ghes.map(({ data: g }) => ({ k: g.k, nome: g.nome, unidadeId: g.unidadeId, total: Object.keys(g.colab || {}).length, respostas: resp[g.k] || 0 })),
-      acoes: analise.flatMap(({ data: a }) => Object.entries((a && a.acoes) || {}).map(([c, v]) => ({ g: a.k, c, prazo: v.prazo || "", resp: v.resp || "", status: v.status || "pendente", conclusao: v.conclusao || "" }))),
+      acoes: analise.flatMap(({ data: a }) => Object.entries((a && a.acoes) || {}).map(([c, v]) => ({ g: a.k, c, prazo: v.prazo && (v.prazoManual || v.resp || v.email || v.notif) ? v.prazo : "", resp: v.resp || "", status: v.status || "pendente", conclusao: v.conclusao || "" }))),
       iso: iso ? iso.dados : null,
     } };
   }
@@ -473,10 +517,11 @@ function modeloAcaoPsico({ empresa: e, unidade, ghe, acao: a }) {
       <p style="font-size:11.5px;color:#8A7A78;text-align:center;margin:12px 0 0">Mensagem automática do S.I.G.E · ElevaLife. Em caso de dúvida, responda a este e-mail ou fale com o seu ergonomista.</p>
     </div>`;
 }
-async function notificarAcao(request, context, identidade) {
+async function notificarAcao(request, context, identidade, escopo) {
   const b = await request.json().catch(() => ({}));
   const eid = String(b.e || ""), gid = String(b.g || ""), cod = String(b.c || "");
   if (!eidValido(eid) || !SEGMENTO.test(gid) || !cod) return { status: 400, jsonBody: { erro: "Dados inválidos." } };
+  if (escopo instanceof Set && !escopo.has(eid)) return { status: 403, jsonBody: { erro: "Sem acesso a esta empresa." } };
   const e = await empresa(eid);
   const docA = await lerDoc(`empresas/${eid}/analise/${gid}`);
   const a = docA && docA.dados && docA.dados.acoes && docA.dados.acoes[cod];
