@@ -20,7 +20,7 @@
 
 "use strict";
 
-const VERSAO = "sige-v31";
+const VERSAO = "sige-v32";
 const CACHE_SITE = `${VERSAO}-site`;
 const CACHE_EXTERNO = `${VERSAO}-externo`;
 
@@ -46,6 +46,8 @@ const ARQUIVOS_BASE = [
   "/js/app.js",
   "/img/logo-icone-branco.png",
   "/img/logo-icone-bordo.png",
+  "/img/logo-elevalife.png",
+  "/img/logo-elevalife-branco.png",
   "/img/pwa/icone-192.png",
   "/manifest.webmanifest",
 ];
