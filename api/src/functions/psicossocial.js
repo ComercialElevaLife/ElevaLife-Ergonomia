@@ -56,7 +56,9 @@
         GET  /api/psicopub/codigo?c=<codigo>   -> { eid }
         GET  /api/psicopub/empresa?e=<eid>     -> { razao, cnpj, status, inicio, fim }
         POST /api/psicopub/matricula           { e, matricula } -> { colab } | { erro }
-        POST /api/psicopub/resposta            { e, matricula, respostas[35] }
+        POST /api/psicopub/resposta            { e, matricula, respostas[35], termo }
+                                               { e, matricula, recusa: true, termo } (V 1.27: nao aceitou o
+                                               termo de consentimento - conta como participacao, sem respostas)
         GET  /api/psicopub/iso?e=<eid>         -> { doc }
         POST /api/psicopub/iso                 { e, nome, cargo, email, r }
    ========================================================================== */
@@ -66,7 +68,7 @@
 const crypto = require("crypto");
 const { garantirContainer } = require("../shared/cosmos");
 const { resolverIdentidade, PAPEIS, podeVerEmpresa } = require("../shared/tenant");
-const { enviarEmail, formatarDataBR } = require("../shared/email");
+const { enviarEmail, formatarDataBR, logoEmailHtml } = require("../shared/email");
 
 const CONTAINER = "psicossocial";
 const GLOBAL = "PSICO_GLOBAL";
@@ -379,7 +381,9 @@ async function tratarPublico(request, context) {
     if (acao === "resposta" && request.method === "POST") {
       const b = await request.json().catch(() => ({}));
       const eid = String(b.e || ""), k = matKey(b.matricula), r = b.respostas;
-      if (!eidValido(eid) || !k || !Array.isArray(r) || r.length !== 35 || r.some((v) => !(Number.isInteger(v) && v >= 1 && v <= 5))) {
+      const recusa = b.recusa === true; // V 1.27: nao aceitou o termo de consentimento (LGPD) - conta como participacao, sem respostas
+      const termoVersao = String(b.termo || "").slice(0, 40);
+      if (!eidValido(eid) || !k || (!recusa && (!Array.isArray(r) || r.length !== 35 || r.some((v) => !(Number.isInteger(v) && v >= 1 && v <= 5))))) {
         return { status: 400, jsonBody: { code: "invalid_argument" } };
       }
       const e = await empresa(eid);
@@ -391,9 +395,12 @@ async function tratarPublico(request, context) {
       const hp = crypto.createHash("sha256").update("p:" + t).digest("hex");
       const rid = "r" + crypto.createHash("sha256").update("r:" + t).digest("hex").slice(0, 24); // sem relacao com a matricula
       const caminhoP = `empresas/${eid}/participacao/${k}`, caminhoR = `empresas/${eid}/respostas/${rid}`;
-      const resposta = { k: rid, unidadeId: g.unidadeId, gheId: g.k, r, data: hoje() };
+      const resposta = recusa
+        ? { k: rid, unidadeId: g.unidadeId, gheId: g.k, recusa: true, data: hoje() }
+        : { k: rid, unidadeId: g.unidadeId, gheId: g.k, r, data: hoje() };
+      const termo = recusa ? { recusou: true, termo: "recusado", termoVersao } : { termo: termoVersao ? "aceito" : "", termoVersao };
       try {
-        await comRetentativa(() => criarDoc(caminhoP, { k, respondido: true, unidadeId: g.unidadeId, gheId: g.k, h: hp }));
+        await comRetentativa(() => criarDoc(caminhoP, Object.assign({ k, respondido: true, unidadeId: g.unidadeId, gheId: g.k, h: hp }, termo)));
       } catch (erro) {
         if (erro.code !== 409) throw erro;
         const p = await lerDoc(caminhoP);
@@ -574,15 +581,15 @@ async function tratarCliente(request, context, identidade, acao) {
     const [uns, sets, cols, plano, part, iso] = await Promise.all([
       listarSige("unidade", cid), listarSige("setor", cid), listarSige("colaborador", cid), listarSige("planoAcao", cid),
       listarColecao(`empresas/${eid}/participacao`), lerDoc(`empresas/${eid}/iso/main`)]);
-    const resp = {};
-    part.forEach(({ data: p }) => { if (p && p.respondido === true) resp[p.gheId] = (resp[p.gheId] || 0) + 1; });
+    const resp = {}, rec = {};
+    part.forEach(({ data: p }) => { if (p && p.respondido === true) { resp[p.gheId] = (resp[p.gheId] || 0) + 1; if (p.recusou === true) rec[p.gheId] = (rec[p.gheId] || 0) + 1; } });
     const uId = new Map(uns.map((u) => [u.Unidade, u.id]));
     const total = {}; cols.forEach((c) => { const k = c.Unidade + "|" + c.Setor; total[k] = (total[k] || 0) + 1; });
     const st = (r) => (r["Dt Conclusao"] || r["Status Execucao"] === "Concluida" ? "concluida" : r["Status Execucao"] === "Em andamento" ? "andamento" : "pendente");
     return { jsonBody: {
       empresa: { k: eid, razao: e.razao || "", cnpj: e.cnpj || "", codigo: e.codigo || "", status: e.status || "", inicio: e.inicio || "", fim: e.fim || "" },
       unidades: uns.map((u) => ({ k: u.id, nome: u.Unidade })),
-      ghes: sets.filter((g) => uId.has(g.Unidade)).map((g) => ({ k: g.id, nome: g.Setor, tipo: g["Tipo Setor"] === "GHE" ? "GHE" : "Setor", unidadeId: uId.get(g.Unidade), total: total[g.Unidade + "|" + g.Setor] || 0, respostas: resp[g.id] || 0 })),
+      ghes: sets.filter((g) => uId.has(g.Unidade)).map((g) => ({ k: g.id, nome: g.Setor, tipo: g["Tipo Setor"] === "GHE" ? "GHE" : "Setor", unidadeId: uId.get(g.Unidade), total: total[g.Unidade + "|" + g.Setor] || 0, respostas: resp[g.id] || 0, recusas: rec[g.id] || 0 })),
       acoes: plano.filter((r) => r.Origem === "Riscos Psicossociais" && r.Psico).map((r) => ({ g: r.Psico.g, c: r.Psico.c || r["Nr Acao"] || "", prazo: r["Dt Programada"] || "", resp: r["Responsavel Acao"] || "", status: st(r), conclusao: r["Dt Conclusao"] || "", acao: r["Acao Recomendada"] || "", risco: r.Psico.risco || "", fator: r.Psico.fator || "" })),
       iso: iso ? iso.dados : null,
     } };
@@ -609,6 +616,7 @@ function modeloAcaoPsico({ empresa: e, unidade, ghe, acao: a }) {
   return `
     <div style="font-family:Segoe UI,Arial,sans-serif;max-width:600px;margin:0 auto;color:#3A2A2E">
       <div style="background:#5E2A30;color:#fff;padding:22px 26px;border-radius:12px 12px 0 0">
+        ${logoEmailHtml()}
         <div style="font-weight:700;font-size:18px">S.I.G.E · Riscos Psicossociais</div>
         <div style="font-size:12px;opacity:.85">ElevaLife · 15 anos elevando pessoas e resultados</div>
       </div>
