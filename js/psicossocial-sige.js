@@ -17,22 +17,54 @@
   window.ELEVA_CNPJ_URL = BASE + "/cnpj/";
   window.ELEVA_LOGIN_URL = "/";
 
-  async function req(metodo, url, corpo) {
-    const r = await fetch(BASE + url, {
-      method: metodo,
-      credentials: "same-origin",
-      headers: corpo ? { "Content-Type": "application/json" } : undefined,
-      body: corpo ? JSON.stringify(corpo) : undefined,
-    });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) throw Object.assign(new Error(d.erro || "HTTP " + r.status), { status: r.status, body: d, code: d.code || (r.status === 401 || r.status === 403 ? "not_granted" : "unavailable") });
-    return d;
+  // V 1.24: toda chamada repete sozinha em falhas transitorias (sem rede, 408, 429, 5xx),
+  // com espera crescente. So entram aqui operacoes que podem ser repetidas sem efeito
+  // colateral (leituras, gravacoes por caminho fixo e o envio do HSE-IT com token).
+  const TRANSITORIO = new Set([0, 408, 425, 429, 500, 502, 503, 504]);
+  const esperar = (ms) => new Promise((ok) => setTimeout(ok, ms));
+  async function req(metodo, url, corpo, opcoes) {
+    const tentativas = (opcoes && opcoes.tentativas) || 6;
+    let ultimo;
+    for (let i = 0; i < tentativas; i++) {
+      let r;
+      try {
+        r = await fetch(BASE + url, {
+          method: metodo,
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: corpo ? { "Content-Type": "application/json" } : undefined,
+          body: corpo ? JSON.stringify(corpo) : undefined,
+        });
+      } catch (e) { r = null; }
+      const status = r ? r.status : 0;
+      const d = r ? await r.json().catch(() => ({})) : {};
+      if (r && r.ok) return d;
+      ultimo = Object.assign(new Error(d.erro || (status ? "HTTP " + status : "Sem conexão")), { status, body: d, code: d.code || (status === 401 || status === 403 ? "not_granted" : "unavailable") });
+      if (!TRANSITORIO.has(status) || i === tentativas - 1) break;
+      if (opcoes && opcoes.aoTentar) opcoes.aoTentar(i + 1);
+      await esperar(Math.min(8000, 500 * 2 ** i) + Math.floor(Math.random() * 300));
+    }
+    throw ultimo;
   }
 
   // ---------------- Login / papel ----------------
+  // V 1.25: perfis Administrador / Consultor (equipe) e UsuarioCliente (cliente, acesso restrito)
   window.ELEVA_AUTH = async function () {
-    try { const eu = await req("GET", "/psico/eu"); return { admin: true, email: eu.email, papel: eu.papel }; }
-    catch (e) { return { admin: false, status: e.status || 0, papel: (e.body && e.body.papel) || null }; }
+    try {
+      const eu = await req("GET", "/psico/eu", null, { tentativas: 3 });
+      const cliente = eu.papel === "UsuarioCliente";
+      return { admin: !cliente, cliente, email: eu.email, papel: eu.papel };
+    } catch (e) { return { admin: false, cliente: false, status: e.status || 0, papel: (e.body && e.body.papel) || null }; }
+  };
+  // Rotas do perfil cliente e utilidades da equipe
+  window.ELEVA_CLI = {
+    empresas: () => req("GET", "/psico/cli-empresas").then((d) => d.empresas || []),
+    dados: (eid) => req("GET", "/psico/cli-dados?e=" + encodeURIComponent(eid)),
+    salvarIso: (eid, doc) => req("PUT", "/psico/cli-iso?e=" + encodeURIComponent(eid), doc),
+  };
+  window.ELEVA_EQUIPE = {
+    notificarAcao: (eid, gid, cod, info, forcar) => req("POST", "/psico/notificar-acao", { e: eid, g: gid, c: cod, info, forcar: !!forcar }, { tentativas: 3 }),
+    clientesSige: () => req("GET", "/cliente", null, { tentativas: 3 }).then((d) => (Array.isArray(d) ? d : d.itens || d.docs || [])).catch(() => []),
   };
 
   // ---------------- Banco da equipe (/api/psico) ----------------
@@ -45,10 +77,14 @@
 
   async function listar(colecao) {
     const c = cache.get(colecao);
-    if (c && Date.now() - c.t < 2500) return c.docs;
-    const d = await req("GET", "/psico/col?c=" + encodeURIComponent(colecao));
-    cache.set(colecao, { t: Date.now(), docs: d.docs });
-    return d.docs;
+    if (c && Date.now() - c.t < 10000) return c.docs;
+    const docs = []; let t = null;
+    do { // paginado (V 1.24): segue "next" ate o fim
+      const d = await req("GET", "/psico/col?c=" + encodeURIComponent(colecao) + (t ? "&t=" + encodeURIComponent(t) : ""));
+      docs.push(...(d.docs || [])); t = d.next || null;
+    } while (t);
+    cache.set(colecao, { t: Date.now(), docs });
+    return docs;
   }
   function doc(caminho) {
     return {
@@ -93,15 +129,49 @@
     const iv = setInterval(tick, 30000);
     return () => { vivo = false; subs.delete(tick); clearInterval(iv); };
   }
-  window.ELEVA_DB = { doc, collection: (c) => col(c) };
+  // Exclusao de uma empresa inteira no servidor, em lotes (V 1.24)
+  async function excluirEmpresa(eid, progresso) {
+    let total = 0;
+    for (;;) {
+      const d = await req("DELETE", "/psico/empresa?e=" + encodeURIComponent(eid));
+      total += d.apagados || 0; if (progresso) progresso(total);
+      if (!d.restante) break;
+    }
+    await req("DELETE", "/psico/doc?c=" + encodeURIComponent("empresas/" + eid));
+    cache.clear(); avisar();
+    return total;
+  }
+  window.ELEVA_DB = { doc, collection: (c) => col(c), excluirEmpresa };
 
   // ---------------- API publica (QR code, sem login) ----------------
+  const tokens = new Map();
+  const chaveT = (eid, k) => "psico-t:" + eid + ":" + k;
+  function tokenEnvio(eid, k) {
+    const ch = chaveT(eid, k);
+    let t = tokens.get(ch);
+    try { t = t || localStorage.getItem(ch); } catch (e) {}
+    if (!t) {
+      const a = new Uint8Array(16); (window.crypto || window.msCrypto).getRandomValues(a);
+      t = Array.from(a, (b) => b.toString(16).padStart(2, "0")).join("");
+    }
+    tokens.set(ch, t); try { localStorage.setItem(ch, t); } catch (e) {}
+    return t;
+  }
+  function limparToken(eid, k) { const ch = chaveT(eid, k); tokens.delete(ch); try { localStorage.removeItem(ch); } catch (e) {} }
   window.ELEVA_API = {
     resolver: (x) => req("GET", "/psicopub/codigo?c=" + encodeURIComponent(x)).then((d) => d.eid || null).catch(() => null),
     empresaPublica: (eid) => req("GET", "/psicopub/empresa?e=" + encodeURIComponent(eid)).catch(() => null),
     checarMatricula: (eid, k) => req("POST", "/psicopub/matricula", { e: eid, matricula: k }),
-    enviarHSE: (eid, colab, respostas) => req("POST", "/psicopub/resposta", { e: eid, matricula: colab.k, respostas }),
+    // Envio idempotente (V 1.24): o mesmo token "t" e reaproveitado em toda nova tentativa,
+    // inclusive depois de recarregar a pagina, para que nada se perca nem se duplique.
+    enviarHSE: (eid, colab, respostas, aoTentar) => req("POST", "/psicopub/resposta", { e: eid, matricula: colab.k, respostas, t: tokenEnvio(eid, colab.k) }, { tentativas: 7, aoTentar })
+      .then((d) => { limparToken(eid, colab.k); return d; }),
     isoStatus: (eid) => req("GET", "/psicopub/iso?e=" + encodeURIComponent(eid)).then((d) => d.doc || null),
-    enviarISO: (eid, d) => req("POST", "/psicopub/iso", Object.assign({ e: eid }, d)).catch((e) => { throw e.code === "dup" ? { code: "dup", doc: e.body && e.body.doc } : e; }),
+    enviarISO: (eid, d) => req("POST", "/psicopub/iso", Object.assign({ e: eid }, d)).catch((e) => {
+      const doc = e.body && e.body.doc;
+      // nova tentativa de um envio que ja tinha sido gravado (a confirmacao se perdeu): trata como sucesso
+      if (e.code === "dup" && doc && doc.nome === String(d.nome).slice(0, 120) && JSON.stringify(doc.r) === JSON.stringify(d.r)) return { ok: true };
+      throw e.code === "dup" ? { code: "dup", doc } : e;
+    }),
   };
 })();

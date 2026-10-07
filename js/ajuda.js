@@ -270,6 +270,22 @@
 
   const HISTORICO = [
     {
+      versao: "1.25", data: "07/10/2026",
+      itens: ["Riscos Psicossociais com subabas no menu lateral (Cadastro de empresa, Colaboradores, Checklist ISO 45003, HSE-IT, Severidade, Probabilidade, Análise de risco, Plano de ação, Laudo, Ergonomistas e Editor de texto), ocupando a tela inteira; acesso por perfil (Administrador, Ergonomista e Cliente); plano de ação com prazo, responsável e e-mail, aviso automático por e-mail ao responsável e gráfico de status; laudo emitido em PDF com textos editáveis no Editor de texto; gráficos no padrão do SIGE."],
+    },
+    {
+      versao: "1.24", data: "07/10/2026",
+      itens: ["Riscos Psicossociais preparado para empresas com até 10 mil colaboradores: listagens paginadas, envio do questionário à prova de queda de conexão (sem perder nem duplicar respostas), novas tentativas automáticas, importação mais rápida, exclusão de empresa em lotes no servidor e cópia de segurança dos dados em JSON."],
+    },
+    {
+      versao: "1.23", data: "07/10/2026",
+      itens: ["Riscos Psicossociais: sumário do laudo já preenchido com os títulos, conclusão detalhada pela nova metodologia (grupos ocupacionais e quantidade de fatores por graduação), referências bibliográficas ampliadas e movidas para o final do documento."],
+    },
+    {
+      versao: "1.22", data: "06/10/2026",
+      itens: ["Riscos Psicossociais: texto do laudo mais natural na análise de cada fator (sem a conta da severidade final) e graduação do risco de cada fator em tabela (probabilidade, severidade e graduação); matriz 4 × 4 igual ao modelo ElevaLife."],
+    },
+    {
       versao: "1.21", data: "06/10/2026",
       itens: ["Riscos Psicossociais: ao abrir a aba, o menu lateral do SIGE é recolhido e o módulo ocupa a largura toda da tela (layout de computador também em notebooks)."],
     },
