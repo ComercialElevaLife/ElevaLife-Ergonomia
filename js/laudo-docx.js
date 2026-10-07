@@ -181,12 +181,12 @@
   // ---------------------------------------------------------------- documento
   async function construir(ctx, opcoes) {
     const { Calc, Acoes, PAL, corNivel, dataBR, hojeISO, ROTULO_ESCALA, URL_VERIFICACAO, dadosAcao, avaliacoes, fatoresDoPosto, grau, pontos, rotCanon, acoesDe,
-      nomeMatriz, escala, docCliente, responsavel, executor, assinantes, cacheImg, logoCliente, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4,
+      nomeMatriz, escala, docCliente, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4,
       setoresAv, unidadesAv, periodo, emissao, codigo, revisao, texto, linhasDe, celulas, mapaDe, titDe } = ctx;
 
     // imagens: logotipo, fotos, assinaturas e QR Code
     const urlQr = qrComoPng(URL_VERIFICACAO + codigo);
-    const urls = [logoCliente, urlQr].concat(Object.keys(cacheImg).map((k) => cacheImg[k]), assinantes.map((a) => a._assinatura));
+    const urls = [logoCliente, logoEleva, urlQr].concat(Object.keys(cacheImg).map((k) => cacheImg[k]), assinantes.map((a) => a._assinatura));
     const imgs = await registrarImagens(urls);
 
     const C = { vinhoE: hex(PAL.vinhoE), vinho: hex(PAL.vinho), vinhoM: hex(PAL.vinhoM), suave: hex(PAL.suave), creme: hex(PAL.creme), texto: hex(PAL.texto), cinza: hex(PAL.cinza), teal: hex(PAL.teal), tealE: hex(PAL.tealE) };
@@ -418,7 +418,7 @@
       const alvo = (txt, o) => par(run(txt, o), { depois: o.depois != null ? o.depois : 0, jc: o.jc });
       const logo = logoCliente && imgs[logoCliente] ? imagemPar(logoCliente, 130, 44, { jc: "center", depois: 0, nome: "Logotipo do cliente" }) : par(run(opcoes.nomeCliente, { b: true, cor: C.vinho, tam: 10 }), { jc: "center", depois: 0 });
       capa.push(tbl([68, 32], [
-        [{ paras: alvo("ElevaLife", { b: true, cor: "FFFFFF", tam: 26 }) + alvo(texto("Capa Lema"), { cor: "E8D6D8", tam: 9.5 }), fundo: C.vinhoE, v: "top" }, { paras: logo, fundo: "FFFFFF", v: "center" }],
+        [{ paras: (logoEleva && imgs[logoEleva] ? imagemPar(logoEleva, 150, 31, { jc: "left", depois: 80, nome: "Logotipo ElevaLife" }) : alvo("ElevaLife", { b: true, cor: "FFFFFF", tam: 26 })) + alvo(texto("Capa Lema"), { cor: "E8D6D8", tam: 9.5 }), fundo: C.vinhoE, v: "top" }, { paras: logo, fundo: "FFFFFF", v: "center" }],
         [{ span: 2, paras: par("", { depois: 1400 }) + linhasDe("Capa Titulo").map((l) => alvo(l, { b: true, cor: "FFFFFF", tam: 30 })).join("") + par("", { depois: 120 }) + alvo(texto("Capa Subtitulo"), { cor: "E8D6D8", tam: 10 }) + par("", { depois: 500 }), fundo: C.vinhoE, v: "top" }],
       ], { semBorda: true, bordaBranca: true, margemV: 180 }));
       capa.push(par("", { depois: 160 }));

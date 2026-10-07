@@ -198,7 +198,10 @@
     checarMatricula: (eid, k) => req("POST", "/psicopub/matricula", { e: eid, matricula: k }),
     // Envio idempotente (V 1.24): o mesmo token "t" e reaproveitado em toda nova tentativa,
     // inclusive depois de recarregar a pagina, para que nada se perca nem se duplique.
-    enviarHSE: (eid, colab, respostas, aoTentar) => req("POST", "/psicopub/resposta", { e: eid, matricula: colab.k, respostas, t: tokenEnvio(eid, colab.k) }, { tentativas: 7, aoTentar })
+    enviarHSE: (eid, colab, respostas, aoTentar) => req("POST", "/psicopub/resposta", { e: eid, matricula: colab.k, respostas, termo: colab.termo || "", t: tokenEnvio(eid, colab.k) }, { tentativas: 7, aoTentar })
+      .then((d) => { limparToken(eid, colab.k); return d; }),
+    // V 1.27: nao aceitou o termo de consentimento (LGPD): registra a participacao sem respostas
+    recusarHSE: (eid, colab) => req("POST", "/psicopub/resposta", { e: eid, matricula: colab.k, recusa: true, termo: colab.termo || "", t: tokenEnvio(eid, colab.k) }, { tentativas: 5 })
       .then((d) => { limparToken(eid, colab.k); return d; }),
     isoStatus: (eid) => req("GET", "/psicopub/iso?e=" + encodeURIComponent(eid)).then((d) => d.doc || null),
     enviarISO: (eid, d) => req("POST", "/psicopub/iso", Object.assign({ e: eid }, d)).catch((e) => {

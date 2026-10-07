@@ -125,6 +125,15 @@
     }
     const chaveDe = (v) => (Array.isArray(v) ? v[0] : v) && (Array.isArray(v) ? v[0] : v).chave;
     const logoCliente = await imagem(chaveDe(docCliente.Logotipo));
+    // V 1.27: logotipos oficiais da ElevaLife (branco para fundo vinho, bordô para fundo claro)
+    async function imagemUrl(url) {
+      try {
+        const resp = await fetch(url, { credentials: "same-origin" }); if (!resp.ok) return null;
+        const blob = await resp.blob();
+        return await new Promise((res) => { const l = new FileReader(); l.onload = () => res(String(l.result || "") || null); l.onerror = () => res(null); l.readAsDataURL(blob); });
+      } catch (e) { return null; }
+    }
+    const logoEleva = await imagemUrl("img/logo-elevalife-branco.png"), logoElevaCor = await imagemUrl("img/logo-elevalife.png");
     for (const av of avaliacoes) for (const f of av.Fotos || []) await imagem(f && f.chave);
     for (const e of assinantes) e._assinatura = await imagem(chaveDe(e.Assinatura));
 
@@ -197,14 +206,14 @@
     };
     return {
       statusAcaoInfo, dadosAcao, corNivel, dataBR, hojeISO, PAL, ROTULO_ESCALA, URL_VERIFICACAO,
-      Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe,
+      Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe,
     };
   }
 
   async function gerar(opcoes) {
     const jsPDFCtor = global.jspdf && global.jspdf.jsPDF;
     if (!jsPDFCtor) throw new Error("A biblioteca de geração de PDF não carregou (script externo bloqueado ou indisponível).");
-    const { statusAcaoInfo, dadosAcao, Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe } = await preparar(opcoes);
+    const { statusAcaoInfo, dadosAcao, Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe } = await preparar(opcoes);
 
     // ========================================================================
     function construir(doc, mapa, final) {
@@ -464,7 +473,9 @@
           doc.setFillColor(Math.round(PAL.vinhoE[0] + (PAL.vinho[0] - PAL.vinhoE[0]) * t), Math.round(PAL.vinhoE[1] + (PAL.vinho[1] - PAL.vinhoE[1]) * t), Math.round(PAL.vinhoE[2] + (PAL.vinho[2] - PAL.vinhoE[2]) * t));
           doc.rect((W / passos) * p, 0, W / passos + 1, alt, "F");
         }
-        doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(26); doc.setTextColor(255, 255, 255); doc.text("ElevaLife", M, 62);
+        let logoOk = false;
+        if (logoEleva) { try { const pr = doc.getImageProperties(logoEleva); const h = 30; doc.addImage(logoEleva, "PNG", M, 36, h * pr.width / pr.height, h); logoOk = true; } catch (e) {} }
+        if (!logoOk) { doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(26); doc.setTextColor(255, 255, 255); doc.text("ElevaLife", M, 62); }
         fonte("normal", 9.5); doc.setTextColor(232, 214, 216); doc.text(texto("Capa Lema"), M, 79);
         // logotipo do cliente (caixa branca)
         const bx = W - M - 150; const by = 40; preencher(PAL.branco); doc.roundedRect(bx, by, 150, 62, 6, 6, "F");
@@ -873,7 +884,9 @@
         const total = doc.internal.getNumberOfPages();
         for (let p = 2; p <= total; p++) {
           doc.setPage(p);
-          fonte("bold", 7.2); cor(PAL.vinho); doc.text(titDe("cabecalho", "ElevaLife · Avaliação Ergonômica Preliminar (AEP)"), M, 30);
+          let xCab = M;
+          if (logoElevaCor) { try { const pr = doc.getImageProperties(logoElevaCor); const h = 11; const w = h * pr.width / pr.height; doc.addImage(logoElevaCor, "PNG", M, 21, w, h); xCab = M + w + 8; } catch (e) {} }
+          fonte("bold", 7.2); cor(PAL.vinho); doc.text(titDe("cabecalho", "ElevaLife · Avaliação Ergonômica Preliminar (AEP)"), xCab, 30);
           fonte("normal", 7.2); cor(PAL.cinza); doc.text(`Doc. ${codigo} · Rev. ${revisao}`, W - M, 30, { align: "right" });
           traco(PAL.suave, 0.6); doc.line(M, 36, W - M, 36); doc.line(M, H - 34, W - M, H - 34);
           fonte("normal", 7); cor(PAL.cinza); doc.text(`${opcoes.nomeCliente} – ${unidadesAv.join(" · ")}`, M, H - 22);
