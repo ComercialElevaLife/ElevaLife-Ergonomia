@@ -23,6 +23,8 @@ SIGE e Riscos Psicossociais passam a ser um pacote único. (A V 1.26 não chegou
   - **Perfis:** Administrador vê tudo; Consultor (ergonomista) e Usuário Cliente só as empresas vinculadas ao usuário.
   - **Migração:** no painel do módulo, o Administrador migra cada empresa da versão anterior (`POST /api/psico/migrar`, em etapas): empresa → Cliente (novo ou existente), unidades, GHEs (setor do tipo GHE) e colaboradores → cadastro do SIGE; respostas, participação, ISO 45003 e análise → nova empresa; profissionais → Ergonomistas. O código da coleta e os QR codes continuam valendo. Nada é apagado.
 - **Usuários:** volta a ser uma lista única de empresas vinculadas, agora em caixas de marcar com busca.
+- **Perfil Usuário Cliente:** sem acesso ao Cadastro (o item some do menu). No Registro, só consulta e baixa cada aba em Excel: sem Novo registro, Importar, Editar, Excluir ou seleção em lote. A API recusa qualquer gravação desse perfil (`entidades.js`) e envio/exclusão de arquivos (`arquivos.js`). Nos Riscos Psicossociais o cliente continua respondendo o checklist ISO 45003.
+- **Baixar Excel:** cada aba do Cadastro e do Registro ganhou o botão "⬇ Baixar Excel", com a busca e os filtros da tela.
 - **Ajuda:** manual de Cadastro e de Riscos Psicossociais atualizados, novo tópico "probabilidade, severidade e graduação", novo fluxo "Riscos Psicossociais" e notas nos indicadores de Mapa de Risco, Inventário e Plano de Ação.
 - **Plano de ação em Excel (da V 1.26):** sem as colunas Risco encontrado, Resultado esperado, Indicador de eficácia, Evidência organizacional e Origem; "Achado" no lugar de Risco encontrado; prazo em branco quando não foi informado.
 
