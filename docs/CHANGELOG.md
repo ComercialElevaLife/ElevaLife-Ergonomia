@@ -2,6 +2,67 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.25 — 07/10/2026
+
+- **Riscos Psicossociais · navegação por subabas, perfis de acesso, plano de ação com e-mail e laudo em PDF.**
+  - **Menu lateral (`index.html`):** "Riscos Psicossociais" virou grupo expansível (como "Registro"), com as subabas publicadas pelo módulo conforme o perfil: Cadastro de empresa, Colaboradores, Checklist ISO 45003, HSE-IT, Severidade, Probabilidade, Análise de risco, Plano de ação, Laudo, Ergonomistas e Editor de texto. O módulo ocupa toda a largura da área principal (correção da tela "reduzida": `main` deixava de esticar com o iframe). Removido o recolhimento automático do menu da V 1.21.
+  - **Perfis:**
+    - Administrador: tudo.
+    - Consultor (ergonomista): todas as abas de trabalho; não exclui empresa; Editor de texto só leitura ("solicite ao coordenador"); sem acesso à aba Ergonomistas. A API recusa (403) exclusão de empresa e gravação em `profissionais/*` e `config/*` para Consultor.
+    - UsuarioCliente: só Checklist ISO 45003 (responder, editar e ver o resultado), HSE-IT (quantidade de respostas por empresa, unidade e GHE) e Plano de ação (ações, prazos e gráfico de status). Vê apenas as empresas cujo "Cliente vinculado no SIGE" está em `empresasVinculadas`. Rotas novas: `GET /api/psico/eu`, `GET /api/psico/cli-empresas`, `GET /api/psico/cli-dados?e=`, `PUT /api/psico/cli-iso?e=`.
+  - **Cadastro de empresa:** dados, vínculo com o cliente do SIGE (sugestão automática pelo CNPJ), ações já realizadas, logo, planilha de solicitação, cópia de segurança e "Excluir empresa" (só Administrador).
+  - **HSE-IT:** QR code/link por empresa, adesão e respostas por empresa, unidade e GHE, com gráficos (adesão por unidade, respostas por dia, distribuição das respostas).
+  - **Severidade:** explicação do SIF, taxa de frequência por GHE e resultado da severidade final por fator (empresa, unidade e GHE). **Probabilidade:** resultado por fator (empresa, unidade e GHE).
+  - **Análise de risco:** escolha da matriz (5×5 ou 4×4), matriz com a contagem de GHEs, gráfico por graduação, classificação por unidade/GHE e seleção das ações por GHE.
+  - **Plano de ação:** só as ações selecionadas; prazo, responsável e e-mail começam em branco. Com os três preenchidos, o responsável recebe um e-mail (via Microsoft Graph, mesma configuração `GRAPH_*` do SIGE) com a ação, o prazo e a importância da conclusão; não reenvia se nada mudou (botão "Reenviar" disponível). Novo `POST /api/psico/notificar-acao`. Status: Não iniciada (laranja), Em andamento (amarelo), Atrasada (vermelho, prazo vencido) e Concluída (verde), com gráfico e filtros. Excel com Prazo, Responsável, E-mail e Status coloridos e aba "Resumo" por status.
+  - **Laudo:** emitido em PDF (jsPDF + fontes Montserrat de `js/pdf-fonts.js`), escolhendo ergonomista e responsável técnico; sumário com páginas e links; removida a seção "Plano de ação consolidado"; removidos de "Resultados gerais da empresa" o parágrafo de graduação da empresa como um todo e o quadro de distribuição dos grupos ocupacionais por graduação; a graduação de cada GHE e a conclusão citam todos os fatores que atingiram a maior graduação (não só o primeiro), e a tabela da conclusão passou a "Fatores determinantes"; NR-01 e NR-17 sempre nas referências bibliográficas (último capítulo).
+  - **Editor de texto:** todos os textos padrão do laudo, da capa ao encerramento e referências, editáveis pelo Administrador (`config/laudo`), com "Restaurar padrão" por campo.
+  - **Ergonomistas:** cadastro de ergonomistas e responsáveis técnicos.
+  - **Gráficos:** Chart.js no padrão do SIGE (rosca 62%, barras arredondadas, rótulos em %), com as cores de risco (trivial azul-claro, baixo verde, moderado amarelo, alto vermelho, altíssimo roxo).
+
+## V 1.24 — 07/10/2026
+
+- **Riscos Psicossociais · escala e confiabilidade (empresas com até ~10 mil colaboradores, sem perda de dados).**
+  - **API (`api/src/functions/psicossocial.js`):**
+    - `/api/psico/col` paginado (`{ docs, next }`, 2.000 por página; o cliente segue `next`).
+    - Consulta de matrícula das telas públicas por índice em memória por empresa (TTL 90 s, invalidado quando a equipe grava um GHE; se não achar, confere de novo sem cache), em vez de ler todos os GHEs a cada colaborador.
+    - **Envio do HSE-IT idempotente:** o navegador manda um token `t`. A participação guarda só `sha256("p:"+t)` e a resposta usa id `r`+`sha256("r:"+t)`, então o hash da participação não leva ao id da resposta e o anonimato se mantém. Reenviar o mesmo envio (rede caiu, confirmação perdida, falha entre as duas gravações) completa o que faltou sem duplicar. Se a resposta não puder ser gravada, a matrícula é liberada e volta 503 `retry`.
+    - Novas tentativas com espera crescente em falhas transitórias (408/429/449/5xx).
+    - Novo `DELETE /api/psico/empresa?e=<eid>`: exclusão em lotes de todos os documentos da empresa, até ~20 s por chamada; o cliente repete enquanto vier `{ restante: true }`.
+  - **Adaptador (`js/psicossocial-sige.js`):**
+    - Todas as chamadas repetem sozinhas em falhas transitórias (sem rede, 408, 425, 429, 5xx), até 6–7 tentativas.
+    - Listagens paginadas e cache de leitura de 10 s.
+    - Token do envio guardado no aparelho até a confirmação.
+    - `ELEVA_DB.excluirEmpresa`.
+    - Reenvio do ISO 45003 já gravado tratado como sucesso.
+  - **Tela (`psicossocial.html`):**
+    - As respostas do colaborador ficam guardadas no aparelho até o envio ser confirmado. Recarregar a página ou perder a conexão não perde nada: ao digitar a matrícula de novo, ele continua de onde parou.
+    - Mensagem de "tentando de novo" durante o envio.
+    - Cálculos reaproveitados a cada desenho de tela (respostas agrupadas por GHE).
+    - Busca com espera.
+    - Importação em paralelo (4 gravações), com limite por GHE (~20 mil colaboradores por registro). Se a importação for interrompida, os dados são recarregados do servidor, com orientação para reimportar; reimportar não duplica.
+    - Exclusão de empresa pelo servidor.
+    - Botão "Baixar cópia de segurança (JSON)" em Cadastro.
+  - **Teste de carga (servidor simulado com 5% de falhas transitórias aleatórias):**
+    - Cadastro de 10.000 colaboradores (80 GHEs) e 9.000 respostas concorrentes (60 simultâneas), mais 262 reenvios do mesmo envio e 84 tentativas de segunda resposta: 9.000 respostas = 9.000 participações, nenhuma perdida ou duplicada, segundas respostas barradas.
+    - Abrir a empresa: 0,5 s. Trocar de aba: 0,1–0,7 s. Laudo (169 páginas): 2,3 s. Excel: 0,2 s.
+    - Importar planilha de 10.000 linhas: leitura 0,25 s, gravação ~9 s. Reimportar não duplica.
+- **Recomendação de infraestrutura (Azure):** ativar o backup contínuo (restauração a um ponto no tempo) da conta Cosmos DB `cosmos-bi-ergonomia` em Azure Portal › conta Cosmos › Backup e restauração.
+- Service worker: cache `sige-v27`.
+
+## V 1.23 — 07/10/2026
+
+- **Riscos Psicossociais · laudo:**
+  - **Sumário:** passa a sair já preenchido com os títulos numerados (capítulos e subitens), mesmo antes de o Word atualizar os campos ou em visualizadores que não atualizam (Word on-line); ao aceitar "atualizar campos", o Word completa os números de página. Estilos `toc 1`/`toc 2` no padrão ElevaLife. Unidades cujo nome já começa com "Unidade" não repetem o prefixo ("Unidade – Unidade Betim" → "Unidade Betim").
+  - **Conclusão reescrita** com a nova metodologia: fontes da avaliação (HSE-IT, ISO 45003, SIF ajustada pelas evidências), fatores fortes e de atenção, graduação da empresa, quadro dos grupos ocupacionais (unidade, GHE, fator determinante, graduação), fatores mais frequentes com risco moderado ou acima, resumo do plano e, ao final, tabela com a quantidade de fatores por graduação (fatores × Trivial…Altíssimo, com total).
+  - **Referências bibliográficas** como último capítulo (depois do encerramento e das assinaturas) e lista padrão ampliada com as portarias citadas no relatório modelo e na Biblioteca Mestre (Portaria SEPRT 6.730/2020, Portaria MTE 1.419/2024, Portaria MTP 423/2021).
+- Service worker: cache `sige-v26`. Sem alteração na API.
+
+## V 1.22 — 06/10/2026
+
+- **Riscos Psicossociais · laudo mais natural:** a análise de cada fator (empresa e GHEs) foi reescrita em linguagem corrida — probabilidade (média do HSE-IT e gestão pelo ISO 45003) e severidade (gravidade do fator segundo a literatura, com o motivo resumido, ajustada pelas evidências de dano do grupo, sem a conta SF = …; a fórmula fica só na metodologia, item 4.4). A graduação do risco de cada fator passa a ser uma tabela de três colunas (probabilidade, severidade e graduação), colorida.
+- **Matriz 4 × 4 = modelo ElevaLife:** graduação final linhas P1→P4: Trivial, Baixo, Baixo, Moderado / Baixo, Baixo, Moderado, Alto / Baixo, Moderado, Alto, Alto / Moderado, Alto, Alto, Altíssimo. Service worker: cache `sige-v25`.
+
 ## V 1.21 — 06/10/2026
 
 - **Riscos Psicossociais · layout em notebooks:** o módulo roda num iframe e o layout dele depende da largura disponível; com o menu lateral aberto, em telas de notebook sobravam ~800 px e as telas empilhavam como no celular. Agora, ao abrir a aba, o menu lateral é recolhido automaticamente (sem alterar a preferência salva; volta ao sair da aba) e a área do módulo perde o limite de largura e o espaçamento extra (`body.psico-ativo`, script inline em `index.html`). No módulo, os pontos de quebra para uma coluna caíram (etapas: 800 px; painéis lado a lado: 820 px) e a fonte fica um pouco menor entre 641 e 1280 px. Service worker: cache `sige-v24`.
