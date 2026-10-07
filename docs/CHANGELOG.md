@@ -2,19 +2,29 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
-## V 1.26 — 07/10/2026
+## V 1.27 — 07/10/2026
 
-- **Usuários · vínculos por módulo (SIGE e Riscos Psicossociais).**
-  - Tela de Usuários (`js/app.js`): o campo único "Empresas Vinculadas" (Ctrl/Cmd + clique) virou dois quadros com caixas de seleção e busca:
-    - **Empresas do SIGE:** "Vinculado às empresas marcadas" ou "Cliente/Ergonomista não vinculado ao SIGE".
-    - **Empresas do Psicossocial** (lista das empresas cadastradas no módulo): "Todas as empresas do psicossocial" (só ergonomista), "Vinculado às empresas marcadas" ou "Cliente/Ergonomista não vinculado ao Psicossocial".
-    - A lista de usuários mostra as duas colunas.
-  - Novos campos no usuário: `SigeVinculo` ("marcadas" | "nenhuma"), `PsicoVinculo` ("todas" | "marcadas" | "nenhuma") e `EmpresasPsico` (ids das empresas do módulo). Usuários antigos continuam como estavam (SIGE pelas empresas marcadas; ergonomista com todas as empresas do psicossocial; cliente pelas empresas do psicossocial ligadas ao cliente do SIGE).
-  - API: `shared/tenant.js` (`vinculosDoDoc`, `vinculosDoCorpo`, identidade com `sigeVinculo`, `psicoVinculo`, `empresasPsico`), `/api/me`, `/api/usuarios` (GET/PUT) e convite (`auth.js`) gravam e devolvem os vínculos. Consultor só convida cliente para empresas do psicossocial às quais ele mesmo está vinculado.
-  - Riscos Psicossociais (`psicossocial.js`): ergonomista com empresas marcadas só lista e acessa essas empresas (403 nas demais, inclusive no e-mail do plano); empresa nova cadastrada por ele entra no vínculo dele automaticamente. Cliente vê as empresas marcadas no usuário ou ligadas ao seu cliente do SIGE. "Não vinculado ao Psicossocial" bloqueia o módulo (mensagem na tela).
-  - Menu do SIGE: quem é "não vinculado ao SIGE" não vê os painéis, Registro, Cadastro e Filtros e entra direto em Riscos Psicossociais; quem é "não vinculado ao Psicossocial" não vê o módulo. Administrador vê tudo.
-- **Plano de ação em Excel:** saíram as colunas Risco encontrado, Resultado esperado, Indicador de eficácia, Evidência organizacional e Origem; "Achado (motivo da ação)" ocupa o lugar de Risco encontrado. Ordem: Empresa, Unidade, GHE, Graduação, Código, Fator, Probabilidade, Severidade, Subfator, Achado, Recomendação técnica, Hierarquia, Tipo de intervenção, Estudo complementar, Prazo sugerido, Prazo, Responsável, E-mail, Status.
-- **Prazo só quando informado:** versões anteriores preenchiam o prazo sozinhas ao recomendar a ação. Agora esse prazo automático é descartado quando ninguém mexeu na ação (sem responsável, e-mail ou aviso enviado) e o prazo fica em branco na tela, no Excel e para o cliente; prazo digitado no sistema é marcado (`prazoManual`) e sempre aparece.
+SIGE e Riscos Psicossociais passam a ser um pacote único. (A V 1.26 não chegou a ser publicada; dela ficam a planilha do plano de ação mais enxuta e o prazo só quando informado. Os vínculos separados SIGE/Psicossocial foram substituídos pela lista única abaixo.)
+
+- **Cadastro único (`js/app.js`, `js/db.js`, `api/src/functions/entidades.js`):**
+  - **Cliente:** novo campo **Serviços contratados** (Gestão de Risco, Gestão de Absenteísmo, Gestão de Restritos, Riscos Psicossociais), em caixas de marcar. A Matriz de Risco do cliente passa a valer também para os Riscos Psicossociais. Cliente antigo sem o campo = todos os serviços.
+  - **Aviso de serviço não contratado:** a aba continua no menu; se nenhuma empresa do filtro (ou das empresas do usuário) tem o serviço, o conteúdo dá lugar ao aviso "não possui o serviço… procure o time de especialistas da ElevaLife" (`aplicarServicosContratados`). No módulo psicossocial, o aviso aparece ao escolher a empresa.
+  - **Setor / GHE:** o cadastro de Setor ganhou o campo "É setor ou GHE?" (`Tipo Setor`).
+  - **Colaboradores:** nova coleção `colaborador` (Cliente, Unidade, Setor/GHE, Matrícula, Nome, Cargo opcional), id = Cliente + Matrícula (nunca duplica), busca, exclusão individual e em lote, importação por Excel (até 12 mil linhas por arquivo). Container criado sob demanda.
+  - Novo tipo de campo `checklist` (caixas de marcar com busca) e `?empresa=<id>` no GET da API genérica (só estreita o que o perfil já vê).
+- **Riscos Psicossociais (`psicossocial.html`, `js/psicossocial-sige.js`, `api/src/functions/psicossocial.js`):**
+  - A empresa do módulo é o Cliente do SIGE (`e_sige-<id do cliente>`). Unidades, setores/GHE, colaboradores e ergonomistas vêm do cadastro do SIGE; o módulo guarda só coleta, respostas, ISO 45003, taxa de frequência e análise. O questionário público localiza a matrícula na coleção `colaborador`.
+  - Abas: **Diagnóstico organizacional** (checklist ISO 45003, taxa de frequência e evidência organizacional por setor/GHE, ações já realizadas, planilha de solicitação, cópia de segurança), **HSE-IT**, **Análise de risco**, **Plano de ação**, **Laudo** e **Editor de texto**. Saíram Cadastro de empresa, Colaboradores, Ergonomistas, Severidade e Probabilidade (as explicações foram para a Ajuda).
+  - **Metodologia com as matrizes do SIGE** (3x3, 4x4, 5x5, 5x5 Gerdau; mesma grade do Inventário, `js/calc.js`): probabilidade (graduação HSE × ISO 45003, 1 a 5) e severidade final (SIF × 0,75 + EOaj × 0,25, de 0,75 a 4,00) convertidas proporcionalmente para a escala da matriz; nomes e cores dos níveis conforme a matriz.
+  - **Análise de risco:** sem escolha de matriz e sem seleção de ações; resumo por empresa, unidade e setor/GHE com probabilidade, severidade e graduação de cada um dos 7 fatores; gráfico de quantidade de fatores por graduação com filtros (unidade, setor/GHE, fator); matriz com a contagem de fatores.
+  - **Integração com o Registro:** 1 linha "Risco psicossocial" por setor/GHE no Mapa de Risco (Risco Global = graduação do setor/GHE), 1 linha por fator no Inventário de Riscos e 1 ação por linha no Plano de Ação, todas com `Origem = "Riscos Psicossociais"` e contando 1 nos indicadores. A sincronização roda ao abrir a empresa e a cada mudança (botão "Atualizar Registro agora" na Análise).
+  - **Plano de ação:** a ação do módulo é a mesma do Registro › Plano de Ação (prazo, responsável, e-mail, status e evidências são de lá; regras de evidência do SIGE para concluir). O e-mail ao responsável usa o modelo do psicossocial (`notificarAcaoPsico` em `entidades.js`) e os lembretes diários do SIGE passam a valer. Seleção de ações no quadro "Ajustar ações recomendadas".
+  - **Laudo:** ergonomista e responsável técnico do cadastro de Ergonomistas do SIGE; logotipo do cadastro do cliente; metodologia, tabelas de probabilidade, severidade e matriz conforme a matriz do cliente; marcador `{matriz}` no Editor de texto.
+  - **Perfis:** Administrador vê tudo; Consultor (ergonomista) e Usuário Cliente só as empresas vinculadas ao usuário.
+  - **Migração:** no painel do módulo, o Administrador migra cada empresa da versão anterior (`POST /api/psico/migrar`, em etapas): empresa → Cliente (novo ou existente), unidades, GHEs (setor do tipo GHE) e colaboradores → cadastro do SIGE; respostas, participação, ISO 45003 e análise → nova empresa; profissionais → Ergonomistas. O código da coleta e os QR codes continuam valendo. Nada é apagado.
+- **Usuários:** volta a ser uma lista única de empresas vinculadas, agora em caixas de marcar com busca.
+- **Ajuda:** manual de Cadastro e de Riscos Psicossociais atualizados, novo tópico "probabilidade, severidade e graduação", novo fluxo "Riscos Psicossociais" e notas nos indicadores de Mapa de Risco, Inventário e Plano de Ação.
+- **Plano de ação em Excel (da V 1.26):** sem as colunas Risco encontrado, Resultado esperado, Indicador de eficácia, Evidência organizacional e Origem; "Achado" no lugar de Risco encontrado; prazo em branco quando não foi informado.
 
 ## V 1.25 — 07/10/2026
 
