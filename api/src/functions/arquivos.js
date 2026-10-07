@@ -239,6 +239,10 @@ async function tratar(request, context) {
     };
   }
 
+  // V 1.27: o Usuario Cliente so consulta e baixa arquivos (sem enviar nem apagar).
+  if (identidade.papel === "UsuarioCliente" && request.method !== "GET") {
+    return { status: 403, jsonBody: { erro: "Seu perfil permite apenas consultar e baixar os arquivos." } };
+  }
   try {
     if (request.method === "POST") return await tratarUpload(request, identidade);
     if (request.method === "GET") return await tratarDownload(request, identidade);

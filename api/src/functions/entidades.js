@@ -275,8 +275,9 @@ async function tratar(request, context) {
     return { status: 403, jsonBody: { erro: "Só Administrador pode alterar as configurações do sistema." } };
   }
 
-  if (COLECOES_SO_EQUIPE_GRAVA.includes(colecao) && request.method !== "GET" && identidade.papel === "UsuarioCliente") {
-    return { status: 403, jsonBody: { erro: "Só a equipe ElevaLife (Administrador ou Consultor) pode alterar este cadastro." } };
+  // V 1.27: o Usuario Cliente so consulta (Cadastro e Registro); quem grava e a equipe ElevaLife.
+  if (request.method !== "GET" && identidade.papel === "UsuarioCliente") {
+    return { status: 403, jsonBody: { erro: "Seu perfil permite apenas consultar e baixar os dados. Alterações são feitas pela equipe ElevaLife." } };
   }
 
   try {
