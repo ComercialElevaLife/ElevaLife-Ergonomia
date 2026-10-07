@@ -957,10 +957,12 @@ const sifEmp=()=>({...SIF_PADRAO}); // fixa (manual SIF), igual para todas as em
 // de graduação do Inventário de Riscos (js/calc.js). Probabilidade (graduação HSE × ISO 45003, de 1 a 5) e
 // severidade final (SIF × evidência organizacional, contínua de 0,75 a 4,00) são convertidas para a escala da matriz.
 const NOMES_CAT=["Muito Baixo","Baixo","Moderado","Alto","Altíssimo"];
-const NIVEL_CAT=n=>{ n=String(n||"").toLowerCase(); return /muito baix|trivial/.test(n)?0:/^baix/.test(n)?1:/moderad|^m[eé]di/.test(n)?2:/muito alt|alt[ií]ssim|cr[ií]tic/.test(n)?4:/^alt/.test(n)?3:null; };
+const NIVEL_CAT=n=>{ n=String(n||"").toLowerCase(); return /muito baix|trivial/.test(n)?0:/^(baix|leve)/.test(n)?1:/moderad|^m[eé]di/.test(n)?2:/muito alt|alt[ií]ssim|cr[ií]tic/.test(n)?4:/^alt/.test(n)?3:null; };
 const rotEscala=x=>String(x).replace(/^Media$/,"Média");
 const MATRIZES_LOCAL={"Matriz 3x3":[["Baixa","Media","Alta"],["Baixo","Moderado","Alto"]],"Matriz 4x4":[["Baixa","Media","Alta","Muito Alta"],["Baixo","Moderado","Alto","Muito Alto"]],"Matriz 5x5":[["Muito Baixa","Baixa","Media","Alta","Muito Alta"],["Muito Baixo","Baixo","Moderado","Alto","Altíssimo"]]};
-function celulaLocal(nome,p,s){ const d=MATRIZES_LOCAL[nome]||MATRIZES_LOCAL["Matriz 5x5"], n=d[0].length, pont=(p+1)*(s+1); return {nivel:d[1][Math.min(n-1,Math.floor((pont-1)/(n*n)*n))],pontuacao:pont}; }
+function celulaLocal(nome,p,s){ const d=MATRIZES_LOCAL[nome]||MATRIZES_LOCAL["Matriz 5x5"], n=d[0].length, pont=(p+1)*(s+1);
+  const i=nome==="Matriz 3x3"?(pont<=2?0:pont<=4?1:2):Math.min(n-1,Math.floor((pont-1)/(n*n)*n)); // 3x3: modelo ElevaLife (1–2 / 3–4 / 6–9)
+  return {nivel:d[1][i],pontuacao:pont}; }
 let MZ_CACHE=null;
 function mz(){
   const nome=emp()?.matriz||"Matriz 5x5"; if(MZ_CACHE&&MZ_CACHE.nome===nome) return MZ_CACHE;
@@ -973,13 +975,14 @@ function mz(){
   const cats=[...new Set(M.flat())].filter(c=>c!=null).sort((a,b)=>a-b);
   // nomes dos níveis conforme a matriz (ex.: 4x4 → "Muito Alto"; 5x5 → "Altíssimo")
   CAT.forEach((c,i)=>{ c.n=NOMES_CAT[i]; }); M.forEach((l,p)=>l.forEach((c,q)=>{ if(c!=null) CAT[c].n=NV[p][q]; }));
-  MZ_CACHE={nome,rot:`${n} × ${n}`,n,P:esc_.map(rotEscala),S:esc_.map(rotEscala),esc:esc_,M,NV,PT,cats,
+  const rotM=v=>C&&C.rotuloEscala?C.rotuloEscala(nome,v):(nome==="Matriz 3x3"&&v==="Baixa"?"Leve":rotEscala(v));
+  MZ_CACHE={nome,rot:`${n} × ${n}`,n,P:esc_.map(rotM),S:esc_.map(rotM),esc:esc_,M,NV,PT,cats,
     conv:p5=>Math.round(1+(p5-1)*(n-1)/4),             // probabilidade 1–5 → 1–n
     sevN:sf=>Math.min(n,Math.max(1,Math.round(1+(sf-0.75)*(n-1)/3.25)))}; // severidade 0,75–4,00 → 1–n
   return MZ_CACHE;
 }
 const catsMatriz=()=>mz().cats;
-const nivVar=n=>{ n=String(n||"").toLowerCase(); return /muito baix|trivial/.test(n)?"--g0":/^baix/.test(n)?"--g1":/moderad|^m[eé]di/.test(n)?"--g2":/muito alt|crític|altíssim/.test(n)?"--g4":/^alt/.test(n)?"--g3":"--ln"; };
+const nivVar=n=>{ n=String(n||"").toLowerCase(); return /muito baix|trivial/.test(n)?"--g0":/^(baix|leve)/.test(n)?"--g1":/moderad|^m[eé]di/.test(n)?"--g2":/muito alt|crític|altíssim/.test(n)?"--g4":/^alt/.test(n)?"--g3":"--ln"; };
 const nivTag=(n,t)=>`<span class="chip" style="--c:var(${nivVar(n)})">${t}</span>`;
 const catTag=c=>c==null?'<span class="muted">—</span>':`<span class="chip" style="--c:var(${CAT[c].cor})">${CAT[c].n}</span>`;
 const parseNum=v=>{ if(v==null) return null; const s=String(v).trim().replace("%","").replace(/\s/g,"").replace(",","."); if(s==="") return null; const n=parseFloat(s); return isNaN(n)?null:n; };
@@ -1976,7 +1979,7 @@ async function capaPNG(e){
 const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
 const COR={wine:"8B3A42",deep:"5E2A30",mid:"A34E56",soft:"C99AA0",tint:"EBD9DB",ink:"3A2A2E",mut:"8A7A78",ln:"EADDE0",ok:"2E7D5B",teal:"3E7B7E",warn:"C9822B",bad:"B23A48",crit:"7E1F2C",g0:"8CCBEB",g1:"2E8B57",g2:"F2C230",g3:"C62828",g4:"6A3D9A"};
 const CLAROS=["8CCBEB","F2C230"];
-const corNivel=n=>{ n=String(n||"").toLowerCase(); return COR[/muito baix|trivial/.test(n)?"g0":/^baix/.test(n)?"g1":/moderad|^m[eé]di/.test(n)?"g2":/muito alt|crític|altíssim/.test(n)?"g4":/^alt/.test(n)?"g3":"mut"]; };
+const corNivel=n=>{ n=String(n||"").toLowerCase(); return COR[/muito baix|trivial/.test(n)?"g0":/^(baix|leve)/.test(n)?"g1":/moderad|^m[eé]di/.test(n)?"g2":/muito alt|crític|altíssim/.test(n)?"g4":/^alt/.test(n)?"g3":"mut"]; };
 const corRisco=score=>{const r=risco(score);return r?COR[r.cor.slice(2)]:COR.mut};
 const corCat=i=>COR[CAT[i].cor.slice(2)];
 const corP5=["g0","g1","g2","g3","g4"];
