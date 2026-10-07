@@ -47,14 +47,44 @@ async function resolverIdentidade(request) {
   const doc = resources[0];
 
   if (!doc) {
-    return { email, papel: null, empresasVinculadas: [] };
+    return { email, papel: null, empresasVinculadas: [], sigeVinculo: "nenhuma", psicoVinculo: "nenhuma", empresasPsico: [] };
   }
 
+  const v = vinculosDoDoc(doc);
   return {
     email,
     papel: doc.Papel || null,
-    empresasVinculadas: Array.isArray(doc.EmpresasVinculadas) ? doc.EmpresasVinculadas : [],
+    empresasVinculadas: v.sigeVinculo === "nenhuma" ? [] : (Array.isArray(doc.EmpresasVinculadas) ? doc.EmpresasVinculadas : []),
+    sigeVinculo: v.sigeVinculo,
+    psicoVinculo: v.psicoVinculo,
+    empresasPsico: v.empresasPsico,
   };
+}
+
+// V 1.26 - vinculos separados por modulo (pedido do Alexandre): o usuario
+// tem as empresas do SIGE (EmpresasVinculadas, como antes) e, a parte, as
+// empresas do modulo Riscos Psicossociais (EmpresasPsico). Em cada um pode
+// ficar "nao vinculado" (SigeVinculo/PsicoVinculo = "nenhuma"). PsicoVinculo:
+// "todas" (so Consultor - ergonomista que atende todas as empresas do
+// psicossocial), "marcadas" (so as de EmpresasPsico) ou "nenhuma".
+// Documentos antigos (sem esses campos) continuam como estavam: SIGE pelas
+// empresas marcadas; psicossocial "todas" para Consultor e "marcadas" para
+// UsuarioCliente (que tambem ve as empresas do psicossocial ligadas a um
+// cliente do SIGE ao qual ele esta vinculado).
+const VINC_PSICO = new Set(["todas", "marcadas", "nenhuma"]);
+function vinculosDoDoc(doc) {
+  const papel = doc.Papel || null;
+  const sigeVinculo = doc.SigeVinculo === "nenhuma" ? "nenhuma" : "marcadas";
+  let psicoVinculo = papel === PAPEIS.ADMIN ? "todas" : VINC_PSICO.has(doc.PsicoVinculo) ? doc.PsicoVinculo : (papel === PAPEIS.CONSULTOR ? "todas" : "marcadas");
+  if (psicoVinculo === "todas" && papel === PAPEIS.CLIENTE) psicoVinculo = "marcadas";
+  const empresasPsico = psicoVinculo === "marcadas" && Array.isArray(doc.EmpresasPsico) ? doc.EmpresasPsico.filter((e) => typeof e === "string" && /^e_/.test(e)) : [];
+  return { sigeVinculo, psicoVinculo, empresasPsico };
+}
+
+// Normaliza os campos de vinculo vindos da tela de Usuarios (POST/PUT).
+function vinculosDoCorpo(corpo, papel) {
+  const v = vinculosDoDoc({ Papel: papel, SigeVinculo: corpo.SigeVinculo, PsicoVinculo: corpo.PsicoVinculo, EmpresasPsico: corpo.EmpresasPsico });
+  return { SigeVinculo: v.sigeVinculo, PsicoVinculo: v.psicoVinculo, EmpresasPsico: v.empresasPsico };
 }
 
 // null = sem filtro (Administrador ve tudo); array = lista fechada de EmpresaId.
@@ -87,4 +117,6 @@ module.exports = {
   podeVerEmpresa,
   empresaIdDoDocumento,
   podeVerDocumento,
+  vinculosDoDoc,
+  vinculosDoCorpo,
 };
