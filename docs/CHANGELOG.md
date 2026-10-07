@@ -9,6 +9,7 @@ SIGE e Riscos Psicossociais passam a ser um pacote único. (A V 1.26 não chegou
 - **Laudo psicossocial adaptado a qualquer matriz (`psicossocial.html`):**
   - Correção: o módulo guardava a matriz da empresa do momento em que foi aberto; ao trocar a matriz no Cadastro (ex.: 4x4 → 3x3) o laudo saía com a antiga. Agora a matriz é relida ao abrir a empresa, ao voltar para a aba e ao emitir o laudo.
   - A metodologia (item 4) gera automaticamente, para a matriz da empresa (3x3, 4x4, 5x5 ou Gerdau), a tabela de conversão da probabilidade, as faixas de Severidade Final por nível, a matriz com pontuações, a conduta por nível e os níveis da conclusão. Textos salvos no Editor não conseguem mais contradizer a matriz.
+  - **Matriz 3x3 no modelo ElevaLife (`js/calc.js`, vale para Inventário e Psicossocial):** escala Leve/Média/Alta (o valor gravado continua "Baixa" e é exibido como "Leve") e graduação por pontuação 1–2 Baixo, 3–4 Moderado, 6–9 Alto (antes: 3 era Baixo e 6 era Moderado). Formulários, checklist e laudos (`js/laudo.js`, `js/laudo-docx.js`) usam o novo rótulo via `Calc.rotuloEscala`.
   - Formatação do PDF: tabelas com linhas alternadas, cabeçalho que não fica sozinho no fim da página, quebra de palavras longas, justificação sem espaços exagerados, plano de ação por GHE em 3 colunas (Fator · código, Recomendação, Indicador) e capítulo de resultados por unidade iniciando em página nova.
 
 - **Cadastro único (`js/app.js`, `js/db.js`, `api/src/functions/entidades.js`):**
