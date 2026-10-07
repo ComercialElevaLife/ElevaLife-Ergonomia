@@ -6,6 +6,11 @@ A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodap
 
 SIGE e Riscos Psicossociais passam a ser um pacote único. (A V 1.26 não chegou a ser publicada; dela ficam a planilha do plano de ação mais enxuta e o prazo só quando informado. Os vínculos separados SIGE/Psicossocial foram substituídos pela lista única abaixo.)
 
+- **Laudo psicossocial adaptado a qualquer matriz (`psicossocial.html`):**
+  - Correção: o módulo guardava a matriz da empresa do momento em que foi aberto; ao trocar a matriz no Cadastro (ex.: 4x4 → 3x3) o laudo saía com a antiga. Agora a matriz é relida ao abrir a empresa, ao voltar para a aba e ao emitir o laudo.
+  - A metodologia (item 4) gera automaticamente, para a matriz da empresa (3x3, 4x4, 5x5 ou Gerdau), a tabela de conversão da probabilidade, as faixas de Severidade Final por nível, a matriz com pontuações, a conduta por nível e os níveis da conclusão. Textos salvos no Editor não conseguem mais contradizer a matriz.
+  - Formatação do PDF: tabelas com linhas alternadas, cabeçalho que não fica sozinho no fim da página, quebra de palavras longas, justificação sem espaços exagerados, plano de ação por GHE em 3 colunas (Fator · código, Recomendação, Indicador) e capítulo de resultados por unidade iniciando em página nova.
+
 - **Cadastro único (`js/app.js`, `js/db.js`, `api/src/functions/entidades.js`):**
   - **Cliente:** novo campo **Serviços contratados** (Gestão de Risco, Gestão de Absenteísmo, Gestão de Restritos, Riscos Psicossociais), em caixas de marcar. A Matriz de Risco do cliente passa a valer também para os Riscos Psicossociais. Cliente antigo sem o campo = todos os serviços.
   - **Aviso de serviço não contratado:** a aba continua no menu; se nenhuma empresa do filtro (ou das empresas do usuário) tem o serviço, o conteúdo dá lugar ao aviso "não possui o serviço… procure o time de especialistas da ElevaLife" (`aplicarServicosContratados`). No módulo psicossocial, o aviso aparece ao escolher a empresa.
