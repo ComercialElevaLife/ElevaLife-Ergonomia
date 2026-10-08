@@ -2,6 +2,66 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.32 — 08/10/2026
+
+Matriz Gerdau, ações pela matriz do cliente e Editor de Texto igual ao laudo.
+
+- **Matriz 5x5 Gerdau (`js/calc.js`):** nomes e definições do cliente — probabilidade Muito Baixa a Muito Alta (pelo % do tempo amostral), severidade Brando, Moderado, Sério, Crítico e Muito Crítico (`rotulosSeveridade`, `rotuloEscala(..., "severidade")`), graduações Irrelevante, Tolerável, Moderado, Alto e Intolerável. A grade é a mesma da 5x5 ElevaLife. Cores pelas equivalentes do padrão (Irrelevante = muito baixo, Tolerável = baixo, Intolerável = muito alto); nos indicadores, Irrelevante e Tolerável contam como Baixo e Intolerável como Muito Alto. Nova escala única `Calc.ordemNivel` e `Calc.niveisDaMatriz`.
+- **Ações (`js/acoes.js`):** "Reduz o risco para" usa as graduações da matriz cadastrada no cliente.
+- **Laudo da AEP:** textos 8.1 e 8.2 próprios da Gerdau (`Gravidade Gerdau`, `Probabilidade Gerdau`, `Graduacao Gerdau`); severidade sem citar doenças; "severidade" no lugar de "gravidade" nos textos da matriz.
+- **Editor de Texto (`js/app.js`, `js/laudo-textos.js`):** cada campo mostra o texto que sai no laudo (`textoEfetivo`), com marca "alterado" e "Restaurar padrão"; campo igual ao padrão é gravado vazio.
+- **Psicossocial:** graduações e severidade da Gerdau na análise e no laudo.
+
+## V 1.31 — 08/10/2026
+
+Evolução do risco, reavaliação ao concluir ações e reaplicação do psicossocial.
+
+- **Segmentos (`js/acoes.js`, `js/calc.js`, `js/diagramas.js`, `js/app.js`):** "Não identificado" e "Psicossocial" em todas as escolhas de segmento (Inventário, Absenteísmo, Restritos) e nos diagramas, em cartões ao lado da figura (Psicossocial com ícone de cérebro).
+- **Inventário:** segmento acometido obrigatório no fator (sai da ação); "Gravidade" passa a "Severidade". Mudança de graduação no checklist entra no histórico do fator.
+- **Ações (`js/acoes.js`):** tipo, complexidade e ação escrita; marcação "Esta ação vai reduzir ou eliminar o risco" com a graduação esperada ("Reduz para X" ou "Elimina o risco"). Responsável, prazo e status só no Plano de Ação.
+- **Plano de Ação:** ao concluir (com evidência) uma ação redutora da AEP/AET, abre a janela de reavaliação (nova Probabilidade e Severidade → novo risco pela matriz, ou Risco eliminado), que grava `Historico Risco` no fator. Ações do Psicossocial concluem só com evidência. Nova coluna "Revisão do laudo" (`Revisao Laudo`), carimbada na emissão do laudo.
+- **Inventário — evolução:** campos `Historico Risco`, `Graduacao Inicial`, `Risco Eliminado`, `Eliminado Em`; coluna "Evolução do risco" (ex.: "Iniciou Alto · Ação A-01 concluída: Moderado"). Risco eliminado sai do risco do posto e dos indicadores atuais.
+- **Gestão de Risco:** gráfico "Evolução mensal dos riscos" (`chart-evolucao-riscos`, `Calc.evolucaoMensalRiscos`), clicável.
+- **Laudo da AEP (`js/laudo.js`, `js/laudo-docx.js`, `js/laudo-textos.js`):** por fator, risco do fator, probabilidade, severidade e segmento acometido, com a evolução; ações com tipo e efeito no risco; riscos eliminados do posto; seção 10 "Plano de ação e evolução dos riscos". Sempre o risco mais atual.
+- **Riscos Psicossociais (`psicossocial.html`, `api/src/functions/psicossocial.js`):** reaplicação do projeto (HSE-IT › Aplicações do projeto). Cada aplicação tem coleta, ISO 45003, taxa de frequência, análise e laudo próprios (`empresas/{eid}/ciclos/{n}` a partir da 2ª). Mapa de Risco e Inventário sempre da aplicação mais recente (mudança de graduação vai ao histórico do fator); ações de aplicações anteriores ficam no Plano como histórico. Fatores psicossociais com segmento "Psicossocial". Laudo com a aplicação na capa e na identificação, comparativo entre aplicações, revisão carimbada nas ações e QR Code de validação.
+- **Ajuda, fluxos e indicadores** atualizados.
+
+## V 1.30 — 08/10/2026
+
+Padronização dos laudos e das cores.
+
+- **Padrão único de laudo (`js/laudo-padrao.js`, novo):** capa, cabeçalho (logotipo + título + "Doc. código · Rev."), rodapé (cliente + "Página X de Y"), títulos, sumário, assinaturas, ciência do cliente e validação por QR Code, usados pelo laudo da AEP (`js/laudo.js`, `js/laudo-docx.js`) e pelo laudo de Riscos Psicossociais (`psicossocial.html`).
+- **Laudo psicossocial:** mesma formatação do laudo da AEP (margens, corpo, títulos "1. Título", sumário, capa e fechamento); passa a sair também em Word (`BI.LaudoDocx.deBlocos`); encerramento, assinaturas e validação no fim do documento; registrado no histórico de laudos do cliente (AEP › Laudos) com código, revisão, hash SHA-256, PDF e Word.
+- **Cores padrão** (`css/style.css`, `js/calc.js`): risco — trivial/muito baixo #8CCBEB, baixo #2E8B57, moderado #F2C230, alto #C62828, muito alto/altíssimo #6A3D9A; ações — não iniciada #E8833A, em andamento #F2C230, atrasada #C62828, concluída #2E8B57 (com atraso #1E6B44). Texto escuro sobre azul-claro e amarelo. Mesmas cores no tema claro e escuro, nos laudos, no Word e na página /verificar.
+- **Metodologia da AEP no laudo:** graduações da matriz do cliente no panorama e no diagnóstico; tabela 8.2 com as pontuações de cada graduação e nota explicando que a graduação vem da célula da matriz; textos padrão "Matriz Intro", "Medidas Intro" e "ISO Legenda" revistos (responsável e prazo no Plano de Ação; ação organizacional / de controle; fator "Ruído inadequado").
+- **Melhorias do laudo psicossocial levadas à AEP:** quadro-resumo dos postos com os fatores determinantes, contagem de fatores por graduação por grupo da ISO/TS 20646 e grupos que mais concentram risco moderado ou superior; números do plano por situação (não iniciadas, em andamento, atrasadas, concluídas).
+- **Status das ações:** com prazo e não vencida, a ação conta como "Em andamento" também nos indicadores.
+
+## V 1.29 — 08/10/2026
+
+Plano de Ação único, risco do posto pelo Inventário e fim da aba Registro.
+
+- **Plano de Ação único (`index.html`, `js/app.js`, `js/acoes.js`):** menu próprio; recebe as ações da AEP (Inventário) e do Psicossocial (AET quando o módulo existir), com a coluna e o filtro **Origem**. Não se cria ação nova no Plano: a descrição, o segmento e a redução do risco ficam somente leitura (vêm da origem); aqui se definem responsável, e-mail, prazo, conclusão e evidência. Status automático (com prazo = Em andamento; vencido = Atrasada) e e-mail ao responsável mantidos.
+- **Psicossocial (`psicossocial.html`):** a aba "Plano de ação" do módulo saiu; a escolha das ações por setor/GHE e as ações já realizadas foram para a Análise de risco, com o botão "Abrir no Plano de Ação do SIGE". A taxa de frequência e o Editor de texto do módulo continuam como estavam.
+- **Gestão de Risco (`js/calc.js`, `js/app.js`):** o risco do posto passa a ser a **maior graduação entre os fatores** do Inventário (AEP, Psicossocial e AET), no lugar do Mapa de Risco manual de 12 notas (que saiu do menu; os registros antigos ficam). Cards e drill-down mantidos; cobertura da AEP por posto e cargo cadastrados; "postos críticos" pelo risco atual do posto; Excel da aba com "Risco por Posto" e "Inventário".
+- **Filtro único:** novo filtro Origem (AEP, AET, Psicossocial) e rótulo Setor / GHE; os filtros de página que já existiam continuam.
+- **Cadastro Cliente:** recebe Absenteísmo, HHT / Taxa de frequência e Restritos (individual ou por Excel). A aba Registro deixou de existir.
+- **Absenteísmo:** segmento corporal geral (sem direito/esquerdo) no cadastro, na lista e no diagrama; registros antigos com lado entram no segmento geral.
+- **AET:** aba própria, marcada como módulo em desenvolvimento (filtro e coluna Origem já preparados).
+- **Laudo da AEP:** "Risco do posto" em cada posto e explicação na metodologia (item 8.2).
+- **Ajuda, fluxos e indicadores** atualizados.
+
+## V 1.28 — 08/10/2026
+
+Reestruturação da AEP, do menu e da emissão do laudo.
+
+- **Filtro geral (`js/app.js`, `psicossocial.html`):** o filtro Cliente lista só os clientes vinculados ao usuário; todas as abas respondem ao filtro, inclusive Riscos Psicossociais (com um único cliente filtrado, o módulo abre a página dele).
+- **Menu (`index.html`, `js/app.js`):** "Cadastro Cliente" no topo (Cliente, Unidade, Setor / GHE, Colaboradores, Cargo, Posto de Trabalho, Atividade — a hierarquia de dados não muda); nova aba "Cadastro Interno" (Certificado de calibração, Editor de texto, Ergonomistas, com e-mail); nova aba "AEP" (Avaliações, Inventário de Riscos, Laudos).
+- **AEP:** sem atividade (por posto e cargo); número por cliente atribuído pelo servidor (`api/src/functions/entidades.js`, AEP-001…); lista com número, data/ergonomista do cadastro, data/ergonomista da última atualização; "Mais detalhes" com dados, inventário e histórico de atualizações; aviso para o Administrador juntar as AEPs antigas do mesmo posto e cargo, retirar a atividade e numerar.
+- **Inventário (`js/app.js`, `js/calc.js`, `js/acoes.js`):** fator "Ruído inadequado" em "Influência de fatores do meio ambiente"; lista padrão de consequências por fator; não salva com campo em branco; "Repetir este fator" com todas as informações e contador de cadastros; ações sem responsável/e-mail/prazo (ficam no Plano de Ação), risco atual automático pela graduação e opção "Não reduz (ação organizacional / de controle)". Importação Excel com a mesma lógica (sem atividade).
+- **Laudo (`js/laudo.js`, `js/laudo-docx.js`):** responde ao filtro geral, com painel "Emitir laudo atual" e histórico de laudos emitidos do cliente; abrangência empresa toda / unidade / setor / cargo / posto de trabalho; cada posto traz o número da AEP, o cargo e a data da última atualização; ação que não reduz a graduação aparece como organizacional / de controle.
+- **Ajuda:** manual, fluxos e indicadores atualizados para os novos menus.
+
 ## V 1.27 — 07/10/2026
 
 SIGE e Riscos Psicossociais passam a ser um pacote único. (A V 1.26 não chegou a ser publicada; dela ficam a planilha do plano de ação mais enxuta e o prazo só quando informado. Os vínculos separados SIGE/Psicossocial foram substituídos pela lista única abaixo.)
