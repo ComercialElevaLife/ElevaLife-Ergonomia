@@ -75,6 +75,31 @@
         <span class="badge-filtros" id="badge-filtros" hidden>0</span>
       </button>
       <div class="sidebar-nav-divisor" aria-hidden="true"></div>
+      <!-- V 1.28: cadastros e AEP no topo do menu (pedido do Alexandre) -->
+      <div class="sidebar-nav-grupo" data-grupo-nav="cadastro">
+        <button type="button" data-aba="cadastro" class="sidebar-nav-pai" title="Cadastro Cliente">
+          <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M10 6.5v7M6.5 10h7"/></svg></span>
+          <span class="rotulo">Cadastro Cliente</span>
+          <span class="seta-sub" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 5-5 5"/></svg></span>
+        </button>
+        <div class="sidebar-subnav-lateral" id="sidebar-sub-cadastro" hidden></div>
+      </div>
+      <div class="sidebar-nav-grupo" data-grupo-nav="interno">
+        <button type="button" data-aba="interno" class="sidebar-nav-pai" title="Cadastro Interno">
+          <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M6.5 8h7M6.5 11h4.5"/><circle cx="14.5" cy="13.5" r="1.2"/></svg></span>
+          <span class="rotulo">Cadastro Interno</span>
+          <span class="seta-sub" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 5-5 5"/></svg></span>
+        </button>
+        <div class="sidebar-subnav-lateral" id="sidebar-sub-interno" hidden></div>
+      </div>
+      <div class="sidebar-nav-grupo" data-grupo-nav="aep">
+        <button type="button" data-aba="aep" class="sidebar-nav-pai" title="AEP">
+          <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="10" height="14" rx="1.6"/><path d="M8 3.2h4v2H8z"/><path d="M7.5 9.5l1.6 1.6 3.4-3.4"/><path d="M7.5 13.5h5"/></svg></span>
+          <span class="rotulo">AEP</span>
+          <span class="seta-sub" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 5-5 5"/></svg></span>
+        </button>
+        <div class="sidebar-subnav-lateral" id="sidebar-sub-aep" hidden></div>
+      </div>
       <button type="button" data-aba="ergo" class="ativa" title="Gestão de Risco">
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17V10"/><path d="M9.5 17V6"/><path d="M16 17V13"/><path d="M2.5 17h15"/></svg></span>
         <span class="rotulo">Gestão de Risco</span>
@@ -97,22 +122,17 @@
         </button>
         <div class="sidebar-subnav-lateral" id="sidebar-sub-psicossocial" hidden></div>
       </div>
-      <div class="sidebar-nav-grupo" data-grupo-nav="registro">
-        <button type="button" data-aba="registro" class="sidebar-nav-pai" title="Registro">
-          <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="10" cy="4.5" rx="6" ry="2"/><path d="M4 4.5v11c0 1.1 2.7 2 6 2s6-.9 6-2v-11"/><path d="M4 10c0 1.1 2.7 2 6 2s6-.9 6-2"/></svg></span>
-          <span class="rotulo">Registro</span>
-          <span class="seta-sub" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 5-5 5"/></svg></span>
-        </button>
-        <div class="sidebar-subnav-lateral" id="sidebar-sub-registro" hidden></div>
-      </div>
-      <div class="sidebar-nav-grupo" data-grupo-nav="cadastro">
-        <button type="button" data-aba="cadastro" class="sidebar-nav-pai" title="Cadastro">
-          <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M10 6.5v7M6.5 10h7"/></svg></span>
-          <span class="rotulo">Cadastro</span>
-          <span class="seta-sub" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 5-5 5"/></svg></span>
-        </button>
-        <div class="sidebar-subnav-lateral" id="sidebar-sub-cadastro" hidden></div>
-      </div>
+      <!-- V 1.29: o antigo "Registro" virou o Plano de Acao unico (AEP, AET e Psicossocial);
+           Absenteismo, HHT e Restritos foram para o Cadastro Cliente. data-aba continua "registro". -->
+      <button type="button" data-aba="registro" title="Plano de Ação">
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h9M8 10h9M8 15h9"/><path d="M3 5l1 1 2-2M3 10l1 1 2-2M3 15l1 1 2-2"/></svg></span>
+        <span class="rotulo">Plano de Ação</span>
+      </button>
+      <!-- V 1.29: AET como modulo proprio (em desenvolvimento). -->
+      <button type="button" data-aba="aet" title="AET">
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="12" height="14" rx="1.6"/><path d="M7 13v-2M10 13V8M13 13v-4"/></svg></span>
+        <span class="rotulo">AET</span>
+      </button>
       <!-- So Administrador ve este item (ver configurarUsuarios() em app.js -
            fica "hidden" ate confirmar o papel do usuario logado). -->
       <button type="button" data-aba="usuarios" id="nav-btn-usuarios" title="Usuários" hidden>
@@ -207,8 +227,8 @@
       <!-- 1. Mapa Risco Global - largura total: com so 4 tiles, ganha muito
            mais espaco/respiro que dividido em col-4 (ficava achatado) -->
       <div class="cartao col-12">
-        <div class="cartao-titulo">Mapa de Risco Global</div>
-        <div class="cartao-sub">Postos avaliados por nível de risco</div>
+        <div class="cartao-titulo">Risco Global dos Postos</div>
+        <div class="cartao-sub">Postos por nível de risco · o risco do posto é a maior graduação entre os seus fatores (AEP, Psicossocial e AET)</div>
         <div class="grade-status grade-status--destaque" id="tiles-risco-global"></div>
       </div>
 
@@ -267,8 +287,8 @@
 
       <!-- 8. Mapa Risco por Setor -->
       <div class="cartao col-12">
-        <div class="cartao-titulo">Mapa de Risco por Setor</div>
-        <div class="cartao-sub">Contagem de postos por nível de risco</div>
+        <div class="cartao-titulo">Risco dos Postos por Setor / GHE</div>
+        <div class="cartao-sub">Contagem de postos por nível de risco (maior graduação dos fatores)</div>
         <div class="altura-chart alta"><canvas id="chart-risco-por-setor"></canvas></div>
         <div class="legenda" id="legenda-risco-por-setor"></div>
       </div>
@@ -292,9 +312,17 @@
         <div class="grade-status grade-status--destaque" id="tiles-fatorrisco-graduacao"></div>
       </div>
 
+      <!-- V 1.31: evolucao mes a mes dos riscos (mitigados e eliminados) -->
+      <div class="cartao col-12">
+        <div class="cartao-titulo">Evolução mensal dos riscos</div>
+        <div class="cartao-sub">Fatores de risco por nível no fim de cada mês, com os reduzidos e os eliminados após as ações (AEP, AET e Psicossocial)</div>
+        <div class="altura-chart alta"><canvas id="chart-evolucao-riscos"></canvas></div>
+        <div class="legenda" id="legenda-evolucao-riscos"></div>
+      </div>
+
       <div class="cartao col-6">
         <div class="cartao-titulo">Avaliação Ergonômica - Cobertura</div>
-        <div class="cartao-sub">Postos do Mapa de Risco com Avaliação Ergonômica registrada</div>
+        <div class="cartao-sub">Postos e cargos cadastrados com AEP registrada</div>
         <div class="grade-totais" id="tiles-avaliacao-cobertura"></div>
       </div>
 
@@ -363,7 +391,7 @@
 
       <!-- 4. Diagrama corporal - dias perdidos -->
       <div class="cartao col-6">
-        <div class="cartao-titulo">Dias perdidos por região - Frente</div>
+        <div class="cartao-titulo">Dias perdidos por segmento - Frente</div>
         <div class="cartao-sub">Soma de "Qtd Dias" de afastamento por região corporal</div>
         <figure class="figura-diagrama">
           <div id="diagrama-medocup-frente"></div>
@@ -371,7 +399,7 @@
         </figure>
       </div>
       <div class="cartao col-6">
-        <div class="cartao-titulo">Dias perdidos por região - Costas</div>
+        <div class="cartao-titulo">Dias perdidos por segmento - Costas</div>
         <div class="cartao-sub">Soma de "Qtd Dias" de afastamento por região corporal</div>
         <figure class="figura-diagrama">
           <div id="diagrama-medocup-costas"></div>
@@ -464,13 +492,40 @@
     <div class="grade" id="grade-cadastro-mestre"></div>
   </section>
 
+  <section id="aba-interno" hidden>
+    <div class="aviso-somente-leitura" id="aviso-somente-leitura-interno" hidden>
+      Banco de dados indisponível nesta visualização (modo somente leitura).
+    </div>
+    <nav class="subnav-cadastro" id="subnav-cadastro-interno"></nav>
+    <div class="grade" id="grade-cadastro-interno"></div>
+  </section>
+
+  <section id="aba-aep" hidden>
+    <div class="aviso-somente-leitura" id="aviso-somente-leitura-aep" hidden>
+      Banco de dados indisponível nesta visualização (modo somente leitura).
+    </div>
+    <nav class="subnav-cadastro" id="subnav-aep"></nav>
+    <div class="grade" id="grade-aep"></div>
+  </section>
+
   <section id="aba-registro" hidden>
     <div class="aviso-somente-leitura" id="aviso-somente-leitura-registro" hidden>
       Banco de dados indisponível nesta visualização (modo somente leitura) - os registros abaixo mostram os
       dados fictícios de exemplo, mas novos lançamentos não podem ser salvos por aqui agora.
     </div>
-    <nav class="subnav-cadastro" id="subnav-registro"></nav>
+    <nav class="subnav-cadastro" id="subnav-registro" hidden></nav>
     <div class="grade" id="grade-registro"></div>
+  </section>
+
+  <!-- V 1.29: AET - modulo em desenvolvimento. Por enquanto guarda as analises anexadas;
+       o inventario de riscos e as acoes da AET entram aqui quando o modulo for definido. -->
+  <section id="aba-aet" hidden>
+    <div class="aet-em-desenvolvimento">
+      <strong>AET · módulo em desenvolvimento.</strong>
+      Por enquanto, a AET é anexada aqui (arquivo da análise). Quando o módulo for definido, os riscos e as ações da AET passam a alimentar a Gestão de Risco e o Plano de Ação, com a origem "AET" — os filtros e a coluna Origem já estão prontos para isso.
+    </div>
+    <nav class="subnav-cadastro" id="subnav-aet" hidden></nav>
+    <div class="grade" id="grade-aet"></div>
   </section>
 
   <!-- V 1.2: Configuracoes do sistema (so Administrador). -->
@@ -553,9 +608,12 @@
           ativa = d.ativa || ativa; marcar(); if (!sec.hidden) expandir(true);
         }
         if (d.tipo === "psico-ativa") { ativa = d.aba; marcar(); }
+        // V 1.28: o modulo carregou - manda o cliente do filtro global
+        if (d.tipo === "psico-pronto" && window.BI && window.BI.sincronizarFiltroPsico) window.BI.sincronizarFiltroPsico(true);
+        if (d.tipo === "abrir-plano-acao" && window.BI && window.BI.abrirAba) window.BI.abrirAba("registro");
         // V 1.27: o modulo gravou riscos/acoes no Registro - recarrega os paineis do SIGE.
         if (d.tipo === "psico-registro" && window.BI && window.BI.DB && window.BI.DB.recarregar) {
-          clearTimeout(window.__psicoReg); window.__psicoReg = setTimeout(function () { window.BI.DB.recarregar(["mapaRisco", "fatorRisco", "planoAcao", "unidade", "setor", "colaborador"]); }, 800);
+          clearTimeout(window.__psicoReg); window.__psicoReg = setTimeout(function () { window.BI.DB.recarregar(["mapaRisco", "fatorRisco", "planoAcao", "unidade", "setor", "colaborador", "laudo"]); }, 800);
         }
       });
     })();
@@ -609,6 +667,7 @@
 <!-- V 1.3: QR Code do laudo (validacao em /verificar) e o gerador do laudo (AEP) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script src="js/laudo-textos.js"></script>
+<script src="js/laudo-padrao.js"></script>
 <script src="js/laudo-docx.js"></script>
 <script src="js/laudo.js"></script>
 <script src="js/importador.js"></script>

@@ -5,10 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
 <link rel="icon" href="/img/logo-icone-bordo.png">
-<!-- S.I.G.E. V 1.27 - Riscos Psicossociais. Gerado a partir do protótipo; a ponte com a API do SIGE fica em js/psicossocial-sige.js -->
+<!-- S.I.G.E. V 1.30 - Riscos Psicossociais. Gerado a partir do protótipo; a ponte com a API do SIGE fica em js/psicossocial-sige.js -->
 <script src="/js/calc.js"></script>
 <script src="/js/psicossocial-sige.js"></script>
 <script src="/js/pdf-fonts.js" defer></script>
+<script src="/js/laudo-padrao.js"></script>
+<script src="/js/laudo-docx.js"></script>
 </head>
 <body style="margin:0">
 <title>ElevaLife HSE-IT Coleta</title>
@@ -347,6 +349,13 @@ async function listAll(col){
   return out;
 }
 const E = eid=>db.doc("empresas/"+eid);
+// V 1.31: reaplicação do projeto. Cada aplicação (ciclo) tem a sua coleta: a 1ª fica em empresas/{eid}/...,
+// a partir da 2ª em empresas/{eid}/ciclos/{n}/... (participação, respostas, ISO 45003 e análise).
+// O cadastro (unidades, setores/GHE, colaboradores) é o do SIGE e vale para todas as aplicações.
+const cicloN=e=>Math.max(1,Number(e&&e.ciclo)||1);
+const baseCicloRef=(eid,n)=>n>1?E(eid).collection("ciclos").doc(String(n)):E(eid);
+const C_=eid=>baseCicloRef(eid,cicloN((typeof S!=="undefined"&&S.empresas||[]).find(x=>x.k===eid)));
+async function C_lido(eid){ const s=await E(eid).get(); return baseCicloRef(eid,cicloN(s.exists?s.data():null)); }
 
 // ===================== SCORING =====================
 // resposta.r[i] = 1..5 (Nunca..Sempre). Favorabilidade: itens negativos invertidos.
@@ -368,7 +377,7 @@ const S={empresas:[],legado:[],eid:null,tab:"diag",data:null,loading:false,busca
 // dele (coleta, ISO 45003, taxa de frequência, análise, respostas) no documento empresas/{k}.
 const SIGE=()=>window.ELEVA_SIGE||null;
 const EID_PREFIXO="e_sige-"; // empresa do módulo = "e_sige-" + id do Cliente no SIGE
-const EXT_CAMPOS=["k","clienteId","razao","cnpj","codigo","status","inicio","fim","realizadas","tfGeral","ergId","rtId","stats","logo"];
+const EXT_CAMPOS=["k","clienteId","razao","cnpj","codigo","status","inicio","fim","realizadas","tfGeral","ergId","rtId","stats","logo","ciclo","ciclos","laudoCiclo"];
 const extDe=e=>{ const o={v:127}; EXT_CAMPOS.forEach(c=>{ if(e[c]!==undefined) o[c]=e[c]; }); return o; };
 function empDeCliente(c,x){
   const end=[c.Logradouro,c.Numero,c.Complemento,c.Bairro,c.Cidade&&c.Estado?`${c.Cidade}/${c.Estado}`:c.Cidade,c.CEP?"CEP "+c.CEP:""].filter(Boolean).join(", ");
@@ -390,8 +399,8 @@ async function lerDados(eid){
   if(SIGE()) return lerDadosSige(eid);
   const [unidades,ghes,part,resps,analise,iso]=await Promise.all([
     listAll(E(eid).collection("unidades")), listAll(E(eid).collection("ghes")),
-    listAll(E(eid).collection("participacao")), listAll(E(eid).collection("respostas")),
-    listAll(E(eid).collection("analise")), E(eid).collection("iso").doc("main").get()]);
+    listAll(C_(eid).collection("participacao")), listAll(C_(eid).collection("respostas")),
+    listAll(C_(eid).collection("analise")), C_(eid).collection("iso").doc("main").get()]);
   analise.forEach(limparPrazosAutomaticos);
   return {unidades,ghes,part:part.filter(p=>p.respondido===true),resps:resps.filter(r=>!r.recusa&&Array.isArray(r.r)),recusas:resps.filter(r=>r.recusa),analise:Object.fromEntries(analise.map(a=>[a.k,a])),iso:iso.exists?iso.data():null};
 }
@@ -402,8 +411,8 @@ async function lerDadosSige(eid){
   const [uns,sets,cols,planoR,mapaR,fatorR,part,resps,analise,iso]=await Promise.all([
     SG.listar("unidade",cid,true), SG.listar("setor",cid,true), SG.listar("colaborador",cid,true), SG.listar("planoAcao",cid,true).catch(()=>[]),
     equipe?SG.listar("mapaRisco",cid,true).catch(()=>[]):[], equipe?SG.listar("fatorRisco",cid,true).catch(()=>[]):[],
-    listAll(E(eid).collection("participacao")), listAll(E(eid).collection("respostas")),
-    listAll(E(eid).collection("analise")), E(eid).collection("iso").doc("main").get()]);
+    listAll(C_(eid).collection("participacao")), listAll(C_(eid).collection("respostas")),
+    listAll(C_(eid).collection("analise")), C_(eid).collection("iso").doc("main").get()]);
   const unidades=uns.map(u=>({k:u.id,nome:u.Unidade})).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
   const uPorNome=new Map(unidades.map(u=>[u.nome,u.k]));
   const ghes=sets.filter(x=>uPorNome.has(x.Unidade)).map(x=>({k:x.id,nome:x.Setor,unidadeId:uPorNome.get(x.Unidade),tipo:x["Tipo Setor"]==="GHE"?"GHE":"Setor",colab:{}})).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
@@ -455,13 +464,14 @@ const ABAS=[
  {k:"diag",l:"Diagnóstico organizacional",i:"✅",p:"ACU"},
  {k:"hse",l:"HSE-IT",i:"📋",p:"ACU"},
  {k:"analise",l:"Análise de risco",i:"🧭",p:"AC"},
- {k:"plano",l:"Plano de ação",i:"🗂️",p:"ACU"},
  {k:"laudo",l:"Laudo",i:"📄",p:"AC"},
  {k:"editor",l:"Editor de texto",i:"📝",p:"AC"},
 ];
 // V 1.27: Cadastro de empresa, Colaboradores e Ergonomistas foram para o cadastro do SIGE; Severidade e
 // Probabilidade viraram parte da Análise de risco (explicações na Ajuda do SIGE).
-const ABA_ALIAS={painel:"diag",dados:"diag",empresa:"diag",iso:"diag",tf:"diag",colab:"diag",coleta:"hse",result:"hse",prob:"analise",exportar:"plano",profs:"laudo"};
+const ABA_ALIAS={painel:"diag",dados:"diag",empresa:"diag",iso:"diag",tf:"diag",colab:"diag",coleta:"hse",result:"hse",prob:"analise",exportar:"analise",plano:"analise",profs:"laudo"};
+// V 1.29: o Plano de Ação (responsável, prazo, e-mail e status) é o do SIGE, único para AEP, AET e Psicossocial.
+// Aqui ficam só a escolha das ações por setor/GHE (Análise de risco) e as ações já realizadas.
 const SEM_EMPRESA=new Set(["editor"]);
 let PAPEL="Administrador";
 const papelCod=()=>PAPEL==="Consultor"?"C":PAPEL==="UsuarioCliente"?"U":"A";
@@ -472,7 +482,17 @@ const EMB=()=>document.documentElement.classList.contains("embutido");
 function avisarPai(tipo,extra){ if(!EMB()) return; try{ parent.postMessage(Object.assign({tipo},extra||{}),location.origin); }catch{} }
 function publicarAbas(){ avisarPai("psico-abas",{abas:abasPermitidas().map(a=>({k:a.k,l:a.l,i:a.i})),ativa:abaAtual().k}); }
 let ultimaAbaAvisada=null;
+// V 1.28: o SIGE manda o cliente do filtro global; com 1 cliente filtrado o módulo abre a página dele
+let CLIENTE_FILTRO; // undefined = ainda não recebido; null = sem cliente filtrado
+function aplicarClienteFiltro(){
+  if(CLIENTE_FILTRO===undefined||/^#(r|iso)-/.test(location.hash)) return;
+  const k=CLIENTE_FILTRO?EID_PREFIXO+CLIENTE_FILTRO:null;
+  if(k&&!S.empresas.find(e=>e.k===k)) return; // empresa sem acesso/serviço no módulo: mantém como está
+  if((S.eid||null)===k) return;
+  selecionarEmpresa(k);
+}
 addEventListener("message",ev=>{ if(ev.origin!==location.origin||!ev.data||ev.source!==parent) return;
+  if(ev.data.tipo==="psico-cliente"){ CLIENTE_FILTRO=ev.data.clienteId||null; aplicarClienteFiltro(); return; }
   if(ev.data.tipo==="psico-ir"&&ABAS.find(a=>a.k===ev.data.aba)){ S.tab=ev.data.aba; if(/^#(r|iso)-/.test(location.hash)) return; render(); scrollTo(0,0);
     // V 1.27: o cadastro do cliente (matriz, serviços, nome) pode ter mudado no SIGE enquanto o módulo estava aberto
     if(SIGE()&&!EH_CLIENTE()) carregarEmpresas().then(()=>{ MZ_CACHE=null; render(); }).catch(()=>{}); } });
@@ -499,12 +519,12 @@ function renderTela(){
   bindMain(ab);
 }
 function railHTML(ab){ return `<nav class="steps" aria-label="Abas do módulo">${abasPermitidas().map(a=>`<button class="step ${a.k===ab.k?"on":""}" data-tab="${a.k}"><i>${a.i}</i><span><b>${a.l}</b></span></button>`).join("")}</nav>`; }
-const TAB_EQ={diag:["tabDiag","bindDiag"],hse:["tabHSE","bindHSE"],analise:["tabAnalise","bindAnalise"],plano:["tabPlanoG","bindPlanoG"],laudo:["tabLaudo","bindLaudo"],editor:["tabEditor","bindEditor"]};
-const TAB_CLI={diag:["tabIsoCli","bindIsoCli"],hse:["tabHseCli","bindHseCli"],plano:["tabPlanoCli","bindPlanoCli"]};
+const TAB_EQ={diag:["tabDiag","bindDiag"],hse:["tabHSE","bindHSE"],analise:["tabAnalise","bindAnalise"],laudo:["tabLaudo","bindLaudo"],editor:["tabEditor","bindEditor"]};
+const TAB_CLI={diag:["tabIsoCli","bindIsoCli"],hse:["tabHseCli","bindHseCli"]};
 const fnAba=(k,i)=>{ const n=(EH_CLIENTE()?TAB_CLI:TAB_EQ)[k]; return n&&window[n[i]]?window[n[i]]:null; };
 function conteudoAba(ab){
   const e=emp(), global=SEM_EMPRESA.has(ab.k);
-  const head=`<div class="ctitle"><div><div class="eyebrow">${!global&&e?esc(e.razao):"Riscos psicossociais"}</div><h2>${esc(ab.l)}</h2></div>${!global&&e?`<div class="row" style="gap:.4rem">${e.cnpj?`<span class="tag">${esc(e.cnpj)}</span>`:""}${e.codigo?`<span class="tag">código ${esc(e.codigo)}</span>`:""}${e.status==="aberta"?'<span class="pill ok">Coleta aberta</span>':'<span class="pill pend">Coleta encerrada</span>'}</div>`:""}</div>`;
+  const head=`<div class="ctitle"><div><div class="eyebrow">${!global&&e?esc(e.razao):"Riscos psicossociais"}</div><h2>${esc(ab.l)}</h2></div>${!global&&e?`<div class="row" style="gap:.4rem">${e.cnpj?`<span class="tag">${esc(e.cnpj)}</span>`:""}${e.codigo?`<span class="tag">código ${esc(e.codigo)}</span>`:""}<span class="tag" title="Aplicação atual do projeto psicossocial">${cicloN(e)}ª aplicação</span>${e.status==="aberta"?'<span class="pill ok">Coleta aberta</span>':'<span class="pill pend">Coleta encerrada</span>'}</div>`:""}</div>`;
   if(!global&&!e) return head+semEmpresaHTML(ab.k);
   if(!global&&e.temPsico===false) return head+semServicoHTML(e);
   if(!global&&S.erroCarga) return head+`<div class="panel empty"><h3>Não foi possível carregar os dados</h3><p>${esc(S.erroCarga)}</p><button class="btn" data-goto="${ab.k}">Tentar de novo</button></div>`;
@@ -532,7 +552,7 @@ function semEmpresaHTML(k){
   if(EH_CLIENTE()) return S.empresas.length?`<div class="panel stack"><h3>Selecione a empresa</h3><div class="tw"><table><thead><tr><th>Empresa</th><th>CNPJ</th><th>Coleta</th></tr></thead><tbody>${S.empresas.map(e=>`<tr class="clk" data-abrir="${e.k}"><td><b>${esc(e.razao)}</b></td><td>${esc(e.cnpj||"")}</td><td>${e.status==="aberta"?'<span class="pill ok">Aberta</span>':'<span class="pill pend">Encerrada</span>'}</td></tr>`).join("")}</tbody></table></div></div>`
     :`<div class="panel empty"><h3>Nenhuma empresa liberada</h3><p>Seu usuário ainda não está vinculado a uma avaliação psicossocial. Fale com a ElevaLife.</p></div>`;
   if(k==="diag") return painelGeralHTML()+migracaoHTML()+empresasTesteHTML();
-  if(!S.empresas.length) return `<div class="panel empty"><h3>Nenhuma empresa cadastrada</h3><p>As empresas são cadastradas no SIGE, em <b>Cadastro › Cliente</b> (marque o serviço Riscos Psicossociais). Unidades, setores/GHE e colaboradores também ficam no cadastro do SIGE.</p></div>`;
+  if(!S.empresas.length) return `<div class="panel empty"><h3>Nenhuma empresa cadastrada</h3><p>As empresas são cadastradas no SIGE, em <b>Cadastro Cliente › Cliente</b> (marque o serviço Riscos Psicossociais). Unidades, setores/GHE e colaboradores também ficam no cadastro do SIGE.</p></div>`;
   const st=e=>e.stats||{};
   const cols={diag:[["ISO 45003",e=>st(e).iso?`<b>${esc(st(e).iso)}</b>`:'<span class="muted">pendente</span>']],
     hse:[["Pessoas",e=>st(e).colab??"—"],["Respostas",e=>st(e).resp??"—"],["Adesão",e=>st(e).colab?barra(st(e).resp||0,st(e).colab):"—"]],
@@ -574,6 +594,7 @@ function tabColeta(){
       <button class="btn sm ${e.status==="aberta"?"danger":"primary"}" id="toggle">${e.status==="aberta"?"Encerrar coleta":"Abrir coleta"}</button></div>
       <p class="note">Fora do período, ou com a coleta encerrada, o QR code mostra uma mensagem e não aceita respostas.</p></div>
   </div>
+  ${painelAplicacoes()}
   <div class="grid g2">
    <div class="panel stack"><h3>Adesão por unidade</h3>${window.Chart&&rows.length?caixaGrafico("chAdesao",Math.max(140,rows.length*42))+`${legendaHTML([["Responderam","#8B3A42"],["Não aceitaram o termo","#C99AA0"]])}`:'<span class="muted">Sem unidades cadastradas.</span>'}</div>
    <div class="panel stack"><h3>Respostas por dia</h3>${window.Chart&&(S.data.resps.length||nRec)?caixaGrafico("chDias",200)+`${legendaHTML([["Responderam","#8B3A42"],["Não aceitaram o termo","#C99AA0"]])}`:'<span class="muted">Ainda não há respostas.</span>'}</div>
@@ -605,7 +626,34 @@ function bindColeta(){
       const msg=[`${r.h} resposta(s) HSE importada(s)`, r.rec?`${r.rec} recusa(s) do termo registrada(s)`:"", r.iso?"checklist ISO importado":"", r.dup?`${r.dup} matrícula(s) já tinham respondido`:"", r.isoDup?"ISO já estava respondido":"", r.outra?`${r.outra} código(s) de outra empresa`:"", r.inv?`${r.inv} código(s) inválido(s)`:""].filter(Boolean).join(" · ");
       toast(msg); }catch(err){ st.className="err"; st.textContent="Não foi possível importar. Tente de novo."; b.disabled=false; } };
   $("#salvaPer").onclick=async()=>{await saveEmp({inicio:$("#ini").value,fim:$("#fim").value});toast("Período salvo")};
+  const na=$("#novaAplic"); if(na) na.onclick=()=>novaAplicacao(na);
   $("#toggle").onclick=async()=>{const e=emp();await saveEmp({status:e.status==="aberta"?"encerrada":"aberta"});toast(emp().status==="aberta"?"Coleta aberta":"Coleta encerrada")};
+}
+// V 1.31: reaplicação do projeto psicossocial. Cada aplicação tem coleta (HSE-IT), ISO 45003, taxa de frequência,
+// análise e laudo próprios; o cadastro (unidades, setores/GHE, colaboradores) continua o do SIGE e pode mudar entre
+// aplicações. O Mapa de Risco e o Inventário passam a mostrar a aplicação mais recente assim que ela tiver resultado;
+// as ações das aplicações anteriores ficam no Plano de Ação como histórico, com a revisão do laudo em que apareceram.
+function painelAplicacoes(){
+  const e=emp(), n=cicloN(e), hist=(Array.isArray(e.ciclos)?e.ciclos:[]).slice().sort((a,b)=>a.n-b.n), lc=e.laudoCiclo;
+  const linha=c=>`<tr><td><b>${c.n}ª</b></td><td>${c.inicio?fmtData(c.inicio):"—"}${c.fim?" a "+fmtData(c.fim):""}</td><td class="num">${c.participaram??"—"}</td><td>${c.laudo?`${esc(c.laudo.codigo)} · Rev. ${esc(c.laudo.revisao)} · ${fmtData(c.laudo.emissao)}`:'<span class="muted">sem laudo</span>'}</td><td>${c.encerradaEm?"Encerrada em "+fmtData(c.encerradaEm):""}</td></tr>`;
+  const atual={n,inicio:e.inicio,fim:e.fim,participaram:S.data.part.length,laudo:lc||null};
+  return `<div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Aplicações do projeto</h3><span class="pill ok">${n}ª aplicação em curso</span></div>
+   <div class="tw"><table><thead><tr><th>Aplicação</th><th>Período</th><th class="num">Participaram</th><th>Laudo</th><th></th></tr></thead><tbody>
+   ${hist.map(linha).join("")}${linha(atual).replace("<td></td></tr>","<td><b>Atual</b></td></tr>")}</tbody></table></div>
+   <p class="muted" style="margin:0;font-size:.86rem">Reaplicar o projeto abre uma nova aplicação: nova coleta do HSE-IT (todos podem responder de novo), novo checklist ISO 45003, nova taxa de frequência e nova análise, que geram um novo laudo (próxima revisão). O cadastro de unidades, setores/GHE e colaboradores continua o do SIGE e pode ser alterado à vontade. As ações da aplicação atual ficam no Plano de Ação como histórico; o Mapa de Risco passa a mostrar a nova aplicação assim que cada setor/GHE tiver resultado.</p>
+   ${!lc?`<div class="aviso" style="margin:0">A ${n}ª aplicação ainda não tem laudo emitido. Emita o laudo antes de reaplicar para registrar o resultado desta aplicação.</div>`:""}
+   ${EH_CLIENTE()?"":`<div class="row"><button class="btn sm primary" id="novaAplic">Reaplicar o projeto (${n+1}ª aplicação)</button><span class="muted" id="naSt" style="font-size:.85rem"></span></div>`}</div>`;
+}
+async function novaAplicacao(btn){
+  const e=emp(), n=cicloN(e);
+  if(btn.dataset.armed!=="1"){ btn.dataset.armed="1"; btn.classList.add("danger"); btn.textContent=`Confirmar: encerrar a ${n}ª e abrir a ${n+1}ª aplicação`; $("#naSt").textContent="Clique de novo para confirmar."; return; }
+  btn.disabled=true; $("#naSt").textContent="Abrindo a nova aplicação…";
+  try{ await sincronizarRegistro(false).catch(()=>{});
+    const hist=(Array.isArray(e.ciclos)?e.ciclos:[]).filter(c=>c.n!==n);
+    hist.push({n,inicio:e.inicio||"",fim:e.fim||"",participaram:S.data.part.length,respostas:S.data.resps.length,laudo:e.laudoCiclo||null,tfGeral:e.tfGeral??null,stats:calcStats(),encerradaEm:hoje()});
+    await saveEmp({ciclos:hist,ciclo:n+1,status:"encerrada",inicio:"",fim:"",tfGeral:null,stats:null,laudoCiclo:null});
+    toast(`${n+1}ª aplicação aberta. Defina o período e abra a coleta.`); S.tab="hse"; await loadEmpresa(S.eid);
+  }catch(err){ $("#naSt").className="err"; $("#naSt").textContent="Não foi possível abrir a nova aplicação. Tente de novo."; btn.disabled=false; }
 }
 async function saveEmp(patch){ const e=emp(); Object.assign(e,patch); await E(e.k).set(SIGE()?extDe(e):{...e}); render(); }
 
@@ -978,12 +1026,14 @@ const sifEmp=()=>({...SIF_PADRAO}); // fixa (manual SIF), igual para todas as em
 // de graduação do Inventário de Riscos (js/calc.js). Probabilidade (graduação HSE × ISO 45003, de 1 a 5) e
 // severidade final (SIF × evidência organizacional, contínua de 0,75 a 4,00) são convertidas para a escala da matriz.
 const NOMES_CAT=["Muito Baixo","Baixo","Moderado","Alto","Altíssimo"];
-const NIVEL_CAT=n=>{ n=String(n||"").toLowerCase(); return /muito baix|trivial/.test(n)?0:/^(baix|leve)/.test(n)?1:/moderad|^m[eé]di/.test(n)?2:/muito alt|alt[ií]ssim|cr[ií]tic/.test(n)?4:/^alt/.test(n)?3:null; };
+// V 1.32: inclui as graduações da Matriz 5x5 Gerdau (Irrelevante, Tolerável, Moderado, Alto, Intolerável)
+const NIVEL_CAT=n=>{ n=String(n||"").toLowerCase(); return /muito baix|trivial|irrelev/.test(n)?0:/intoler|muito alt|alt[ií]ssim|cr[ií]tic/.test(n)?4:/^(baix|leve|toler)/.test(n)?1:/moderad|^m[eé]di/.test(n)?2:/^alt/.test(n)?3:null; };
 const rotEscala=x=>String(x).replace(/^Media$/,"Média");
 // Cópia das matrizes modelo ElevaLife de js/calc.js (só para o protótipo sem SIGE): [escala, níveis, grade[prob][sev] = índice do nível]
 const MATRIZES_LOCAL={"Matriz 3x3":[["Baixa","Media","Alta"],["Baixo","Moderado","Alto"],[[0,0,1],[0,1,2],[1,2,2]]],
   "Matriz 4x4":[["Baixa","Media","Alta","Muito Alta"],["Muito Baixo","Baixo","Moderado","Alto","Muito Alto"],[[0,1,1,2],[1,1,2,3],[1,2,2,3],[2,3,3,4]]],
-  "Matriz 5x5":[["Muito Baixa","Baixa","Media","Alta","Muito Alta"],["Muito Baixo","Baixo","Moderado","Alto","Altíssimo"],[[0,1,1,2,2],[1,1,2,2,3],[1,2,2,3,4],[2,2,3,4,4],[2,3,4,4,4]]]};
+  "Matriz 5x5":[["Muito Baixa","Baixa","Media","Alta","Muito Alta"],["Muito Baixo","Baixo","Moderado","Alto","Altíssimo"],[[0,1,1,2,2],[1,1,2,2,3],[1,2,2,3,4],[2,2,3,4,4],[2,3,4,4,4]]],
+  "Matriz 5x5 Gerdau":[["Muito Baixa","Baixa","Media","Alta","Muito Alta"],["Irrelevante","Tolerável","Moderado","Alto","Intolerável"],[[0,1,1,2,2],[1,1,2,2,3],[1,2,2,3,4],[2,2,3,4,4],[2,3,4,4,4]]]};
 function celulaLocal(nome,p,s){ const d=MATRIZES_LOCAL[nome]||MATRIZES_LOCAL["Matriz 5x5"]; return {nivel:d[1][d[2][p][s]],pontuacao:(p+1)*(s+1)}; }
 // Metodologia ElevaLife (V 1.27): equivalência entre os níveis do método e as escalas de cada matriz, pelo nome do nível.
 // Probabilidade do método (cruzamento HSE-IT × ISO 45003): 1 Muito baixa · 2 Baixa · 3 Moderada · 4 Alta · 5 Muito alta.
@@ -1003,14 +1053,15 @@ function mz(){
   const cats=[...new Set(M.flat())].filter(c=>c!=null).sort((a,b)=>a-b);
   // nomes dos níveis conforme a matriz (ex.: 4x4 → "Muito Alto"; 5x5 → "Altíssimo")
   CAT.forEach((c,i)=>{ c.n=NOMES_CAT[i]; }); M.forEach((l,p)=>l.forEach((c,q)=>{ if(c!=null) CAT[c].n=NV[p][q]; }));
-  const rotM=v=>C&&C.rotuloEscala?C.rotuloEscala(nome,v):(nome==="Matriz 3x3"&&v==="Baixa"?"Leve":rotEscala(v));
-  MZ_CACHE={nome,rot:`${n} × ${n}`,n,P:esc_.map(rotM),S:esc_.map(rotM),esc:esc_,M,NV,PT,cats,
+  const SEV_GERDAU={"Muito Baixa":"Brando",Baixa:"Moderado",Media:"Sério",Alta:"Crítico","Muito Alta":"Muito Crítico"};
+  const rotM=(v,eixo)=>C&&C.rotuloEscala?C.rotuloEscala(nome,v,eixo):(eixo==="severidade"&&nome==="Matriz 5x5 Gerdau"?SEV_GERDAU[v]:nome==="Matriz 3x3"&&v==="Baixa"?"Leve":rotEscala(v));
+  MZ_CACHE={nome,rot:`${n} × ${n}`,n,P:esc_.map(v=>rotM(v)),S:esc_.map(v=>rotM(v,"severidade")),esc:esc_,M,NV,PT,cats,
     conv:p5=>(CONV_PROB[n]||CONV_PROB[5])[p5-1],          // probabilidade do método (1–5) → escala da matriz
     sevN:sf=>(CONV_SEV[n]||CONV_SEV[5])[nivelSF(sf)-1]};  // SF (0,75–4,00) → nível do método (1–4) → escala da matriz
   return MZ_CACHE;
 }
 const catsMatriz=()=>mz().cats;
-const nivVar=n=>{ n=String(n||"").toLowerCase(); return /muito baix|trivial/.test(n)?"--g0":/^(baix|leve)/.test(n)?"--g1":/moderad|^m[eé]di/.test(n)?"--g2":/muito alt|crític|altíssim/.test(n)?"--g4":/^alt/.test(n)?"--g3":"--ln"; };
+const nivVar=n=>{ n=String(n||"").toLowerCase(); return /muito baix|trivial|irrelev/.test(n)?"--g0":/intoler|muito alt|crític|altíssim/.test(n)?"--g4":/^(baix|leve|toler)/.test(n)?"--g1":/moderad|^m[eé]di/.test(n)?"--g2":/^alt/.test(n)?"--g3":"--ln"; };
 const nivTag=(n,t)=>`<span class="chip" style="--c:var(${nivVar(n)})">${t}</span>`;
 const catTag=c=>c==null?'<span class="muted">—</span>':`<span class="chip" style="--c:var(${CAT[c].cor})">${CAT[c].n}</span>`;
 const parseNum=v=>{ if(v==null) return null; const s=String(v).trim().replace("%","").replace(/\s/g,"").replace(",","."); if(s==="") return null; const n=parseFloat(s); return isNaN(n)?null:n; };
@@ -1039,7 +1090,7 @@ function analisar(g){
   return o;
 }
 function todasAnalises(){ return comMemo(()=>memo("an",()=>S.data.unidades.flatMap(u=>S.data.ghes.filter(g=>g.unidadeId===u.k).map(g=>({u,...analisar(g)}))))); }
-async function saveAnalise(gid,patch){ const a=S.data.analise[gid]||(S.data.analise[gid]={k:gid}); Object.assign(a,patch); a.k=gid; await E(S.eid).collection("analise").doc(gid).set(JSON.parse(JSON.stringify(a))); }
+async function saveAnalise(gid,patch){ const a=S.data.analise[gid]||(S.data.analise[gid]={k:gid}); Object.assign(a,patch); a.k=gid; await C_(S.eid).collection("analise").doc(gid).set(JSON.parse(JSON.stringify(a))); }
 
 // ---------- Aba ISO 45003 ----------
 function linkIso(){ return baseUrl()+"#iso-"+(emp()?.codigo||S.eid); }
@@ -1066,8 +1117,8 @@ function bindIso(){
   $("#testIso").onclick=()=>{veioDoPainel=true;location.hash="iso-"+(emp().codigo||S.eid)};
   $("#dlIso").onclick=async()=>{ if(!dl) return toast("Download indisponível nesta visualização"); const b=await (await fetch(qrDataURL(linkIso(),14))).blob(); try{await dl.save({filename:`QR ISO 45003 - ${emp().razao}.png`,data:b})}catch(e){if(e.code!=="declined")toast("Não foi possível baixar o QR")} };
   document.querySelectorAll("[data-iso]").forEach(b=>b.onclick=()=>{const i=b.dataset.iso;ed[i]=b.dataset.v;b.parentNode.querySelectorAll(".segb").forEach(x=>x.classList.toggle("on",x===b));$("#isoSt").textContent=`${fmt(isoPontos(ed),1)} pontos · alterações não salvas`});
-  const il=$("#isoLimpar"); if(il) il.onclick=async()=>{ if(il.dataset.armed!=="1"){il.dataset.armed="1";il.textContent="Confirmar: apagar e liberar novo envio";return} await E(S.eid).collection("iso").doc("main").delete(); S.data.iso=null; toast("Respostas apagadas. O gestor pode responder de novo."); render(); };
-  $("#isoSalvar").onclick=async()=>{ const d=S.data.iso||{nome:"Preenchido pela ElevaLife",data:hoje()}; const nd={...d,r:ed,editadoEm:hoje()}; await E(S.eid).collection("iso").doc("main").set(nd); S.data.iso=nd; toast("Respostas do ISO 45003 salvas"); render(); };
+  const il=$("#isoLimpar"); if(il) il.onclick=async()=>{ if(il.dataset.armed!=="1"){il.dataset.armed="1";il.textContent="Confirmar: apagar e liberar novo envio";return} await C_(S.eid).collection("iso").doc("main").delete(); S.data.iso=null; toast("Respostas apagadas. O gestor pode responder de novo."); render(); };
+  $("#isoSalvar").onclick=async()=>{ const d=S.data.iso||{nome:"Preenchido pela ElevaLife",data:hoje()}; const nd={...d,r:ed,editadoEm:hoje()}; await C_(S.eid).collection("iso").doc("main").set(nd); S.data.iso=nd; toast("Respostas do ISO 45003 salvas"); render(); };
 }
 
 // ---------- Aba Análise de risco ----------
@@ -1082,7 +1133,7 @@ function tabAnalise(){
   const pend=L.filter(x=>x.cat==null);
   const TG=tabular(S.data.resps), tfG=tfGeral(), eoG=eoTF(tfG,L.some(x=>x.a.grave)), AG=analisarFatores(TG,iso?iso.i:null,eoG);
   const pTag=ff=>ff&&ff.p?nivTag(m.P[ff.p-1],`${ff.p} · ${m.P[ff.p-1]}`):'<span class="muted">—</span>';
-  const sTag=ff=>ff&&ff.s?nivTag(m.S[ff.s-1],`${ff.s} · ${m.S[ff.s-1]}`):'<span class="muted">—</span>';
+  const sTag=ff=>ff&&ff.s?nivTag(m.P[ff.s-1],`${ff.s} · ${m.S[ff.s-1]}`):'<span class="muted">—</span>';
   const grupo=(emp_,un,gn,fat,top,tipo,falta)=>{ const ds=dimsF; const n=ds.length+1;
     return `<tr class="grp"><td rowspan="${n}">${esc(emp_)}</td><td rowspan="${n}">${esc(un)}</td><td rowspan="${n}"><b>${esc(gn)}</b>${tipo?` <span class="tag">${tipo}</span>`:""}</td>
       <td><b>Resultado do grupo</b>${top?` <span class="muted" style="font-size:.78rem">(fator de maior risco)</span>`:""}</td><td>${pTag(top)}</td><td>${sTag(top)}</td><td>${top?catTag(top.cat):`<span class="muted" style="font-size:.8rem">${falta||"sem classificação"}</span>`}</td></tr>`
@@ -1112,8 +1163,9 @@ function tabAnalise(){
    ${unids.map(u=>Lf.filter(x=>x.u.k===u.k).map(x=>grupo(e.razao,u.nome,x.g.nome,x.fat,x.cat!=null?{p:x.p,s:x.s,cat:x.cat}:null,tipoG(x.g),"falta "+x.pend.join(", "))).join("")).join("")}
   </tbody></table></div>
   <div class="tw" style="margin-top:1rem"><table><thead><tr><th>Graduação</th><th>Conduta</th></tr></thead><tbody>${m.cats.map(i=>`<tr><td>${catTag(i)}</td><td style="font-size:.85rem">${CAT[i].conduta}</td></tr>`).join("")}</tbody></table></div></div>
-  ${SIGE()&&!EH_CLIENTE()?`<div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Registro do SIGE</h3><button class="btn sm" id="syncAgora">Atualizar Registro agora</button></div>
-   <p class="muted" style="margin:0;font-size:.86rem">Os riscos desta análise vão automaticamente para <b>Registro › Mapa de Risco</b> (uma linha “Risco psicossocial” por setor/GHE) e <b>Registro › Inventário de Riscos</b> (uma linha por fator), e as ações do plano para <b>Registro › Plano de Ação</b>, com origem “Riscos Psicossociais”.</p>
+  ${EH_CLIENTE()?"":painelAcoesAnalise()}
+  ${SIGE()&&!EH_CLIENTE()?`<div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Integração com o SIGE</h3><button class="btn sm" id="syncAgora">Atualizar SIGE agora</button></div>
+   <p class="muted" style="margin:0;font-size:.86rem">Os riscos desta análise vão automaticamente para a <b>Gestão de Risco</b> e o <b>AEP › Inventário de Riscos</b> com a origem “Psicossocial” (uma linha por fator), e as ações para o <b>Plano de Ação</b> (único para AEP, AET e Psicossocial), com origem “Psicossocial”.</p>
    <span class="muted" id="syncSt" style="font-size:.85rem">${esc(SYNC.msg||"")}</span></div>`:""}
   </div>`;
 }
@@ -1129,6 +1181,24 @@ function bindAnalise(){
   if(window.Chart&&$("#chFat")){ const m=mz(), L=todasAnalises().filter(x=>x.cat!=null&&(!f.u||x.u.k===f.u)&&(!f.g||x.g.k===f.g)), ds=DIMS.filter(d=>!f.fat||d.id===f.fat);
     barras("chFat",m.cats.map(c=>CAT[c].n),m.cats.map(c=>L.reduce((a,x)=>a+ds.filter(d=>x.fat[d.id]?.cat===c).length,0)),m.cats.map(c=>cssVar(CAT[c].cor)),{grossura:46,rotulo:"Fatores"}); }
   const sb=$("#syncAgora"); if(sb) sb.onclick=async()=>{ sb.disabled=true; await sincronizarRegistro(true); sb.disabled=false; };
+  if(!EH_CLIENTE()) bindAcoesAnalise();
+}
+// V 1.29: escolha das ações por setor/GHE e ações já realizadas (antes na aba Plano de ação).
+// Responsável, prazo, e-mail e status ficam no Plano de Ação do SIGE (único para AEP, AET e Psicossocial).
+function painelAcoesAnalise(){
+  const baixos=todasAnalises().filter(x=>x.cat!=null&&x.cat<=1), n=itensPlano().length;
+  return `<div class="panel stack"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:.6rem"><h3>Ações do plano (${n})</h3>
+    <div class="row" style="gap:.5rem">${SIGE()?`<button class="btn primary sm" id="abrirPlanoSige">Abrir no Plano de Ação do SIGE</button>`:""}<button class="btn sm" id="expBaixar">Baixar plano em Excel</button></div></div>
+   <p class="note" style="margin:0">As ações escolhidas abaixo vão para o <b>Plano de Ação</b> do SIGE (origem Psicossocial), junto com as ações da AEP e da AET. Lá se definem responsável, prazo e e-mail; o status muda sozinho (com prazo, Em andamento; vencido, Atrasada) e o responsável recebe o e-mail automaticamente.</p></div>
+  ${painelSelecaoAcoes()}
+  <div class="panel stack"><h3>Risco baixo · ações já realizadas a manter</h3>
+   ${baixos.length?`<div class="tw"><table><thead><tr><th>Unidade / setor ou GHE</th><th>Risco</th><th>Ações já realizadas</th><th></th></tr></thead><tbody>${baixos.map(x=>`<tr><td>${esc(x.u.nome)} › <b>${esc(x.g.nome)}</b></td><td>${catTag(x.cat)}</td><td style="font-size:.85rem;white-space:pre-line">${x.a.realizadas?esc(x.a.realizadas):(emp().realizadas?'<span class="muted">usa as ações da empresa</span>':'<span class="err">Não informado</span>')}</td><td><button class="btn sm" data-real="${x.g.k}">Editar</button></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty" style="padding:1rem">Nenhum setor/GHE com risco baixo.</div>`}</div>`;
+}
+function bindAcoesAnalise(){
+  const ap=$("#abrirPlanoSige"); if(ap) ap.onclick=()=>avisarPai("abrir-plano-acao",{});
+  const ex=$("#expBaixar"); if(ex) ex.onclick=()=>exportarPlanoExcel(ex,"empresa");
+  document.querySelectorAll("[data-real]").forEach(b=>b.onclick=()=>realizadasModal(b.dataset.real));
+  bindSelecaoAcoes();
 }
 function realizadasModal(gid){
   const a=S.data.analise[gid]||{}; const g=S.data.ghes.find(x=>x.k===gid);
@@ -1314,11 +1384,11 @@ function tabLaudo(){
     <div class="panel stack"><h3>Responsáveis pelo laudo</h3>
      <label class="f">Ergonomista (executou a avaliação)<select id="selErg">${opt(e.ergId)}</select></label>
      <label class="f">Responsável técnico<select id="selRt">${opt(e.rtId)}</select></label>
-     <p class="note">Se for a mesma pessoa, o laudo cita e assina uma vez só. ${SIGE()?"A lista é a dos ergonomistas do SIGE (Cadastro › Ergonomistas).":EH_ADMIN()?`Novos profissionais: aba <a href="#" data-goto="profs">Ergonomistas</a>.`:"Novos profissionais são cadastrados pelo Administrador."}</p></div>
+     <p class="note">Se for a mesma pessoa, o laudo cita e assina uma vez só. ${SIGE()?"A lista é a dos ergonomistas do SIGE (Cadastro Interno › Ergonomistas).":EH_ADMIN()?`Novos profissionais: aba <a href="#" data-goto="profs">Ergonomistas</a>.`:"Novos profissionais são cadastrados pelo Administrador."}</p></div>
     <div class="panel stack"><h3>Emitir laudo</h3>
-     <p class="muted" style="margin:0">Laudo de Avaliação dos Fatores de Risco Psicossociais em PDF, no padrão ElevaLife, com sumário, numeração de páginas e assinaturas.</p>
+     <p class="muted" style="margin:0">Laudo de Avaliação dos Fatores de Risco Psicossociais em PDF e em Word (editável), no padrão ElevaLife: capa, sumário, "Página X de Y", assinaturas e validação por QR Code. O laudo entra no histórico de laudos do cliente (AEP › Laudos) e pode ser conferido em /verificar.</p>
      ${pend.length||faltaProf?`<div class="stack" style="gap:.4rem"><b style="font-size:.9rem">Pendências</b>${faltaProf?`<div class="pendb"><span class="dot"></span>Escolha o ergonomista e o responsável técnico acima</div>`:""}${pend.map(([t,tab])=>`<button class="pendb" data-goto="${tab}"><span class="dot"></span>${esc(t)}<span class="muted" style="margin-left:auto">abrir →</span></button>`).join("")}<span class="muted" style="font-size:.82rem">Dá para emitir mesmo com pendências; os pontos faltantes ficam sinalizados no documento.</span></div>`:`<div class="aviso" style="background:#E3F1EA;border-color:#B9DCC9;color:#1F5C42">Tudo pronto: nenhuma pendência.</div>`}
-     <button class="btn primary" id="laudoEmitir" style="padding:.8rem;font-size:1rem">Emitir laudo em PDF</button>
+     <button class="btn primary" id="laudoEmitir" style="padding:.8rem;font-size:1rem">Emitir laudo (PDF e Word)</button>
      <p class="note">Os textos padrão do laudo podem ser ajustados na aba <a href="#" data-goto="editor">Editor de texto</a>.</p></div>
    </div>
    <div class="panel stack"><h3>O que vai no laudo</h3>
@@ -1512,7 +1582,10 @@ const sigeSlug=partes=>{ let x=partes.join("|").toLowerCase().normalize("NFD").r
 const idCurto=t=>sigeSlug([t]).slice(0,120);
 const idMapaPsico=(e,x)=>sigeSlug([e.razao,x.u.nome,x.g.nome,"Risco psicossocial","",""]);
 const idFatorPsico=(gid,dim)=>"psico-"+idCurto(gid)+"-"+dim;
-const idPlanoPsico=(gid,c)=>"psico-"+idCurto(gid)+"-"+String(c).toLowerCase();
+// V 1.31: a partir da 2ª aplicação, as ações ganham o número da aplicação no id (as anteriores ficam como histórico)
+const cicloAtualPsico=()=>cicloN(emp());
+const idPlanoPsico=(gid,c,n)=>{ n=n||cicloAtualPsico(); return "psico-"+idCurto(gid)+"-"+String(c).toLowerCase()+(n>1?"-a"+n:""); };
+const cicloDaLinha=r=>Math.max(1,Number(r&&r.Psico&&r.Psico.ciclo)||1);
 const nivelCanon=nv=>{ const C=window.BI&&BI.Calc; return C&&C.nivelCanonico?C.nivelCanonico(nv):({"Muito Baixo":"Baixo","Moderado":"Medio","Altíssimo":"Muito Alto"}[nv]||nv); };
 const NOTA_NIVEL={Baixo:1,Medio:2,Alto:3,"Muito Alto":4};
 const HIER_NOME={H1:"H1 - Organização do Trabalho",H2:"H2 - Processos",H3:"H3 - Liderança e Gestão",H4:"H4 - Equipe",H5:"H5 - Suporte Individual"};
@@ -1520,7 +1593,7 @@ function dataRefGhe(x){ let d=""; (respsPorGhe().get(x.g.k)||[]).forEach(r=>{ if
 function baseRegistro(e,x){ return {EmpresaId:e.clienteId,Cliente:e.razao,Unidade:x.u.nome,Setor:x.g.nome,Cargo:"",Atividade:"",Origem:ORIGEM_PSICO}; }
 function linhaMapaDesejada(e,x){
   const nv=nivelCanon(x.nivel), r={...baseRegistro(e,x),id:idMapaPsico(e,x),"Posto Trabalho":"Risco psicossocial","Dt Avaliacao":dataRefGhe(x),"Risco Global":nv,
-    "Psicossocial/Cognitivo":NOTA_NIVEL[nv]||null,"Graduacao Psicossocial":x.nivel,"Fatores Criticos":fatoresDeterminantes(x.fat,x.cat).join(", "),Psico:{g:x.g.k,tipo:tipoG(x.g)}};
+    "Psicossocial/Cognitivo":NOTA_NIVEL[nv]||null,"Graduacao Psicossocial":x.nivel,"Fatores Criticos":fatoresDeterminantes(x.fat,x.cat).join(", "),Psico:{g:x.g.k,tipo:tipoG(x.g),ciclo:cicloAtualPsico()}};
   return r;
 }
 function linhasFatorDesejadas(e,x,iso){
@@ -1528,14 +1601,14 @@ function linhasFatorDesejadas(e,x,iso){
   return DIMS.filter(d=>x.fat[d.id]&&x.fat[d.id].cat!=null).map(d=>{ const f=x.fat[d.id], sc=x.T.dims[d.id].score;
     return {...baseRegistro(e,x),"Posto Trabalho":"",id:idFatorPsico(x.g.k,d.id),Grupo:"Fatores psicossociais (HSE-IT)",Fator:d.nome,"Existe Fator Risco":"Sim",
       "Circunstancia Geradora":`HSE-IT: média ${fmt(sc)} (${risco(sc).nome.toLowerCase()}) · ISO 45003: ${iso?iso.nome.toLowerCase():"—"} · evidência organizacional: ${x.eo} – ${EO_NOMES[x.eo-1].toLowerCase()}`,
-      Consequencia:SIF_DESF[f.sif-1],"Medida Controle Existente":real,Criticidade:m.esc[f.s-1],Probabilidade:m.esc[f.p-1],Matriz:m.nome,"Pontuacao Risco":f.pont,"Graduacao Risco":f.nivel,
-      "Dt Identificacao":dataRefGhe(x),Psico:{g:x.g.k,dim:d.id}}; });
+      Consequencia:SIF_DESF[f.sif-1],"Medida Controle Existente":real,Criticidade:m.esc[f.s-1],Probabilidade:m.esc[f.p-1],Matriz:m.nome,"Pontuacao Risco":f.pont,"Graduacao Risco":f.nivel,"Segmento Corporal":"Psicossocial",
+      "Dt Identificacao":dataRefGhe(x),Psico:{g:x.g.k,dim:d.id,ciclo:cicloAtualPsico()}}; });
 }
 function linhaPlanoDesejada(x,c,comOperacao){
   const e=emp(), b=bib(c)||[], a=(x.a.acoes||{})[c]||{};
   const r={...baseRegistro(e,x),"Posto Trabalho":"",id:idPlanoPsico(x.g.k,c),"Nr Acao":c,"Acao Recomendada":b[8]||c,"Categoria Acao":"Administrativa","Tipo Acao":"Organizacional","Gestao Acao":"Cliente",
     "Risco Global":nivelCanon(x.nivel),"Fator Risco Id":b[1]?idFatorPsico(x.g.k,b[1]):"","Fator Risco Nome":b[1]?"Psicossocial – "+dimNome(b[1]):"Psicossocial",
-    Psico:{g:x.g.k,c,fator:dimNome(b[1])||"",subfator:b[2]||"",risco:b[3]||"",resultado:b[7]||"",hierarquia:HIER_NOME[b[5]]||b[5]||"",prazoSug:PRAZO_NOME[b[10]]||"",indicador:b[12]||"",achado:a.motivo||"",auto:!!a.auto}};
+    "Aplicacao Psico":cicloAtualPsico(),Psico:{g:x.g.k,c,ciclo:cicloAtualPsico(),fator:dimNome(b[1])||"",subfator:b[2]||"",risco:b[3]||"",resultado:b[7]||"",hierarquia:HIER_NOME[b[5]]||b[5]||"",prazoSug:PRAZO_NOME[b[10]]||"",indicador:b[12]||"",achado:a.motivo||"",auto:!!a.auto}};
   if(comOperacao){ // dados de versões anteriores (antes do plano ir para o Registro)
     if(a.resp) r["Responsavel Acao"]=a.resp; if(a.email) r["E-mail Responsavel"]=a.email; if(a.prazo&&(a.prazoManual||a.resp||a.email||a.notif)) r["Dt Programada"]=a.prazo;
     r["Status Execucao"]=STATUS_SIGE[a.status]||"Nao iniciada";
@@ -1547,8 +1620,8 @@ function linhaPlanoDesejada(x,c,comOperacao){
 }
 const CAMPOS_DONO={
   mapaRisco:["Cliente","Unidade","Setor","Posto Trabalho","Cargo","Atividade","Origem","Dt Avaliacao","Risco Global","Psicossocial/Cognitivo","Graduacao Psicossocial","Fatores Criticos","Psico"],
-  fatorRisco:["Cliente","Unidade","Setor","Posto Trabalho","Cargo","Atividade","Origem","Grupo","Fator","Existe Fator Risco","Circunstancia Geradora","Consequencia","Medida Controle Existente","Criticidade","Probabilidade","Matriz","Pontuacao Risco","Graduacao Risco","Dt Identificacao","Psico"],
-  planoAcao:["Cliente","Unidade","Setor","Posto Trabalho","Cargo","Atividade","Origem","Nr Acao","Acao Recomendada","Categoria Acao","Tipo Acao","Gestao Acao","Risco Global","Fator Risco Id","Fator Risco Nome","Psico"],
+  fatorRisco:["Cliente","Unidade","Setor","Posto Trabalho","Cargo","Atividade","Origem","Grupo","Fator","Existe Fator Risco","Circunstancia Geradora","Consequencia","Medida Controle Existente","Criticidade","Probabilidade","Matriz","Pontuacao Risco","Graduacao Risco","Segmento Corporal","Dt Identificacao","Psico"],
+  planoAcao:["Cliente","Unidade","Setor","Posto Trabalho","Cargo","Atividade","Origem","Nr Acao","Acao Recomendada","Categoria Acao","Tipo Acao","Gestao Acao","Risco Global","Fator Risco Id","Fator Risco Nome","Aplicacao Psico","Psico"],
 };
 const igualDono=(col,a,b)=>CAMPOS_DONO[col].every(k=>JSON.stringify(a[k]??null)===JSON.stringify(b[k]??null));
 const planoIntocado=r=>!r["Responsavel Acao"]&&!r["E-mail Responsavel"]&&!r["Dt Programada"]&&!r["Dt Conclusao"]&&(!r["Status Execucao"]||r["Status Execucao"]==="Nao iniciada")&&!(Array.isArray(r.Evidencias)&&r.Evidencias.length);
@@ -1570,20 +1643,27 @@ async function sincronizarRegistro(manual){
     for(const col of ["mapaRisco","fatorRisco","planoAcao"]){
       for(const [id,r] of Object.entries(quer[col])){ const ex=atual[col][id];
         if(!ex){ const novo=col==="planoAcao"?linhaPlanoDesejada(L.find(x=>x.g.k===r.Psico.g),r.Psico.c,true):col==="fatorRisco"?{...r}:r;
-          if(col==="fatorRisco") novo.Status=L.find(x=>x.g.k===r.Psico.g).cat>=2?"Em andamento":"A validar";
+          if(col==="fatorRisco"){ novo.Status=L.find(x=>x.g.k===r.Psico.g).cat>=2?"Em andamento":"A validar"; novo["Graduacao Inicial"]=r["Graduacao Risco"]; }
           tarefas.push(async()=>{ const s_=await SIGE().salvar(col,novo); atual[col][id]=s_&&s_.id?s_:novo; }); }
-        else if(!igualDono(col,ex,r)){ const novo={...ex,...r}; tarefas.push(async()=>{ const s_=await SIGE().salvar(col,novo); atual[col][id]=s_&&s_.id?s_:novo; }); } }
+        else if(!igualDono(col,ex,r)){ const novo={...ex,...r};
+          // V 1.31: na reaplicação, a nova graduação do fator entra no histórico (evolução do risco no Inventário)
+          if(col==="fatorRisco"&&cicloDaLinha(ex)<cicloDaLinha(r)){ if(!novo["Graduacao Inicial"]) novo["Graduacao Inicial"]=ex["Graduacao Risco"]||r["Graduacao Risco"];
+            if((ex["Graduacao Risco"]||"")!==(r["Graduacao Risco"]||"")||ex["Risco Eliminado"]==="Sim") novo["Historico Risco"]=[...(Array.isArray(ex["Historico Risco"])?ex["Historico Risco"]:[]),{data:r["Dt Identificacao"]||hoje(),de:ex["Graduacao Risco"]||"",para:r["Graduacao Risco"],probabilidade:r.Probabilidade,severidade:r.Criticidade,motivo:`Reaplicação do projeto psicossocial (${cicloDaLinha(r)}ª aplicação)`}];
+            delete novo["Risco Eliminado"]; delete novo["Eliminado Em"]; }
+          tarefas.push(async()=>{ const s_=await SIGE().salvar(col,novo); atual[col][id]=s_&&s_.id?s_:novo; }); } }
       for(const [id,ex] of Object.entries(atual[col])){ if(quer[col][id]) continue;
         if(col==="planoAcao"&&!planoIntocado(ex)) continue; // ação já trabalhada no Registro: fica
+        if(col==="planoAcao"&&cicloDaLinha(ex)<cicloAtualPsico()) continue; // V 1.31: ações de aplicações anteriores ficam como histórico
+        if(col!=="planoAcao"&&cicloDaLinha(ex)<cicloAtualPsico()&&D.ghes.some(g=>g.k===(ex.Psico&&ex.Psico.g))) continue; // risco da aplicação anterior vale até a nova ter resultado
         tarefas.push(async()=>{ await SIGE().excluir(col,id); delete atual[col][id]; }); }
     }
-    if(!tarefas.length){ SYNC.msg=`Registro do SIGE em dia (${Object.keys(quer.mapaRisco).length} setores/GHE, ${Object.keys(quer.fatorRisco).length} fatores, ${Object.keys(atual.planoAcao).length} ações).`; if(manual) toast("O Registro do SIGE já está em dia"); }
+    if(!tarefas.length){ SYNC.msg=`SIGE em dia (${Object.keys(quer.mapaRisco).length} setores/GHE, ${Object.keys(quer.fatorRisco).length} fatores, ${Object.keys(atual.planoAcao).length} ações).`; if(manual) toast("O Registro do SIGE já está em dia"); }
     else { let feitas=0, falhas=0; const fila=tarefas.slice();
-      await Promise.all(Array.from({length:Math.min(4,fila.length)},async()=>{ while(fila.length){ const t=fila.shift(); try{ await t(); feitas++; }catch(err){ falhas++; } if(st()) st().textContent=`Atualizando o Registro do SIGE… ${feitas+falhas} de ${tarefas.length}`; } }));
-      SYNC.msg=falhas?`Registro do SIGE atualizado com ${falhas} falha(s). Clique em “Atualizar Registro agora” para tentar de novo.`:`Registro do SIGE atualizado em ${new Date().toLocaleString("pt-BR").slice(0,17)} (${feitas} alteração(ões)).`;
+      await Promise.all(Array.from({length:Math.min(4,fila.length)},async()=>{ while(fila.length){ const t=fila.shift(); try{ await t(); feitas++; }catch(err){ falhas++; } if(st()) st().textContent=`Atualizando o SIGE SIGE… ${feitas+falhas} de ${tarefas.length}`; } }));
+      SYNC.msg=falhas?`SIGE atualizado com ${falhas} falha(s). Clique em “Atualizar SIGE agora” para tentar de novo.`:`SIGE atualizado em ${new Date().toLocaleString("pt-BR").slice(0,17)} (${feitas} alteração(ões)).`;
       SIGE().avisarRegistro(); if(manual||falhas) toast(SYNC.msg); }
-  }catch(err){ SYNC.msg="Não foi possível atualizar o Registro do SIGE agora."; if(manual) toast(SYNC.msg); }
-  finally{ SYNC.rodando=false; if(st()) st().textContent=SYNC.msg; if(S.tab==="plano"&&S.eid===eid&&!document.activeElement?.matches?.("input,select,textarea")) render();
+  }catch(err){ SYNC.msg="Não foi possível atualizar o SIGE agora."; if(manual) toast(SYNC.msg); }
+  finally{ SYNC.rodando=false; if(st()) st().textContent=SYNC.msg; if(S.tab==="analise"&&S.eid===eid&&!document.activeElement?.matches?.("input,select,textarea")) render();
     if(SYNC.pendente){ SYNC.pendente=false; agendarSincronizacao(); } }
 }
 
@@ -1682,7 +1762,7 @@ function tabDiag(){
    <div class="panel kpi"><div class="eyebrow">Taxa de frequência</div><div class="v">${L.length-faltam}<small class="muted" style="font-size:.9rem"> / ${L.length}</small></div><small class="muted">setores/GHE preenchidos</small></div>
    <div class="panel kpi"><div class="eyebrow">Matriz de risco</div><div class="v" style="font-size:1.1rem;padding-top:.45rem">${esc(m.nome)}</div><small class="muted">definida no cadastro do cliente</small></div>
   </div>
-  ${semEstrutura?`<div class="aviso">Esta empresa ainda não tem ${!D.unidades.length?"unidades":"setores/GHE"} cadastrados. O cadastro fica no SIGE: <b>Cadastro › Unidade</b>, <b>Cadastro › Setor / GHE</b> e <b>Cadastro › Colaboradores</b> (há importação por planilha).</div>`:""}
+  ${semEstrutura?`<div class="aviso">Esta empresa ainda não tem ${!D.unidades.length?"unidades":"setores/GHE"} cadastrados. O cadastro fica no SIGE: <b>Cadastro Cliente › Unidade</b>, <b>Cadastro Cliente › Setor / GHE</b> e <b>Cadastro Cliente › Colaboradores</b> (há importação por planilha).</div>`:""}
   <div class="eyebrow" style="margin-top:.4rem">1 · Checklist ISO 45003 — gestão dos riscos psicossociais pela empresa</div>
   ${tabIso()}
   <div class="eyebrow" style="margin-top:.4rem">2 · Taxa de frequência por setor/GHE — evidência organizacional</div>
@@ -1710,7 +1790,7 @@ function tabDiag(){
     <textarea id="realEmp" rows="7" aria-label="Ações já realizadas pela empresa">${esc(e.realizadas||"")}</textarea>
     <div class="row"><button class="btn sm primary" id="salvaReal">Salvar ações</button></div></div>
    <div class="stack">
-    <div class="panel stack"><h3>Planilha de solicitação ao cliente</h3><p class="muted" style="margin:0;font-size:.88rem">Planilha com unidades, setores/GHE e colaboradores cadastrados, taxa de frequência e ações já realizadas, para o cliente conferir e devolver (a taxa de frequência e as ações voltam pela importação acima; colaboradores, pela importação do SIGE em Cadastro › Colaboradores).</p><div><button class="btn sm" id="planCli">Baixar planilha</button></div></div>
+    <div class="panel stack"><h3>Planilha de solicitação ao cliente</h3><p class="muted" style="margin:0;font-size:.88rem">Planilha com unidades, setores/GHE e colaboradores cadastrados, taxa de frequência e ações já realizadas, para o cliente conferir e devolver (a taxa de frequência e as ações voltam pela importação acima; colaboradores, pela importação do SIGE em Cadastro Cliente › Colaboradores).</p><div><button class="btn sm" id="planCli">Baixar planilha</button></div></div>
     ${EH_ADMIN()?`<div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Cópia de segurança</h3><button class="btn sm" id="backup">Baixar cópia (JSON)</button></div>
      <p class="muted" style="margin:0;font-size:.88rem">Dados do módulo desta empresa: coleta, respostas (anônimas), ISO 45003 e análise.</p><span class="muted" id="bkSt" style="font-size:.85rem"></span></div>`:""}
    </div></div>
@@ -1774,7 +1854,7 @@ function itensPlano(){ return memo("itensPlano",()=>{
   // V 1.27: a ação do plano é a mesma do Registro › Plano de Ação do SIGE (prazo, responsável, e-mail e status vêm de lá)
   const out=[], vistos=new Set();
   L.forEach(x=>{ const cods=new Set(Object.keys(x.a.acoes||{}));
-    Object.values(S.data.plano).forEach(r=>{ if(r.Psico&&r.Psico.g===x.g.k&&r.Psico.c) cods.add(r.Psico.c); });
+    Object.values(S.data.plano).forEach(r=>{ if(r.Psico&&r.Psico.g===x.g.k&&r.Psico.c&&cicloDaLinha(r)===cicloAtualPsico()) cods.add(r.Psico.c); });
     cods.forEach(c=>{ const id=idPlanoPsico(x.g.k,c), r=S.data.plano[id]; vistos.add(id);
       const v=r?vDeLinhaPlano(r,(x.a.acoes||{})[c]):Object.assign({},(x.a.acoes||{})[c]||{},{status:"pendente"});
       out.push({x,c,v,b:bib(c)||[],st:statusAcao(v),id,row:r||null,fora:!(x.a.acoes||{})[c]}); }); });
@@ -1850,7 +1930,7 @@ async function salvarCampoPlano(gid,c,fld,val){
     const v=vDeLinhaPlano(S.data.plano[id]);
     toast(fld==="_reenviar"?`E-mail reenviado para ${v.email}`:v.resp&&v.email&&v.prazo&&["prazo","resp","email"].includes(fld)?`Salvo · e-mail enviado para ${v.email}`:"Salvo");
     SIGE().avisarRegistro();
-  }catch(err){ const cod=(err.body&&err.body.codigo)||""; toast(/EVID|JUSTIFICATIVA/.test(cod)?"Para concluir a ação, anexe a evidência (foto ou PDF) em Registro › Plano de Ação do SIGE. Sem evidência, só o Administrador conclui por lá, com justificativa e prazo.":(err.body&&err.body.erro||"Não foi possível salvar.")); }
+  }catch(err){ const cod=(err.body&&err.body.codigo)||""; toast(/EVID|JUSTIFICATIVA/.test(cod)?"Para concluir a ação, anexe a evidência (foto ou PDF) no Plano de Ação do SIGE. Sem evidência, só o Administrador conclui por lá, com justificativa e prazo.":(err.body&&err.body.erro||"Não foi possível salvar.")); }
   render();
 }
 async function notificarResponsavel(gid,c,forcar){
@@ -1858,7 +1938,7 @@ async function notificarResponsavel(gid,c,forcar){
   if(!window.ELEVA_EQUIPE){ toast("Salvo. O envio automático de e-mail funciona na versão instalada no SIGE."); return; }
   const b=bib(c)||[]; toast(`Enviando e-mail para ${v.email}…`);
   try{ const r=await ELEVA_EQUIPE.notificarAcao(S.eid,gid,c,{titulo:b[3]||c,recomendacao:b[8]||"",fator:dimNome(b[1])||"",indicador:b[12]||""},forcar);
-    const a=await E(S.eid).collection("analise").doc(gid).get(); if(a.exists) S.data.analise[gid]=a.data();
+    const a=await C_(S.eid).collection("analise").doc(gid).get(); if(a.exists) S.data.analise[gid]=a.data();
     toast(r.jaEnviado?"E-mail já tinha sido enviado com estes dados":`E-mail enviado para ${v.email}`); }
   catch(err){ toast(err.body&&err.body.erro||"Não foi possível enviar o e-mail. Os dados foram salvos."); }
 }
@@ -2035,7 +2115,7 @@ function fraseParticipacao(onde,ks,uid_,gid){
 const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
 const COR={wine:"8B3A42",deep:"5E2A30",mid:"A34E56",soft:"C99AA0",tint:"EBD9DB",ink:"3A2A2E",mut:"8A7A78",ln:"EADDE0",ok:"2E7D5B",teal:"3E7B7E",warn:"C9822B",bad:"B23A48",crit:"7E1F2C",g0:"8CCBEB",g1:"2E8B57",g2:"F2C230",g3:"C62828",g4:"6A3D9A"};
 const CLAROS=["8CCBEB","F2C230"];
-const corNivel=n=>{ n=String(n||"").toLowerCase(); return COR[/muito baix|trivial/.test(n)?"g0":/^(baix|leve)/.test(n)?"g1":/moderad|^m[eé]di/.test(n)?"g2":/muito alt|crític|altíssim/.test(n)?"g4":/^alt/.test(n)?"g3":"mut"]; };
+const corNivel=n=>{ n=String(n||"").toLowerCase(); return COR[/muito baix|trivial|irrelev/.test(n)?"g0":/intoler|muito alt|crític|altíssim/.test(n)?"g4":/^(baix|leve|toler)/.test(n)?"g1":/moderad|^m[eé]di/.test(n)?"g2":/^alt/.test(n)?"g3":"mut"]; };
 const corRisco=score=>{const r=risco(score);return r?COR[r.cor.slice(2)]:COR.mut};
 const corCat=i=>COR[CAT[i].cor.slice(2)];
 const corP5=["g0","g1","g2","g3","g4"];
@@ -2097,7 +2177,7 @@ const referencias=()=>{ let t=linhas(REFERENCIAS||""); if(!t.length) t=REFERENCI
 // Formato: parágrafos separados por linha em branco; **negrito**; nas listas, um item por linha ("Termo: explicação" deixa o termo em negrito).
 // Marcadores: {empresa} {nResp} {nPart} {nRec} {resumoParticipacao} {nCad} {nUnid} {nGhe} {adesao} {periodo} {mesAno} {matriz} {totalPaginas}
 const TEXTOS_PADRAO={
- capa_selo:"AVALIAÇÃO PSICOSSOCIAL · HSE-IT · ISO 45003",
+ capa_selo:"Avaliação psicossocial conforme NR-01 (GRO/PGR), com o questionário HSE-IT e o checklist ISO 45003",
  capa_titulo:"Avaliação dos Fatores de Risco Psicossociais Relacionados ao Trabalho",
  apresentacao:"Este relatório foi elaborado pela ElevaLife com o objetivo de avaliar os fatores psicossociais relacionados ao trabalho na empresa {empresa}.\n\nA iniciativa visa compreender, de forma mais aprofundada, as percepções dos trabalhadores em relação às condições de trabalho, especialmente no que se refere às demandas, ao suporte recebido, à comunicação interna, à clareza de papéis e à gestão de mudanças. Essa análise é fundamental para complementar o diagnóstico de ergonomia e subsidiar ações estratégicas de promoção da saúde mental, melhoria do clima organizacional e prevenção de riscos psicossociais.",
  demanda:"A avaliação dos fatores psicossociais no ambiente de trabalho está alinhada às exigências da legislação trabalhista e de saúde e segurança do trabalho no Brasil, especialmente no que se refere à promoção da saúde mental, prevenção de agravos relacionados ao estresse ocupacional e à gestão dos riscos psicossociais.\n\nA NR 01 – Disposições Gerais e Gerenciamento de Riscos Ocupacionais (GRO), atualizada pela Portaria SEPRT nº 6.730/2020, estabelece que todo empregador deve implementar o Gerenciamento de Riscos Ocupacionais (GRO) por meio de um Programa de Gerenciamento de Riscos (PGR). Esse programa deve contemplar a identificação de perigos e a avaliação de riscos ocupacionais, incluindo os riscos psicossociais.\n\nA Portaria MTE nº 765, de 15 de maio de 2025, prorrogou até 25 de maio de 2026 o início da vigência da nova redação do capítulo \"1.5 Gerenciamento de riscos ocupacionais\" da Norma Regulamentadora nº 1 (NR-1), aprovada pela Portaria MTE nº 1.419, de 27 de agosto de 2024.\n\nA NR 17 – Ergonomia, por sua vez, também faz menção à necessidade de considerar aspectos psicossociais nas análises ergonômicas do trabalho. A norma orienta que as condições de trabalho devem ser adaptadas às características psicofisiológicas dos trabalhadores, promovendo conforto, segurança e desempenho eficiente. O texto reforça que, em atividades que envolvam carga mental elevada, ritmo intenso e pressão por produtividade, deve-se considerar os impactos sobre a saúde mental e emocional dos trabalhadores.\n\nAlém disso, a NR 07 – Programa de Controle Médico de Saúde Ocupacional (PCMSO), em sua nova redação conforme a Portaria nº 6.734/2020, reforça a importância da avaliação dos agravos à saúde relacionados a fatores psicossociais. O PCMSO deve considerar os riscos identificados no PGR, incluindo os de natureza psicossocial, e implementar ações preventivas e de acompanhamento, especialmente nas situações em que houver indícios de adoecimento mental relacionado ao trabalho.\n\nEssas diretrizes dialogam com os princípios da saúde ocupacional e da psicologia do trabalho, e também estão alinhadas a normas e recomendações internacionais, como as emitidas pela Organização Internacional do Trabalho (OIT) e pela Organização Mundial da Saúde (OMS), que reconhecem os fatores psicossociais como determinantes importantes da saúde no ambiente laboral.\n\nCom o objetivo de identificar fatores de risco psicossocial no ambiente de trabalho e promover ações preventivas e de melhoria, foi realizada uma avaliação junto aos colaboradores utilizando o questionário HSE (Health and Safety Executive – Management Standards Indicator Tool).\n\nO questionário HSE é uma ferramenta reconhecida internacionalmente, desenvolvida pelo governo do Reino Unido, que permite mensurar a percepção dos trabalhadores em relação a sete dimensões psicossociais associadas ao risco de estresse ocupacional. São elas: Demandas, Controle, Apoio da Chefia, Apoio dos Colegas, Relacionamentos, Cargo, Comunicação e Mudança.\n\nA aplicação ocorreu de forma anônima e voluntária, envolvendo um total de {nResp} colaboradores da empresa, abrangendo diferentes setores. Os dados obtidos oferecem uma visão ampla sobre os fatores de riscos psicossociais no ambiente organizacional e subsidiam o planejamento de ações voltadas à melhoria da qualidade de vida no trabalho, prevenção de adoecimentos e promoção de um ambiente laboral mais saudável e produtivo.\n\nEste relatório apresenta os resultados consolidados da avaliação, incluindo a média de pontuação por fator psicossocial do questionário HSE, a análise interpretativa dos dados de saúde, a avaliação da gestão dos fatores psicossociais de acordo com a ISO 45003 e recomendações práticas com base nos achados.",
@@ -2153,7 +2233,8 @@ const juntarE=a=>a.length>1?a.slice(0,-1).join(", ")+" e "+a[a.length-1]:a[0]||"
 const frasePelosFatores=(fat,cat,id)=>{ const f=fatoresDeterminantes(fat,cat); const a=(f.length?f:[dimNome(id)]).map(n=>n.toLowerCase()); return a.length>1?`determinada pelos fatores ${juntarE(a)}`:`determinada pelo fator ${a[0]}`; };
 // Modelo de documento simples (blocos) + renderizador jsPDF em duas passadas:
 // a 1ª descobre em que página cada título cai e o total de páginas; a 2ª desenha o sumário com os números e "{totalPaginas}".
-const PDFL={W:595.28,H:841.89,ML:70.9,MR:56.7,TOP:72,BOT:56,get CW(){return this.W-this.ML-this.MR}};
+// V 1.30: mesmas margens do padrao de laudo ElevaLife (js/laudo-padrao.js)
+const PDFL={W:595.28,H:841.89,ML:42,MR:42,TOP:70,BOT:52,get CW(){return this.W-this.ML-this.MR}};
 const hexRGB=h=>{ h=String(h||"3A2A2E").replace("#",""); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; };
 // texto com **negrito** -> runs
 function runsDe(txt,base={}){ const out=[]; String(txt).split("**").forEach((p,i)=>{ if(p) out.push({...base,x:p,b:base.b||i%2===1}); }); return out; }
@@ -2189,7 +2270,7 @@ function renderPDF(blocos,opc){
       lin.forEach((p,k)=>{ fonte(p.b,p.s||tamBase); corT(p.c||corBase); doc.text(p.t,cx,yy); cx+=p.w+(k<lin.length-1&&p.esp?(gap!=null?gap:p.e):0); });
     }
     function paragrafo(b){
-      const tam=b.s||10, lh=tam*(b.lh||1.48), ind=b.ind||0, larg=CW-ind;
+      const tam=b.s||9, lh=tam*(b.lh||1.55), ind=b.ind||0, larg=CW-ind;
       if(b.pb&&y>TOP) novaPag();
       y+=b.sb||0; const ls=linhas(b.runs,larg,tam); const altura=ls.length*lh;
       if(b.keep) garantir(Math.min(altura+80,LIM-TOP)); else garantir(Math.min(lh*2,altura));
@@ -2197,15 +2278,17 @@ function renderPDF(blocos,opc){
       ls.forEach((lin,i)=>{ if(garantir(lh)&&b.mark&&i===0){} escreverLinha(lin,ML+ind,y+tam,larg,b.al||"j",i===ls.length-1,tam,b.c||COR.ink); y+=lh; });
       y+=b.sa!=null?b.sa:6;
     }
+    // V 1.30: titulos no padrao ElevaLife (1. Titulo com fio vinho; 1.1 Subtitulo; 1.1.1 em vinho escuro)
     function titulo(b){
-      const cfg=[{s:14,c:COR.wine,sb:16,sa:10},{s:12,c:COR.wine,sb:14,sa:8},{s:11,c:COR.deep,sb:12,sa:6}][b.l];
-      if(b.pb&&y>TOP) novaPag(); else { y+=cfg.sb; garantir(cfg.s+90); }
+      const PAD=window.BI&&BI.LaudoPadrao?BI.LaudoPadrao.PAL:null, vinhoM=PAD?"A34E56":COR.mid;
+      if(b.pb&&y>TOP) novaPag(); else if(b.l===0){ if(y>TOP) y+=14; garantir(70); } else if(b.l===1){ y+=9; garantir(48); } else { y+=8; garantir(40); }
       if(b.toc){ tocPos.push(pag); if(final){ try{ doc.outline.add(null,b.x,{pageNumber:pag}); }catch{} } }
-      fonte(true,cfg.s,true); corT(cfg.c); const ls=doc.splitTextToSize(b.x,CW);
-      ls.forEach(t=>{ doc.text(t,ML,y+cfg.s); y+=cfg.s*1.3; });
-      if(b.l===0){ corL(COR.wine,1); doc.line(ML,y+1,ML+CW,y+1); y+=4; }
-      y+=cfg.sa;
+      const tam=b.l===0?15:b.l===1?11.5:10.5; fonte(true,tam,b.l<2); corT(b.l===0?COR.wine:b.l===1?vinhoM:COR.deep);
+      const ls=doc.splitTextToSize(b.x,CW); ls.forEach((t,i)=>{ doc.text(t,ML,y+tam); y+=tam*1.25; });
+      if(b.l===0){ y+=3; corL(COR.wine,1.2); doc.line(ML,y,ML+CW,y); y+=14; } else y+=b.l===1?5:3;
     }
+    // V 1.30: assinaturas, ciencia do cliente e validacao por QR Code (padrao ElevaLife)
+    function fechamento(b){ y=BI.LaudoPadrao.fechamento(doc,y,b,(yy,h)=>{ y=yy; garantir(h); return y; }); }
     function tabela(b){
       const tot=b.w.reduce((a,v)=>a+v,0), ws=b.w.map(v=>v/tot*CW), pad=4.5, padV=3;
       const medir=(row)=>{ let x=0, ci=0; return row.map(cel=>{ const span=cel.span||1, larg=ws.slice(ci,ci+span).reduce((a,v)=>a+v,0); ci+=span;
@@ -2225,26 +2308,18 @@ function renderPDF(blocos,opc){
       y+=b.sa!=null?b.sa:8;
     }
     function imagem(b){ const w=Math.min(b.w,CW), h=b.h*(w/b.w); garantir(h+8); try{ doc.addImage(b.d,"PNG",ML+(CW-w)/2,y,w,h,undefined,"FAST"); }catch{} y+=h+8; }
-    function sumario(){ fonte(true,16,true); corT(COR.wine); doc.text("Sumário",ML,y+16); y+=34;
-      opc.toc.forEach((t,i)=>{ const tam=t.level===1?9.5:9, lh=tam*1.75; garantir(lh); const x=ML+(t.level===1?0:14); fonte(t.level===1,tam); corT(t.level===1?COR.deep:COR.ink);
-        const num=final?String(mapa.paginas[i]||""):"00"; const wn=doc.getTextWidth(num); const maxT=CW-(x-ML)-wn-18; let tx=t.title; while(doc.getTextWidth(tx)>maxT&&tx.length>4) tx=tx.slice(0,-2); if(tx!==t.title) tx=tx.trim()+"…";
-        doc.text(tx,x,y+tam); const wt=doc.getTextWidth(tx); corT(COR.mut); fonte(false,tam); let dots=""; const wd=doc.getTextWidth(". "); const nd=Math.max(0,Math.floor((CW-(x-ML)-wt-wn-10)/wd)); dots=". ".repeat(nd);
-        doc.text(dots,x+wt+4,y+tam); fonte(t.level===1,tam); corT(COR.wine); doc.text(num,ML+CW,y+tam,{align:"right"});
-        if(final&&mapa.paginas[i]) doc.link(x,y,CW-(x-ML),lh,{pageNumber:mapa.paginas[i]}); y+=lh; }); }
+    // V 1.30: sumario no padrao ElevaLife
+    function sumario(){
+      fonte(true,15,true); corT(COR.wine); doc.text("Sumário",ML,y+15); y+=22; corL(COR.wine,1.2); doc.line(ML,y,ML+CW,y); y+=26;
+      const itens=opc.toc.map((t,i)=>({titulo:t.title,nivel:t.level,pagina:final?mapa.paginas[i]:0}));
+      y=BI.LaudoPadrao.sumario(doc,itens,y,{links:final,proximaPagina:()=>{ novaPag(); return TOP+12; }}); }
     // ---- capa ----
-    if(opc.capa){ const c=opc.capa; try{ doc.addImage(c.img,"JPEG",0,0,W,H,undefined,"FAST"); }catch{}
-      fonte(true,9.5); doc.setTextColor(201,154,160); doc.text(c.selo,ML,198,{charSpace:1.2});
-      fonte(true,25,true); doc.setTextColor(255,255,255); const lt=doc.splitTextToSize(c.titulo,CW-20); let yy=238; lt.forEach(t=>{ doc.text(t,ML,yy); yy+=31; });
-      yy+=26; fonte(true,15); const lr=doc.splitTextToSize(c.empresa,CW); lr.forEach(t=>{ doc.text(t,ML,yy); yy+=20; });
-      fonte(false,11); doc.setTextColor(235,217,219); doc.text(c.linha,ML,yy+6); novaPag(); }
+    if(opc.capa){ BI.LaudoPadrao.capa(doc,opc.capa); novaPag(); }
     // ---- corpo ----
-    blocos.forEach(b=>{ if(b.t==="p") paragrafo(b); else if(b.t==="h") titulo(b); else if(b.t==="tb") tabela(b); else if(b.t==="img") imagem(b); else if(b.t==="toc") sumario(); else if(b.t==="pb"){ if(y>TOP) novaPag(); } else if(b.t==="esp") { y+=b.h||8; } });
+    blocos.forEach(b=>{ if(b.t==="p") paragrafo(b); else if(b.t==="h") titulo(b); else if(b.t==="tb") tabela(b); else if(b.t==="img") imagem(b); else if(b.t==="toc") sumario(); else if(b.t==="pb"){ if(y>TOP) novaPag(); } else if(b.t==="esp") { y+=b.h||8; } else if(b.t==="fech") fechamento(b); });
     // ---- cabeçalho e rodapé ----
     const total=doc.getNumberOfPages();
-    for(let i=opc.capa?2:1;i<=total;i++){ doc.setPage(i);
-      try{ doc.addImage(opc.logo,"PNG",W-MR-112,24,112,18.7,undefined,"FAST"); }catch{}
-      corL(COR.ln,.6); doc.line(ML,48,W-MR,48); doc.line(ML,H-40,W-MR,H-40);
-      fonte(false,7.5); corT(COR.mut); doc.text(opc.rodape,ML,H-28); fonte(true,8); corT(COR.wine); doc.text(String(i),W-MR,H-28,{align:"right"}); }
+    if(final) BI.LaudoPadrao.cabecalhoRodape(doc,{logoCor:opc.logo,titulo:opc.cabecalho,codigo:opc.codigo,revisao:opc.revisao,rodape:opc.rodape,desde:opc.capa?2:1});
     return {doc,tocPos,total};
   };
   const p1=desenhar(false); mapa={paginas:p1.tocPos,total:p1.total};
@@ -2252,6 +2327,33 @@ function renderPDF(blocos,opc){
   return p2.doc.output("blob");
 }
 
+// V 1.30: imagem do proprio site como data URL (logotipos do padrao de laudo)
+async function dataUrlDe(url){ try{ const r=await fetch(url,{cache:"force-cache"}); if(!r.ok) return null; const b=await r.blob(); return await new Promise(ok=>{ const f=new FileReader(); f.onload=()=>ok(f.result); f.onerror=()=>ok(null); f.readAsDataURL(b); }); }catch{ return null; } }
+const blobBase64=b=>new Promise((ok,erro)=>{ const f=new FileReader(); f.onload=()=>ok(String(f.result).split(",")[1]); f.onerror=erro; f.readAsDataURL(b); });
+// V 1.30: registra o laudo no historico de laudos do cliente no SIGE (AEP › Laudos), com o PDF, o Word, o
+// codigo de verificacao e a impressao digital SHA-256 do PDF - a pagina /verificar confere autoria e integridade.
+async function registrarLaudoSige(o){
+  if(!SIGE()||!o.e.clienteId) return false;
+  try{
+    const dig=await crypto.subtle.digest("SHA-256",await o.blob.arrayBuffer()); const hash=Array.from(new Uint8Array(dig)).map(b=>b.toString(16).padStart(2,"0")).join("");
+    const subir=async(blob,nome,tipo)=>{ const r=await fetch("/api/arquivos",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({EmpresaId:o.e.clienteId,Colecao:"laudo",NomeArquivo:nome,TipoConteudo:tipo,ConteudoBase64:await blobBase64(blob)})}); if(!r.ok) throw new Error("upload "+r.status); const d=await r.json(); return {chave:d.chave,nomeArquivo:d.nomeArquivo,tamanho:d.tamanho,tipoConteudo:tipo}; };
+    const arqPdf=await subir(o.blob,o.nomeBase.replace(/[^\w .-]+/g,"_")+".pdf","application/pdf").catch(()=>null);
+    const arqDoc=o.blobWord?await subir(o.blobWord,o.nomeBase.replace(/[^\w .-]+/g,"_")+".docx","application/vnd.openxmlformats-officedocument.wordprocessingml.document").catch(()=>null):null;
+    await SIGE().salvar("laudo",{id:"laudo-"+o.codigo.toLowerCase(),EmpresaId:o.e.clienteId,Cliente:o.e.razao,Tipo:"Laudo Psicossocial",Origem:"Riscos Psicossociais",
+      Abrangencia:"Empresa toda","Abrangencia Descricao":"Riscos psicossociais – empresa toda","Emitido Em":o.emissao,"Emitido Por":o.rt?o.rt.nome:(o.erg?o.erg.nome:""),
+      "Responsavel Tecnico":o.rt?o.rt.nome:"","Ergonomista Executor":o.erg?o.erg.nome:"","Registro Responsavel":o.rt?o.rt.conselho||"":"","Registro Executor":o.erg?o.erg.conselho||"":"",
+      Revisao:o.revisao,"Codigo Verificacao":o.codigo,"Hash Documento":hash,"Arquivo Url":arqPdf,"Arquivo Word":arqDoc,
+      "Aplicacao Psico":cicloN(o.e),
+      Texto:`Laudo de Riscos Psicossociais (${cicloN(o.e)}ª aplicação) emitido pelo módulo Riscos Psicossociais do S.I.G.E em ${fmtData(o.emissao)}.`});
+    // V 1.31: as ações desta aplicação ainda sem revisão passam a pertencer a esta revisão do laudo
+    const nC=cicloN(o.e);
+    for(const r of Object.values((S.data&&S.data.plano)||{})){ if(cicloDaLinha(r)!==nC||(r["Revisao Laudo"]!=null&&r["Revisao Laudo"]!=="")) continue;
+      try{ const novo={...r,"Revisao Laudo":o.revisao}; const s_=await SIGE().salvar("planoAcao",novo); S.data.plano[r.id]=s_&&s_.id?s_:novo; }catch(err){ console.error("revisão da ação",err); } }
+    try{ await saveEmp({laudoCiclo:{codigo:o.codigo,revisao:o.revisao,emissao:o.emissao}}); }catch(err){}
+    if(SIGE().avisarRegistro) SIGE().avisarRegistro();
+    return true;
+  }catch(err){ console.error("registro do laudo no SIGE",err); toast("Laudo gerado, mas não foi possível registrá-lo no histórico do SIGE agora."); return false; }
+}
 async function gerarRelatorio(btn){
   if(!dl) return toast("Download indisponível nesta visualização");
   if(!(window.jspdf&&window.jspdf.jsPDF)) return toast("O gerador de PDF não carregou. Recarregue a página.");
@@ -2265,6 +2367,11 @@ async function gerarRelatorio(btn){
     const resumoParticipacao=`Dos ${nCad} colaboradores cadastrados, **${nPart} participaram** da pesquisa, o que representa uma adesão de ${fmt(pct(nPart,nCad),1)}%: **${nResp} aceitaram o termo de consentimento e responderam** ao questionário (${fmt(pct(nResp,nCad),1)}% do total) e **${nRec} não aceitaram o termo** (${fmt(pct(nRec,nCad),1)}% do total). Os resultados consideram apenas as ${nResp} respostas válidas.`;
     const VARS={empresa:NE,nResp,nPart,nRec,resumoParticipacao,nCad,nUnid:S.data.unidades.length,nGhe:S.data.ghes.length,adesao:fmt(pct(nPart,nCad),1),mesAno,
       matriz:m.nome,periodo:e.inicio?`no período ${e.fim?`de ${fmtData(e.inicio)} a ${fmtData(e.fim)}`:`iniciado em ${fmtData(e.inicio)}`}, `:"",totalPaginas:"{totalPaginas}"};
+    // V 1.30: codigo de verificacao e revisao do documento (padrao ElevaLife; o laudo fica no historico de
+    // laudos do cliente no SIGE e pode ser conferido em /verificar).
+    if(!(window.BI&&BI.LaudoPadrao)) throw new Error("O padrão de laudo não carregou. Atualize a página (Ctrl+F5).");
+    const laudosCli=SIGE()&&e.clienteId?await SIGE().listar("laudo",e.clienteId,true).catch(()=>[]):[];
+    const DOCV={codigo:BI.LaudoPadrao.novoCodigo(laudosCli.map(l=>l["Codigo Verificacao"]),"PSI"),revisao:String(laudosCli.filter(l=>/psicoss/i.test(l.Tipo||"")).length).padStart(2,"0")};
     const CW=9354;
     // ---- construtores de blocos (mesma ideia do antigo gerador Word) ----
     const toRuns=ch=>(Array.isArray(ch)?ch:[ch]).flatMap(x=>typeof x==="string"?[{x}]:x&&x.x!=null?[x]:[]);
@@ -2273,7 +2380,7 @@ async function gerarRelatorio(btn){
     const bullet=ch=>P(ch,{ind:16,mark:"•",markW:11,sa:3,lh:1.4});
     let numN=0; const novaLista=()=>{numN=0}; const num=ch=>P(ch,{ind:20,mark:`${++numN}.`,markW:16,sa:3,lh:1.4});
     const TOCE=[], tocN=[0,0,0];
-    const H=(t,l=0,o={})=>{ tocN[l]++; for(let k=l+1;k<3;k++) tocN[k]=0; const x=`${tocN.slice(0,l+1).join(".")} ${l===0?t.toUpperCase():t}`; if(l<=1) TOCE.push({title:x,level:l+1}); return {t:"h",l,x,toc:l<=1,pb:!!o.pageBreakBefore}; };
+    const H=(t,l=0,o={})=>{ tocN[l]++; for(let k=l+1;k<3;k++) tocN[k]=0; const x=`${tocN.slice(0,l+1).join(".")}${l===0?".":""} ${t}`; if(l<=1) TOCE.push({title:x,level:l+1}); return {t:"h",l,x,toc:l<=1,pb:!!o.pageBreakBefore}; };
     const sub=t=>P([{x:t,b:true,c:COR.deep,s:10.5}],{sb:8,sa:4,keep:true,al:"l"});
     const corTexto=(o)=>o.color||(o.fill&&o.fill!=="FFFFFF"&&o.fill!==COR.tint&&o.fill!=="FAF5F2"&&!CLAROS.includes(o.fill)?"FFFFFF":COR.ink);
     const cp=(runs,o={})=>({runs:toRuns(runs),s:o.s||8,sa:o.sa||0,al:o.al||"l",c:o.c});
@@ -2293,7 +2400,7 @@ async function gerarRelatorio(btn){
     function tabelaFatores(fat){ const w=[3054,2100,2100,2100];
       return [table([hdr(["Fator","Probabilidade","Severidade","Graduação do risco"],w),...DIMS.map(d=>{const f=fat[d.id]; return [cell(d.nome,{}),
         cell(f.p?`${f.p} – ${nomeP(f.p)}`:"—",{align:"c",bold:!!f.p,fill:f.p?corNivel(nomeP(f.p)):undefined}),
-        cell(f.s?`${f.s} – ${m.S[f.s-1]}`:"—",{align:"c",bold:!!f.s,fill:f.s?corNivel(m.S[f.s-1]):undefined}),
+        cell(f.s?`${f.s} – ${m.S[f.s-1]}`:"—",{align:"c",bold:!!f.s,fill:f.s?corNivel(m.P[f.s-1]):undefined}),
         cell(f.cat!=null?CAT[f.cat].n:"—",{fill:f.cat!=null?corCat(f.cat):undefined,bold:true,align:"c"})]})],w,{keep:true}),gap()]; }
     const SIF_MOTIVO={dem:"pela associação de jornadas prolongadas e alta demanda com doenças cardiovasculares e depressão",
       rel:"pela associação de conflitos e assédio com depressão grave, estresse pós-traumático e ideação suicida",
@@ -2318,7 +2425,7 @@ async function gerarRelatorio(btn){
       const w=[3118,3118,3118];
       out.push(table([hdr(["Probabilidade","Severidade","Graduação do risco"],w),[
         cell(f.p?nomeP(f.p):"—",{align:"c",bold:true,fill:f.p?corNivel(nomeP(f.p)):undefined}),
-        cell(f.s?m.S[f.s-1]:"—",{align:"c",bold:true,fill:f.s?corNivel(m.S[f.s-1]):undefined}),
+        cell(f.s?m.S[f.s-1]:"—",{align:"c",bold:true,fill:f.s?corNivel(m.P[f.s-1]):undefined}),
         cell(f.cat!=null?CAT[f.cat].n:"—",{align:"c",bold:true,fill:f.cat!=null?corCat(f.cat):undefined})]],w,{keep:true}));
       return out; }
 
@@ -2327,7 +2434,7 @@ async function gerarRelatorio(btn){
     C.push(H("Apresentação")); C.push(...paras("apresentacao"));
     C.push(H("Demanda do trabalho")); C.push(...paras("demanda"));
     C.push(H("Informações cadastrais"));
-    { const w=[2800,6554]; C.push(table([["Nome do cliente",e.razao],["Endereço",e.endereco],["CNPJ",e.cnpj],["CNAE",e.cnae],["Grau de risco",e.grau],["Período de aplicação",e.inicio?periodoTxt(e):"—"]].map(([a,b])=>[cell(a,{fill:COR.tint,bold:true,color:COR.deep}),cell(b||"—",{})]),w,{header:false})); C.push(gap()); }
+    { const w=[2800,6554]; C.push(table([["Nome do cliente",e.razao],["Endereço",e.endereco],["CNPJ",e.cnpj],["CNAE",e.cnae],["Grau de risco",e.grau],["Aplicação do projeto",`${cicloN(e)}ª aplicação`],["Período de aplicação",e.inicio?periodoTxt(e):"—"]].map(([a,b])=>[cell(a,{fill:COR.tint,bold:true,color:COR.deep}),cell(b||"—",{})]),w,{header:false})); C.push(gap()); }
     C.push(H("Métodos e metodologia utilizada"));
     const pf=p=>p?`${p.nome}${p.formacao?", "+p.formacao:""} (${p.conselho})`:"[profissional não cadastrado]";
     C.push(P(mesmoProf?`O trabalho foi realizado pelo(a) profissional ${pf(erg)}, que também atua como responsável técnico(a) pela avaliação.`:!rt?`O trabalho foi realizado pelo(a) profissional ${pf(erg)}.`:`O trabalho foi realizado pelo(a) profissional ${pf(erg)}, sob supervisão do(a) responsável técnico(a) ${pf(rt)}.`));
@@ -2364,14 +2471,14 @@ async function gerarRelatorio(btn){
     { // faixas da Severidade Final para cada nível de severidade da matriz do cliente — sempre gerada, conforme a matriz
       const faixas=[1,2,3,4].map(l=>{ const vs=[]; for(let v=75;v<=400;v+=25){ if(nivelSF(v/100)===l) vs.push(v/100); } return {l,a:vs[0],b:vs[vs.length-1],k:m.sevN(vs[0])}; });
       if(/convertido proporcionalmente|por equivalência/.test(preencherMarc(textoLaudo("sf_pesos"),{}))===false) C.push(P([`Cada nível de severidade do método corresponde a uma coluna de severidade da `,B(m.nome),`:`],{keep:true,sa:4}));
-      const w=[3118,3118,3118]; C.push(table([hdr(["Severidade Final (SF)","Nível de severidade do método",`Severidade na ${m.nome}`],w),...faixas.map(f=>[cell(f.a===f.b?fmt(f.a,2):`de ${fmt(f.a,2)} a ${fmt(f.b,2)}`,{align:"c"}),cell(`${f.l} – ${SEV_NOMES[f.l-1]}`,{align:"c",bold:true,fill:COR[["g1","g2","g3","g4"][f.l-1]]}),cell(`${f.k} – ${m.S[f.k-1]}`,{align:"c",bold:true,fill:corNivel(m.S[f.k-1])})])],w,{keep:true})); C.push(gap()); }
+      const w=[3118,3118,3118]; C.push(table([hdr(["Severidade Final (SF)","Nível de severidade do método",`Severidade na ${m.nome}`],w),...faixas.map(f=>[cell(f.a===f.b?fmt(f.a,2):`de ${fmt(f.a,2)} a ${fmt(f.b,2)}`,{align:"c"}),cell(`${f.l} – ${SEV_NOMES[f.l-1]}`,{align:"c",bold:true,fill:COR[["g1","g2","g3","g4"][f.l-1]]}),cell(`${f.k} – ${m.S[f.k-1]}`,{align:"c",bold:true,fill:corNivel(m.P[f.k-1])})])],w,{keep:true})); C.push(gap()); }
     { const w0=1854, wc=1500, w=[w0,...Array(5).fill(wc)];
       C.push(table([[cell("SIF \\ EO",{fill:COR.deep,bold:true}),...EO_NOMES.map((n,j)=>cell(`${j+1} – ${n}`,{fill:COR.wine,bold:true,align:"c"}))],
-        ...SIF_NOMES.map((n,i)=>[cell(`${i+1} – ${n}`,{fill:COR.tint,bold:true,color:COR.deep}),...EO_NOMES.map((_,j)=>{const v=m.sevN(SEV_IDX[i][j]), nm=m.S[v-1];return cell(`${fmt(SEV_IDX[i][j],2)} · ${nm}`,{fill:corNivel(nm),bold:true,align:"c"})})])],w,{keep:true})); C.push(gap()); }
+        ...SIF_NOMES.map((n,i)=>[cell(`${i+1} – ${n}`,{fill:COR.tint,bold:true,color:COR.deep}),...EO_NOMES.map((_,j)=>{const v=m.sevN(SEV_IDX[i][j]), nm=m.S[v-1];return cell(`${fmt(SEV_IDX[i][j],2)} · ${nm}`,{fill:corNivel(m.P[v-1]),bold:true,align:"c"})})])],w,{keep:true})); C.push(gap()); }
     C.push(P([{x:`Na tabela, cada valor de SF já aparece convertido para a escala de severidade da ${m.nome}.`,i:true,c:COR.mut,s:8.5}],{sa:6}));
     C.push(...paras("sf_limites"));
     C.push(H("Resultado: graduação do risco",1));
-    C.push(P(`A graduação do risco psicossocial de cada fator resulta do cruzamento da probabilidade com a Severidade Final na ${m.nome} (${m.rot}), definida no cadastro da empresa e usada também no Inventário de Riscos. Cada célula tem uma pontuação (probabilidade × severidade) e a graduação definida na matriz modelo da ElevaLife, em ${m.cats.length} níveis. A graduação do setor ou grupo ocupacional corresponde à do fator de maior risco.`));
+    C.push(P(`A graduação do risco psicossocial de cada fator resulta do cruzamento da probabilidade com a Severidade Final na ${m.nome} (${m.rot}), definida no cadastro da empresa e usada também no Inventário de Riscos. Cada célula tem uma pontuação (probabilidade × severidade) e a graduação definida na matriz de risco cadastrada para a empresa, em ${m.cats.length} níveis. A graduação do setor ou grupo ocupacional corresponde à do fator de maior risco.`));
     { const n=m.P.length, w0=2000, wc=Math.floor((CW-w0)/m.S.length), w=[w0,...Array(m.S.length).fill(wc)];
       C.push(table([[cell("Probabilidade \\ Severidade",{fill:COR.deep,bold:true}),...m.S.map((s,j)=>cell(`${j+1} – ${s}`,{fill:COR.wine,bold:true,align:"c"}))],
         ...Array.from({length:n},(_,k)=>n-k).map(p=>[cell(`${p} – ${nomeP(p)}`,{fill:COR.tint,bold:true,color:COR.deep}),...m.S.map((_,j)=>{const c=m.M[p-1][j];return cell(`${m.NV[p-1][j]} (${m.PT[p-1][j]})`,{fill:corCat(c),bold:true,align:"c"})})])],w,{keep:true})); C.push(gap()); }
@@ -2452,6 +2559,28 @@ async function gerarRelatorio(btn){
           [cell("Total",{bold:true,fill:"FAF5F2"}),...tot.map(q=>cell(String(q),{align:"c",bold:true,fill:"FAF5F2"}))]],w,{keep:true})); C.push(gap()); }
     }
 
+    // V 1.31: reaplicação do projeto - comparativo com as aplicações anteriores e evolução dos fatores
+    const nAplic=cicloN(e), aplicAnt=(Array.isArray(e.ciclos)?e.ciclos:[]).filter(c=>c.n<nAplic).sort((a,b)=>a.n-b.n);
+    if(nAplic>1){
+      C.push(H("Comparativo com as aplicações anteriores",0,{pageBreakBefore:true}));
+      C.push(P(`Este laudo corresponde à ${nAplic}ª aplicação do projeto de avaliação dos fatores de risco psicossociais em ${String(NE).replace(/\.$/,"")}. Cada aplicação tem coleta, checklist ISO 45003, taxa de frequência, análise e laudo próprios. O Mapa de Risco e o Inventário de Riscos do SIGE passam a considerar os resultados desta aplicação; as ações das aplicações anteriores continuam registradas no Plano de Ação, identificadas pela revisão do laudo em que foram propostas.`));
+      const stAt=calcStats(), linhaAp=(n,ini,fim,st,laudo)=>[cell(`${n}ª`,{bold:true,align:"c"}),cell(ini?fmtData(ini)+(fim?" a "+fmtData(fim):""):"—",{}),cell(st&&st.resp!=null?String(st.resp):"—",{align:"c"}),cell(st&&st.classif!=null?String(st.classif):"—",{align:"c"}),
+        ...m.cats.map(i=>cell(st&&Array.isArray(st.cat)?String(st.cat[i]||0):"—",{align:"c"})),cell(st&&st.geral!=null?fmt(st.geral):"—",{align:"c"}),cell(laudo?`${laudo.codigo} · Rev. ${laudo.revisao}`:"este laudo",{size:15})];
+      const nc=m.cats.length, wFix=[600,1450,950,900,800,1454], wc=Math.floor((CW-wFix.reduce((a,b)=>a+b,0))/nc), wA=[wFix[0],wFix[1],wFix[2],wFix[3],...Array(nc).fill(wc),wFix[4],wFix[5]+(CW-wFix.reduce((a,b)=>a+b,0)-wc*nc)];
+      C.push(P("Resumo das aplicações (setores/GHE por graduação do risco psicossocial):",{keep:true}));
+      const hc=(t,o={})=>cell(t,{fill:COR.wine,bold:true,size:14,...o});
+      C.push(table([[hc("Aplic."),hc("Período"),hc("Partic."),hc("Setores/ GHE"),...m.cats.map(i=>hc(CAT[i].n,{fill:corCat(i),align:"c"})),hc("Média HSE-IT"),hc("Laudo")],
+        ...aplicAnt.map(c=>linhaAp(c.n,c.inicio,c.fim,c.stats||{resp:c.participaram},c.laudo)),linhaAp(nAplic,e.inicio,e.fim,stAt,null)],wA,{keep:true})); C.push(gap());
+      const regF=(S.data.reg&&S.data.reg.fatorRisco)||{}, evol=[];
+      L.filter(x=>x.cat!=null).forEach(x=>DIMS.forEach(d=>{ const f=x.fat[d.id]; if(!f||f.cat==null) return; const r=regF[idFatorPsico(x.g.k,d.id)]; if(!r) return;
+        const ev=(Array.isArray(r["Historico Risco"])?r["Historico Risco"]:[]).filter(h=>/Reaplica/.test(h.motivo||"")).pop();
+        const ant=ev?ev.de:(cicloDaLinha(r)<nAplic?r["Graduacao Risco"]:(r["Graduacao Inicial"]&&r["Graduacao Inicial"]!==f.nivel?r["Graduacao Inicial"]:null));
+        if(ant) evol.push([x,d,ant,f.nivel]); }));
+      if(evol.length){ const mud=evol.filter(v=>v[2]!==v[3]);
+        C.push(P(mud.length?`Em relação à aplicação anterior, ${mud.length} fator${mud.length===1?"":"es"} mud${mud.length===1?"ou":"aram"} de graduação. A tabela mostra a graduação anterior e a atual de cada fator nos setores/GHE avaliados nas duas aplicações.`:"Em relação à aplicação anterior, nenhum fator mudou de graduação nos setores/GHE avaliados nas duas aplicações.",{keep:true}));
+        const wE=[3000,2554,1900,1900]; C.push(table([hdr(["Setor / GHE","Fator","Aplicação anterior","Esta aplicação"],wE),...evol.map(([x,d,a,b])=>[cell(x.g.nome,{}),cell(d.nome,{}),cell(a,{align:"c"}),cell(b,{align:"c",bold:a!==b})])],wE)); C.push(gap()); }
+    }
+
     C.push(H("Checklist ISO 45003",0,{pageBreakBefore:true}));
     const di=S.data.iso;
     if(di&&isoCompleto(di.r)){ C.push(P(["Respondido por ",B(di.nome||"—"),di.cargo?`, ${di.cargo}`:"",(di.editadoEm||di.data)?`, em ${fmtData([di.data,di.editadoEm].filter(Boolean).sort().pop())}`:"",". Pontuação: ",B(fmt(iso.p,1)+" de 33")," – ",B(iso.nome),"."]));
@@ -2462,18 +2591,40 @@ async function gerarRelatorio(btn){
     C.push(H("Perguntas HSE-IT",0,{pageBreakBefore:true}));
     DIMS.forEach(d=>{ C.push(sub(d.nome+(d.neg?" (pontuação invertida)":""))); ITENS.forEach(([dim,t],i)=>{ if(dim===d.id) C.push(bullet(`${i+1}. ${t}`)); }); });
 
-    C.push(H("Encerramento",0,{pageBreakBefore:true}));
-    C.push(...paras("encerramento"));
-    for(const p of (mesmoProf?[erg]:[erg,rt]).filter(Boolean)){ C.push(P("____________________________________________",{al:"c",sb:46,sa:2}));
-      C.push(P([B(p.nome)],{al:"c",sa:1})); if(p.formacao) C.push(P(p.formacao,{al:"c",sa:1})); C.push(P(p.conselho,{al:"c"})); }
-
     C.push(H("Referências bibliográficas",0,{pageBreakBefore:true}));
-    referencias().forEach(t=>C.push(P(runsDe(t),{al:"l",sa:7,s:9.5,lh:1.4})));
+    referencias().forEach(t=>C.push(P(runsDe(t),{al:"l",sa:7,s:8.6,lh:1.4})));
 
-    const blob=renderPDF(C,{toc:TOCE,logo:LOGO_H,rodape:`${NE} · Avaliação dos Fatores de Risco Psicossociais`,
-      capa:{img:await capaPNG(await comLogo(e)),selo:preencherMarc(textoLaudo("capa_selo"),VARS),titulo:preencherMarc(textoLaudo("capa_titulo"),VARS),empresa:e.razao,linha:(e.cnpj?"CNPJ "+e.cnpj+"  ·  ":"")+MesAno}});
-    await dl.save({filename:`Laudo Psicossocial - ${e.razao.replace(/[\\/:*?"<>|]/g,"").slice(0,60)}.pdf`,data:blob});
-    toast("Laudo emitido em PDF");
+    // V 1.30: padrao ElevaLife - o documento termina com o encerramento, as assinaturas, a ciencia do
+    // cliente e a validacao por QR Code + codigo (pagina publica /verificar), como o laudo da AEP.
+    C.push(H("Encerramento e validação do documento",0,{pageBreakBefore:true}));
+    C.push(...paras("encerramento"));
+    const assin=(mesmoProf?[erg]:[erg,rt]).filter(Boolean);
+    const assinImgs=await Promise.all(assin.map(async p=>{ const ch=p.assinatura&&(p.assinatura.chave||p.assinatura); if(!ch||!SIGE()) return null; try{ return await SIGE().arquivo(ch); }catch{ return null; } }));
+    const nomesAss=assin.map(p=>p.nome).join(" e ")||"o responsável técnico";
+    const emissaoBR=fmtData(hoje());
+    C.push({t:"fech",assinantes:assin.map((p,i)=>({nome:p.nome,cargo:[p.formacao,p.conselho].filter(Boolean).join(" · "),assinatura:assinImgs[i]})),
+      cliente:e.razao,tituloCliente:`Cliente – ${e.razao}`,codigo:DOCV.codigo,tituloValidacao:"Validação do documento",
+      textoValidacao:BI.LaudoPadrao.TEXTO_VALIDACAO.replace("{nomes}",nomesAss).replace("{emissao}",emissaoBR).replace("{codigo}",DOCV.codigo).replace("{revisao}",DOCV.revisao)+` Este laudo corresponde à ${cicloN(e)}ª aplicação do projeto psicossocial.`});
+
+    const unidadesTxt=S.data.unidades.map(u=>u.nome).join(" · ");
+    const cabecalho="ElevaLife · Avaliação dos Fatores de Risco Psicossociais";
+    const rodape=`${e.razao}${unidadesTxt?" – "+unidadesTxt:""}`;
+    const logoBranco=await dataUrlDe("/img/logo-elevalife-branco.png"), logoCor=(await dataUrlDe("/img/logo-elevalife.png"))||LOGO_H;
+    const eLogo=await comLogo(e);
+    const capa={logoEleva:logoBranco,lema:"15 anos elevando pessoas e resultados",logoCliente:eLogo.logo||null,nomeCliente:e.razao,
+      titulo:[preencherMarc(textoLaudo("capa_titulo"),VARS)],subtitulo:preencherMarc(textoLaudo("capa_selo"),VARS),
+      infos:[["Empresa avaliada",e.razao,true],["Unidades",unidadesTxt||"-"],["Setores / GHE avaliados",Array.from(new Set(L.filter(x=>x.cat!=null).map(x=>x.g.nome))).join(" · ")||"-"],
+        ["Período da avaliação",periodoTxt(e)],["Data de emissão",emissaoBR],["Responsável técnico",rt?rt.nome:(erg?erg.nome:"-")],["Aplicação do projeto",`${cicloN(e)}ª aplicação`],["Documento / revisão",`${DOCV.codigo} · Rev. ${DOCV.revisao}`]],
+      numeros:[[nPart,`colaboradores participantes (de ${nCad})`],[L.filter(x=>x.cat!=null).length,"setores / GHE avaliados"],[planoGeral.length,"ações no plano"]]};
+    const blob=renderPDF(C,{toc:TOCE,logo:logoCor,rodape,cabecalho,codigo:DOCV.codigo,revisao:DOCV.revisao,capa});
+    // Word editavel do mesmo conteudo (padrao ElevaLife)
+    let blobWord=null;
+    try{ if(window.BI&&BI.LaudoDocx&&BI.LaudoDocx.deBlocos){ const ab=await BI.LaudoDocx.deBlocos(C,{capa,cabecalho,codigo:DOCV.codigo,revisao:DOCV.revisao,rodape,titulo:"Avaliação dos Fatores de Risco Psicossociais – "+e.razao,palavras:"NR-01, riscos psicossociais, HSE-IT, ISO 45003"}); blobWord=new Blob([ab],{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}); } }catch(errW){ console.error(errW); }
+    const nomeBase=`Laudo Psicossocial - ${e.razao.replace(/[\\/:*?"<>|]/g,"").slice(0,60)}`;
+    await registrarLaudoSige({e,blob,blobWord,nomeBase,codigo:DOCV.codigo,revisao:DOCV.revisao,rt,erg,emissao:hoje()});
+    await dl.save({filename:nomeBase+".pdf",data:blob});
+    if(blobWord) await dl.save({filename:nomeBase+".docx",data:blobWord});
+    toast(blobWord?"Laudo emitido em PDF e Word":"Laudo emitido em PDF");
   }catch(err){ console.error(err); if(err&&err.code!=="declined") toast("Não foi possível gerar o laudo: "+(err.message||err.code||err)); }
   finally{ btn.disabled=false; btn.textContent=lbl; }
 }
@@ -2495,7 +2646,7 @@ function pendencias(){
   if(!S.data.resps.length) pend.push(["Aguardando respostas do HSE-IT","coleta"]);
   if(!isoAtual()) pend.push(["Checklist ISO 45003 não respondido","iso"]);
   const semTF=L.filter(x=>x.T.n&&x.eo==null).length; if(semTF) pend.push([`${semTF} GHE(s) sem taxa de frequência`,"tf"]);
-  const semPlano=L.filter(x=>x.cat>=2&&!Object.keys(x.a.acoes||{}).length).length; if(semPlano) pend.push([`${semPlano} GHE(s) com risco moderado ou acima sem ações selecionadas`,"plano"]);
+  const semPlano=L.filter(x=>x.cat>=2&&!Object.keys(x.a.acoes||{}).length).length; if(semPlano) pend.push([`${semPlano} GHE(s) com risco moderado ou acima sem ações selecionadas`,"analise"]);
   const semReal=L.filter(x=>x.cat!=null&&x.cat<=1&&!x.a.realizadas).length; if(semReal&&!e.realizadas) pend.push([`${semReal} GHE(s) com risco trivial/baixo sem ações já realizadas informadas`,"analise"]);
   if(!prof(e.ergId)||!prof(e.rtId)) pend.push(["Definir ergonomista e responsável técnico","dados"]);
   return pend;
@@ -2556,7 +2707,7 @@ function painelGeralHTML(){
   const E_=S.empresas.filter(e=>e.temPsico!==false), sum=k=>E_.reduce((a,e)=>a+(e.stats?.[k]||0),0);
   const tot=sum("colab"), resp=sum("resp"), cats=CAT.map((_,i)=>E_.reduce((a,e)=>a+(e.stats?.cat?.[i]||0),0)), nC=cats.reduce((a,b)=>a+b,0);
   const ac=sum("acoes"), conc=sum("concl"), abertas=E_.filter(e=>e.status==="aberta").length;
-  if(!E_.length) return `<div class="empty"><h2>Nenhuma empresa com o serviço Riscos Psicossociais</h2><p>Cadastre a empresa no SIGE, em <b>Cadastro › Cliente</b>, e marque o serviço Riscos Psicossociais. Unidades, setores/GHE e colaboradores ficam no mesmo cadastro.</p></div>`;
+  if(!E_.length) return `<div class="empty"><h2>Nenhuma empresa com o serviço Riscos Psicossociais</h2><p>Cadastre a empresa no SIGE, em <b>Cadastro Cliente › Cliente</b>, e marque o serviço Riscos Psicossociais. Unidades, setores/GHE e colaboradores ficam no mesmo cadastro.</p></div>`;
   return `<div class="head"><div><div class="eyebrow">ElevaLife · Riscos psicossociais</div><h1>Painel geral</h1></div><div class="sp"></div><div class="row"><span class="muted" id="pgSt" style="font-size:.85rem"></span><button class="btn sm" id="pgAtual">Atualizar números</button></div></div>
   <div class="stack">
   <div class="kpis">
@@ -2610,11 +2761,11 @@ async function criarEmpresaTeste(t,st){
     for(let j=0;j<TESTE_POR_SETOR;j++){ const mat=String(base+(++n)); st.textContent=`${t.nome}: colaborador ${n} de ${TESTE_SETORES.length*TESTE_POR_SETOR}…`;
       await SG.salvar("colaborador",{id:sigeSlug([t.nome,mat]),EmpresaId:cid,Cliente:t.nome,Unidade:TESTE_UNIDADE,Setor:nomeS,Matricula:mat,Nome:`Colaborador Teste ${n}`});
       const r=ITENS.map(([dim],i)=>{ const f=t.padrao[(i+j)%t.padrao.length]; return NEG.has(dim)?6-f:f; });
-      await E(eid).collection("respostas").doc("rteste"+n).set({k:"rteste"+n,unidadeId:uid_,gheId:gid,r,data:H});
-      await E(eid).collection("participacao").doc(matKey(mat)).set({k:matKey(mat),respondido:true,unidadeId:uid_,gheId:gid,termo:"aceito",termoVersao:TERMO_VERSAO+" (teste)"}); }
-    await E(eid).collection("analise").doc(gid).set({k:gid,tf:0}); }
+      await C_(eid).collection("respostas").doc("rteste"+n).set({k:"rteste"+n,unidadeId:uid_,gheId:gid,r,data:H});
+      await C_(eid).collection("participacao").doc(matKey(mat)).set({k:matKey(mat),respondido:true,unidadeId:uid_,gheId:gid,termo:"aceito",termoVersao:TERMO_VERSAO+" (teste)"}); }
+    await C_(eid).collection("analise").doc(gid).set({k:gid,tf:0}); }
   const iso={}; for(let i=0;i<33;i++) iso[i]=i<18?"S":i<22?"P":"N"; // 18 + 4 × 0,5 = 20 pontos: gestão intermediária
-  await E(eid).collection("iso").doc("main").set({nome:"Gestor Teste",cargo:"Gestor do contrato",email:"",data:H,r:iso,origem:"teste"});
+  await C_(eid).collection("iso").doc("main").set({nome:"Gestor Teste",cargo:"Gestor do contrato",email:"",data:H,r:iso,origem:"teste"});
 }
 async function excluirEmpresaTeste(t,st){
   const SG=SIGE(), cid=sigeSlug([t.nome]), eid=EID_PREFIXO+cid;
@@ -2666,7 +2817,9 @@ async function baixarBackup(btn){
   const e=emp(), st=$("#bkSt"), lbl=btn.textContent; btn.disabled=true; btn.textContent="Reunindo os dados…";
   try{ const ref=E(e.k), out={formato:"elevalife-psicossocial",versao:1,geradoEm:new Date().toISOString(),empresa:(await ref.get()).data(),colecoes:{}};
     for(const c of ["unidades","ghes","participacao","respostas","analise","iso"]){ out.colecoes[c]=await listAll(ref.collection(c)); if(st) st.textContent=`${c}: ${out.colecoes[c].length} registros`; }
-    const n=Object.values(out.colecoes).reduce((a,x)=>a+x.length,0);
+    let n=Object.values(out.colecoes).reduce((a,x)=>a+x.length,0);
+    // V 1.31: aplicações seguintes (reaplicações) ficam em ciclos/{n}
+    for(let k=2;k<=cicloN(e);k++){ const rc=baseCicloRef(e.k,k), cc={}; for(const c of ["participacao","respostas","analise","iso"]){ cc[c]=await listAll(rc.collection(c)); n+=cc[c].length; } (out.ciclos=out.ciclos||{})[k]=cc; if(st) st.textContent=`Aplicação ${k}: reunida`; }
     await dl.save({filename:`Backup psicossocial - ${e.razao.replace(/[\\/:*?"<>|]/g,"").slice(0,50)} - ${hoje()}.json`,data:new Blob([JSON.stringify(out)],{type:"application/json"})});
     if(st) st.textContent=`Cópia gerada com ${n} registros.`; toast("Cópia de segurança baixada");
   }catch(err){ if(err&&err.code!=="declined"){ if(st){st.className="err";st.textContent="Não foi possível gerar a cópia. Tente de novo."} } }
@@ -2685,6 +2838,7 @@ function excluirEmpresaModal(){
   ok.onclick=async()=>{ ok.disabled=true; $("#delNo").disabled=true; const st=$("#delSt"), ref=E(e.k);
     try{ if(db.excluirEmpresa) await db.excluirEmpresa(e.k,n=>st.textContent=`Apagando… ${n} registros`);
       else { let n=0; for(const c of ["respostas","participacao","analise","ghes","unidades"]){ const docs=await listAll(ref.collection(c)); for(const d of docs){ await ref.collection(c).doc(d.k).delete(); n++; if(n%10===0) st.textContent=`Apagando… ${n} registros`; } }
+        for(let k=2;k<=cicloN(e);k++){ const rc=baseCicloRef(e.k,k); for(const c of ["respostas","participacao","analise"]){ const docs=await listAll(rc.collection(c)); for(const d of docs){ await rc.collection(c).doc(d.k).delete(); n++; } } await rc.collection("iso").doc("main").delete().catch(()=>{}); }
         await ref.collection("iso").doc("main").delete(); await ref.delete(); }
       m.remove(); S.empresas=S.empresas.filter(x=>x.k!==e.k); S.eid=null; S.data=null; toast("Empresa excluída"); render();
     }catch(err){ st.className="err"; st.textContent="Não foi possível concluir a exclusão. Tente de novo."; ok.disabled=false; $("#delNo").disabled=false; } };
@@ -2725,16 +2879,16 @@ async function importarKit(texto,st){
     if(d.tipo==="H"){ const k=matKey(d.m), c=R.get(k), r=[...String(d.r||"")].map(Number);
       if(c&&d.x===1){ // V 1.27: não aceitou o termo de consentimento
         if(partSet.has(k)){ res.dup++; continue; }
-        const prefR=E(S.eid).collection("participacao").doc(k); const pR=await prefR.get(); if(pR.exists&&pR.data().respondido===true){ res.dup++; partSet.add(k); continue; }
-        const ridR="r"+uid(); await E(S.eid).collection("respostas").doc(ridR).set({k:ridR,unidadeId:c.unidadeId,gheId:c.gheId,recusa:true,data:d.d||hoje()});
+        const prefR=C_(S.eid).collection("participacao").doc(k); const pR=await prefR.get(); if(pR.exists&&pR.data().respondido===true){ res.dup++; partSet.add(k); continue; }
+        const ridR="r"+uid(); await C_(S.eid).collection("respostas").doc(ridR).set({k:ridR,unidadeId:c.unidadeId,gheId:c.gheId,recusa:true,data:d.d||hoje()});
         await prefR.set({k,respondido:true,recusou:true,unidadeId:c.unidadeId,gheId:c.gheId,termo:"recusado",termoVersao:TERMO_VERSAO+" (kit)"}); partSet.add(k); res.rec=(res.rec||0)+1; continue; }
       if(!c||r.length!==35||r.some(v=>!(v>=1&&v<=5))){ res.inv++; continue; }
       if(partSet.has(k)){ res.dup++; continue; }
-      const pref=E(S.eid).collection("participacao").doc(k); const p=await pref.get(); if(p.exists&&p.data().respondido===true){ res.dup++; partSet.add(k); continue; }
-      const rid="r"+uid(); await E(S.eid).collection("respostas").doc(rid).set({k:rid,unidadeId:c.unidadeId,gheId:c.gheId,r,data:d.d||hoje()});
+      const pref=C_(S.eid).collection("participacao").doc(k); const p=await pref.get(); if(p.exists&&p.data().respondido===true){ res.dup++; partSet.add(k); continue; }
+      const rid="r"+uid(); await C_(S.eid).collection("respostas").doc(rid).set({k:rid,unidadeId:c.unidadeId,gheId:c.gheId,r,data:d.d||hoje()});
       await pref.set({k,respondido:true,unidadeId:c.unidadeId,gheId:c.gheId,termo:"aceito",termoVersao:TERMO_VERSAO+" (kit)"}); partSet.add(k); res.h++;
     } else { const r=[...String(d.r||"")]; if(r.length!==33||r.some(v=>!"SPN".includes(v))||!d.n){ res.inv++; continue; }
-      const ref=E(S.eid).collection("iso").doc("main"), cur=await ref.get(); if(cur.exists&&isoCompleto(cur.data().r)){ res.isoDup++; continue; }
+      const ref=C_(S.eid).collection("iso").doc("main"), cur=await ref.get(); if(cur.exists&&isoCompleto(cur.data().r)){ res.isoDup++; continue; }
       await ref.set({nome:d.n,cargo:d.c||"",email:d.m||"",data:d.d||hoje(),r:Object.fromEntries(r.map((v,i)=>[i,v])),origem:"kit"}); res.iso++; }
   }
   return {toks:toks.length,...res};
@@ -2846,21 +3000,21 @@ const API = window.ELEVA_API || {
   async empresaPublica(eid){ const s=await E(eid).get(); if(!s.exists) return null; const e=s.data(); return {razao:e.razao,cnpj:e.cnpj,status:e.status,inicio:e.inicio,fim:e.fim}; },
   async checarMatricula(eid,k){
     const ghes=await listAll(E(eid).collection("ghes")); const g=ghes.find(g=>g.colab&&g.colab[k]); if(!g) return {erro:"nao_encontrada"};
-    const p=await E(eid).collection("participacao").doc(k).get(); if(p.exists&&p.data().respondido===true) return {erro:"ja_respondeu"};
+    const p=await (await C_lido(eid)).collection("participacao").doc(k).get(); if(p.exists&&p.data().respondido===true) return {erro:"ja_respondeu"};
     const u=await E(eid).collection("unidades").doc(g.unidadeId).get();
     return {colab:{k,gheId:g.k,unidadeId:g.unidadeId,ghe:g.nome,unidade:u.exists?u.data().nome:"—",primeiro:(g.colab[k][1]||"").split(" ")[0]||"colaborador(a)"}}; },
-  async enviarHSE(eid,x,respostas){ const eref=E(eid), pref=eref.collection("participacao").doc(x.k);
+  async enviarHSE(eid,x,respostas){ const eref=await C_lido(eid), pref=eref.collection("participacao").doc(x.k);
     const lease=await pref.acquire({holder:uid(),ttlMs:20000}); if(!lease.acquired) throw {code:"busy"};
     const p=await pref.get(); if(p.exists&&p.data().respondido===true) throw {code:"dup"};
     const rid="r"+uid(); // id aleatório, sem relação com a matrícula
     await eref.collection("respostas").doc(rid).set({k:rid,unidadeId:x.unidadeId,gheId:x.gheId,r:respostas,data:hoje()});
     await pref.set({k:x.k,respondido:true,unidadeId:x.unidadeId,gheId:x.gheId,termo:"aceito",termoVersao:x.termo||""}); }, // sem data/hora para não permitir cruzamento
-  async recusarHSE(eid,x){ const eref=E(eid), pref=eref.collection("participacao").doc(x.k);
+  async recusarHSE(eid,x){ const eref=await C_lido(eid), pref=eref.collection("participacao").doc(x.k);
     const p=await pref.get(); if(p.exists&&p.data().respondido===true) throw {code:"dup"};
     const rid="r"+uid(); await eref.collection("respostas").doc(rid).set({k:rid,unidadeId:x.unidadeId,gheId:x.gheId,recusa:true,data:hoje()});
     await pref.set({k:x.k,respondido:true,recusou:true,unidadeId:x.unidadeId,gheId:x.gheId,termo:"recusado",termoVersao:x.termo||""}); },
-  async isoStatus(eid){ const d=await E(eid).collection("iso").doc("main").get(); return d.exists?d.data():null; },
-  async enviarISO(eid,d){ const ref=E(eid).collection("iso").doc("main"); const cur=await ref.get(); if(cur.exists&&isoCompleto(cur.data().r)) throw {code:"dup",doc:cur.data()}; await ref.set(d); },
+  async isoStatus(eid){ const d=await (await C_lido(eid)).collection("iso").doc("main").get(); return d.exists?d.data():null; },
+  async enviarISO(eid,d){ const ref=(await C_lido(eid)).collection("iso").doc("main"); const cur=await ref.get(); if(cur.exists&&isoCompleto(cur.data().r)) throw {code:"dup",doc:cur.data()}; await ref.set(d); },
 };
 
 // ===================== BOOT =====================
@@ -2893,6 +3047,7 @@ async function route(){
   if(db&&ADMIN&&!SIGE()) db.collection("empresas").onSnapshot(s=>{ const l=s.docs.map(d=>d.data()).sort((a,b)=>a.razao.localeCompare(b.razao)), ass=JSON.stringify(l); if(ass===assEmps) return; const primeira=!assEmps; assEmps=ass; S.empresas=l; if(S.eid&&!S.empresas.find(e=>e.k===S.eid)){S.eid=null;S.data=null;} if(!/^#(r|iso)-/.test(location.hash)&&(primeira||!digitando())) render(); }, ()=>{});
   addEventListener("hashchange",()=>{ if(!/^#(r|iso)-/.test(location.hash)&&S.eid&&ADMIN) loadEmpresa(S.eid); else route(); });
   route();
+  avisarPai("psico-pronto",{}); // V 1.28: pede ao SIGE o cliente do filtro global
 })();
 </script>
 
