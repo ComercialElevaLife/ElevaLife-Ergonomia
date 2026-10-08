@@ -306,6 +306,10 @@ async function empresa(eid) {
   const d = await lerDoc(`empresas/${eid}`);
   return d ? d.dados : null;
 }
+// V 1.31 - reaplicacao do projeto: cada aplicacao (ciclo) tem a sua coleta. A 1a fica em empresas/{eid}/...;
+// a partir da 2a, em empresas/{eid}/ciclos/{n}/... (participacao, respostas, ISO e analise). O cadastro
+// (unidades, setores/GHE e colaboradores) e o mesmo para todas as aplicacoes.
+const baseCiclo = (eid, e) => { const n = Number(e && e.ciclo) || 1; return n > 1 ? `empresas/${eid}/ciclos/${n}` : `empresas/${eid}`; };
 // Indice matricula -> GHE por empresa, em memoria (por instancia da Function App).
 // Evita ler todos os GHEs (com milhares de colaboradores) a cada acesso de um colaborador.
 const INDICE_TTL = 90000;
@@ -373,7 +377,7 @@ async function tratarPublico(request, context) {
       if (!eidValido(eid) || !k) return { status: 400, jsonBody: { code: "invalid_argument" } };
       const g = await acharColaborador(eid, k);
       if (!g) return { jsonBody: { erro: "nao_encontrada" } };
-      const p = await lerDoc(`empresas/${eid}/participacao/${k}`);
+      const p = await lerDoc(`${baseCiclo(eid, await empresa(eid))}/participacao/${k}`);
       if (p && p.dados && p.dados.respondido === true) return { jsonBody: { erro: "ja_respondeu" } };
       const u = g.unidadeNome ? null : await lerDoc(`empresas/${eid}/unidades/${g.unidadeId}`);
       return { jsonBody: { colab: { k, gheId: g.k, unidadeId: g.unidadeId, ghe: g.nome, unidade: g.unidadeNome || (u ? u.dados.nome : "—"), primeiro: g.primeiroNome || "colaborador(a)" } } };
@@ -394,7 +398,8 @@ async function tratarPublico(request, context) {
       const t = /^[a-f0-9]{16,64}$/.test(String(b.t || "")) ? String(b.t) : crypto.randomBytes(16).toString("hex");
       const hp = crypto.createHash("sha256").update("p:" + t).digest("hex");
       const rid = "r" + crypto.createHash("sha256").update("r:" + t).digest("hex").slice(0, 24); // sem relacao com a matricula
-      const caminhoP = `empresas/${eid}/participacao/${k}`, caminhoR = `empresas/${eid}/respostas/${rid}`;
+      const base = baseCiclo(eid, e);
+      const caminhoP = `${base}/participacao/${k}`, caminhoR = `${base}/respostas/${rid}`;
       const resposta = recusa
         ? { k: rid, unidadeId: g.unidadeId, gheId: g.k, recusa: true, data: hoje() }
         : { k: rid, unidadeId: g.unidadeId, gheId: g.k, r, data: hoje() };
@@ -423,18 +428,20 @@ async function tratarPublico(request, context) {
       const eid = request.method === "GET" ? String(request.query.get("e") || "") : null;
       if (request.method === "GET") {
         if (!eidValido(eid)) return { status: 400, jsonBody: { code: "invalid_argument" } };
-        const d = await lerDoc(`empresas/${eid}/iso/main`);
+        const d = await lerDoc(`${baseCiclo(eid, await empresa(eid))}/iso/main`);
         return { jsonBody: { doc: d ? d.dados : null } };
       }
       if (request.method === "POST") {
         const b = await request.json().catch(() => ({}));
         const e2 = String(b.e || "");
         if (!eidValido(e2) || !b.nome || !isoCompleto(b.r)) return { status: 400, jsonBody: { code: "invalid_argument" } };
-        if (!(await empresa(e2))) return { status: 404, jsonBody: { code: "not_found" } };
-        const atual = await lerDoc(`empresas/${e2}/iso/main`);
+        const emp2 = await empresa(e2);
+        if (!emp2) return { status: 404, jsonBody: { code: "not_found" } };
+        const isoPath = `${baseCiclo(e2, emp2)}/iso/main`;
+        const atual = await lerDoc(isoPath);
         if (atual && isoCompleto(atual.dados.r)) return { status: 409, jsonBody: { code: "dup", doc: atual.dados } };
         const r = {}; for (let i = 0; i < 33; i++) r[i] = b.r[i];
-        await gravarDoc(`empresas/${e2}/iso/main`, { nome: String(b.nome).slice(0, 120), cargo: String(b.cargo || "").slice(0, 120), email: String(b.email || "").slice(0, 160), data: hoje(), r });
+        await gravarDoc(isoPath, { nome: String(b.nome).slice(0, 120), cargo: String(b.cargo || "").slice(0, 120), email: String(b.email || "").slice(0, 160), data: hoje(), r });
         return { jsonBody: { ok: true } };
       }
     }
@@ -580,14 +587,14 @@ async function tratarCliente(request, context, identidade, acao) {
   if (acao === "cli-dados" && request.method === "GET") {
     const [uns, sets, cols, plano, part, iso] = await Promise.all([
       listarSige("unidade", cid), listarSige("setor", cid), listarSige("colaborador", cid), listarSige("planoAcao", cid),
-      listarColecao(`empresas/${eid}/participacao`), lerDoc(`empresas/${eid}/iso/main`)]);
+      listarColecao(`${baseCiclo(eid, e)}/participacao`), lerDoc(`${baseCiclo(eid, e)}/iso/main`)]);
     const resp = {}, rec = {};
     part.forEach(({ data: p }) => { if (p && p.respondido === true) { resp[p.gheId] = (resp[p.gheId] || 0) + 1; if (p.recusou === true) rec[p.gheId] = (rec[p.gheId] || 0) + 1; } });
     const uId = new Map(uns.map((u) => [u.Unidade, u.id]));
     const total = {}; cols.forEach((c) => { const k = c.Unidade + "|" + c.Setor; total[k] = (total[k] || 0) + 1; });
     const st = (r) => (r["Dt Conclusao"] || r["Status Execucao"] === "Concluida" ? "concluida" : r["Status Execucao"] === "Em andamento" ? "andamento" : "pendente");
     return { jsonBody: {
-      empresa: { k: eid, razao: e.razao || "", cnpj: e.cnpj || "", codigo: e.codigo || "", status: e.status || "", inicio: e.inicio || "", fim: e.fim || "" },
+      empresa: { k: eid, razao: e.razao || "", cnpj: e.cnpj || "", codigo: e.codigo || "", status: e.status || "", inicio: e.inicio || "", fim: e.fim || "", ciclo: Number(e.ciclo) || 1 },
       unidades: uns.map((u) => ({ k: u.id, nome: u.Unidade })),
       ghes: sets.filter((g) => uId.has(g.Unidade)).map((g) => ({ k: g.id, nome: g.Setor, tipo: g["Tipo Setor"] === "GHE" ? "GHE" : "Setor", unidadeId: uId.get(g.Unidade), total: total[g.Unidade + "|" + g.Setor] || 0, respostas: resp[g.id] || 0, recusas: rec[g.id] || 0 })),
       acoes: plano.filter((r) => r.Origem === "Riscos Psicossociais" && r.Psico).map((r) => ({ g: r.Psico.g, c: r.Psico.c || r["Nr Acao"] || "", prazo: r["Dt Programada"] || "", resp: r["Responsavel Acao"] || "", status: st(r), conclusao: r["Dt Conclusao"] || "", acao: r["Acao Recomendada"] || "", risco: r.Psico.risco || "", fator: r.Psico.fator || "" })),
@@ -598,8 +605,9 @@ async function tratarCliente(request, context, identidade, acao) {
     const b = await request.json().catch(() => ({}));
     if (!b || !b.nome || typeof b.r !== "object") return { status: 400, jsonBody: { erro: "Preencha o nome e as respostas." } };
     const r = {}; for (let i = 0; i < 33; i++) { const v = b.r[i]; if (v === "S" || v === "P" || v === "N") r[i] = v; }
-    const atual = await lerDoc(`empresas/${eid}/iso/main`);
-    await gravarDoc(`empresas/${eid}/iso/main`, Object.assign({}, atual ? atual.dados : {}, {
+    const isoPath = `${baseCiclo(eid, e)}/iso/main`;
+    const atual = await lerDoc(isoPath);
+    await gravarDoc(isoPath, Object.assign({}, atual ? atual.dados : {}, {
       nome: String(b.nome).slice(0, 120), cargo: String(b.cargo || "").slice(0, 120), email: String(b.email || "").slice(0, 160),
       data: (atual && atual.dados && atual.dados.data) || hoje(), r, editadoEm: hoje(), editadoPor: identidade.email }));
     return { jsonBody: { ok: true } };

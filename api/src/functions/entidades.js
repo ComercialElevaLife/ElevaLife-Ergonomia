@@ -139,6 +139,15 @@ async function codigoVerificacaoEmUso(container, codigo, idAtual) {
   return resources.length > 0;
 }
 
+// V 1.28: proximo numero de AEP da empresa (maior + 1).
+async function proximoNrAvaliacao(container, empresaId) {
+  const { resources } = await container.items.query({
+    query: 'SELECT VALUE MAX(c["Nr Avaliacao"]) FROM c WHERE c.EmpresaId = @e',
+    parameters: [{ name: "@e", value: empresaId }],
+  }).fetchAll();
+  return (Number(resources && resources[0]) || 0) + 1;
+}
+
 async function listarComFiltro(container, colecao, identidade) {
   if (COLECOES_GLOBAIS.includes(colecao)) {
     const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
@@ -328,6 +337,11 @@ async function tratar(request, context) {
           return { status: 409, jsonBody: { erro: "Já existe um laudo com este código de verificação." } };
         }
         let paraGravar = novo;
+        // V 1.28: numero da AEP (sequencial por empresa), atribuido pelo servidor na criacao e mantido depois.
+        if (colecao === "avaliacaoErgonomica") {
+          if (jaExistia && jaExistia["Nr Avaliacao"]) paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": jaExistia["Nr Avaliacao"] });
+          else if (!paraGravar["Nr Avaliacao"]) paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": await proximoNrAvaliacao(container, empresaId) });
+        }
         if (colecao === "planoAcao") {
           const avaliacao = await avaliarPlanoAcaoComArquivos(jaExistia, novo, identidade, context);
           if (!avaliacao.ok) return { status: avaliacao.status, jsonBody: { erro: avaliacao.erro, codigo: avaliacao.codigo } };
@@ -359,6 +373,7 @@ async function tratar(request, context) {
           return { status: 403, jsonBody: { erro: "Sem permissão para gravar nesta empresa." } };
         }
         let mesclado = Object.assign({}, existente, corpo, { id, EmpresaId: empresaIdFinal });
+        if (colecao === "avaliacaoErgonomica" && existente["Nr Avaliacao"]) mesclado["Nr Avaliacao"] = existente["Nr Avaliacao"];
         if (colecao === "laudo" && await codigoVerificacaoEmUso(container, mesclado["Codigo Verificacao"], id)) {
           return { status: 409, jsonBody: { erro: "Já existe um laudo com este código de verificação." } };
         }
