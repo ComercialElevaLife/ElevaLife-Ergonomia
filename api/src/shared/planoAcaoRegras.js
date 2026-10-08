@@ -155,11 +155,16 @@ function limparDispensaSeReaberta(doc, existente) {
 
 // Deve avisar o responsavel de que a acao foi atribuida a ele?
 // (criacao, ou troca do e-mail do responsavel - nunca a cada gravacao)
+// V 1.33: o e-mail so sai com a previsao de conclusao (Dt Programada) definida - a tela so libera o
+// e-mail depois do prazo. Sai ao informar (ou trocar) o e-mail, ou quando o prazo e definido para uma
+// acao que ja tinha e-mail. Sem e-mail, o responsavel nao recebe nada.
 function precisaNotificarAtribuicao(existente, doc) {
   const email = String((doc && doc["E-mail Responsavel"]) || "").trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return false;
+  if (!dataValida(doc["Dt Programada"])) return false;
   if (estaConcluida(doc)) return false;
   if (!existente) return true;
+  if (!dataValida(existente["Dt Programada"])) return true;
   return String(existente["E-mail Responsavel"] || "").trim().toLowerCase() !== email;
 }
 
