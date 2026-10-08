@@ -2,6 +2,30 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.34 — 08/10/2026
+
+Módulo AET completo: análise por posto e atividade, ferramentas ergonômicas, Inventário, Plano de Ação e laudo.
+
+- **AET no sistema (`js/aet.js`, aba AET):** AET por posto de trabalho e cargo (cadastro do Cadastro Cliente), coleção `aet` com `Tipo Registro` = "AET". Seções: identificação, setor/população/cargo, organização do trabalho, demandas cognitivas e psicossociais, posto (foto geral, até 2), ambiente e medições, manifestações/ciclo/cargas, atividades (descrição, até 4 fotos, fatores, ações, recomendações) e diagnóstico global (com sugestão automática).
+- **Fatores e graduação:** lista ISO/TS 20646 por grupo ou "Outro"; consequência e segmento. Ferramenta com tempo de exposição define o risco (nível 0–4 levado à graduação mais próxima da matriz do cliente); ferramenta sem exposição dá a severidade, cruzada com a probabilidade (categoria de exposição na jornada da matriz: 5x5 e 4x4 do modelo AET, Gerdau pelas faixas do cliente, 3x3 com <10%, 10–50% e >50%). Sem ferramenta, severidade × probabilidade. Vale a maior graduação.
+- **Ferramentas (`js/ferramentas.js`, `js/ferramentas-dados.js`):** 18 ferramentas da planilha FERRAMENTAS_ERGONOMIA_GERAL 2025 com as tabelas e o memorial de cálculo — Strain Index, RULA, REBA, HAL/ACGIH, QEC, Rodgers, PLIBEL, NIOSH, Checklist OCRA, OCRA tradicional, ROSA, KIM-LHC, KIM-PP, Liberty Mutual (Snook), ERGOS, NASA-TLX, ICE e Check NR-17. PLIBEL, NASA-TLX e Check NR-17 não classificam (nível atribuído pelo ergonomista). O ergonomista pode marcar/desmarcar se a métrica considera a exposição.
+- **Inventário e Plano:** um `fatorRisco` por fator (`aet-{aetId}-{fatorUid}`, Origem "AET", `Atividade`, `Metodologia AET`), ações pelo editor de ações com origem "AET". Reabrir e mudar as entradas do fator recalcula e grava `Historico Risco` ("Reavaliação na AET"). Fator removido sai do Inventário com as ações não trabalhadas; excluir a AET faz o mesmo.
+- **Laudo da AET (`js/laudo-aet.js`, `js/laudo-blocos.js`):** PDF e Word no padrão dos laudos do sistema (capa, cabeçalho/rodapé, sumário clicável, cores e fonte), estrutura do modelo AET 2026: apresentação, fundamentação, demanda, informações cadastrais, métodos (5.1–5.5 com severidade, probabilidade e matriz do cliente), recomendações e conduta, uma seção por setor – posto – cargo (identificação, organização, demandas, posto com foto geral, ambiente, ciclo e cargas, atividades com fotos, fatores, evolução, ações e memorial de cálculo, diagnóstico), conclusão, encerramento com QR Code, certificados de calibração (Cadastro Interno) e métodos aplicados. Abrangência pelo filtro: empresa, unidade, setor / GHE, cargo ou posto. Registro em Laudos (Tipo "Laudo AET") e revisão carimbada nas ações. Novo bloco "fotos" no Word (`js/laudo-docx.js`).
+- **Editor de Texto:** campos "AET · ..." com os textos padrão do laudo.
+- **API (`api/src/functions/arquivos.js`):** a coleção `aet` aceita fotos JPG e PNG.
+- **AETs anexadas:** a lista antiga passa a se chamar "AETs anexadas (arquivos de análises feitas fora do sistema)"; a classificação automática vale só para elas.
+- **Ajuda, fluxos, indicadores e cache (`sw.js` v43)** atualizados.
+
+## V 1.33 — 08/10/2026
+
+Gestão de Risco só com riscos, Plano de Ação no formato do antigo plano do Psicossocial e Editor de Texto direto.
+
+- **Gestão de Risco (`index.html`, `js/app.js`):** cenário de todos os riscos (AEP, AET e Psicossocial). Ficam Risco Global, Risco por Setor / GHE, Top 3 Setores críticos, Inventário (graduação, evolução mensal, prazos) e Avaliações realizadas (cobertura da AEP, novos `chart-aep-mensal` e `chart-aet-mensal`, AET por classificação). Saíram Top Setores - Riscos em Aberto e Laudos e Certificados por Tipo; os gráficos de ações e o Status do Inventário foram para o Plano de Ação.
+- **Plano de Ação:** aba logo depois da Gestão de Risco; indicadores das ações no topo (`#painel-plano`); lista de todas as ações (`renderPlanoLista`) com filtros Unidade, Setor / GHE, Origem, Status e Buscar, resumo por status e Prazo, Responsável e E-mail editáveis na linha; botão Concluir abre o formulário (evidência e reavaliação). Campos antigos escondidos no formulário (atividade, auditoria, medida ADM, fator pós ação, segmento).
+- **E-mail do responsável (`api/src/shared/planoAcaoRegras.js`, `api/src/functions/entidades.js`):** só com prazo; sai ao informar ou trocar o e-mail (ou ao definir o prazo de uma ação que já tinha e-mail), com registro `_notifAtrib` e reenvio (`_reenviarAcao`); Psicossocial sem exigir o nome do responsável. Sem e-mail, nada é enviado ao responsável.
+- **Cadastro Interno:** Editor de Texto primeiro e aberto direto no texto do laudo (sem modelo gravado, abre um novo já preenchido).
+- **Ajuda, fluxos e indicadores** atualizados.
+
 ## V 1.32 — 08/10/2026
 
 Matriz Gerdau, ações pela matriz do cliente e Editor de Texto igual ao laudo.
