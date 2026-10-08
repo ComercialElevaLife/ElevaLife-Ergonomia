@@ -21,16 +21,17 @@
       passos: [
         "O acesso é concedido por um usuário com perfil Administrador ou Consultor, que cadastra o e-mail do novo usuário em Usuários. O convite é enviado por e-mail, com o link de primeiro acesso, no qual o usuário define a própria senha.",
         "Nos acessos seguintes, a autenticação é feita por e-mail e senha. A sessão tem validade de 7 dias. A opção Sair está no rodapé do menu lateral.",
-        "O menu lateral organiza os módulos: Cadastro Cliente, Cadastro Interno, AEP, Gestão de Risco, Gestão de Absenteísmo, Gestão de Restritos, Riscos Psicossociais, Plano de Ação, AET, Usuários e Configurações (ambos restritos ao Administrador) e Ajuda. A seta no rodapé do menu recolhe a barra lateral.",
+        "O menu lateral organiza os módulos: Cadastro Cliente, Cadastro Interno, AEP, Gestão de Risco, Plano de Ação, Gestão de Absenteísmo, Gestão de Restritos, Riscos Psicossociais, AET, Usuários e Configurações (ambos restritos ao Administrador) e Ajuda. A seta no rodapé do menu recolhe a barra lateral.",
         "A barra superior reúne o painel Filtros, o sino de avisos do Plano de Ação, Atualizar e as exportações em PDF e Excel.",
       ],
     },
     {
-      titulo: "Leitura dos painéis (Risco, Absenteísmo e Restritos)",
+      titulo: "Leitura dos painéis (Risco, Plano de Ação, Absenteísmo e Restritos)",
       objetivo: "Interpretar os indicadores e aprofundar a análise até o registro de origem.",
       perfis: "Todos os perfis. O Usuário Cliente visualiza apenas as empresas vinculadas a ele.",
       passos: [
         "O painel Filtros é único para todas as abas: Ano, Mês, Cliente, Unidade, Setor / GHE, Posto, Cargo, Atividade e Origem (AEP, AET ou Psicossocial). O filtro Cliente mostra apenas os clientes vinculados ao usuário; com um único cliente filtrado, Riscos Psicossociais abre direto na página dele. A Origem vale para riscos, ações, avaliações e laudos; Absenteísmo e Restritos não têm origem e não são afetados por ela. O Absenteísmo e a Gestão de Restritos mantêm também os filtros próprios que já tinham. O contador no botão indica quantos filtros estão ativos; \"Limpar filtros\" restaura a visão completa.",
+        "Gestão de Risco é o cenário de todos os riscos (AEP, AET e Psicossocial): risco dos postos, por setor e top setores críticos; Inventário de Riscos (graduação, evolução mensal e prazos); e avaliações realizadas (cobertura da AEP, AEPs e AETs mês a mês, AET por classificação). Os indicadores das ações (status global, postos críticos, previstas, concluídas, por responsável, por setor) e o status de tratativa do Inventário ficam na aba Plano de Ação.",
         "Cores padrão em todo o sistema, nos laudos e nas planilhas. Graduação do risco: trivial/muito baixo azul-claro, baixo verde, moderado amarelo, alto vermelho, muito alto/altíssimo roxo. Situação das ações: não iniciada laranja, em andamento amarelo, atrasada vermelho, concluída verde (concluída com atraso em verde escuro).",
         "Ao selecionar um número, uma barra ou uma fatia, o sistema lista os registros que compõem o valor (detalhamento).",
         "O botão \"i\", ao lado do título de cada card, descreve o que o indicador mede, a fonte do dado, a fórmula de cálculo e os filtros aplicáveis. O dicionário completo está em Ajuda › Indicadores.",
@@ -47,7 +48,7 @@
         "No cadastro do Cliente, marcam-se os Serviços contratados (Gestão de Risco, Gestão de Absenteísmo, Gestão de Restritos e Riscos Psicossociais). A aba de um serviço não contratado continua no menu, mas mostra o aviso de que a empresa não possui o serviço e orienta a procurar o time de especialistas da ElevaLife. Clientes antigos, sem nenhuma marcação, continuam com todos os serviços.",
         "Em Setor / GHE, o campo \"É setor ou GHE?\" indica se o registro é um setor ou um grupo homogêneo de exposição (GHE). Os Riscos Psicossociais usam os dois da mesma forma.",
         "Em Colaboradores, cadastra-se cada pessoa com unidade, setor/GHE, matrícula e nome (há importação por planilha, até 12 mil linhas por arquivo). A matrícula é a chave: é ela que o colaborador digita para responder o questionário HSE-IT.",
-        "Em Cadastro Interno ficam as configurações da ElevaLife, compartilhadas por todos os clientes: Certificado de calibração, Editor de texto (modelo do laudo) e Ergonomistas (nome, e-mail, registro profissional e assinatura, usados nos laudos e para identificar quem cadastrou e atualizou cada AEP). O Usuário Cliente não acessa o Cadastro Interno.",
+        "Em Cadastro Interno ficam as configurações da ElevaLife, compartilhadas por todos os clientes: Editor de Texto (abre direto no texto do laudo, já preenchido com o padrão ElevaLife), Ergonomistas e Certificado de calibração. Ergonomistas (nome, e-mail, registro profissional e assinatura, usados nos laudos e para identificar quem cadastrou e atualizou cada AEP). O Usuário Cliente não acessa o Cadastro Interno.",
         "Os lançamentos (AEP, Absenteísmo, HHT, Restritos) dependem dessa estrutura; recomenda-se concluí-la antes do início das avaliações.",
       ],
     },
@@ -87,7 +88,7 @@
         "Ações de cada fator: tipo (Eliminação, Engenharia / Adequação, Organizacional…), complexidade e a ação escrita; o risco atual do fator aparece automaticamente. Se a ação vai reduzir ou eliminar o risco, marque \"Esta ação vai reduzir ou eliminar o risco\" e escolha a graduação esperada (ou \"Elimina o risco\"); as graduações são as da matriz do cliente (ex.: na Gerdau, Irrelevante a Intolerável). O segmento acometido fica no fator, não na ação. Responsável, e-mail, prazo e status existem só no Plano de Ação.",
         "Evolução do risco: ao concluir no Plano de Ação uma ação marcada como redutora, abre-se a janela de reavaliação, em que o ergonomista informa a nova Probabilidade e Severidade (a matriz calcula o novo risco) ou marca \"Risco eliminado\". O fator guarda todo o histórico (ex.: \"Iniciou Alto · Ação A-01 concluída em 10/11/2026: Moderado\"), visível na coluna Evolução do risco do Inventário. Alterar a graduação no checklist também entra no histórico. Risco eliminado deixa de contar no risco do posto, mas continua no histórico e no laudo.",
         "Avaliações antigas (com atividade, ou duas AEPs do mesmo posto e cargo): o Administrador vê o aviso \"Atualizar avaliações\" em AEP › Avaliações; o sistema junta as AEPs do mesmo posto e cargo em uma só, retira a atividade e numera as que não têm número.",
-        "Risco do posto: é sempre a maior graduação entre os fatores do posto (por cargo). Um posto com um fator Baixo e outro Alto é um posto de risco Alto. É esse risco que aparece na Gestão de Risco (Risco Global dos Postos, Top setores críticos e Risco por setor), somando AEP, Psicossocial (por setor/GHE) e, quando existir, AET. O antigo Mapa de Risco (12 notas por posto) não é mais preenchido; os registros antigos ficam guardados.",
+        "Risco do posto: é sempre a maior graduação entre os fatores do posto (por cargo). Um posto com um fator Baixo e outro Alto é um posto de risco Alto. É esse risco que aparece na Gestão de Risco (Risco Global dos Postos, Top setores críticos e Risco por setor), somando AEP, AET e Psicossocial (por setor/GHE). O antigo Mapa de Risco (12 notas por posto) não é mais preenchido; os registros antigos ficam guardados.",
         "Histórico do sistema anterior: em AEP › Inventário de Riscos, \"Importar Excel\" lê o relatório exportado do sistema anterior (uma linha por fator), com a mesma lógica do checklist (sem atividade; AEP por posto e cargo). Data de identificação é opcional. A mesma importação cria a AEP de cada posto/cargo (aproveitando as existentes). Marque \"Criar automaticamente os cadastros que faltam\" para gerar Cliente, Unidade, Setor, Posto e Cargo ausentes, confira os nomes parecidos, a correspondência de valores (ex.: Leve = Baixa) e as linhas duplicadas, e confirme. A Graduação do Risco é gravada exatamente como veio; as linhas em que ela difere da matriz do S.I.G.E. ficam marcadas na prévia. Reimportar o mesmo arquivo não duplica.",
       ],
     },
@@ -96,7 +97,9 @@
       objetivo: "Conduzir as ações corretivas e preventivas até a conclusão, com rastreabilidade e evidência.",
       perfis: "Administrador e Consultor lançam as ações; o responsável designado executa.",
       passos: [
-        "O Plano de Ação é único e independente: recebe as ações propostas no Inventário de Riscos da AEP e as escolhidas na Análise de risco do Psicossocial (e as da AET, quando o módulo existir). A coluna Origem mostra de onde veio cada ação. No Plano não se cria ação nova: a descrição, o segmento e a redução do risco vêm da origem; aqui se definem Responsável, E-mail, Prazo, conclusão e evidência. Com responsável, e-mail e prazo preenchidos, o responsável recebe o e-mail automaticamente.",
+        "O Plano de Ação é único e independente: recebe as ações propostas no Inventário de Riscos da AEP e as escolhidas na Análise de risco do Psicossocial e as da AET. A coluna Origem mostra de onde veio cada ação. No Plano não se cria ação nova: a descrição, o segmento e a redução do risco vêm da origem; aqui se definem Responsável, E-mail, Prazo, conclusão e evidência. Com responsável, e-mail e prazo preenchidos, o responsável recebe o e-mail automaticamente.",
+        "A aba Plano de Ação vem logo depois da Gestão de Risco. No topo, os indicadores das ações (status global, postos críticos, Inventário de Riscos por status, previstas, concluídas, por responsável e por setor). Abaixo, a lista de todas as ações (AEP, AET e Psicossocial), com os filtros Unidade, Setor / GHE, Origem, Status e Buscar, o resumo por status (clique num status para filtrar) e as colunas Origem, Unidade / setor · posto, Ação, Prazo, Responsável, E-mail e Status.",
+        "Na própria linha, informe o Prazo (previsão de conclusão), o Responsável e o E-mail. O e-mail só é liberado depois do prazo. Ao informar o e-mail, o responsável recebe o aviso da ação automaticamente (a linha mostra \"enviado em\" e o link reenviar) e passa a receber os lembretes do prazo. Apagando o e-mail, o responsável deixa de receber e-mails da ação; tirando o prazo, o e-mail também sai. O botão Concluir abre a ação para a conclusão com evidência (e a reavaliação do risco, quando for o caso).",
         "O status é automático: sem prazo, Não iniciada; com prazo, Em andamento; prazo vencido e não concluída, Atrasada. Concluída a execução, informa-se a data de conclusão e o status passa a Concluída (ou Concluída com atraso). A conclusão exige evidência (foto JPG/PNG ou PDF, até 15 MB). O Administrador pode registrar exceção mediante justificativa e prazo para entrega da evidência.",
         "Ação que reduz o risco (AEP e AET): ao concluir, abre-se a reavaliação do fator (nova Probabilidade e Severidade, ou Risco eliminado), que atualiza o Inventário, o risco do posto, o gráfico de evolução mensal e o próximo laudo. Ações do Psicossocial concluem só com a evidência (o risco psicossocial muda na reaplicação do projeto).",
         "Revisão do laudo: a coluna Revisão do laudo mostra em qual revisão a ação apareceu pela primeira vez (\"A emitir\" enquanto nenhum laudo a incluiu). Ao emitir um laudo da AEP ou do Psicossocial, as ações dele ainda sem revisão recebem a revisão do laudo; as ações antigas ficam como histórico.",
@@ -130,12 +133,19 @@
       ],
     },
     {
-      titulo: "AET (Análise Ergonômica do Trabalho) · em desenvolvimento",
-      objetivo: "Centralizar os arquivos da AET; o módulo completo (riscos e ações da AET) será definido.",
-      perfis: "Ergonomistas.",
+      titulo: "AET (Análise Ergonômica do Trabalho)",
+      objetivo: "Fazer a AET dentro do sistema, por posto de trabalho e cargo, atividade por atividade, com ferramentas ergonômicas, riscos no Inventário, ações no Plano de Ação e laudo próprio.",
+      perfis: "Ergonomistas (Administrador e Consultor). Usuário Cliente apenas consulta.",
       passos: [
-        "Por enquanto, a AET é elaborada fora do sistema (Excel/PDF) e anexada na aba AET. Quando o módulo for definido, os riscos e as ações da AET vão alimentar a Gestão de Risco e o Plano de Ação com a origem \"AET\" (o filtro Origem e a coluna Origem já estão prontos).",
-        "O sistema lê o conteúdo do arquivo e sugere a classificação; o ergonomista confirma ou corrige antes de salvar.",
+        "Na aba AET, clique em “+ Nova AET”. Em 1. Identificação escolha Cliente, Unidade, Setor / GHE, Posto e Cargo (mesmo cadastro do Cadastro Cliente), a data e o ergonomista. A matriz de risco usada é a cadastrada no cliente.",
+        "Preencha setor, população e cargo; organização do trabalho; demandas cognitivas e psicossociais; posto de trabalho com a foto geral (até 2 fotos); ambiente com as medições; manifestações, ciclo de trabalho e cargas.",
+        "Em 8. Atividades, adicione cada atividade do posto: nome, descrição detalhada e até 4 fotos. Em cada atividade, adicione os fatores de risco (lista ISO/TS 20646 por grupo ou “Outro”), consequência e segmento acometido.",
+        "Em cada fator aplique uma ou mais ferramentas ergonômicas (Strain Index, RULA, REBA, HAL/ACGIH, QEC, Rodgers, PLIBEL, NIOSH, Checklist OCRA, OCRA tradicional, ROSA, KIM-LHC, KIM-PP, Liberty Mutual / Snook, ERGOS, NASA-TLX, ICE e Check NR-17). O resultado e o memorial de cálculo aparecem na hora.",
+        "Ferramenta que já considera o tempo de exposição define o risco. Ferramenta sem tempo de exposição dá a severidade, que é cruzada com a probabilidade (exposição na jornada) na matriz do cliente. Sem ferramenta, informe severidade e probabilidade. Com várias ferramentas, vale a maior graduação. PLIBEL, NASA-TLX e Check NR-17 não classificam: o ergonomista atribui o nível.",
+        "Proponha as ações de cada fator (mesmo editor da AEP). Ao salvar, cada fator vai para o Inventário de Riscos e cada ação para o Plano de Ação, com a origem AET. Reabrir e mudar as entradas do fator recalcula o risco e registra no histórico (Reavaliação na AET).",
+        "Use “Sugerir texto a partir das atividades” para o diagnóstico global do posto.",
+        "Laudo: filtre um único cliente e clique em “📄 Emitir laudo da AET”. A abrangência pode ser a empresa toda, uma unidade, um setor / GHE, um cargo ou um posto (vem do filtro). Escolha executor, responsável técnico e os certificados de calibração (Cadastro Interno). Saem o PDF e o Word, registrados no histórico de laudos, com foto geral e fotos por atividade, código de validação e QR Code. Os textos padrão do laudo estão no Editor de Texto (campos “AET”).",
+        "AETs feitas fora do sistema (Excel/PDF) continuam podendo ser anexadas em “AETs anexadas”; o sistema lê o arquivo e sugere a classificação.",
       ],
     },
     {
@@ -246,8 +256,8 @@
         { id: "a", tipo: "inicio", lane: 0, col: 0, texto: "Ação proposta na AEP ou no Psicossocial" },
         { id: "b", tipo: "decisao", lane: 0, col: 1, texto: "Prazo definido?" },
         { id: "c", tipo: "fim", lane: 1, col: 2, texto: "Fica Não iniciada" },
-        { id: "d", tipo: "tarefa", lane: 0, col: 2, texto: "No Plano de Ação: responsável, e-mail e prazo" },
-        { id: "e", tipo: "tarefa", lane: 2, col: 3, texto: "E-mail ao responsável e lembretes de prazo" },
+        { id: "d", tipo: "tarefa", lane: 0, col: 2, texto: "No Plano de Ação: prazo, responsável e depois o e-mail" },
+        { id: "e", tipo: "tarefa", lane: 2, col: 3, texto: "E-mail ao informar o e-mail e lembretes de prazo" },
         { id: "f", tipo: "tarefa", lane: 1, col: 4, texto: "Executa a ação" },
         { id: "g", tipo: "tarefa", lane: 1, col: 5, texto: "Informa a Dt Conclusão e anexa a evidência" },
         { id: "j", tipo: "decisao", lane: 0, col: 6, texto: "Ação marcada para reduzir o risco (AEP/AET)?" },
@@ -268,6 +278,20 @@
         { id: "d", tipo: "tarefa", lane: 1, col: 3, texto: "Monta PDF e Word, anexa e registra no histórico (código, hash e QR Code)" },
         { id: "e", tipo: "tarefa", lane: 0, col: 4, texto: "Confere o documento emitido" },
         { id: "f", tipo: "fim", lane: 0, col: 5, texto: "Laudo emitido" },
+      ],
+      fluxo: [["a", "b"], ["b", "c"], ["c", "d"], ["d", "e"], ["e", "f"]],
+    },
+    {
+      titulo: "AET no sistema",
+      resumo: "Da AET por posto e atividade até o Inventário, o Plano de Ação e o laudo.",
+      lanes: ["Ergonomista", "Sistema"],
+      nos: [
+        { id: "a", tipo: "inicio", lane: 0, col: 0, texto: "+ Nova AET (posto e cargo)" },
+        { id: "b", tipo: "tarefa", lane: 0, col: 1, texto: "Atividade: descrição, fotos e fatores" },
+        { id: "c", tipo: "tarefa", lane: 0, col: 2, texto: "Ferramentas e ações (repete em cada atividade)" },
+        { id: "d", tipo: "tarefa", lane: 1, col: 3, texto: "Gradua pela matriz do cliente" },
+        { id: "e", tipo: "tarefa", lane: 1, col: 4, texto: "Inventário e Plano de Ação (origem AET)" },
+        { id: "f", tipo: "fim", lane: 0, col: 4, texto: "Emite o laudo da AET" },
       ],
       fluxo: [["a", "b"], ["b", "c"], ["c", "d"], ["d", "e"], ["e", "f"]],
     },
@@ -315,6 +339,24 @@
   ];
 
   const HISTORICO = [
+    {
+      versao: "1.34", data: "08/10/2026",
+      itens: [
+        "Módulo AET completo: AET por posto de trabalho e cargo, com organização, demandas cognitivas, posto (foto geral), ambiente e medições, ciclo e cargas, e atividades com descrição, fotos, fatores de risco (ISO/TS 20646 ou outro) e ações.",
+        "18 ferramentas ergonômicas da planilha com as métricas e o memorial de cálculo; mais de uma ferramenta por fator. Com tempo de exposição a ferramenta define o risco; sem, a severidade é cruzada com a probabilidade (exposição) na matriz do cliente.",
+        "Riscos da AET no Inventário de Riscos e ações no Plano de Ação com a origem AET; reabrir a AET recalcula o risco e registra no histórico.",
+        "Laudo da AET (PDF e Word) no padrão dos laudos do sistema, com foto geral e fotos por atividade, abrangência pelo filtro (empresa, unidade, setor / GHE, cargo ou posto), certificados do Cadastro Interno, QR Code e textos no Editor de Texto.",
+      ],
+    },
+    {
+      versao: "1.33", data: "08/10/2026",
+      itens: [
+        "Gestão de Risco como cenário de todos os riscos (AEP, AET e Psicossocial), sem indicadores de ações; novos gráficos AEPs e AETs realizadas mês a mês. Saíram Top Setores - Riscos em Aberto e Laudos e Certificados por Tipo.",
+        "Plano de Ação logo depois da Gestão de Risco, com os indicadores das ações e o Status do Inventário de Riscos, e a lista de todas as ações no formato do antigo plano do Psicossocial (filtros, resumo por status, prazo, responsável e e-mail na própria linha, coluna Origem).",
+        "E-mail do responsável liberado só depois do prazo; ao informar o e-mail, o aviso sai automaticamente; sem e-mail, o responsável não recebe mais nada.",
+        "Cadastro Interno: o Editor de Texto vem primeiro e abre direto no texto do laudo.",
+      ],
+    },
     {
       versao: "1.32", data: "08/10/2026",
       itens: [

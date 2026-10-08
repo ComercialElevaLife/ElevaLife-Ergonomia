@@ -436,11 +436,12 @@
       const ctx = opts.contexto();
       let nr = proximoNr(ctx.Cliente);
       // V 1.29: risco do posto = maior graduacao dos fatores do posto (Inventario), nunca menor que a deste fator.
-      const N = Calc().NIVEIS_RISCO;
+      // V 1.34: origem da acao (AEP por padrao; a AET informa opts.origem = "AET")
+      const origem = opts.origem || "AEP";
       const posto = Calc().riscoDosPostos((BI.dados && BI.dados.fatorRisco) || [], (BI.dados && BI.dados.avaliacaoErgonomica) || [])
-        .find((m) => m.Origem === "AEP" && ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].every((d) => (m[d] || "") === (ctx[d] || "")));
-      const nivelFator = opts.nivelAtual();
-      const riscoPosto = [posto ? posto["Risco Global"] : "", nivelFator].filter(Boolean).sort((a, b) => N.indexOf(b) - N.indexOf(a))[0] || null;
+        .find((m) => m.Origem === origem && ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].every((d) => (m[d] || "") === (ctx[d] || "")));
+      const nivelFator = opts.nivelAtual() ? Calc().nivelCanonico(opts.nivelAtual()) : "";
+      const riscoPosto = [posto ? posto["Risco Global"] : "", nivelFator].filter(Boolean).sort((a, b) => idx(b) - idx(a))[0] || null;
       const mapa = { "Risco Global": riscoPosto };
       let gravadas = 0;
       for (const c of cards) {
@@ -460,7 +461,7 @@
           c.existente = Object.assign({}, c.existente, dados);
         } else {
           dados = Object.assign({}, ctx, novo, {
-            Origem: "AEP", "Nr Acao": nr++, "Fator Risco Id": fatorId, "Fator Risco Nome": opts.nomeFator(), "Status Execucao": "Nao iniciada",
+            Origem: origem, "Nr Acao": nr++, "Fator Risco Id": fatorId, "Fator Risco Nome": opts.nomeFator(), "Status Execucao": "Nao iniciada",
             "Risco Global": mapa ? mapa["Risco Global"] : null,
           });
           const idNovo = await BI.DB.salvar("planoAcao", null, dados);

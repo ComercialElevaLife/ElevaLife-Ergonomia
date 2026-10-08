@@ -1004,7 +1004,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     renderizarLegenda(legendaId, labels.map((l, i) => ({ label: `${l} (${valores[i]}${total ? ", " + ((valores[i] / total) * 100).toFixed(0) + "%" : ""})`, cor: cores[i] })));
   }
 
-  function renderLinhaMensal(canvasId, serie, nomeSerie, cor, linhasFonte, campoData) {
+  function renderLinhaMensal(canvasId, serie, nomeSerie, cor, linhasFonte, campoData, chaveDrill) {
     const labels = serie.map((s) => window.BI.Calc.formatarMesLabel(s.mes));
     const valores = serie.map((s) => s.qtd);
     criarOuAtualizarGrafico(canvasId, {
@@ -1027,7 +1027,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       }, (el) => {
         const mes = serie[el.index].mes;
         return {
-          titulo: `${nomeSerie} - ${window.BI.Calc.formatarMesLabel(mes)}`, subtitulo: `${valores[el.index]} registro(s)`, chave: "planoAcao",
+          titulo: `${nomeSerie} - ${window.BI.Calc.formatarMesLabel(mes)}`, subtitulo: `${valores[el.index]} registro(s)`, chave: chaveDrill || "planoAcao",
           linhas: linhasFonte.filter((l) => l[campoData] && String(l[campoData]).slice(0, 7) === mes),
         };
       }),
@@ -3400,6 +3400,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       return C[nome] && C[nome].closest ? C[nome].closest(".campo-form") : null;
     };
 
+    // V 1.33: campos antigos que nao fazem mais parte do Plano de Acao ficam escondidos (os valores gravados
+    // continuam no registro): atividade (a AEP e por posto e cargo), auditoria, medida ADM, fator pos acao e
+    // segmento (o segmento acometido e do fator, no Inventario).
+    ["Atividade", "Auditoria Ergonomista", "Dt Auditoria", "Medida Controle ADM", "Fator Risco pos Acao", "Segmento Corporal"].forEach((n) => { const c = caixa(n); if (c) c.hidden = true; });
+
     // Fator vinculado: so leitura (quem liga e o Inventario).
     if (C["Fator Risco Nome"]) { C["Fator Risco Nome"].readOnly = true; C["Fator Risco Nome"].title = "Definido pelo Inventário de Riscos"; }
     if (!ini["Fator Risco Id"] && caixa("Fator Risco Nome")) caixa("Fator Risco Nome").hidden = true;
@@ -3408,6 +3413,20 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (C["Tipo Acao"]) C["Tipo Acao"].addEventListener("change", () => {
       if (C["Tipo Acao"].value && window.BI.Acoes) C["Categoria Acao"].value = window.BI.Acoes.categoriaDoTipo(C["Tipo Acao"].value);
     });
+
+    // V 1.33: o e-mail do responsavel so e liberado depois da previsao de conclusao (prazo);
+    // tirar o prazo tira o e-mail (sem prazo nao ha aviso).
+    if (C["E-mail Responsavel"] && C["Dt Programada"]) {
+      const em = C["E-mail Responsavel"], dp = C["Dt Programada"];
+      const travarEmail = () => {
+        const sem = !dp.value;
+        if (sem && em.value) em.value = "";
+        em.disabled = sem || em.dataset.travadoOrigem === "1";
+        em.placeholder = sem ? "Informe o prazo para liberar o e-mail" : "email@empresa.com.br";
+        em.title = sem ? "O e-mail é liberado depois da previsão de conclusão (prazo)" : "Ao informar o e-mail, o responsável recebe o aviso automaticamente";
+      };
+      dp.addEventListener("change", travarEmail); dp.addEventListener("input", travarEmail); travarEmail();
+    }
 
     // "Reduz o risco para" so oferece niveis abaixo do atual do segmento.
     function atualizarAlvo() {
@@ -4724,7 +4743,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // acima e docs/bi-ergonomia-manual.md, secao AET).
     aet: {
       grupo: "aet", icone: "📊", tituloMenu: "AET",
-      titulo: "Análise Ergonômica do Trabalho (AET)",
+      titulo: "AETs anexadas (arquivos de análises feitas fora do sistema)",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Data Analise"],
       colunasData: ["Data Analise"], camposData: ["Data Analise"],
       campos: camposAET(),
@@ -5461,8 +5480,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   };
   const estadoSubAbaCadastro = {};
 
+  // V 1.33: ordem das sub-abas do Cadastro Interno (Editor de Texto primeiro)
+  const ORDEM_SUBABAS = { interno: ["modeloLaudo", "ergonomista", "certificadoCalibracao"] };
   function chavesDoGrupo(grupo) {
-    return Object.keys(CADASTROS_CONFIG).filter((c) => CADASTROS_CONFIG[c].grupo === grupo);
+    const lista = Object.keys(CADASTROS_CONFIG).filter((c) => CADASTROS_CONFIG[c].grupo === grupo);
+    const ordem = ORDEM_SUBABAS[grupo];
+    return ordem ? lista.sort((a, b) => (ordem.indexOf(a) + 1 || 99) - (ordem.indexOf(b) + 1 || 99)) : lista;
   }
 
   function selecionarSubAbaCadastro(grupo, chave) {
@@ -5482,6 +5505,21 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const bloco = document.getElementById("bloco-cadastro-" + c);
       if (bloco) bloco.hidden = c !== chave;
     });
+    if (chave === "modeloLaudo") abrirEditorTextoDireto();
+  }
+
+  // V 1.33: o Editor de Texto abre direto no texto do laudo (o modelo unico da ElevaLife). Sem modelo
+  // gravado, abre um novo ja preenchido com o texto padrao - nunca uma lista vazia.
+  function abrirEditorTextoDireto() {
+    if (ehUsuarioCliente() || !Array.isArray(window.BI.dados.modeloLaudo)) return;
+    const aba = document.getElementById("aba-interno");
+    if (!aba || aba.hidden) return;
+    const estado = estadoCadastro.modeloLaudo;
+    if (!estado || estado.formAberto) return;
+    const m = window.BI.dados.modeloLaudo[0];
+    if (m) { abrirFormEditar("modeloLaudo", m._id); return; }
+    estado.editandoId = null; estado.formAberto = true; estado.valoresForm = { Nome: "Modelo ElevaLife" };
+    renderizarFormCadastro("modeloLaudo");
   }
 
   // Mapeamento entre o "grupo" usado no CADASTROS_CONFIG (mestre/registro)
@@ -6201,6 +6239,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const estado = estadoCadastro[chave];
     const linhasBrutas = window.BI.dados[chave] || [];
     let linhas = window.BI.Calc.filtrar(linhasBrutas, window.BI.filtros, cfg.camposData);
+    // V 1.34: a tabela de AETs anexadas nao lista as AETs feitas no modulo (essas ficam no painel acima)
+    if (chave === "aet") linhas = linhas.filter((l) => l["Tipo Registro"] !== "AET");
     const totalFiltrado = linhas.length;
     if (estado.busca) {
       const termo = estado.busca.toLowerCase();
@@ -6252,6 +6292,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function renderizarListaCadastro(chave) {
+    if (chave === "planoAcao") { try { renderPlanoLista(); } catch (e) { console.error(e); } }
     if (chave === "avaliacaoErgonomica") { try { atualizarAvisoMigracaoAEP(); } catch (e) { console.error(e); } }
     if (chave === "laudo") { try { atualizarPainelEmissaoLaudo(); } catch (e) { console.error(e); } }
     const Calc = window.BI.Calc;
@@ -6673,6 +6714,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     expandirGrupoSidebar(GRUPO_DA_ABA[aba] ? aba : null);
     try { aplicarServicosContratados(); } catch (_) { /* dados ainda nao carregados */ }
     if (aba === "psicossocial") sincronizarFiltroPsico(true);
+    if (aba === "interno" && estadoSubAbaCadastro.interno === "modeloLaudo") abrirEditorTextoDireto();
   }
 
   function configurarAbas() {
@@ -7239,6 +7281,160 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   window.BI.sincronizarFiltroPsico = sincronizarFiltroPsico;
   window.BI.abrirAba = (aba) => { ativarAba(aba); if (GRUPO_DA_ABA[aba]) selecionarSubAbaCadastro(GRUPO_DA_ABA[aba], chavesDoGrupo(GRUPO_DA_ABA[aba])[0]); };
 
+  // ------------------------------------------------------------------
+  // V 1.33 - Plano de Acao no formato do antigo plano do Psicossocial: filtros (Unidade, Setor / GHE,
+  // Origem, Status, Buscar), resumo por status e a lista de TODAS as acoes (AEP, AET e Psicossocial),
+  // com prazo, responsavel e e-mail editaveis na propria linha. O e-mail so e liberado depois da
+  // previsao de conclusao (prazo); ao informar o e-mail, o responsavel recebe o aviso automaticamente;
+  // sem e-mail, o responsavel nao recebe mais nada. Concluir (com evidencia e, na AEP/AET, reavaliacao
+  // do risco) abre o formulario da acao.
+  // ------------------------------------------------------------------
+  const estadoPlanoLista = { u: "", g: "", o: "", st: "", q: "" };
+  const EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  function renderPlanoLista(forcar) {
+    const bloco = document.getElementById("bloco-cadastro-planoAcao");
+    if (!bloco) return;
+    const Calc = window.BI.Calc;
+    const T = (t) => (window.BI.Rotulos && window.BI.Rotulos.texto ? window.BI.Rotulos.texto(t) : t);
+    bloco.classList.add("plano-v2");
+    let raiz = document.getElementById("plano-lista");
+    if (!raiz) {
+      raiz = document.createElement("div"); raiz.id = "plano-lista"; raiz.className = "plano-lista";
+      const fc = document.getElementById("form-container-planoAcao");
+      if (fc && fc.nextSibling) bloco.insertBefore(raiz, fc.nextSibling); else bloco.appendChild(raiz);
+    }
+    const foco = document.activeElement && raiz.contains(document.activeElement) ? document.activeElement : null;
+    if (!forcar && foco && foco.dataset && foco.dataset.pl) return; // nao redesenha no meio da digitacao
+    carimbarOrigens();
+    const hoje = hojeMeiaNoite();
+    const cfg = CADASTROS_CONFIG.planoAcao;
+    const todas = Calc.filtrar(window.BI.dados.planoAcao || [], window.BI.filtros, cfg.camposData || []);
+    const f = estadoPlanoLista;
+    const stDe = (a) => Calc.statusDaLinhaAcao(a, hoje);
+    const unidades = Array.from(new Set(todas.map((a) => a.Unidade).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const setores = Array.from(new Set(todas.filter((a) => !f.u || a.Unidade === f.u).map((a) => a.Setor).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const vis = todas.filter((a) => (!f.u || a.Unidade === f.u) && (!f.g || a.Setor === f.g) && (!f.o || Calc.origemDe(a) === f.o) && (!f.st || stDe(a) === f.st)
+      && (!f.q || [a["Nr Acao"], a["Acao Recomendada"], a["Fator Risco Nome"], a["Responsavel Acao"], a["E-mail Responsavel"], a["Posto Trabalho"], a.Setor].join(" ").toLowerCase().includes(f.q.toLowerCase())))
+      .sort((a, b) => (a.Cliente || "").localeCompare(b.Cliente || "", "pt-BR") || (a.Unidade || "").localeCompare(b.Unidade || "", "pt-BR") || (a.Setor || "").localeCompare(b.Setor || "", "pt-BR") || (a["Posto Trabalho"] || "").localeCompare(b["Posto Trabalho"] || "", "pt-BR") || String(a["Dt Programada"] || "9").localeCompare(String(b["Dt Programada"] || "9")));
+    const somenteLeitura = ehUsuarioCliente() || !!window.BI.DB.estado.somenteLeitura;
+    const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+    raiz.innerHTML = "";
+
+    // filtros
+    const barra = h("div", "plano-filtros");
+    const sel = (rot, chave, opcoes, todosTxt) => {
+      const l = h("label", "plano-filtro"); l.appendChild(h("span", null, rot));
+      const s = document.createElement("select"); s.dataset.plf = chave;
+      const o0 = document.createElement("option"); o0.value = ""; o0.textContent = todosTxt; s.appendChild(o0);
+      opcoes.forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; s.appendChild(o); });
+      s.value = f[chave]; s.addEventListener("change", () => { f[chave] = s.value; if (chave === "u") f.g = ""; renderPlanoLista(); });
+      l.appendChild(s); barra.appendChild(l);
+    };
+    sel("Unidade", "u", unidades.map((u) => [u, u]), "Todas");
+    sel("Setor / GHE", "g", setores.map((x) => [x, x]), "Todos");
+    sel("Origem", "o", Calc.ORIGENS.map((o) => [o, o]), "Todas");
+    sel("Status", "st", Calc.STATUS_ACAO_ORDEM.map((x) => [x, T(x)]), "Todos");
+    const lb = h("label", "plano-filtro plano-filtro--busca"); lb.appendChild(h("span", null, "Buscar"));
+    const busca = document.createElement("input"); busca.type = "search"; busca.placeholder = "nº, ação, fator ou responsável"; busca.value = f.q; busca.dataset.plf = "q";
+    let tm = null; busca.addEventListener("input", () => { clearTimeout(tm); tm = setTimeout(() => { f.q = busca.value; const p = busca.selectionStart; renderPlanoLista(); const n = raiz.querySelector('input[data-plf="q"]'); if (n) { n.focus(); n.setSelectionRange(p, p); } }, 300); });
+    lb.appendChild(busca); barra.appendChild(lb);
+    raiz.appendChild(barra);
+
+    // resumo por status
+    const resumo = h("div", "plano-resumo");
+    Calc.STATUS_ACAO_ORDEM.forEach((st) => {
+      const n = vis.filter((a) => stDe(a) === st).length; const hx = Calc.corStatusAcaoHex(st);
+      const k = h("button", "plano-kpi" + (f.st === st ? " ativo" : "")); k.type = "button";
+      k.style.setProperty("--cor", hx ? "#" + hx : "var(--linha)");
+      k.appendChild(h("span", "plano-kpi-rot", T(st))); k.appendChild(h("strong", null, String(n)));
+      k.addEventListener("click", () => { f.st = f.st === st ? "" : st; renderPlanoLista(); });
+      resumo.appendChild(k);
+    });
+    raiz.appendChild(resumo);
+    raiz.appendChild(h("p", "plano-nota", "Defina o prazo (previsão de conclusão), o responsável e o e-mail de cada ação. O e-mail só é liberado depois do prazo e, ao ser informado, o responsável recebe o aviso automaticamente, além dos lembretes do prazo; apagando o e-mail, o responsável deixa de receber. Ação com prazo vencido e não concluída aparece como Atrasada. Para concluir, use “Concluir”: a conclusão exige a evidência e, nas ações da AEP e da AET marcadas para reduzir o risco, a reavaliação do risco."));
+
+    if (!vis.length) { raiz.appendChild(h("div", "plano-vazio", todas.length ? "Nenhuma ação neste filtro." : "Nenhuma ação no plano. As ações nascem no Inventário de Riscos da AEP, na Análise de risco do Psicossocial e na AET.")); return; }
+    raiz.appendChild(h("div", "plano-contagem", `${vis.length} ação(ões)` + (vis.length !== todas.length ? ` de ${todas.length}` : "")));
+    const wrap = h("div", "tabela-scroll");
+    const tb = document.createElement("table"); tb.className = "tabela-dados plano-tabela";
+    const thead = document.createElement("thead"); const trh = document.createElement("tr");
+    ["Origem", "Unidade / setor · posto", "Ação", "Prazo", "Responsável", "E-mail", "Status"].forEach((c) => trh.appendChild(h("th", null, c)));
+    thead.appendChild(trh); tb.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    vis.forEach((a) => {
+      const tr = document.createElement("tr"); tr.dataset.id = a._id;
+      const st = stDe(a); const concluida = st === "Concluida" || st === "Concluida com atraso";
+      const td1 = h("td"); td1.appendChild(h("span", "plano-origem plano-origem--" + Calc.origemDe(a).toLowerCase(), Calc.origemDe(a))); tr.appendChild(td1);
+      const td2 = h("td", "plano-onde");
+      td2.appendChild(h("div", "plano-onde-un", [a.Cliente, a.Unidade].filter(Boolean).join(" · ")));
+      td2.appendChild(h("strong", null, a.Setor || "-"));
+      if (a["Posto Trabalho"]) td2.appendChild(h("div", null, a["Posto Trabalho"] + (a.Cargo ? " (" + a.Cargo + ")" : "")));
+      if (a["Risco Global"]) { const hx = Calc.corRiscoHex(a["Risco Global"]); const p = h("span", "plano-pilula", Calc.rotuloNivel(a["Risco Global"])); if (hx) { p.style.background = "#" + hx; p.style.color = "#" + Calc.textoSobreHex(hx); } td2.appendChild(p); }
+      tr.appendChild(td2);
+      const td3 = h("td", "plano-acao");
+      const meta = [a["Nr Acao"] != null && a["Nr Acao"] !== "" ? (Calc.origemDe(a) === "Psicossocial" ? String(a["Nr Acao"]) : "A-" + String(a["Nr Acao"]).padStart(2, "0")) : "", a["Fator Risco Nome"] || "", a["Tipo Acao"] && window.BI.Acoes ? window.BI.Acoes.rotuloTipo(a["Tipo Acao"]) : "", a["Revisao Laudo"] != null && a["Revisao Laudo"] !== "" ? "Rev. " + a["Revisao Laudo"] : "A emitir"].filter(Boolean).join(" · ");
+      td3.appendChild(h("div", "plano-acao-meta", meta));
+      td3.appendChild(h("div", "plano-acao-txt", a["Acao Recomendada"] || "-"));
+      if (window.BI.Acoes && window.BI.Acoes.reduzRisco(a) && a["Risco Apos Acao"]) td3.appendChild(h("div", "plano-acao-efeito", a["Risco Apos Acao"] === "Eliminado" ? "Vai eliminar o risco" : "Vai reduzir o risco para " + Calc.rotuloNivel(a["Risco Apos Acao"])));
+      tr.appendChild(td3);
+      const bloqueado = somenteLeitura || concluida;
+      const inp = (tipo, campo, valor, ph) => { const i = document.createElement("input"); i.type = tipo; i.value = valor || ""; if (ph) i.placeholder = ph; i.dataset.pl = campo; i.disabled = bloqueado; return i; };
+      const tdP = h("td"); const iP = inp("date", "Dt Programada", a["Dt Programada"]); iP.setAttribute("aria-label", "Prazo (previsão de conclusão)"); tdP.appendChild(iP); tr.appendChild(tdP);
+      const tdR = h("td"); const iR = inp("text", "Responsavel Acao", a["Responsavel Acao"], "Nome"); iR.setAttribute("aria-label", "Responsável"); tdR.appendChild(iR); tr.appendChild(tdR);
+      const tdE = h("td"); const iE = inp("email", "E-mail Responsavel", a["E-mail Responsavel"], a["Dt Programada"] ? "email@empresa.com.br" : "informe o prazo antes");
+      iE.setAttribute("aria-label", "E-mail do responsável");
+      if (!a["Dt Programada"]) { iE.disabled = true; iE.title = "Informe a previsão de conclusão (prazo) para liberar o e-mail"; }
+      tdE.appendChild(iE);
+      const n = a._notifAtrib || a._notifPsico;
+      const info = h("div", "plano-email-info");
+      if (concluida) info.textContent = "";
+      else if (n && n.em && a["E-mail Responsavel"]) {
+        info.appendChild(document.createTextNode("✉ enviado em " + window.BI.Datas.isoParaBR(String(n.em).slice(0, 10)) + " · "));
+        const re = h("a", null, "reenviar"); re.href = "#"; if (!somenteLeitura) re.addEventListener("click", (ev) => { ev.preventDefault(); salvarCampoPlano(a, "_reenviarAcao", Date.now()); }); info.appendChild(re);
+      } else info.textContent = a["Dt Programada"] ? (a["E-mail Responsavel"] ? "e-mail cadastrado" : "o aviso sai ao informar o e-mail") : "liberado após o prazo";
+      tdE.appendChild(info); tr.appendChild(tdE);
+      const tdS = h("td", "plano-status");
+      const hx = Calc.corStatusAcaoHex(st); const pS = h("span", "plano-pilula", T(st)); if (hx) { pS.style.background = "#" + hx; pS.style.color = "#" + Calc.textoSobreHex(hx); } tdS.appendChild(pS);
+      if (concluida && a["Dt Conclusao"]) tdS.appendChild(h("div", "plano-status-data", "em " + window.BI.Datas.isoParaBR(a["Dt Conclusao"])));
+      const bt = h("button", "btn-cad-secundario plano-btn", concluida || somenteLeitura ? "Ver" : "Concluir"); bt.type = "button";
+      bt.addEventListener("click", () => { abrirFormEditar("planoAcao", a._id); const fc = document.getElementById("form-container-planoAcao"); if (fc && fc.scrollIntoView) fc.scrollIntoView({ behavior: "smooth", block: "start" }); });
+      if (!ehUsuarioCliente()) tdS.appendChild(bt);
+      tr.appendChild(tdS);
+      [iP, iR, iE].forEach((el) => el.addEventListener("change", () => {
+        let v = el.value.trim();
+        if (el.dataset.pl === "E-mail Responsavel" && v && !EMAIL_OK.test(v)) { mostrarAvisoPlano("E-mail inválido."); el.value = a["E-mail Responsavel"] || ""; return; }
+        salvarCampoPlano(a, el.dataset.pl, v);
+      }));
+      tbody.appendChild(tr);
+    });
+    tb.appendChild(tbody); wrap.appendChild(tb); raiz.appendChild(wrap);
+  }
+  function mostrarAvisoPlano(msg) {
+    const raiz = document.getElementById("plano-lista"); if (!raiz) return;
+    let el = raiz.querySelector(".plano-aviso");
+    if (!el) { el = document.createElement("div"); el.className = "plano-aviso"; el.setAttribute("role", "status"); raiz.insertBefore(el, raiz.firstChild); }
+    el.textContent = msg; clearTimeout(mostrarAvisoPlano._t); mostrarAvisoPlano._t = setTimeout(() => { if (el.parentNode) el.remove(); }, 6000);
+  }
+  async function salvarCampoPlano(a, campo, valor) {
+    const dados = semInternos(a);
+    if (campo === "_reenviarAcao") dados._reenviarAcao = valor;
+    else dados[campo] = valor || null;
+    // Sem prazo, o e-mail sai (nao ha aviso sem previsao de conclusao).
+    if (campo === "Dt Programada" && !valor) dados["E-mail Responsavel"] = null;
+    // Status automatico: com prazo, Em andamento; sem prazo (e nao concluida), Nao iniciada.
+    if (campo === "Dt Programada" && !dados["Dt Conclusao"] && dados["Status Execucao"] !== "Concluida") dados["Status Execucao"] = valor ? "Em andamento" : "Nao iniciada";
+    let msg;
+    try {
+      await window.BI.DB.salvar("planoAcao", a._id, dados);
+      const email = dados["E-mail Responsavel"];
+      msg = campo === "_reenviarAcao" ? `E-mail reenviado para ${email}.` : campo === "E-mail Responsavel" && email ? `Salvo · e-mail enviado para ${email}.` : campo === "E-mail Responsavel" ? "Salvo · o responsável deixa de receber e-mails desta ação." : campo === "Dt Programada" && !valor && a["E-mail Responsavel"] ? "Salvo · sem prazo, o e-mail foi retirado." : "Salvo.";
+    } catch (e) { msg = "Não foi possível salvar: " + (e && e.message ? e.message : String(e)); }
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    renderizarTudo();
+    renderPlanoLista(true);
+    mostrarAvisoPlano(msg);
+  }
+
   function renderizarTudo() {
     try {
       renderizarTudoInterno();
@@ -7306,11 +7502,18 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     renderDonutFatorRiscoStatus(Calc.distribuicaoPorStatus(fatorRiscoF, "Status", STATUS_FATOR_RISCO_POOL), fatorRiscoF);
     renderTilesAvaliacaoCobertura(Calc.coberturaAvaliacao(avaliacaoF, Calc.filtrar(window.BI.dados.cargo || [], filtros, [])));
     renderTilesFatorRiscoPrazos(Calc.distribuicaoVencimento(fatorRiscoAbertoF, "Valido Ate", hoje, DIAS_ALERTA_PRAZO), fatorRiscoAbertoF, hoje, DIAS_ALERTA_PRAZO);
-    renderTopSetoresFatorRisco(Calc.topSetoresPorCampo(fatorRiscoF, "Status", ["A validar", "Em andamento"], 5), fatorRiscoF);
-    renderDonutLaudosTipo(laudoF);
+    // V 1.33: "Top Setores - Riscos em Aberto" e "Laudos e Certificados - Por Tipo" sairam da Gestao de Risco;
+    // o Status do Inventario foi para a aba Plano de Acao. Novos: AEPs e AETs realizadas mes a mes.
+    void laudoF;
+    renderLinhaMensal("chart-aep-mensal", Calc.serieMensal(avaliacaoF, "Data Avaliacao"), "AEPs realizadas", Calc.resolverCorCSS("var(--teal)"), avaliacaoF, "Data Avaliacao", "avaliacaoErgonomica");
+    renderLinhaMensal("chart-aet-mensal", Calc.serieMensal(aetF, "Data Analise"), "AETs realizadas", Calc.resolverCorCSS("var(--vinho-medio)"), aetF, "Data Analise", "aet");
 
     // Trilha AET (upload externo) - ver titulo-secao-grade "AET" no index.html.
-    renderTilesAET(Calc.distribuicaoClassificacaoAET(aetF), aetF);
+    const aetAnexosF = aetF.filter((a) => a["Tipo Registro"] !== "AET");
+    renderTilesAET(Calc.distribuicaoClassificacaoAET(aetAnexosF), aetAnexosF);
+    try { if (window.BI.AET) window.BI.AET.renderPainel(); } catch (e) { console.error("AET", e); }
+    renderPlanoLista();
+    if (estadoSubAbaCadastro.interno === "modeloLaudo") abrirEditorTextoDireto();
 
     const diasUteisF = Calc.filtrar(window.BI.dados.diasUteis, filtros, ["Ano/Mes Uteis"]);
     const absenteismoF = Calc.filtrar(window.BI.dados.absenteismo, filtros, ["Dt Afastamento"]);

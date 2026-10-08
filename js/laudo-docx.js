@@ -543,7 +543,7 @@
     const C = CORES();
     const urls = [];
     if (o.capa) urls.push(o.capa.logoEleva, o.capa.logoCliente);
-    blocos.forEach((b) => { if (b.t === "img") urls.push(b.d); if (b.t === "fech") { (b.assinantes || []).forEach((a) => urls.push(a.assinatura)); if (b.codigo) { b.urlQr = qrComoPng((BI.LaudoPadrao ? BI.LaudoPadrao.URL_VERIFICACAO : "") + b.codigo); urls.push(b.urlQr); } } });
+    blocos.forEach((b) => { if (b.t === "img") urls.push(b.d); if (b.t === "fotos") (b.itens || []).forEach((f) => urls.push(f.d)); if (b.t === "fech") { (b.assinantes || []).forEach((a) => urls.push(a.assinatura)); if (b.codigo) { b.urlQr = qrComoPng((BI.LaudoPadrao ? BI.LaudoPadrao.URL_VERIFICACAO : "") + b.codigo); urls.push(b.urlQr); } } });
     const imgs = await registrarImagens(urls.filter(Boolean));
     const JC = { j: "both", c: "center", r: "right", l: "left" };
     const runsXml = (runs, tam, corBase) => (runs || []).map((r) => run(r.x, { b: !!r.b, cor: r.c || corBase || C.texto, tam: r.s || tam })).join("");
@@ -563,6 +563,15 @@
         corpo.push(tbl(b.w, linhas, { zebra: b.zebra !== false }));
       } else if (b.t === "img") {
         const info = imgs[b.d]; if (info) corpo.push(imagemParDe(imgs, b.d, Math.min(b.w || 480, 480), 680, { jc: "center", depois: 120, nome: "Gráfico" }));
+      } else if (b.t === "fotos") {
+        // V 1.34: fotos da AET, 2 por linha, com legenda
+        const itens = (b.itens || []).filter((f) => f && imgs[f.d]);
+        for (let k = 0; k < itens.length; k += 2) {
+          const par2 = itens.slice(k, k + 2);
+          const celula = (f) => ({ paras: f ? imagemParDe(imgs, f.d, 230, 165, { jc: "center", depois: 40, nome: "Foto" }) + par(run(f.leg || "", { cor: C.cinza || "8A7A78", tam: 7 }), { depois: 0 }) : par("", { depois: 0 }), v: "center" });
+          corpo.push(tbl([50, 50], [[celula(par2[0]), celula(par2[1])]], { zebra: false }));
+        }
+        corpo.push(par("", { depois: 80 }));
       } else if (b.t === "toc") { posToc = corpo.length; corpo.push(""); }
       else if (b.t === "pb") corpo.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
       else if (b.t === "esp") corpo.push(par("", { depois: Math.round((b.h || 8) * 20) }));
