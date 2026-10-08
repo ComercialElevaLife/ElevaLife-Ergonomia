@@ -183,9 +183,11 @@
   // Acentua palavra por palavra. Não mexe em números, e-mails, URLs nem em
   // palavras fora do dicionário. Siglas só são normalizadas se já vierem em
   // maiúsculas ou capitalizadas (evita mexer em "id" de código).
+  // V 1.30: situacao das acoes com o mesmo texto do padrao (laudos, modulo Psicossocial e planilhas).
+  const EXATOS = { "Nao Iniciado": "Não iniciada", "Em Andamento": "Em andamento", "Concluida com atraso": "Concluída com atraso" };
   function texto(valor) {
     if (valor === null || valor === undefined) return valor;
-    const s = String(valor);
+    const s = String(valor).replace(/\b(Nao Iniciado|Em Andamento|Concluida com atraso)\b/g, (m) => EXATOS[m]);
     if (!s || /@|:\/\//.test(s)) return s;
     return s.replace(/[A-Za-z]+/g, (palavra) => {
       const chave = palavra.toLowerCase();

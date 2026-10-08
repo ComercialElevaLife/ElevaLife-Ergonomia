@@ -17,28 +17,18 @@
   "use strict";
   const BI = (global.BI = global.BI || {});
 
-  const PAL = {
-    vinhoE: [94, 42, 48], vinho: [139, 58, 66], vinhoM: [163, 78, 86],
-    suave: [216, 183, 187], suave2: [201, 154, 160], creme: [245, 239, 234],
-    zebra: [250, 246, 243], texto: [61, 46, 48], cinza: [138, 122, 120],
-    teal: [62, 123, 126], tealE: [46, 95, 98], branco: [255, 255, 255],
-    azul: [47, 111, 159], verde: [42, 157, 143],
-  };
-  const URL_VERIFICACAO = "https://sige-ergo.elevalife.com.br/verificar/";
-  const M = 42; // margem lateral
-  const TOPO = 70;
-  const BASE = 52;
+  // V 1.30: paleta, cores de risco/status, capa, cabecalho/rodape e fechamento vem do PADRAO
+  // de laudo ElevaLife (js/laudo-padrao.js), o mesmo do laudo de Riscos Psicossociais.
+  const LP = BI.LaudoPadrao;
+  const PAL = LP.PAL;
+  const URL_VERIFICACAO = LP.URL_VERIFICACAO;
+  const M = LP.M; // margem lateral
+  const TOPO = LP.TOPO;
+  const BASE = LP.BASE;
 
   // ---- helpers puros ------------------------------------------------------
   function semAcento(s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
-  function corNivel(nivel) {
-    const n = semAcento(nivel);
-    if (n.includes("muito alto") || n.includes("altissimo")) return [124, 58, 237];
-    if (n.includes("alto")) return [217, 54, 54];
-    if (n.includes("moder") || n.includes("medio") || n.includes("toler")) return [201, 150, 12];
-    if (!n || n === "-") return PAL.cinza;
-    return [26, 156, 75];
-  }
+  const corNivel = LP.corNivel;
   function dataBR(iso) {
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || "");
     return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || "-");
@@ -47,19 +37,7 @@
   function substituir(texto, vars) {
     return String(texto || "").replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? vars[k] : m));
   }
-  function novoCodigo(existentes, sigla) {
-    const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    const usados = new Set((existentes || []).filter(Boolean));
-    for (let t = 0; t < 50; t++) {
-      let s = "";
-      const bytes = new Uint8Array(6);
-      (global.crypto || {}).getRandomValues ? global.crypto.getRandomValues(bytes) : bytes.forEach((_, i) => { bytes[i] = Math.floor(Math.random() * 256); });
-      bytes.forEach((b) => { s += alfabeto[b % alfabeto.length]; });
-      const codigo = `ELV-${sigla || "AEP"}-${new Date().getFullYear()}-${s}`;
-      if (!usados.has(codigo)) return codigo;
-    }
-    return `ELV-${sigla || "AEP"}-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-6)}`;
-  }
+  const novoCodigo = LP.novoCodigo;
 
   // ---- dados da metodologia ElevaLife ---------------------------------------
   // V 1.9: textos, tabelas e definicoes agora ficam em js/laudo-textos.js (BI.LaudoTextos.PADRAO)
@@ -81,22 +59,62 @@
     const docCliente = (dados.cliente || []).find((c) => c.Cliente === opcoes.nomeCliente) || {};
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
 
+    // V 1.28: abrangencia do laudo - empresa toda, unidade, setor, cargo ou posto de trabalho.
+    // Cada avaliacao leva o numero (AEP-001) e a data da ultima atualizacao (a que sai no laudo).
+    const ultimaAtualizacao = (a) => [a._editadoEm, a._criadoEm].filter(Boolean).map((d) => String(d).slice(0, 10)).sort().pop() || a["Data Avaliacao"] || "";
     const avaliacoes = (dados.avaliacaoErgonomica || []).filter((a) => {
       if (a.Cliente !== opcoes.nomeCliente) return false;
+      if (opcoes.unidade && a.Unidade !== opcoes.unidade) return false;
       if (opcoes.setor && a.Setor !== opcoes.setor) return false;
+      if (opcoes.cargo && a.Cargo !== opcoes.cargo) return false;
       if (opcoes.postoTrabalho && a["Posto Trabalho"] !== opcoes.postoTrabalho) return false;
       return true;
-    });
+    }).map((a) => Object.assign({}, a, {
+      _nrTexto: Number(a["Nr Avaliacao"]) ? "AEP-" + String(Number(a["Nr Avaliacao"])).padStart(3, "0") : "",
+      _atualizadaEm: ultimaAtualizacao(a),
+    })).sort((a, b) => (a.Unidade || "").localeCompare(b.Unidade || "", "pt-BR") || (a.Setor || "").localeCompare(b.Setor || "", "pt-BR") || (a.Cargo || "").localeCompare(b.Cargo || "", "pt-BR") || (a["Posto Trabalho"] || "").localeCompare(b["Posto Trabalho"] || "", "pt-BR"));
     if (!avaliacoes.length) {
-      throw new Error("Nenhuma Avaliação Ergonômica cadastrada para esse Cliente/Setor/Posto - cadastre a Avaliação Ergonômica antes de gerar o laudo.");
+      throw new Error("Nenhuma Avaliação Ergonômica (AEP) cadastrada para a abrangência escolhida - cadastre a avaliação antes de emitir o laudo.");
     }
 
-    const fatoresDoPosto = (av) => (dados.fatorRisco || []).filter((f) =>
+    // V 1.28: a AEP e por posto e cargo (sem atividade)
+    // V 1.31: o laudo traz sempre o risco mais atual - riscos eliminados saem do inventario vigente e
+    // aparecem em "Riscos eliminados" do posto e na evolucao dos riscos (secao 10).
+    const doPosto = (av) => (dados.fatorRisco || []).filter((f) =>
       f.Cliente === av.Cliente && f.Unidade === av.Unidade && f.Setor === av.Setor && f.Cargo === av.Cargo &&
-      f["Posto Trabalho"] === av["Posto Trabalho"] && f.Atividade === av.Atividade && f["Existe Fator Risco"] === "Sim");
+      f["Posto Trabalho"] === av["Posto Trabalho"] && f["Existe Fator Risco"] === "Sim");
+    const fatoresDoPosto = (av) => doPosto(av).filter((f) => f["Risco Eliminado"] !== "Sim");
+    const eliminadosDoPosto = (av) => doPosto(av).filter((f) => f["Risco Eliminado"] === "Sim");
     const grau = (fr) => fr["Graduacao Risco"] || Calc.nivelDaMatriz(nomeMatriz, fr.Probabilidade, fr.Criticidade) || "";
     const pontos = (fr) => (fr["Pontuacao Risco"] != null ? fr["Pontuacao Risco"] : Calc.pontuacaoDaMatriz(nomeMatriz, fr.Probabilidade, fr.Criticidade));
     const rotCanon = (n) => (n ? Calc.rotuloNivel(n) : "-");
+    // V 1.29: o risco do posto e a maior graduacao entre os seus fatores.
+    const riscoDoPosto = (av) => fatoresDoPosto(av).map(grau).filter(Boolean)
+      .sort((a, b) => Calc.NIVEIS_RISCO.indexOf(Calc.nivelCanonico(b)) - Calc.NIVEIS_RISCO.indexOf(Calc.nivelCanonico(a)))[0] || "";
+    // V 1.30: pontuacoes (probabilidade x gravidade) de cada graduacao, como lista - a graduacao vem
+    // da celula da matriz modelo, e a mesma pontuacao pode aparecer em duas graduacoes vizinhas.
+    const pontuacoesDoNivel = (n) => { const ps = []; escala.forEach((p) => escala.forEach((g) => { if (Calc.nivelDaMatriz(nomeMatriz, p, g) === n) { const v = Calc.pontuacaoDaMatriz(nomeMatriz, p, g); if (!ps.includes(v)) ps.push(v); } })); return ps.sort((a, b) => a - b).join(", "); };
+    const NOTA_MATRIZ = "A graduação de cada fator é a da célula da matriz (cruzamento da probabilidade com a severidade), conforme a matriz de risco cadastrada para o cliente. A pontuação (probabilidade × severidade) é informativa: a mesma pontuação pode aparecer em graduações vizinhas, conforme a posição na matriz.";
+    // V 1.30: numeros do plano por status, nas cores padrao (nao iniciada, em andamento, atrasada, concluida).
+    const contagemStatus = (lista, ref) => {
+      const c = { n: 0, e: 0, a: 0, c: 0 };
+      lista.forEach(({ a }) => { const s = Calc.statusDaLinhaAcao ? Calc.statusDaLinhaAcao(a, ref) : ""; if (Acoes.estaConcluida(a) || /^Concluida/.test(s)) c.c++; else if (s === "Atrasada") c.a++; else if (s === "Em Andamento") c.e++; else c.n++; });
+      return [{ n: lista.length, rot: "Ações no plano", cor: PAL.vinhoE }, { n: c.n, rot: "Não iniciadas", cor: LP.corStatus("Não iniciada") }, { n: c.e, rot: "Em andamento", cor: LP.corStatus("Em andamento") }, { n: c.a, rot: "Atrasadas", cor: LP.corStatus("Atrasada") }, { n: c.c, rot: "Concluídas", cor: LP.corStatus("Concluída") }];
+    };
+    // V 1.30 (melhoria trazida do laudo psicossocial): quadro-resumo dos postos e contagem de
+    // fatores por graduacao em cada grupo da ISO/TS 20646, para a conclusao.
+    const resumoConclusao = () => {
+      const postos = avaliacoes.map((av) => { const fs = fatoresDoPosto(av); const r = maiorGrau(fs); return { av, risco: r, determinantes: fs.filter((f) => r && ordemNivel(grau(f)) === ordemNivel(r)).map((f) => f.Fator).filter(Boolean) }; });
+      const grupos = (Calc.GRUPOS_FATOR_RISCO || []).map((g) => { const fs = todosFatores.filter((x) => x.fr.Grupo === g).map((x) => x.fr); const c = contaNivelMz(fs); return { grupo: g, cont: niveisMz.map((n) => c[n]), total: fs.length, criticos: fs.filter((f) => ordemNivel(grau(f)) >= 2).length }; });
+      const total = niveisMz.map((n, i) => grupos.reduce((t, g) => t + g.cont[i], 0));
+      const freq = grupos.filter((g) => g.criticos).sort((a, b) => b.criticos - a.criticos).slice(0, 3);
+      const lista = (a) => (a.length > 1 ? a.slice(0, -1).join(", ") + " e " + a[a.length - 1] : a[0] || "");
+      const frase = freq.length ? `Os grupos de fatores com mais ocorrências de risco moderado ou superior são ${lista(freq.map((g) => `${g.grupo.toLowerCase()} (${g.criticos} fator${g.criticos === 1 ? "" : "es"})`))}. É nesses pontos que as ações devem se concentrar primeiro.` : "";
+      const dist = niveisMz.map((n) => [n, postos.filter((p) => p.risco && ordemNivel(p.risco) === ordemNivel(n)).length]).filter(([, q]) => q).map(([n, q]) => `${q} com risco ${n.toLowerCase()}`);
+      const fraseP = postos.length ? `Dos ${postos.length} posto${postos.length === 1 ? "" : "s"} avaliado${postos.length === 1 ? "" : "s"}${dist.length ? ", " + lista(dist) : ""}${postos.some((p) => !p.risco) ? `; ${postos.filter((p) => !p.risco).length} sem fator de risco identificado` : ""}. O risco de cada posto é a maior graduação entre os seus fatores. O quadro a seguir resume cada posto e os fatores que determinaram a graduação:` : "";
+      return { postos, grupos, total, frase, fraseP };
+    };
+    const TXT_RISCO_POSTO = "Risco do posto de trabalho: o risco de cada posto (por cargo) é sempre a maior graduação entre os seus fatores de risco. Por exemplo, um posto com um fator de risco baixo e outro alto tem risco alto. É essa graduação que alimenta a Gestão de Risco do S.I.G.E.";
     const acoesDe = (fr) => (Acoes ? Acoes.acoesDoFator(fr._id) : []);
 
     // ---- ergonomistas (cadastro global) ----------------------------------
@@ -140,8 +158,11 @@
     // ---- metricas gerais -------------------------------------------------------
     const todosFatores = [];
     avaliacoes.forEach((av) => fatoresDoPosto(av).forEach((fr) => todosFatores.push({ av, fr })));
+    // V 1.31: o plano traz tambem as acoes dos riscos ja eliminados (historico)
+    const todosComEliminados = [];
+    avaliacoes.forEach((av) => doPosto(av).forEach((fr) => todosComEliminados.push({ av, fr })));
     const todasAcoes = [];
-    todosFatores.forEach(({ av, fr }) => acoesDe(fr).forEach((a) => todasAcoes.push({ av, fr, a })));
+    todosComEliminados.forEach(({ av, fr }) => acoesDe(fr).forEach((a) => todasAcoes.push({ av, fr, a })));
     const concluidas = todasAcoes.filter((x) => Acoes.estaConcluida(x.a)).length;
     const contaNivel = (lista) => {
       const c = { Baixo: 0, Medio: 0, Alto: 0, "Muito Alto": 0 };
@@ -149,14 +170,20 @@
       return c;
     };
     const NIVEIS4 = [["Baixo", "Baixo"], ["Medio", "Moderado"], ["Alto", "Alto"], ["Muito Alto", "Muito Alto"]];
+    // V 1.30: a metodologia segue a matriz do cliente - o panorama, o diagnostico por grupo e os
+    // resumos usam as graduacoes da propria matriz (ex.: 5x5 com Muito Baixo e Altissimo).
+    const ordemNivel = (n) => Calc.ordemNivel(n); // V 1.32: escala unica (inclui Irrelevante/Toleravel/Intoleravel da Gerdau)
+    const niveisMz = (() => { const out = []; escala.forEach((p) => escala.forEach((g) => { const n = Calc.nivelDaMatriz(nomeMatriz, p, g); if (n && !out.includes(n)) out.push(n); })); return out.sort((a, b) => ordemNivel(a) - ordemNivel(b)); })();
+    const contaNivelMz = (lista) => { const c = {}; niveisMz.forEach((n) => { c[n] = 0; }); lista.forEach((fr) => { const g = grau(fr); const k = niveisMz.find((n) => ordemNivel(n) === ordemNivel(g)); if (k) c[k]++; }); return c; };
+    const maiorGrau = (lista) => lista.map(grau).filter(Boolean).sort((a, b) => ordemNivel(b) - ordemNivel(a))[0] || "";
     const resumoNiveis = (() => {
-      const c = contaNivel(todosFatores.map((x) => x.fr));
-      const partes = NIVEIS4.filter(([k]) => c[k]).map(([k, r]) => `${c[k]} com graduação ${r}`);
+      const c = contaNivelMz(todosFatores.map((x) => x.fr));
+      const partes = niveisMz.filter((k) => c[k]).map((k) => `${c[k]} com graduação ${k}`);
       return partes.length ? `, dos quais ${partes.join(", ").replace(/, ([^,]*)$/, " e $1")}` : "";
     })();
     const setoresAv = Array.from(new Set(avaliacoes.map((a) => a.Setor)));
     const unidadesAv = Array.from(new Set(avaliacoes.map((a) => a.Unidade)));
-    const datas = avaliacoes.map((a) => a["Data Avaliacao"]).filter(Boolean).sort();
+    const datas = avaliacoes.map((a) => a._atualizadaEm).filter(Boolean).sort();
     const periodo = datas.length ? (datas[0] === datas[datas.length - 1] ? dataBR(datas[0]) : `${dataBR(datas[0])} a ${dataBR(datas[datas.length - 1])}`) : "-";
     const emissao = opcoes.emitidoEm ? dataBR(opcoes.emitidoEm) : dataBR(hojeISO());
     const codigo = opcoes.codigo || novoCodigo([], "AEP");
@@ -167,38 +194,52 @@
       nPostos: avaliacoes.length, nFatores: todosFatores.length, nAcoes: todasAcoes.length, resumoNiveis,
       // V 1.9: marcadores dos textos que antes eram fixos
       nFatoresISO: (Calc.GRUPOS_FATOR_RISCO || []).reduce((t, g) => t + Calc.fatoresDoGrupo(g).length, 0), nGruposISO: (Calc.GRUPOS_FATOR_RISCO || []).length,
-      matriz: nomeMatriz.toLowerCase(), dataBase: dataBR(hojeISO()), emissao, codigo, revisao,
+      matriz: nomeMatriz.replace(/^Matriz/, "matriz"), dataBase: dataBR(hojeISO()), emissao, codigo, revisao,
       nomes: assinantes.map((a) => a.Nome).join(" e ") || "o responsável técnico",
     };
-    const texto = (campo) => substituir(String(modelo[campo] || "").trim() || T.PADRAO[campo] || "", vars);
+    // V 1.32: o mesmo texto que o Editor de Texto mostra; Severidade, Probabilidade e Graduação usam a versão
+    // da matriz do cliente quando ela tem textos próprios (ex.: Matriz 5x5 Gerdau).
+    const texto = (campo) => substituir(T.textoEfetivo(modelo, T.campoDaMatriz(campo, nomeMatriz)), vars);
     const linhasDe = (campo) => texto(campo).split(/\n+/).map((s) => s.trim()).filter(Boolean);
     // V 1.9: tabelas e listas editaveis - uma linha por registro, colunas separadas por "|".
     const celulas = (campo) => texto(campo).split("\n").map((l) => l.split("|").map((c) => c.trim())).filter((r) => r.some(Boolean));
     const mapaDe = (campo) => { const o = {}; celulas(campo).forEach((r) => { if (r[0]) o[r[0]] = r.slice(1).join(" | "); }); return o; };
     const titulosMapa = mapaDe("Titulos");
-    const titDe = (chave, padrao) => titulosMapa[chave] || padrao;
+    // V 1.31: titulos antigos gravados no Editor de Texto passam aos nomes novos (evolucao do risco).
+    const TITULOS_NOVOS = T.TITULOS_NOVOS || {};
+    const titDe = (chave, padrao) => { const t = titulosMapa[chave] || padrao; return TITULOS_NOVOS[t] || t; };
 
     // dados de saida p/ o formulario (registro p/ verificacao)
     opcoes.saida = {
-      codigo, revisao,
+      codigo, revisao, acoes: todasAcoes.map((x) => x.a._id).filter(Boolean),
       registroResponsavel: responsavel ? responsavel.Registro || "" : "",
       registroExecutor: executor ? executor.Registro || "" : "",
     };
     // V 1.9: dados de uma acao do plano - usados pelo PDF e pelo Word.
     const statusAcaoInfo = (a) => {
       const st = Calc.statusDaLinhaAcao ? Calc.statusDaLinhaAcao(a, hoje) : (Acoes.estaConcluida(a) ? "Concluida" : "Nao Iniciado");
-      const mapa = { "Concluida": [PAL.verde, "Concluída"], "Concluida com atraso": [PAL.verde, "Concluída c/ atraso"], "Em Andamento": [PAL.azul, "Em andamento"], "Atrasada": [[217, 54, 54], "Atrasada"], "Nao Iniciado": [[138, 122, 120], "Não iniciada"] };
-      const m = mapa[st] || mapa["Nao Iniciado"]; return { rotulo: m[1], cor: m[0] };
+      const ROT = { "Concluida": "Concluída", "Concluida com atraso": "Concluída c/ atraso", "Em Andamento": "Em andamento", "Atrasada": "Atrasada", "Nao Iniciado": "Não iniciada" };
+      const rot = ROT[st] || "Não iniciada"; return { rotulo: rot, cor: LP.corStatus(rot) };
     };
     const dadosAcao = (a, grauFator) => {
       const atual = a["Risco Atual Segmento"] || Calc.nivelCanonico(grauFator);
-      const reduz = a["Risco Apos Acao"] ? `${rotCanon(atual)} para ${rotCanon(a["Risco Apos Acao"])}` : rotCanon(atual);
+      // V 1.28: acao que nao reduz a graduacao e informada como organizacional / de controle
+      const NV = Calc.NIVEIS_RISCO || [];
+      const reduzMesmo = a["Risco Apos Acao"] && NV.indexOf(a["Risco Apos Acao"]) >= 0 && NV.indexOf(a["Risco Apos Acao"]) < NV.indexOf(Calc.nivelCanonico(atual));
+      // V 1.31: efeito marcado pelo ergonomista (reduz para / elimina) e, depois de concluida, o resultado da reavaliacao
+      const marcou = Acoes.reduzRisco ? Acoes.reduzRisco(a) : !!a["Risco Apos Acao"];
+      const elimina = a["Risco Apos Acao"] === "Eliminado";
+      const rv = a["Reavaliacao Risco"];
+      const resultado = rv ? ` · reavaliado em ${dataBR(rv.data)}: ${rv.eliminado ? "risco eliminado" : rv.graduacao}` : "";
+      const efeito = (marcou ? (elimina ? "Elimina o risco" : reduzMesmo ? `Reduz de ${rotCanon(atual)} para ${rotCanon(a["Risco Apos Acao"])}` : "Reduz o risco") : "Organizacional / de controle (não reduz a graduação)") + resultado;
+      const reduz = efeito;
       return {
         nr: a["Nr Acao"] != null ? "A-" + String(a["Nr Acao"]).padStart(2, "0") : "-",
         tipo: Acoes.rotuloTipo(a["Tipo Acao"]) || a["Categoria Acao"] || "",
         descricao: a["Acao Recomendada"] || "",
         evidencia: (a.Evidencias || []).length ? `Evidência anexada (${a.Evidencias.length})` : "",
         segmentoRisco: `${a["Segmento Corporal"] || "Geral"}: ${reduz}`,
+        efeito,
         responsavel: a["Responsavel Acao"] || "-",
         prazo: a["Dt Programada"] ? dataBR(a["Dt Programada"]) : "-",
         status: statusAcaoInfo(a),
@@ -206,14 +247,14 @@
     };
     return {
       statusAcaoInfo, dadosAcao, corNivel, dataBR, hojeISO, PAL, ROTULO_ESCALA, URL_VERIFICACAO,
-      Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe,
+      Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, eliminadosDoPosto, doPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4, niveisMz, ordemNivel, contaNivelMz, maiorGrau, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe,
     };
   }
 
   async function gerar(opcoes) {
     const jsPDFCtor = global.jspdf && global.jspdf.jsPDF;
     if (!jsPDFCtor) throw new Error("A biblioteca de geração de PDF não carregou (script externo bloqueado ou indisponível).");
-    const { statusAcaoInfo, dadosAcao, Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe } = await preparar(opcoes);
+    const { statusAcaoInfo, dadosAcao, Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, eliminadosDoPosto, doPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4, niveisMz, ordemNivel, contaNivelMz, maiorGrau, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe } = await preparar(opcoes);
 
     // ========================================================================
     function construir(doc, mapa, final) {
@@ -315,7 +356,7 @@
         tam = tam || 7.5; fonte("bold", tam);
         const w = doc.getTextWidth(txt) + 10;
         preencher(c); doc.roundedRect(x, yBase - tam - 1.5, w, tam + 5, 2.5, 2.5, "F");
-        doc.setTextColor(255, 255, 255); doc.text(txt, x + 5, yBase);
+        cor(LP.textoSobre(c)); doc.text(txt, x + 5, yBase);
         return w;
       }
       function caixa(x, yy, w, h, fundo, borda) {
@@ -327,7 +368,7 @@
         itens.forEach((it, i) => {
           const x = M + i * (w + gap);
           preencher(it.cor); doc.roundedRect(x, y, w, h, 4, 4, "F");
-          doc.setTextColor(255, 255, 255); fonte("bold", 18); doc.text(String(it.n), x + w / 2, y + 22, { align: "center" });
+          cor(LP.textoSobre(it.cor)); fonte("bold", 18); doc.text(String(it.n), x + w / 2, y + 22, { align: "center" });
           fonte("normal", 7.5); doc.text(it.rot, x + w / 2, y + 34, { align: "center" });
         });
         y += h + 10;
@@ -424,7 +465,7 @@
             if (m.cel.pilula) {
               fonte("bold", 7); const pw = doc.getTextWidth(String(m.cel.t)) + 10;
               preencher(m.cel.pilula); doc.roundedRect(x + pad, y + (h - 12) / 2, Math.min(pw, lw[i] - pad * 2), 12, 2.5, 2.5, "F");
-              doc.setTextColor(255, 255, 255); doc.text(String(m.cel.t), x + pad + 5, y + (h - 12) / 2 + 8.6);
+              cor(LP.textoSobre(m.cel.pilula)); doc.text(String(m.cel.t), x + pad + 5, y + (h - 12) / 2 + 8.6);
             } else {
               fonte(m.cel.negrito ? "bold" : "normal", tam); cor(m.cel.cor || PAL.texto);
               let yy = y + pad + tam - 1.3;
@@ -446,8 +487,8 @@
         garantir(ch * (n + 2) + 12);
         const y0 = y;
         fonte("bold", 7.5); preencher(PAL.vinho); doc.rect(x0 + lab + eixo, y0, cw * n, ch * 0.8, "F");
-        doc.setTextColor(255, 255, 255); doc.text("GRAVIDADE", x0 + lab + eixo + (cw * n) / 2, y0 + 11, { align: "center" });
-        escala.forEach((g, i) => { preencher(PAL.vinhoM); doc.rect(x0 + lab + eixo + i * cw, y0 + ch * 0.8, cw, ch * 0.8, "F"); doc.setTextColor(255, 255, 255); fonte("bold", 7); doc.text(Calc.rotuloEscala(nomeMatriz, g), x0 + lab + eixo + i * cw + cw / 2, y0 + ch * 0.8 + 10.5, { align: "center" }); });
+        doc.setTextColor(255, 255, 255); doc.text("SEVERIDADE", x0 + lab + eixo + (cw * n) / 2, y0 + 11, { align: "center" });
+        escala.forEach((g, i) => { preencher(PAL.vinhoM); doc.rect(x0 + lab + eixo + i * cw, y0 + ch * 0.8, cw, ch * 0.8, "F"); doc.setTextColor(255, 255, 255); fonte("bold", 7); doc.text(Calc.rotuloEscala(nomeMatriz, g, "severidade"), x0 + lab + eixo + i * cw + cw / 2, y0 + ch * 0.8 + 10.5, { align: "center" }); });
         const yl = y0 + ch * 1.6;
         preencher(PAL.vinho); doc.rect(x0, yl, lab, ch * n, "F");
         doc.setTextColor(255, 255, 255); fonte("bold", 7); doc.text("PROBABILIDADE", x0 + 9.5, yl + (ch * n) / 2 + 28, { angle: 90 });
@@ -458,7 +499,7 @@
             const nivel = Calc.nivelDaMatriz(nomeMatriz, prob, g);
             preencher(corNivel(nivel)); doc.rect(x0 + lab + eixo + i * cw, yy, cw, ch, "F");
             traco(PAL.branco, 0.8); doc.rect(x0 + lab + eixo + i * cw, yy, cw, ch);
-            doc.setTextColor(255, 255, 255); fonte("bold", 9); doc.text(String(Calc.pontuacaoDaMatriz(nomeMatriz, prob, g)), x0 + lab + eixo + i * cw + cw / 2, yy + ch / 2 + 3.2, { align: "center" });
+            cor(LP.textoSobre(corNivel(nivel))); fonte("bold", 9); doc.text(String(Calc.pontuacaoDaMatriz(nomeMatriz, prob, g)), x0 + lab + eixo + i * cw + cw / 2, yy + ch / 2 + 3.2, { align: "center" });
           });
         }
         y = yl + ch * n + 12;
@@ -466,58 +507,17 @@
 
       // ============================ CAPA ==========================================
       registrar("capa", "Capa", 0);
-      {
-        const alt = 360; const passos = 48;
-        for (let p = 0; p < passos; p++) {
-          const t = p / (passos - 1);
-          doc.setFillColor(Math.round(PAL.vinhoE[0] + (PAL.vinho[0] - PAL.vinhoE[0]) * t), Math.round(PAL.vinhoE[1] + (PAL.vinho[1] - PAL.vinhoE[1]) * t), Math.round(PAL.vinhoE[2] + (PAL.vinho[2] - PAL.vinhoE[2]) * t));
-          doc.rect((W / passos) * p, 0, W / passos + 1, alt, "F");
-        }
-        let logoOk = false;
-        if (logoEleva) { try { const pr = doc.getImageProperties(logoEleva); const h = 30; doc.addImage(logoEleva, "PNG", M, 36, h * pr.width / pr.height, h); logoOk = true; } catch (e) {} }
-        if (!logoOk) { doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(26); doc.setTextColor(255, 255, 255); doc.text("ElevaLife", M, 62); }
-        fonte("normal", 9.5); doc.setTextColor(232, 214, 216); doc.text(texto("Capa Lema"), M, 79);
-        // logotipo do cliente (caixa branca)
-        const bx = W - M - 150; const by = 40; preencher(PAL.branco); doc.roundedRect(bx, by, 150, 62, 6, 6, "F");
-        if (logoCliente) {
-          try {
-            const pr = doc.getImageProperties(logoCliente); let w = 130; let h = w * pr.height / pr.width; if (h > 44) { h = 44; w = h * pr.width / pr.height; }
-            doc.addImage(logoCliente, pr.fileType, bx + (150 - w) / 2, by + (62 - h) / 2, w, h);
-          } catch (e) { fonte("bold", 10); cor(PAL.vinho); doc.text(opcoes.nomeCliente, bx + 75, by + 34, { align: "center", maxWidth: 138 }); }
-        } else { fonte("bold", 10); cor(PAL.vinho); doc.text(doc.splitTextToSize(opcoes.nomeCliente, 138), bx + 75, by + 30, { align: "center" }); }
-        doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(30); doc.setTextColor(255, 255, 255);
-        doc.text(linhasDe("Capa Titulo"), M, 205, { lineHeightFactor: 1.2 });
-        fonte("normal", 10); doc.setTextColor(232, 214, 216);
-        doc.text(doc.splitTextToSize(texto("Capa Subtitulo"), L - 40), M, 292);
-        y = alt + 28;
-        const infos = [
+      LP.capa(doc, {
+        logoEleva, lema: texto("Capa Lema"), logoCliente, nomeCliente: opcoes.nomeCliente,
+        titulo: linhasDe("Capa Titulo"), subtitulo: texto("Capa Subtitulo"),
+        infos: [
           ["Empresa avaliada", opcoes.nomeCliente, true],
           ["Unidade", unidadesAv.join(" · ")], ["Setores avaliados", setoresAv.join(" · ")],
           ["Período da avaliação", periodo], ["Data de emissão", emissao],
           ["Responsável técnico", responsavel ? responsavel.Nome : "-"], ["Documento / revisão", `${codigo} · Rev. ${revisao}`],
-        ];
-        const cw = (L - 10) / 2; let col = 0; let yy = y;
-        infos.forEach((it) => {
-          const larga = it[2]; const h = 34;
-          const x = larga || col === 0 ? M : M + cw + 10; const w = larga ? L : cw;
-          caixa(x, yy, w, h, PAL.creme);
-          fonte("normal", 6.5); cor(PAL.cinza); doc.text(it[0].toUpperCase(), x + 8, yy + 11);
-          fonte("bold", 9.5); cor(PAL.vinhoE); doc.text(doc.splitTextToSize(String(it[1] || "-"), w - 16)[0], x + 8, yy + 25);
-          if (larga) { yy += h + 6; col = 0; } else if (col === 0) col = 1; else { yy += h + 6; col = 0; }
-        });
-        if (col === 1) yy += 40;
-        yy += 10;
-        const resumo = [[avaliacoes.length, "postos de trabalho avaliados"], [todosFatores.length, "fatores de risco identificados"], [todasAcoes.length, `ações no plano${concluidas ? ", " + concluidas + " já concluídas" : ""}`]];
-        const rw = L / 3;
-        resumo.forEach((r, i) => {
-          const x = M + i * rw; traco(PAL.vinho, 1.4); doc.line(x, yy, x + rw - 14, yy);
-          doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(24); cor(PAL.vinho); doc.text(String(r[0]), x, yy + 28);
-          fonte("normal", 7.5); cor(PAL.cinza); doc.text(doc.splitTextToSize(r[1], rw - 20), x, yy + 41);
-        });
-        fonte("normal", 7); cor(PAL.cinza);
-        doc.text("Documento gerado pelo S.I.G.E – Sistema Integrado de Gestão ElevaLife.", M, H - 36);
-        doc.text(new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" }), W - M, H - 36, { align: "right" });
-      }
+        ],
+        numeros: [[avaliacoes.length, "postos de trabalho avaliados"], [todosFatores.length, "fatores de risco identificados"], [todasAcoes.length, `ações no plano${concluidas ? ", " + concluidas + " já concluídas" : ""}`]],
+      });
 
       // ============================ SUMARIO ========================================
       novaPagina();
@@ -581,7 +581,7 @@
         const ficha = [
           ["Razão social", opcoes.nomeCliente], ["CNPJ", docCliente.CNPJ], ["Inscrição estadual", docCliente["Inscricao Estadual"]], ["CNAE", docCliente.CNAE],
           ["Grau de risco (NR-04)", docCliente["Grau Risco NR4"]], ["Unidade avaliada", unidadesAv.join(" · ")], ["Endereço", end],
-          ["Telefone", docCliente.Telefone], ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo],
+          ["Telefone", docCliente.Telefone], ["Abrangência do laudo", opcoes.abrangenciaDescricao && opcoes.abrangenciaDescricao !== "Empresa toda" ? opcoes.abrangenciaDescricao : ""], ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo],
         ].filter((r) => r[1]);
         tabela(null, ficha.map((r) => [{ t: r[0], negrito: true, fundo: PAL.creme }, String(r[1])]), [30, 70], { tam: 8.4 });
       }
@@ -659,27 +659,26 @@
       h1("s8", "8. Identificação e classificação do risco", true);
       const defGravidade = mapaDe("Gravidade"); const defProbabilidade = mapaDe("Probabilidade"); const defNivel = mapaDe("Graduacao");
       paragrafos("Risco Intro");
-      h2("s81", "8.1 Gravidade e probabilidade");
-      tabela(["Gravidade", "Efeitos"], escala.map((g, i) => [{ t: `${Calc.rotuloEscala(nomeMatriz, g)} (${i + 1})`, negrito: true }, defGravidade[g] || ""]), [26, 74]);
-      tabela(["Probabilidade", "Perfil de exposição qualitativa"], escala.map((g, i) => [{ t: `${Calc.rotuloEscala(nomeMatriz, g)} (${i + 1})`, negrito: true }, defProbabilidade[g] || ""]), [26, 74]);
+      h2("s81", "8.1 Severidade e probabilidade");
+      tabela(["Severidade", "Efeitos"], escala.map((g, i) => [{ t: `${Calc.rotuloEscala(nomeMatriz, g, "severidade")} (${i + 1})`, negrito: true }, defGravidade[Calc.rotuloEscala(nomeMatriz, g, "severidade")] || defGravidade[g] || ""]), [26, 74]);
+      tabela(["Probabilidade", "Perfil de exposição qualitativa"], escala.map((g, i) => [{ t: `${Calc.rotuloEscala(nomeMatriz, g)} (${i + 1})`, negrito: true }, defProbabilidade[Calc.rotuloEscala(nomeMatriz, g)] || defProbabilidade[g] || ""]), [26, 74]);
       h2("s82", "8.2 Matriz de risco e graduação");
       paragrafos("Matriz Intro");
       desenharMatriz();
       {
         const niveis = []; escala.forEach((p) => escala.forEach((g) => { const n = Calc.nivelDaMatriz(nomeMatriz, p, g); if (n && !niveis.includes(n)) niveis.push(n); }));
-        tabela(["Pontuação", "Graduação", "Descrição do risco e conduta"], niveis.map((n) => {
-          const ps = []; escala.forEach((p) => escala.forEach((g) => { if (Calc.nivelDaMatriz(nomeMatriz, p, g) === n) ps.push(Calc.pontuacaoDaMatriz(nomeMatriz, p, g)); }));
-          return [`${Math.min.apply(null, ps)} a ${Math.max.apply(null, ps)}`, { t: n, pilula: corNivel(n) }, defNivel[n] || ""];
-        }), [14, 18, 68]);
+        tabela(["Pontuações (P × S)", "Graduação", "Descrição do risco e conduta"], niveis.sort((a, b) => ordemNivel(a) - ordemNivel(b)).map((n) => [pontuacoesDoNivel(n), { t: n, pilula: corNivel(n) }, defNivel[n] || ""]), [16, 18, 66]);
+        legenda(NOTA_MATRIZ);
       }
-      h2("s83", "8.3 Medidas de controle e risco residual");
+      paragrafo(TXT_RISCO_POSTO, {});
+      h2("s83", "8.3 Medidas de controle e evolução do risco");
       paragrafos("Medidas Intro");
       tabela(null, (Acoes ? Acoes.tipos() : []).map((t, i) => [{ t: t.rotulo, pilula: [PAL.vinhoE, PAL.tealE, PAL.vinhoM][i % 3] }, (linhasDe("Medidas Tipos")[i % (linhasDe("Medidas Tipos").length || 1)] || "")]), [22, 78]);
       {
         const txt = texto("Residual Caixa");
         const q = txt.split("\n").map((p) => quebrar(palavras(p), L - 24, 8.2)); const h = 26 + q.reduce((s, x) => s + x.linhas.length * 11.6 + 3, 0);
         garantir(h + 8); caixa(M, y, L, h, PAL.creme); preencher(PAL.vinho); doc.rect(M, y, 3, h, "F");
-        fonte("bold", 8.5); cor(PAL.vinhoE); doc.text(titDe("caixa-residual", "Como o risco residual é calculado"), M + 12, y + 14);
+        fonte("bold", 8.5); cor(PAL.vinhoE); doc.text(titDe("caixa-residual", "Como a evolução do risco é registrada"), M + 12, y + 14);
         const y0 = y; y = y0 + 26; txt.split("\n").forEach((p) => paragrafo(p, { tam: 8.2, largura: L - 12, recuo: 12, depois: 3 })); y = y0 + h + 8;
       }
 
@@ -691,12 +690,12 @@
         const chavePosto = "s9p" + i;
         const fatores = fatoresDoPosto(av);
         if (i > 0) novaPagina(); else garantir(120);
-        registrar(chavePosto, `9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]}`, 2);
+        registrar(chavePosto, `9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]} (${av.Cargo})`, 2);
         preencher(PAL.vinhoE); doc.roundedRect(M, y, L, 26, 4, 4, "F");
         doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
-        doc.text(doc.splitTextToSize(`9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]}`, L - 20)[0], M + 10, y + 17); y += 36;
+        doc.text(doc.splitTextToSize(`9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]} (${av.Cargo})`, L - 20)[0], M + 10, y + 17); y += 36;
         // grade de identificacao
-        const campos = [["Setor", av.Setor], ["Posto de trabalho", av["Posto Trabalho"]], ["Cargo", av.Cargo], ["Atividade", av.Atividade], ["Jornada", av["Jornada de Trabalho"]], ["Pausas", av.Pausas], ["Rodízio", av.Rodizio], ["Histórico de acidentes e doenças", av["Historico Acidentes"]]].filter((c) => c[1]);
+        const campos = [["Avaliação", [av._nrTexto, av._atualizadaEm ? "última atualização em " + dataBR(av._atualizadaEm) : ""].filter(Boolean).join(" · ")], ["Unidade", av.Unidade], ["Setor", av.Setor], ["Cargo", av.Cargo], ["Posto de trabalho", av["Posto Trabalho"]], ["Risco do posto", riscoDoPosto(av) ? riscoDoPosto(av) + " (maior graduação dos fatores)" : ""], ["Jornada", av["Jornada de Trabalho"]], ["Pausas", av.Pausas], ["Rodízio", av.Rodizio], ["Histórico de acidentes e doenças", av["Historico Acidentes"]]].filter((c) => c[1]);
         const cw = (L - 10) / 2;
         for (let k = 0; k < campos.length; k += 2) {
           const par = campos.slice(k, k + 2);
@@ -729,13 +728,13 @@
         if (av["Descricao Atividade Observada"]) { h3(titDe("p-descatividade", "Descrição da atividade (tarefa real observada)")); paragrafo(av["Descricao Atividade Observada"]); }
         if (av["Caracteristicas Trabalhadores"]) { h3(titDe("p-caract", "Características dos trabalhadores")); paragrafo(av["Caracteristicas Trabalhadores"]); }
         h3(titDe("p-panorama", "Panorama do posto"));
-        const cnt = contaNivel(fatores);
-        azulejos(NIVEIS4.map(([k, r]) => ({ n: cnt[k], rot: r, cor: corNivel(k) })));
+        const cnt = contaNivelMz(fatores);
+        azulejos(niveisMz.map((k) => ({ n: cnt[k], rot: k, cor: corNivel(k) })));
         // grupos
         tabela(["Grupo", "Grupo de fatores (ISO/TS 20646)", "Avaliados", "Com risco", "Diagnóstico"], Calc.GRUPOS_FATOR_RISCO.map((g, gi) => {
           const doGrupo = fatores.filter((f) => f.Grupo === g);
-          const maior = doGrupo.map((f) => grau(f)).sort((a, b) => NIVEIS4.findIndex(([k]) => k === Calc.nivelCanonico(b)) - NIVEIS4.findIndex(([k]) => k === Calc.nivelCanonico(a)))[0];
-          return [{ t: String(gi + 1), alinhar: "centro" }, g, { t: String(Calc.fatoresDoGrupo(g).length), alinhar: "centro" }, { t: String(doGrupo.length), alinhar: "centro" }, maior ? { t: rotCanon(Calc.nivelCanonico(maior)), pilula: corNivel(maior) } : { t: "Sem risco identificado", cor: PAL.cinza }];
+          const maior = maiorGrau(doGrupo);
+          return [{ t: String(gi + 1), alinhar: "centro" }, g, { t: String(Calc.fatoresDoGrupo(g).length), alinhar: "centro" }, { t: String(doGrupo.length), alinhar: "centro" }, maior ? { t: maior, pilula: corNivel(maior) } : { t: "Sem risco identificado", cor: PAL.cinza }];
         }), [8, 52, 11, 11, 18]);
         // fatores
         h3(titDe("p-fatores", "Fatores de risco identificados, medidas e ações"));
@@ -752,30 +751,37 @@
           y += 32;
           // 3 colunas
           const cwc = (L - 16) / 3;
-          const cols = [["Circunstância geradora", fr["Circunstancia Geradora"]], ["Consequência", fr.Consequencia], ["Medida de controle existente", fr["Medida Controle Existente"] || "Nenhuma medida de controle existente."]];
+          const cols = [["Fonte geradora", fr["Circunstancia Geradora"]], ["Consequência", fr.Consequencia], ["Medida de controle existente", fr["Medida Controle Existente"] || "Nenhuma medida de controle existente."]];
           const ls = cols.map((c) => doc.splitTextToSize(String(c[1] || "-"), cwc));
           const hc = 12 + Math.max.apply(null, ls.map((l) => l.length)) * 10; garantir(hc + 40);
           cols.forEach((c, j) => { const x = M + j * (cwc + 8); fonte("bold", 6.3); cor(PAL.cinza); doc.text(c[0].toUpperCase(), x, y); fonte("normal", 7.8); cor(PAL.texto); ls[j].forEach((t, n) => doc.text(t, x, y + 11 + n * 10)); });
           y += hc + 6;
-          // formula e risco
-          fonte("normal", 7.8); cor(PAL.texto);
-          doc.text(`Gravidade ${Calc.rotuloEscala(nomeMatriz, fr.Criticidade) || "-"}  ×  Probabilidade ${Calc.rotuloEscala(nomeMatriz, fr.Probabilidade) || "-"}  =  Pontuação ${p != null ? p : "-"}`, M, y + 8); y += 18;
+          // V 1.31: risco do fator, probabilidade, severidade e segmento acometido (+ evolucao, se houve reavaliacao)
+          {
+            const itens = [["Risco do fator", null], ["Probabilidade", Calc.rotuloEscala(nomeMatriz, fr.Probabilidade) || "-"], ["Severidade", Calc.rotuloEscala(nomeMatriz, fr.Criticidade, "severidade") || "-"], ["Segmento acometido", fr["Segmento Corporal"] || "Não identificado"]];
+            const cw4 = (L - 18) / 4; garantir(30);
+            itens.forEach((it, j) => {
+              const x = M + j * (cw4 + 6); fonte("bold", 6.3); cor(PAL.cinza); doc.text(it[0].toUpperCase(), x, y + 6);
+              if (it[1] == null) pilula(g, corNivel(g), x, y + 19); else { fonte("bold", 8.4); cor(PAL.texto); doc.text(doc.splitTextToSize(String(it[1]), cw4)[0], x, y + 18); }
+            });
+            y += 26;
+            fonte("normal", 7.2); cor(PAL.cinza);
+            doc.text(`Probabilidade ${Calc.rotuloEscala(nomeMatriz, fr.Probabilidade) || "-"}  ×  Severidade ${Calc.rotuloEscala(nomeMatriz, fr.Criticidade, "severidade") || "-"}  =  Pontuação ${p != null ? p : "-"} · graduação pela matriz do cliente`, M, y + 4); y += 12;
+            const ev = Calc.textoEvolucaoRisco ? Calc.textoEvolucaoRisco(fr) : "";
+            if (ev) paragrafo(`**Evolução do risco:** ${ev}`, { tam: 7.6, justificar: false, depois: 4 });
+          }
           const acoesF = acoesDe(fr);
-          const resumo = acoesF.length ? Acoes.resumoRisco(g, acoesF) : null;
-          garantir(20);
-          fonte("bold", 6.5); cor(PAL.cinza); doc.text("RISCO DO FATOR", M, y + 7);
-          let x = M + 62; x += pilula(rotCanon(Calc.nivelCanonico(g)) , corNivel(g), x, y + 8) + 6;
-          if (resumo) {
-            fonte("bold", 6.5); cor(PAL.cinza); doc.text("PREVISTO", x, y + 7); x += 40; x += pilula(rotCanon(resumo.previsto), corNivel(resumo.previsto), x, y + 8) + 8;
-            fonte("bold", 6.5); cor(PAL.cinza); doc.text("REALIZADO", x, y + 7); x += 44; pilula(rotCanon(resumo.realizado), corNivel(resumo.realizado), x, y + 8);
-          } else { fonte("normal", 7.5); cor(PAL.cinza); doc.text("sem ação proposta (risco residual não calculado)", x, y + 8); }
-          y += 18;
           if (acoesF.length) {
             const sorted = acoesF.slice().sort((a, b) => (Number(a["Nr Acao"]) || 0) - (Number(b["Nr Acao"]) || 0));
-            tabela(["Ação", "Descrição", "Segmento · risco", "Responsável", "Prazo", "Situação"], sorted.map((a) => linhaAcao(a, g, false)), [9, 33, 17, 15, 11, 15], { tam: 7.2 });
-          }
+            tabela(["Ação", "Tipo", "Descrição", "Efeito no risco"], sorted.map((a) => { const d = dadosAcao(a, g); return [{ t: d.nr, negrito: true }, d.tipo || "-", { t: d.descricao || "-", extra: d.evidencia }, d.efeito]; }), [9, 17, 44, 30], { tam: 7.2 });
+          } else { fonte("normal", 7.5); cor(PAL.cinza); garantir(14); doc.text("Sem ação proposta para este fator.", M, y + 6); y += 14; }
           y += 4;
         });
+        const elim = eliminadosDoPosto(av);
+        if (elim.length) {
+          h3(titDe("p-eliminados", "Riscos eliminados neste posto"));
+          tabela(["Fator de risco", "Segmento", "Eliminado em", "Evolução"], elim.map((f) => [f.Fator || "-", f["Segmento Corporal"] || "-", dataBR(f["Eliminado Em"]), Calc.textoEvolucaoRisco(f) || "-"]), [30, 16, 12, 42], { tam: 7.2 });
+        }
       });
 
       function statusAcao(a) { const m = statusAcaoInfo(a); return { t: m.rotulo, pilula: m.cor }; }
@@ -785,12 +791,10 @@
       }
 
       // ============================ 10 ==================================================
-      h1("s10", "10. Plano de ação e risco residual", true);
+      h1("s10", "10. Plano de ação e evolução dos riscos", true);
       paragrafos("Recomendacoes");
       {
-        const cont = { c: 0, a: 0, n: 0 };
-        todasAcoes.forEach(({ a }) => { const s = Calc.statusDaLinhaAcao ? Calc.statusDaLinhaAcao(a, hoje) : ""; if (Acoes.estaConcluida(a)) cont.c++; else if (s === "Em Andamento" || s === "Atrasada") cont.a++; else cont.n++; });
-        azulejos([{ n: todasAcoes.length, rot: "Ações no plano", cor: PAL.vinhoE }, { n: cont.c, rot: "Concluídas", cor: PAL.verde }, { n: cont.a, rot: "Em andamento / atrasadas", cor: PAL.azul }, { n: cont.n, rot: "Não iniciadas", cor: [138, 122, 120] }]);
+        azulejos(contagemStatus(todasAcoes, hoje));
       }
       if (todasAcoes.length) {
         const ord = todasAcoes.slice().sort((x, z) => (x.av.Setor + x.av["Posto Trabalho"]).localeCompare(z.av.Setor + z.av["Posto Trabalho"], "pt-BR") || (Number(x.a["Nr Acao"]) || 0) - (Number(z.a["Nr Acao"]) || 0));
@@ -799,11 +803,12 @@
           return [l[0], `${av.Setor} · ${fr.Fator || ""}`, { t: Acoes.rotuloTipo(a["Tipo Acao"]) || a["Categoria Acao"] || "-" }, { t: a["Acao Recomendada"] || "-", extra: l[1].extra }, l[3], l[4], l[5]];
         }), [7, 21, 13, 24, 12, 9, 14], { tam: 7 });
       } else paragrafo("Nenhuma ação cadastrada para os fatores deste documento.", { cor: PAL.cinza });
-      h3(titDe("residual", "Risco residual por fator"));
-      tabela(["Setor", "Fator de risco", "Risco atual", "Previsto", "Realizado"], todosFatores.map(({ av, fr }) => {
-        const g = grau(fr); const ac = acoesDe(fr); const r = ac.length ? Acoes.resumoRisco(g, ac) : null;
-        return [av.Setor, fr.Fator || "", { t: rotCanon(Calc.nivelCanonico(g)), pilula: corNivel(g) }, r ? { t: rotCanon(r.previsto), pilula: corNivel(r.previsto) } : { t: "Sem ação proposta", cor: PAL.cinza }, r ? { t: rotCanon(r.realizado), pilula: corNivel(r.realizado) } : { t: "–", cor: PAL.cinza }];
-      }), [14, 44, 14, 14, 14], { tam: 7.4 });
+      // V 1.31: evolucao de cada risco (inicial -> atual), com as reavaliacoes feitas ao concluir as acoes
+      h3(titDe("residual", "Evolução dos riscos"));
+      tabela(["Setor · posto", "Fator de risco", "Segmento", "Risco inicial", "Risco atual", "Evolução"], todosComEliminados.map(({ av, fr }) => {
+        const ini = Calc.graduacaoInicial(fr) || grau(fr); const elim = fr["Risco Eliminado"] === "Sim";
+        return [`${av.Setor} · ${av["Posto Trabalho"]}`, fr.Fator || "", fr["Segmento Corporal"] || "-", { t: ini, pilula: corNivel(ini) }, elim ? { t: "Eliminado", cor: PAL.tealE, negrito: true } : { t: grau(fr), pilula: corNivel(grau(fr)) }, Calc.textoEvolucaoRisco(fr) || "Sem reavaliação"];
+      }), [16, 24, 12, 12, 12, 24], { tam: 7 });
       legenda(texto("Residual Legenda"));
 
       // ============================ 11 ==================================================
@@ -819,43 +824,22 @@
       h1("s12", "12. Conclusão e validação do documento", true);
       paragrafos("Conclusao");
       {
-        // assinaturas
-        y += 14; garantir(150);
-        const n = Math.max(assinantes.length, 1); const gap = 18; const w = (L - gap * (n - 1)) / n;
-        const ySig = y;
-        (assinantes.length ? assinantes : [{ Nome: "Responsável técnico" }]).forEach((p, k) => {
-          const x = M + k * (w + gap);
-          if (p._assinatura) { try { const pr = doc.getImageProperties(p._assinatura); let iw = Math.min(w - 20, 150); let ih = iw * pr.height / pr.width; if (ih > 48) { ih = 48; iw = ih * pr.width / pr.height; } doc.addImage(p._assinatura, pr.fileType, x + (w - iw) / 2, ySig + 50 - ih, iw, ih); } catch (e) { /* sem imagem */ } }
-          traco(PAL.suave2, 0.8); doc.line(x, ySig + 54, x + w, ySig + 54);
-          fonte("bold", 9); cor(PAL.texto); doc.text(p.Nome || "-", x + w / 2, ySig + 66, { align: "center" });
-          fonte("normal", 7.2); cor(PAL.cinza);
-          doc.text(doc.splitTextToSize([Calc.formatarCargo(p.Titulo), p.Registro].filter(Boolean).join(" · ") || " ", w), x + w / 2, ySig + 77, { align: "center" });
-        });
-        y = ySig + 100;
-        // cliente
-        garantir(66);
-        caixa(M, y, L, 56, PAL.branco, PAL.suave2);
-        fonte("bold", 8.5); cor(PAL.vinhoE); doc.text(titDe("cliente-assinatura", `Cliente – ${opcoes.nomeCliente}`), M + 10, y + 14);
-        fonte("normal", 8); cor(PAL.texto);
-        doc.text("Nome / cargo: ______________________________________", M + 10, y + 32); doc.text("Data: ____ / ____ / ________", M + L - 160, y + 32);
-        doc.text("Assinatura: ___________________________________________", M + 10, y + 48);
-        y += 70;
-        // validacao + QR
-        garantir(110);
-        caixa(M, y, L, 100, [236, 246, 245], [160, 205, 202]);
-        const qr = (typeof global.qrcode === "function") ? (() => { try { const q = global.qrcode(0, "M"); q.addData(URL_VERIFICACAO + codigo); q.make(); return q; } catch (e) { return null; } })() : null;
-        const tq = 84;
-        preencher(PAL.branco); doc.rect(M + 8, y + 8, tq, tq, "F");
-        if (qr) {
-          const mc = qr.getModuleCount(); const mod = (tq - 8) / mc; doc.setFillColor(0, 0, 0);
-          for (let r = 0; r < mc; r++) for (let c = 0; c < mc; c++) if (qr.isDark(r, c)) doc.rect(M + 12 + c * mod, y + 12 + r * mod, mod + 0.15, mod + 0.15, "F");
-        } else { fonte("normal", 6.5); cor(PAL.cinza); doc.text("QR Code indisponível", M + 8 + tq / 2, y + 8 + tq / 2, { align: "center" }); }
-        const tx = M + tq + 22;
-        fonte("bold", 9); cor(PAL.tealE); doc.text(titDe("validacao", "Validação do documento"), tx, y + 17);
-        const corpo = texto("Validacao Texto");
-        const y0 = y; y = y0 + 31; paragrafo(corpo, { tam: 7.8, recuo: tx - M, largura: L - 8, justificar: false, depois: 0 }); y = y0 + 110;
+        const rc = resumoConclusao();
+        if (rc.postos.length) {
+          paragrafo(rc.fraseP);
+          tabela(["Unidade", "Setor", "Posto (cargo)", "Fatores determinantes", "Risco do posto"], rc.postos.map((p) => [p.av.Unidade || "-", p.av.Setor || "-", `${p.av["Posto Trabalho"] || "-"}${p.av.Cargo ? ` (${p.av.Cargo})` : ""}`, p.determinantes.join("; ") || "Sem fator de risco identificado", p.risco ? { t: p.risco, pilula: corNivel(p.risco) } : { t: "–", cor: PAL.cinza }]), [16, 15, 20, 33, 16], { tam: 7.4 });
+          if (todosFatores.length) {
+            paragrafo("Quantidade de fatores por graduação em cada grupo de fatores da ISO/TS 20646, somando todos os postos deste documento:");
+            tabela(["Grupo de fatores"].concat(niveisMz), rc.grupos.map((g) => [g.grupo].concat(g.cont.map((q) => ({ t: String(q), alinhar: "centro", negrito: q > 0, cor: q ? PAL.texto : PAL.cinza })))).concat([[{ t: "Total", negrito: true }].concat(rc.total.map((q) => ({ t: String(q), alinhar: "centro", negrito: true })))]), [40].concat(niveisMz.map(() => 60 / niveisMz.length)), { tam: 7.4 });
+            if (rc.frase) paragrafo(rc.frase);
+          }
+        }
       }
-
+      y = LP.fechamento(doc, y, {
+        assinantes: assinantes.map((p) => ({ nome: p.Nome, cargo: [Calc.formatarCargo(p.Titulo), p.Registro].filter(Boolean).join(" · "), assinatura: p._assinatura })),
+        cliente: opcoes.nomeCliente, tituloCliente: titDe("cliente-assinatura", `Cliente – ${opcoes.nomeCliente}`),
+        codigo, tituloValidacao: titDe("validacao", "Validação do documento"), textoValidacao: texto("Validacao Texto"),
+      }, (yy, h) => { y = yy; garantir(h); return y; });
       // ---------- sumario (agora que se conhece a estrutura) ----------------------------------------
       if (final || true) {
         const salvoY = y; const salvoP = pagina;
@@ -880,19 +864,7 @@
       }
 
       // ---------- cabecalho e rodape (so na passada final) -----------------------------------------------
-      if (final) {
-        const total = doc.internal.getNumberOfPages();
-        for (let p = 2; p <= total; p++) {
-          doc.setPage(p);
-          let xCab = M;
-          if (logoElevaCor) { try { const pr = doc.getImageProperties(logoElevaCor); const h = 11; const w = h * pr.width / pr.height; doc.addImage(logoElevaCor, "PNG", M, 21, w, h); xCab = M + w + 8; } catch (e) {} }
-          fonte("bold", 7.2); cor(PAL.vinho); doc.text(titDe("cabecalho", "ElevaLife · Avaliação Ergonômica Preliminar (AEP)"), xCab, 30);
-          fonte("normal", 7.2); cor(PAL.cinza); doc.text(`Doc. ${codigo} · Rev. ${revisao}`, W - M, 30, { align: "right" });
-          traco(PAL.suave, 0.6); doc.line(M, 36, W - M, 36); doc.line(M, H - 34, W - M, H - 34);
-          fonte("normal", 7); cor(PAL.cinza); doc.text(`${opcoes.nomeCliente} – ${unidadesAv.join(" · ")}`, M, H - 22);
-          fonte("bold", 7.5); cor(PAL.vinho); doc.text(`Página ${p} de ${total}`, W - M, H - 22, { align: "right" });
-        }
-      }
+      if (final) LP.cabecalhoRodape(doc, { logoCor: logoElevaCor, titulo: titDe("cabecalho", "ElevaLife · Avaliação Ergonômica Preliminar (AEP)"), codigo, revisao, rodape: `${opcoes.nomeCliente} – ${unidadesAv.join(" · ")}` });
       return pagina;
     }
 

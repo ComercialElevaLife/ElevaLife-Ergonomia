@@ -56,7 +56,7 @@
       "A **AEP** é aplicada como triagem e estruturação do inventário de riscos. A **AET** é indicada quando há maior complexidade, histórico de adoecimento ou acidentes, queixas recorrentes ou necessidade de compreender em detalhe a atividade real. Nesses casos, são aplicadas metodologias específicas conforme a situação de trabalho:",
 
     "Recomendacoes":
-      "O plano de ação consolida as medidas propostas em todos os postos. A execução é acompanhada no S.I.G.E, e uma ação só é considerada concluída com a evidência anexada.",
+      "O plano de ação consolida as medidas propostas em todos os postos. A execução é acompanhada no S.I.G.E: o responsável, o prazo e a situação de cada ação ficam no Plano de Ação, e uma ação só é considerada concluída com a evidência anexada. As ações que reduzem ou eliminam o risco geram a reavaliação do fator, registrada na evolução dos riscos abaixo.",
 
     "Conclusao":
       "Com base nas observações e análises realizadas nos {nPostos} postos avaliados, foram identificados {nFatores} fatores de risco ergonômico{resumoNiveis}. O plano de ação reúne {nAcoes} ações; a execução e o risco residual são acompanhados no S.I.G.E, com a anexação das evidências à medida que as ações forem concluídas.\n\n" +
@@ -112,7 +112,7 @@
       "A gestão do risco ergonômico percorre cinco etapas, que se repetem a cada ciclo de revisão do estudo.",
 
     "Etapas Cinco":
-      "Diagnóstico | Observação da atividade real, medições, entrevistas e identificação dos fatores de risco.\nValidação | Conferência dos achados com trabalhadores, lideranças, SESMT e EHS.\nPlano de ação | Ações por prioridade, com responsável, prazo e segmento corporal beneficiado.\nAuditoria | Verificação da execução, com evidências anexadas e follow-up periódico.\nRedução de risco | Cálculo do risco residual e reavaliação dos postos.",
+      "Diagnóstico | Observação da atividade real, medições, entrevistas e identificação dos fatores de risco.\nValidação | Conferência dos achados com trabalhadores, lideranças, SESMT e EHS.\nPlano de ação | Ações por prioridade, com responsável, prazo e segmento corporal beneficiado.\nAuditoria | Verificação da execução, com evidências anexadas e follow-up periódico.\nRedução de risco | Reavaliação do risco ao concluir as ações e acompanhamento da evolução de cada risco.",
 
     "Etapas Nota":
       "As etapas 1 e 2 ocorrem no local de trabalho. As etapas 3 e 4 resultam no inventário de riscos e no plano de ação deste documento, acompanhados no S.I.G.E, que registra cada ação concluída com a respectiva evidência (foto ou documento). A etapa 5 recalcula o risco residual e alimenta a reavaliação. O programa segue o ciclo PDCA:",
@@ -127,7 +127,7 @@
       "A ISO/TS 20646:2014 (*Ergonomics guidelines for the optimization of musculoskeletal workload*) orienta a identificação e a redução da carga musculoesquelética no trabalho e fundamenta a lista de fatores de risco aplicada pela ElevaLife. Em cada posto, os {nFatoresISO} fatores da lista são avaliados quanto à sua existência, em {nGruposISO} grupos:",
 
     "ISO Legenda":
-      "Os fatores identificados como existentes recebem circunstância geradora, consequência, medida de controle existente, gravidade, probabilidade e as ações propostas.",
+      "Os fatores identificados como existentes recebem fonte geradora, consequência, medida de controle existente, gravidade, probabilidade e as ações propostas. Além dos fatores da ISO/TS 20646, a ElevaLife inclui o fator “Ruído inadequado” no grupo de fatores do meio ambiente.",
 
     "Guias Intro":
       "Para descrever com padronização a postura, o esforço, a duração e a frequência encontrados na atividade, a ElevaLife utiliza os guias de referência abaixo, baseados em diversas metodologias. Eles apoiam o ergonomista na graduação dos achados e são utilizados independentemente da matriz de risco adotada.",
@@ -154,37 +154,50 @@
       "A identificação dos riscos é feita pela observação da atividade e pela verificação da existência de cada fator da lista da ISO/TS 20646. A classificação segue a NR-01 – Disposições Gerais e Gerenciamento de Riscos Ocupacionais, considerando a **gravidade** (severidade do dano) e a **probabilidade** de sua ocorrência, em conformidade com o conceito de risco da ISO 12100: combinação da probabilidade de ocorrência de um dano e da gravidade desse dano. A matriz de risco é configurável por cliente, como descrito na BS 8800 (matriz de severidade e probabilidade). Neste estudo foi utilizada a **{matriz}**.",
 
     "Gravidade":
-      "Muito Baixa | Risco muito baixo, efeito desprezível, chance muito baixa de desenvolver doenças.\nBaixa | Baixo risco, efeitos reversíveis de curto prazo, baixa chance para o desenvolvimento de doenças.\nMedia | Risco moderado, efeitos reversíveis, chance moderada de desenvolver doenças.\nAlta | Alto risco, efeitos que podem levar tempo e terapia para reverter, alta chance de desenvolver doenças.\nMuito Alta | Risco muito alto, possível efeito irreversível, chance muito alta de desenvolver doenças.",
+      "Muito Baixa | Risco muito baixo, efeito desprezível.\nBaixa | Baixo risco, efeitos reversíveis de curto prazo.\nMedia | Risco moderado, efeitos reversíveis.\nAlta | Alto risco, efeitos que podem levar tempo e terapia para reverter.\nMuito Alta | Risco muito alto, possível efeito irreversível.",
 
     "Probabilidade":
       "Muito Baixa | Exposição eventual, muito inferior a 10% da jornada.\nBaixa | Exposição baixa, inferior a 10% da jornada.\nMedia | Exposição moderada, inferior a 50% da jornada.\nAlta | Exposição frequente, até 90% da jornada.\nMuito Alta | Exposição contínua.",
 
+    // V 1.32: textos proprios da Matriz 5x5 Gerdau (3.1.3 Matriz de Riscos do cliente). Severidade e
+    // probabilidade conforme as tabelas enviadas; graduacoes adaptadas das descricoes ElevaLife.
+    "Gravidade Gerdau":
+      "Brando | Podem gerar desconforto, sobrecarga ou lesões leves, sem afastamento. Espaço de trabalho atende às recomendações ou é ajustável ao trabalhador.\nModerado | Podem gerar desconforto; lesões moderadas; lesões reversíveis e/ou afastamento de até 15 dias. Picos de carga de trabalho acontecem com alguma frequência, mas não produzem risco de esforço excessivo.\nSério | Podem gerar lesões graves; lesões irreversíveis e/ou afastamento temporário maior que 15 dias.\nCrítico | Podem gerar lesões graves; lesões irreversíveis e incapacitantes e/ou afastamento temporário. Existem limitações em atender às recomendações; picos de trabalho são relativamente frequentes.\nMuito Crítico | Podem gerar lesões graves; lesões irreversíveis e incapacitantes e/ou afastamento permanente. Há grandes desvios em relação aos padrões recomendados.",
+
+    "Probabilidade Gerdau":
+      "Muito Baixa | Pouco tempo, menos de 10% do tempo amostral (jornada ou ciclo). Conceitualmente possível, mas extremamente remoto que ocorra. Medidas de controle eficazes evitando a exposição ao risco; não há desvios.\nBaixa | Entre 11% e 40% do tempo amostral (jornada ou ciclo). É improvável que ocorra e depende de várias causas para ocorrer. Medidas de controle eficazes atenuando a exposição ao risco.\nMédia | Entre 41% e 70% do tempo amostral (jornada ou ciclo). É provável que ocorra, mas pode ocorrer se houver deterioração ou falta de algum controle.\nAlta | Entre 71% e 80% do tempo amostral (jornada ou ciclo). Uma única causa (vide referências) é suficiente para efetivar o risco, considerando os controles existentes; o controle é fraco e não confiável/não auditado; há condições agravantes de probabilidade que favorecem a ocorrência.\nMuito Alta | Acima de 81% do tempo amostral (jornada ou ciclo). Já ocorreu mais de uma vez. Estatisticamente (por histórico) é esperado que ocorra (absenteísmo, restritos, queixas etc.). A ocorrência é iminente ou é esperada em curto prazo. Não existem controles confiáveis.",
+
+    "Graduacao Gerdau":
+      "Irrelevante | Risco desprezível, aceitável.\nTolerável | Risco trivial ou mínimo, aceitável. Ações de melhoria do conforto e da produtividade podem ser avaliadas.\nModerado | Risco médio, aceitável desde que não associado a dano de severidade muito crítica. Medidas de controle devem ser mantidas e monitoradas.\nAlto | Risco elevado, aceitável desde que haja ações e medidas para reduzi-lo ao nível moderado ou tolerável. Na impossibilidade de reduzir, o risco não é aceitável.\nIntolerável | Risco inaceitável. Ações imediatas devem ser tomadas.",
+
     "Matriz Intro":
-      "Após atribuir gravidade e probabilidade a cada fator identificado, o risco é pontuado pelo produto dos dois índices e classificado em uma das graduações utilizadas em todos os indicadores do S.I.G.E.",
+      "Após atribuir gravidade e probabilidade a cada fator identificado, o risco é classificado pela célula correspondente da matriz de risco do cliente (modelo ElevaLife), que define a graduação usada em todos os indicadores do S.I.G.E. A pontuação (probabilidade × gravidade) aparece em cada célula como referência.",
 
     "Graduacao":
       "Muito Baixo | Risco desprezível, aceitável.\nBaixo | Risco trivial ou mínimo, aceitável. Ações de melhoria do conforto e da produtividade podem ser avaliadas.\nModerado | Risco médio, aceitável desde que não associado a dano de gravidade muito alta. Medidas de controle devem ser mantidas e monitoradas.\nAlto | Risco elevado, aceitável desde que haja ações e medidas para reduzi-lo ao nível médio ou baixo. Na impossibilidade de reduzir, o risco não é aceitável.\nMuito Alto | Risco inaceitável. Ações imediatas devem ser tomadas.\nAltíssimo | Risco inaceitável. Ações imediatas devem ser tomadas.",
 
     "Medidas Intro":
-      "Ao final da avaliação de cada posto, as recomendações são apontadas com o objetivo de prevenir agravos à saúde do trabalhador, buscando o conforto, a segurança e a eficiência. Cada ação proposta é classificada em um dos três **tipos** abaixo, listados por ordem de prioridade, e indica o segmento corporal beneficiado, o responsável, o prazo e o nível de risco esperado do segmento após a ação.",
+      "Ao final da avaliação de cada posto, as recomendações são apontadas com o objetivo de prevenir agravos à saúde do trabalhador, buscando o conforto, a segurança e a eficiência. Cada ação proposta é classificada em um dos três **tipos** abaixo, listados por ordem de prioridade, indica a complexidade de execução e se vai **reduzir ou eliminar** o risco do fator (e para qual graduação). Quando a ação não reduz a graduação, ela é apresentada como ação organizacional ou de controle. O responsável, o prazo e a situação de cada ação são definidos no Plano de Ação do S.I.G.E.",
 
     "Medidas Tipos":
       "Suprime o fator de risco na origem (por exemplo, mudar o processo ou o layout para que a tarefa de risco deixe de existir).\nAdapta o posto, os equipamentos, o mobiliário ou o ambiente para reduzir a exposição.\nAtua na forma de organizar o trabalho: pausas, rodízio, treinamento, procedimentos e outras medidas.",
 
     "Residual Caixa":
-      "**Risco previsto:** para cada segmento corporal considera-se o menor nível esperado entre as ações propostas; o risco previsto do fator é o mais alto entre os seus segmentos.\n**Risco realizado:** usa a mesma regra, mas considera somente as ações **concluídas**. Uma ação só é considerada concluída com a **evidência** anexada (foto ou documento); exceções são autorizadas apenas por um Administrador, com justificativa e prazo para a regularização.\nFatores sem ação cadastrada permanecem com o risco atual e aparecem como “sem ação proposta”.",
+      "**Reavaliação ao concluir a ação:** quando o ergonomista marca que a ação vai reduzir ou eliminar o risco, a conclusão dessa ação no Plano de Ação do S.I.G.E abre a reavaliação do fator: nova probabilidade e nova severidade (a graduação vem da matriz do cliente) ou risco eliminado.\n" +
+      "**Conclusão com evidência:** uma ação só é considerada concluída com a **evidência** anexada (foto ou documento); exceções são autorizadas apenas por um Administrador, com justificativa e prazo para a regularização.\n" +
+      "**Histórico:** cada reavaliação fica registrada com a data e a ação que a motivou. O laudo mostra sempre o risco mais atual; os riscos eliminados saem do inventário vigente e aparecem na evolução dos riscos.",
 
     "Avaliacoes Intro":
-      "Cada posto de trabalho foi avaliado conforme o método descrito na seção 7. A seguir, são apresentados, para cada posto, a identificação, o registro fotográfico, a descrição da atividade real, o panorama de risco e o inventário de fatores identificados, com as respectivas ações do plano e o risco residual.",
+      "Cada posto de trabalho foi avaliado conforme o método descrito na seção 7. A seguir, são apresentados, para cada posto, a identificação, o registro fotográfico, a descrição da atividade real, o panorama de risco e o inventário de fatores identificados (com probabilidade, severidade, segmento acometido e evolução do risco), com as respectivas ações propostas.",
 
     "Residual Legenda":
-      "Previsto: considera todas as ações propostas. Realizado: considera apenas as ações concluídas com evidência. Data-base do acompanhamento: {dataBase}.",
+      "Risco inicial: graduação na identificação do fator. Risco atual: graduação vigente após as reavaliações registradas no S.I.G.E. Data-base do acompanhamento: {dataBase}.",
 
     "Validacao Texto":
       "Documento emitido eletronicamente no S.I.G.E por {nomes} em {emissao}. Código de verificação: **{codigo}** · Revisão {revisao}. Aponte a câmera para o QR Code ou acesse **sige-ergo.elevalife.com.br/verificar** e informe o código para confirmar a autoria, a data e a integridade do arquivo.",
 
     "Titulos":
-      "cabecalho | ElevaLife · Avaliação Ergonômica Preliminar (AEP)\ns1 | 1. Apresentação\ns2 | 2. A ElevaLife\ns3 | 3. Responsabilidade técnica e execução\ns4 | 4. Demanda do trabalho\ns5 | 5. Informações cadastrais da empresa\ns6 | 6. Fundamentação\ns61 | 6.1 Ergonomia e os pilares da gestão ElevaLife\ns62 | 6.2 A NR-17 e a Avaliação Ergonômica Preliminar\ns63 | 6.3 Gestão do risco ergonômico no GRO/PGR (NR-01)\ncaixa-prioridade | Prioridade das medidas de prevenção\ns7 | 7. Métodos e metodologia utilizada\ns71 | 7.1 As cinco etapas da gestão do risco ergonômico\ns72 | 7.2 Técnicas e instrumentos\ns73 | 7.3 Lista de fatores de risco (ISO/TS 20646)\ns74 | 7.4 Guias de referência para graduação\nadm | Referência para postura – amplitude de movimento (ADM)\ns75 | 7.5 Interfaces com as demais frentes da ElevaLife\ns8 | 8. Identificação e classificação do risco\ns81 | 8.1 Gravidade e probabilidade\ns82 | 8.2 Matriz de risco e graduação\ns83 | 8.3 Medidas de controle e risco residual\ncaixa-residual | Como o risco residual é calculado\ns9 | 9. Avaliações ergonômicas preliminares\np-descsetor | Descrição do setor\np-descatividade | Descrição da atividade (tarefa real observada)\np-caract | Características dos trabalhadores\np-panorama | Panorama do posto\np-fatores | Fatores de risco identificados, medidas e ações\ns10 | 10. Plano de ação e risco residual\nresidual | Risco residual por fator\ns11 | 11. Referências\ns12 | 12. Conclusão e validação do documento\ncliente-assinatura | Cliente – {cliente}\nvalidacao | Validação do documento",
+      "cabecalho | ElevaLife · Avaliação Ergonômica Preliminar (AEP)\ns1 | 1. Apresentação\ns2 | 2. A ElevaLife\ns3 | 3. Responsabilidade técnica e execução\ns4 | 4. Demanda do trabalho\ns5 | 5. Informações cadastrais da empresa\ns6 | 6. Fundamentação\ns61 | 6.1 Ergonomia e os pilares da gestão ElevaLife\ns62 | 6.2 A NR-17 e a Avaliação Ergonômica Preliminar\ns63 | 6.3 Gestão do risco ergonômico no GRO/PGR (NR-01)\ncaixa-prioridade | Prioridade das medidas de prevenção\ns7 | 7. Métodos e metodologia utilizada\ns71 | 7.1 As cinco etapas da gestão do risco ergonômico\ns72 | 7.2 Técnicas e instrumentos\ns73 | 7.3 Lista de fatores de risco (ISO/TS 20646)\ns74 | 7.4 Guias de referência para graduação\nadm | Referência para postura – amplitude de movimento (ADM)\ns75 | 7.5 Interfaces com as demais frentes da ElevaLife\ns8 | 8. Identificação e classificação do risco\ns81 | 8.1 Severidade e probabilidade\ns82 | 8.2 Matriz de risco e graduação\ns83 | 8.3 Medidas de controle e evolução do risco\ncaixa-residual | Como a evolução do risco é registrada\ns9 | 9. Avaliações ergonômicas preliminares\np-descsetor | Descrição do setor\np-descatividade | Descrição da atividade (tarefa real observada)\np-caract | Características dos trabalhadores\np-panorama | Panorama do posto\np-fatores | Fatores de risco identificados, medidas e ações\ns10 | 10. Plano de ação e evolução dos riscos\nresidual | Evolução dos riscos\ns11 | 11. Referências\ns12 | 12. Conclusão e validação do documento\ncliente-assinatura | Cliente – {cliente}\nvalidacao | Validação do documento",
   };
 
   // Lista de campos do Modelo de Laudo (rotulo exibido no Editor de Texto).
@@ -224,20 +237,57 @@
     ["Interfaces Intro", "7.5 Interfaces com as demais frentes – texto de abertura"],
     ["Interfaces", "7.5 Interfaces (uma por linha: frente | como se conecta)"],
     ["Risco Intro", "8. Identificação e classificação do risco – texto de abertura (marcador {matriz})"],
-    ["Gravidade", "8.1 Definição de gravidade (uma por linha: nível | efeitos; mantenha os níveis)"],
+    ["Gravidade", "8.1 Definição de severidade (uma por linha: nível | efeitos; mantenha os níveis)"],
     ["Probabilidade", "8.1 Definição de probabilidade (uma por linha: nível | perfil de exposição; mantenha os níveis)"],
+    ["Gravidade Gerdau", "8.1 Definição de severidade – Matriz 5x5 Gerdau (uma por linha: nível | efeitos; mantenha os níveis)"],
+    ["Probabilidade Gerdau", "8.1 Definição de probabilidade – Matriz 5x5 Gerdau (uma por linha: nível | perfil de exposição; mantenha os níveis)"],
     ["Matriz Intro", "8.2 Matriz de risco – texto de abertura"],
     ["Graduacao", "8.2 Descrição de cada graduação (uma por linha: graduação | descrição e conduta; mantenha as graduações)"],
+    ["Graduacao Gerdau", "8.2 Descrição de cada graduação – Matriz 5x5 Gerdau (uma por linha: graduação | descrição e conduta; mantenha as graduações)"],
     ["Medidas Intro", "8.3 Medidas de controle – texto de abertura"],
     ["Medidas Tipos", "8.3 Descrição dos três tipos de ação (uma por linha, na ordem de prioridade)"],
-    ["Residual Caixa", "8.3 Caixa “Como o risco residual é calculado” (um parágrafo por linha)"],
+    ["Residual Caixa", "8.3 Caixa “Como a evolução do risco é registrada” (um parágrafo por linha)"],
     ["Avaliacoes Intro", "9. Avaliações ergonômicas preliminares – texto de abertura"],
-    ["Recomendacoes", "10. Plano de ação e risco residual (introdução)"],
-    ["Residual Legenda", "10. Legenda do risco residual (marcador {dataBase})"],
+    ["Recomendacoes", "10. Plano de ação e evolução dos riscos (introdução)"],
+    ["Residual Legenda", "10. Legenda da evolução dos riscos (marcador {dataBase})"],
     ["Referencias", "11. Referências (uma por linha)"],
     ["Conclusao", "12. Conclusão"],
     ["Validacao Texto", "12. Texto da validação do documento (marcadores {nomes}, {emissao}, {codigo}, {revisao})"],
   ];
 
-  BI.LaudoTextos = { PADRAO, CAMPOS_EDITAVEIS };
+  // V 1.31: textos padrao substituidos - se o Editor de Texto ainda guarda o texto antigo, vale o novo
+  // (a severidade deixou de citar "doencas").
+  const ANTIGOS = { Gravidade: ["Muito Baixa | Risco muito baixo, efeito desprezível, chance muito baixa de desenvolver doenças.\nBaixa | Baixo risco, efeitos reversíveis de curto prazo, baixa chance para o desenvolvimento de doenças.\nMedia | Risco moderado, efeitos reversíveis, chance moderada de desenvolver doenças.\nAlta | Alto risco, efeitos que podem levar tempo e terapia para reverter, alta chance de desenvolver doenças.\nMuito Alta | Risco muito alto, possível efeito irreversível, chance muito alta de desenvolver doenças."] };
+  // V 1.32: "severidade" no lugar de "gravidade" (eixo da matriz) e a matriz deixa de ser chamada de
+  // "modelo ElevaLife" (cada cliente tem a sua). O texto anterior continua reconhecido como padrao antigo.
+  [
+    [/matriz de gravidade e probabilidade/g, "matriz de severidade e probabilidade"],
+    [/medida de controle existente, gravidade, probabilidade/g, "medida de controle existente, severidade, probabilidade"],
+    [/considerando a \*\*gravidade\*\* \(severidade do dano\)/g, "considerando a **severidade** (gravidade do dano)"],
+    [/Após atribuir gravidade e probabilidade/g, "Após atribuir severidade e probabilidade"],
+    [/probabilidade × gravidade/g, "probabilidade × severidade"],
+    [/da matriz de risco do cliente \(modelo ElevaLife\)/g, "da matriz de risco cadastrada para o cliente"],
+    [/dano de gravidade muito alta/g, "dano de severidade muito alta"],
+  ].forEach(([re, novo]) => Object.keys(PADRAO).forEach((k) => {
+    const v = PADRAO[k]; if (typeof v !== "string" || !re.test(v)) return; re.lastIndex = 0;
+    (ANTIGOS[k] = ANTIGOS[k] || []).push(v); PADRAO[k] = v.replace(re, novo);
+  }));
+  // A cada texto antigo registrado, guarda tambem as versoes intermediarias (troca de varias expressoes).
+  Object.keys(ANTIGOS).forEach((k) => { ANTIGOS[k] = Array.from(new Set(ANTIGOS[k])); });
+
+  // V 1.31: titulos antigos gravados no Editor de Texto passam aos nomes novos (evolucao do risco).
+  const TITULOS_NOVOS = { "8.1 Gravidade e probabilidade": "8.1 Severidade e probabilidade", "8.3 Medidas de controle e risco residual": "8.3 Medidas de controle e evolução do risco", "Como o risco residual é calculado": "Como a evolução do risco é registrada", "10. Plano de ação e risco residual": "10. Plano de ação e evolução dos riscos", "Risco residual por fator": "Evolução dos riscos" };
+  // V 1.32: matrizes com textos proprios (sufixo do campo no Editor de Texto)
+  const SUFIXO_MATRIZ = { "Matriz 5x5 Gerdau": " Gerdau" };
+  const campoDaMatriz = (campo, nomeMatriz) => { const suf = SUFIXO_MATRIZ[nomeMatriz]; return suf && PADRAO[campo + suf] != null ? campo + suf : campo; };
+  // V 1.32: texto que vai para o laudo - o salvo no Editor de Texto ou, se vazio ou igual a um texto
+  // padrao antigo, o padrao atual. O Editor de Texto mostra exatamente este texto.
+  function textoEfetivo(modelo, campo) {
+    let v = String((modelo && modelo[campo]) || "").trim();
+    if (v && (ANTIGOS[campo] || []).some((x) => x.trim() === v)) v = "";
+    if (!v) return PADRAO[campo] || "";
+    if (campo === "Titulos") v = v.split("\n").map((l) => { const i = l.indexOf("|"); if (i < 0) return l; const t = l.slice(i + 1).trim(); return TITULOS_NOVOS[t] ? l.slice(0, i + 1) + " " + TITULOS_NOVOS[t] : l; }).join("\n");
+    return v;
+  }
+  BI.LaudoTextos = { PADRAO, CAMPOS_EDITAVEIS, ANTIGOS, TITULOS_NOVOS, SUFIXO_MATRIZ, campoDaMatriz, textoEfetivo };
 })(window);

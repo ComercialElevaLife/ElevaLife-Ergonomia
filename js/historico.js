@@ -150,5 +150,26 @@
     btnFechar.focus();
   }
 
-  BI.Historico = { abrir, fechar };
+  // V 1.28: painel generico no mesmo estilo (usado pelo "Mais detalhes" da AEP).
+  function abrirPainel(titulo, montar) {
+    garantirDialogo();
+    dialogo.innerHTML = "";
+    const cab = el("div", "hist-cab");
+    cab.appendChild(el("div", "hist-titulo", titulo));
+    const btnFechar = el("button", "hist-fechar", "×");
+    btnFechar.type = "button";
+    btnFechar.setAttribute("aria-label", "Fechar");
+    btnFechar.addEventListener("click", fechar);
+    cab.appendChild(btnFechar);
+    dialogo.appendChild(cab);
+    const corpo = el("div", "hist-corpo");
+    dialogo.appendChild(corpo);
+    montar(corpo, { el, dh });
+    overlay.hidden = false;
+    dialogo.hidden = false;
+    document.body.classList.add("hist-aberto");
+    btnFechar.focus();
+  }
+
+  BI.Historico = { abrir, fechar, abrirPainel };
 })(window);

@@ -879,6 +879,8 @@
   // incluindo esse id no corpo - o servidor usa o id enviado em vez de
   // gerar um aleatorio (ver POST em entidades.js: "corpo.id || crypto.randomUUID()").
   async function salvar(colecaoChave, id, dados, forcarCriacao) {
+    // V 1.29: _origem e marcacao so de tela (filtro Origem) - nunca vai para o banco.
+    if (dados && typeof dados === "object" && "_origem" in dados) { dados = Object.assign({}, dados); delete dados._origem; }
     if (estado.modoApi) {
       const corpo = anexarEmpresaId(colecaoChave, dados);
       const criar = forcarCriacao || !id;
@@ -1078,7 +1080,8 @@
         while (pendentes.length) {
           const { item, indice } = pendentes.shift();
           try {
-            const corpo = anexarEmpresaId(colecaoChave, item.dados);
+            const dadosItem = Object.assign({}, item.dados); delete dadosItem._origem;
+          const corpo = anexarEmpresaId(colecaoChave, dadosItem);
             const rota = "/api/" + encodeURIComponent(colecaoChave) + (item.criar ? "" : "/" + encodeURIComponent(item.id));
             const resp = await fetch(rota, {
               method: item.criar ? "POST" : "PUT",

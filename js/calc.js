@@ -85,8 +85,57 @@
       "Vibração em todo o corpo ou vibração na mão e braço",
       "Ambiente de trabalho extremamente quente ou frio",
       "Condições visuais precárias (iluminação insuficiente)",
+      // V 1.28: fator incluido pela ElevaLife
+      "Ruído inadequado",
     ],
   };
+  // V 1.28: consequencias padrao de cada fator (sem citar doencas: desconforto, fadiga,
+  // rendimento, seguranca). O ergonomista escolhe uma ou mais e pode completar o texto.
+  const CONSEQUENCIAS_FATOR = {
+    "Jornada longa de trabalho de mais de 8h por dia": ["Fadiga física e mental ao longo da jornada", "Redução da atenção e do rendimento no fim do turno", "Tempo de recuperação insuficiente entre as jornadas", "Aumento da probabilidade de erros e incidentes"],
+    "Longas e frequentes horas extras de trabalho (>2h/dia e >2x na semana)": ["Fadiga acumulada ao longo da semana", "Recuperação insuficiente entre as jornadas", "Queda de concentração e de produtividade", "Aumento da probabilidade de erros e incidentes"],
+    "Longo tempo de operação contínua (>4h)": ["Fadiga muscular localizada", "Desconforto por falta de variação de postura", "Redução da atenção na tarefa", "Queda de rendimento"],
+    "Intervalo de descanso insuficiente (<1h/dia)": ["Recuperação física insuficiente durante a jornada", "Fadiga acumulada", "Cansaço e desconforto no segundo período", "Redução da atenção"],
+    "Dias de descanso insuficientes (1x semana)": ["Fadiga acumulada ao longo das semanas", "Recuperação física e mental insuficiente", "Desgaste e desmotivação", "Redução do rendimento"],
+    "Concentrações desequilibradas de trabalho em um dia, semana, mês ou ano": ["Picos de sobrecarga física e mental", "Fadiga nos períodos de pico", "Pressão de tempo e aumento de erros", "Desconforto pelo ritmo intenso"],
+    "Concentrações desequilibradas de trabalho entre trabalhadores": ["Sobrecarga de parte da equipe", "Fadiga desigual entre os trabalhadores", "Insatisfação e conflitos na equipe", "Queda de rendimento"],
+    "Descanso insuficiente entre turnos (menos de 11h)": ["Sono e recuperação insuficientes", "Fadiga no início da jornada seguinte", "Redução do estado de alerta", "Aumento da probabilidade de erros e incidentes"],
+    "Levantar e carregar objetos pesados": ["Sobrecarga na coluna lombar", "Fadiga muscular de membros superiores e tronco", "Desconforto e dor nas costas", "Risco de entorses e acidentes no manuseio"],
+    "Trabalho requer grande força": ["Sobrecarga musculoesquelética", "Fadiga muscular localizada", "Desconforto em mãos, punhos e ombros", "Redução do rendimento ao longo da jornada"],
+    "Forças acentuadas para empurrar e puxar": ["Sobrecarga em ombros, coluna e membros inferiores", "Fadiga muscular", "Desconforto nas costas e nos ombros", "Risco de escorregões e quedas durante o esforço"],
+    "Trabalho repetitivo (ciclos idênticos, menores que 30 seg)": ["Fadiga muscular localizada em membros superiores", "Desconforto em mãos, punhos e cotovelos", "Monotonia e queda da atenção", "Redução do rendimento"],
+    "Trabalho requer movimentos frequentes de dedo, mão ou braço": ["Fadiga de mãos, punhos e antebraços", "Desconforto e formigamento nas mãos", "Sobrecarga de tendões e articulações", "Redução da precisão ao longo da jornada"],
+    "Trabalho intensivo com um teclado ou outros dispositivos de entrada de dados": ["Fadiga em dedos, punhos e antebraços", "Desconforto em ombros e pescoço", "Tensão muscular por postura estática", "Fadiga visual"],
+    "Trabalho de precisão": ["Fadiga visual", "Tensão muscular em pescoço e ombros", "Esforço de concentração e cansaço mental", "Desconforto por postura estática"],
+    "Elevados requisitos visuais": ["Fadiga visual (olhos cansados e ardor)", "Dor de cabeça e desconforto", "Tensão em pescoço e ombros ao aproximar o rosto da tarefa", "Queda de atenção e da qualidade"],
+    "Posturas e movimentos desconfortáveis": ["Desconforto e dor em coluna, ombros e pescoço", "Fadiga muscular", "Sobrecarga das articulações", "Queda de rendimento"],
+    "Mudança contínua e/ou altamente frequente nas articulações": ["Sobrecarga das articulações envolvidas", "Fadiga muscular", "Desconforto articular", "Redução do rendimento"],
+    "Longa duração de posição restritiva": ["Fadiga por contração muscular estática", "Desconforto e rigidez muscular", "Redução da circulação nos membros", "Queda de rendimento"],
+    "Caminhada de longa duração e/ou longa distância (horizontal bem como numa superfície inclinada)": ["Fadiga de membros inferiores", "Desconforto em pés, joelhos e quadris", "Cansaço geral", "Risco de tropeços e quedas"],
+    "Subida de escada frequente": ["Fadiga de membros inferiores", "Sobrecarga nos joelhos", "Cansaço cardiorrespiratório", "Risco de quedas"],
+    "Trabalho prolongado em posição sentada/de pé": ["Desconforto nas costas e nos membros inferiores", "Sensação de pernas pesadas e inchaço", "Fadiga postural", "Redução da circulação"],
+    "Espaço de trabalho inadequado que force uma postura desconfortável ou movimento restritivo": ["Posturas forçadas e desconfortáveis", "Fadiga muscular", "Desconforto em coluna e ombros", "Risco de batidas e acidentes no espaço restrito"],
+    "Layout da estação de trabalho que force movimento excessivo ou posturas desconfortáveis": ["Movimentos excessivos e desnecessários", "Fadiga muscular", "Desconforto em ombros e coluna", "Perda de produtividade"],
+    "Altura e dimensões inadequadas da superfície de trabalho": ["Flexão ou elevação excessiva de tronco e braços", "Desconforto em pescoço, ombros e lombar", "Fadiga postural", "Queda de rendimento"],
+    "Manuseio de objetos de trabalho acima do ombro ou abaixo do joelho": ["Sobrecarga em ombros e coluna lombar", "Fadiga muscular", "Desconforto ao alcançar ou abaixar", "Risco de queda de objetos"],
+    "Espaço de trabalho que force o trabalhador a manter a mesma postura de trabalho": ["Fadiga por postura estática", "Desconforto e rigidez muscular", "Redução da circulação", "Queda de rendimento"],
+    "Espaço de trabalho que seja pesado e/ou requeira grande força física": ["Sobrecarga física", "Fadiga muscular", "Desconforto em coluna e membros", "Risco de acidentes por esforço"],
+    "Objetos de trabalho difíceis de manusear ou escorregadios": ["Aumento da força de preensão", "Fadiga de mãos e antebraços", "Risco de queda do objeto e de cortes", "Desconforto nas mãos"],
+    "Ambiente de trabalho e/ou objetos manuseados que sejam quentes/frios": ["Desconforto térmico nas mãos", "Redução da destreza e da sensibilidade", "Risco de queimaduras leves por contato", "Fadiga"],
+    "Tensão de contato alta ou pressão local que age no corpo": ["Desconforto e dor no ponto de contato", "Compressão dos tecidos", "Formigamento e dormência", "Redução da circulação local"],
+    "Sobrecarga ou subcarga mental": ["Cansaço mental", "Redução da atenção e da concentração", "Desmotivação", "Aumento de erros"],
+    "Pressão de tempo e altas demandas": ["Tensão e cansaço mental", "Aceleração do ritmo e posturas inadequadas", "Aumento de erros e retrabalho", "Insatisfação"],
+    "Estresse relacionado ao trabalho": ["Tensão e irritabilidade", "Cansaço mental", "Queda de rendimento", "Conflitos interpessoais"],
+    "Baixa satisfação no trabalho": ["Desmotivação", "Queda de engajamento e produtividade", "Aumento de faltas", "Rotatividade"],
+    "Falta de autonomia (baixa influência, controle baixo)": ["Desmotivação", "Sensação de pouca influência sobre o próprio trabalho", "Tensão e cansaço mental", "Queda de engajamento"],
+    "Apoio Social": ["Sensação de isolamento", "Sobrecarga por falta de ajuda", "Desmotivação", "Conflitos na equipe"],
+    "Piso escorregadio e/ou irregular": ["Risco de escorregões, tropeços e quedas", "Esforço adicional para manter o equilíbrio", "Desconforto ao caminhar", "Insegurança na movimentação"],
+    "Vibração em todo o corpo ou vibração na mão e braço": ["Desconforto e fadiga", "Formigamento e dormência nas mãos", "Redução da precisão dos movimentos", "Desconforto na coluna"],
+    "Ambiente de trabalho extremamente quente ou frio": ["Desconforto térmico", "Fadiga e cansaço", "Redução da atenção e do rendimento", "Redução da destreza manual (frio)"],
+    "Condições visuais precárias (iluminação insuficiente)": ["Fadiga visual", "Posturas forçadas para enxergar a tarefa", "Aumento de erros", "Risco de acidentes por baixa visibilidade"],
+    "Ruído inadequado": ["Desconforto auditivo", "Dificuldade de comunicação e de concentração", "Irritabilidade e cansaço", "Aumento de erros e queda de rendimento"],
+  };
+  function consequenciasDoFator(fator) { return CONSEQUENCIAS_FATOR[fator] || []; }
   const GRUPOS_FATOR_RISCO = Object.keys(FATORES_RISCO_ISO20646);
   function fatoresDoGrupo(grupo) { return FATORES_RISCO_ISO20646[grupo] || []; }
 
@@ -142,11 +191,17 @@
       rotulos: { "Muito Baixa": "Muito Baixa", Baixa: "Baixa", Media: "Moderada", Alta: "Alta", "Muito Alta": "Muito Alta" },
       modelo: [[0, 1, 1, 2, 2], [1, 1, 2, 2, 3], [1, 2, 2, 3, 4], [2, 2, 3, 4, 4], [2, 3, 4, 4, 4]],
     },
-    // Variante 5x5 de um cliente: mesma matriz modelo 5x5 ate que o modelo proprio seja informado.
+    // V 1.32: matriz da Gerdau (3.1.3 Matriz de Riscos, enviada pelo Alexandre em 08/10/2026). A grade de
+    // graduacao e a mesma da 5x5 ElevaLife; mudam os nomes. Probabilidade (indice pelo % do tempo amostral):
+    // Muito Baixa, Baixa, Media, Alta, Muito Alta. Severidade (lesao/afastamento): Brando, Moderado, Serio,
+    // Critico, Muito Critico. Graduacoes: Irrelevante, Toleravel, Moderado, Alto, Intoleravel.
+    // Os valores gravados continuam os da escala ("Muito Baixa"..."Muito Alta"); os nomes da severidade
+    // sao so exibicao (rotulosSeveridade).
     "Matriz 5x5 Gerdau": {
       escala: ["Muito Baixa", "Baixa", "Media", "Alta", "Muito Alta"],
-      niveis: ["Muito Baixo", "Baixo", "Moderado", "Alto", "Altíssimo"],
-      rotulos: { "Muito Baixa": "Muito Baixa", Baixa: "Baixa", Media: "Moderada", Alta: "Alta", "Muito Alta": "Muito Alta" },
+      niveis: ["Irrelevante", "Tolerável", "Moderado", "Alto", "Intolerável"],
+      rotulos: { "Muito Baixa": "Muito Baixa", Baixa: "Baixa", Media: "Média", Alta: "Alta", "Muito Alta": "Muito Alta" },
+      rotulosSeveridade: { "Muito Baixa": "Brando", Baixa: "Moderado", Media: "Sério", Alta: "Crítico", "Muito Alta": "Muito Crítico" },
       modelo: [[0, 1, 1, 2, 2], [1, 1, 2, 2, 3], [1, 2, 2, 3, 4], [2, 2, 3, 4, 4], [2, 3, 4, 4, 4]],
     },
   };
@@ -160,8 +215,10 @@
   function matrizPorNome(nomeMatriz) { return MATRIZES_RISCO[nomeMatriz] || MATRIZES_RISCO[MATRIZ_PADRAO]; }
   function escalaDaMatriz(nomeMatriz) { return matrizPorNome(nomeMatriz).escala; }
   // Rotulo de exibicao de um valor da escala (ex.: na 3x3, "Baixa" aparece como "Leve").
-  function rotuloEscala(nomeMatriz, valor) {
-    const r = matrizPorNome(nomeMatriz).rotulos;
+  // V 1.32: eixo "severidade" usa os nomes proprios da severidade quando a matriz os tem (ex.: Gerdau).
+  function rotuloEscala(nomeMatriz, valor, eixo) {
+    const m = matrizPorNome(nomeMatriz);
+    const r = (eixo === "severidade" && m.rotulosSeveridade) || m.rotulos;
     return (r && r[valor]) || (valor === "Media" ? "Média" : valor);
   }
   function celulaDaMatriz(nomeMatriz, probabilidade, gravidade) {
@@ -170,6 +227,20 @@
     const g = m.escala.indexOf(gravidade);
     if (p < 0 || g < 0) return null;
     return Object.assign({ nivel: m.niveis[m.grade[p][g].nivelIdx] }, m.grade[p][g]);
+  }
+  // V 1.32: graduacoes da matriz (da menor para a maior) e posicao de qualquer graduacao numa escala
+  // unica de 0 a 4 (muito baixo/trivial/irrelevante ... muito alto/altissimo/intoleravel), para comparar
+  // niveis de matrizes diferentes e os niveis gerais do painel.
+  function niveisDaMatriz(nomeMatriz) { return matrizPorNome(nomeMatriz).niveis.slice(); }
+  function ordemNivel(nivel) {
+    const t = String(nivel || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    if (!t || t === "-") return -1;
+    if (/muito baix|trivial|irrelev|desprez/.test(t)) return 0;
+    if (/intoler|muito alt|altissim/.test(t)) return 4;
+    if (/^baix|^leve|^toler/.test(t)) return 1;
+    if (/moder|^medi/.test(t)) return 2;
+    if (/^alt/.test(t)) return 3;
+    return -1;
   }
   function nivelDaMatriz(nomeMatriz, probabilidade, gravidade) {
     const celula = celulaDaMatriz(nomeMatriz, probabilidade, gravidade);
@@ -288,7 +359,7 @@
     "A validar": "var(--acao-nao-iniciado)",
     "Em andamento": "var(--acao-andamento)",
     "Concluido": "var(--acao-concluida)",
-    "Cancelado": "var(--acao-atrasada)",
+    "Cancelado": "var(--status-neutral)",
 
     // Graduacao do Risco calculada pela Matriz de Risco (Inventario de
     // Riscos) - "Moderado"/"Altíssimo"/"Muito Baixo" sao os rotulos que a
@@ -298,7 +369,41 @@
     "Moderado": "var(--risco-moderado)",
     "Altíssimo": "var(--risco-muitoalto)",
     "Muito Baixo": "var(--risco-muitobaixo)",
+    "Trivial": "var(--risco-muitobaixo)",
+    // V 1.32: graduacoes da matriz Gerdau
+    "Irrelevante": "var(--risco-muitobaixo)",
+    "Tolerável": "var(--risco-baixo)",
+    "Intolerável": "var(--risco-muitoalto)",
   };
+  // V 1.30 - PADRAO ElevaLife de cores (hex fixo, usado nos laudos, nas planilhas e no modulo
+  // Psicossocial; a tela usa as mesmas cores pelas variaveis CSS --risco-* e --acao-*).
+  const CORES_RISCO_HEX = { muitoBaixo: "8CCBEB", baixo: "2E8B57", moderado: "F2C230", alto: "C62828", muitoAlto: "6A3D9A" };
+  const CORES_STATUS_HEX = { naoIniciada: "E8833A", andamento: "F2C230", atrasada: "C62828", concluida: "2E8B57", concluidaAtraso: "1E6B44" };
+  const CORES_CLARAS_HEX = ["8CCBEB", "F2C230"]; // fundos claros: texto escuro por cima
+  function semAcentoMin(s) { return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); }
+  // Cor de uma graduacao de risco (qualquer matriz: Trivial, Muito Baixo, Baixo, Leve, Moderado, Medio, Alto, Muito Alto, Altissimo, Critico).
+  function corRiscoHex(nivel) {
+    const n = semAcentoMin(nivel);
+    if (!n || n === "-") return null;
+    if (/muito baix|trivial|desprez|irrelev/.test(n)) return CORES_RISCO_HEX.muitoBaixo;
+    if (/muito alt|altissim|critic|intoler/.test(n)) return CORES_RISCO_HEX.muitoAlto;
+    if (/^alt/.test(n)) return CORES_RISCO_HEX.alto;
+    if (/moder|^medi/.test(n)) return CORES_RISCO_HEX.moderado;
+    if (/^baix|^leve|^toler/.test(n)) return CORES_RISCO_HEX.baixo;
+    return null;
+  }
+  // Cor de um status de acao (aceita as chaves internas e os rotulos exibidos).
+  function corStatusAcaoHex(st) {
+    const n = semAcentoMin(st);
+    if (/com atraso|c\/ atraso/.test(n)) return CORES_STATUS_HEX.concluidaAtraso;
+    if (/conclu/.test(n)) return CORES_STATUS_HEX.concluida;
+    if (/atrasad/.test(n)) return CORES_STATUS_HEX.atrasada;
+    if (/andamento/.test(n)) return CORES_STATUS_HEX.andamento;
+    if (/nao inici|pendente/.test(n)) return CORES_STATUS_HEX.naoIniciada;
+    return null;
+  }
+  const textoSobreHex = (h) => (CORES_CLARAS_HEX.includes(String(h || "").toUpperCase()) ? "3A2A2E" : "FFFFFF");
+  const hexParaRGB = (h) => { const x = String(h || "").replace("#", ""); return [parseInt(x.slice(0, 2), 16), parseInt(x.slice(2, 4), 16), parseInt(x.slice(4, 6), 16)]; };
 
   // Uma chave "tem cor definida" quando existe de verdade em COR_STATUS -
   // usado pela UI (tabelas de Cadastro/Registro e detalhamento) pra saber
@@ -381,7 +486,8 @@
   // antes do prazo aparece como Em Andamento; prazo vencido continua Atrasada.
   function statusDaLinhaAcao(linha, hoje) {
     const base = calcularStatusAcao(linha["Dt Programada"], linha["Dt Conclusao"], hoje);
-    if (base === "Nao Iniciado" && linha["Status Execucao"] === "Em andamento") return "Em Andamento";
+    // V 1.29: com prazo definido (e nao concluida, nao vencida) a acao esta Em andamento.
+    if (base === "Nao Iniciado" && (linha["Status Execucao"] === "Em andamento" || linha["Dt Programada"])) return "Em Andamento";
     return base;
   }
 
@@ -425,6 +531,10 @@
       const v = filtros[dim];
       if (!vazio(v) && dim in linha && !v.includes(linha[dim])) return false;
     }
+    // V 1.29: filtro Origem (AEP/AET/Psicossocial) so vale para registros que tem origem
+    // (o app marca _origem em fatores, acoes, avaliacoes, laudos, AET e risco dos postos).
+    const origens = filtros["Origem"];
+    if (!vazio(origens) && linha && "_origem" in linha && !origens.includes(linha._origem)) return false;
     const anos = filtros["Ano"];
     const meses = filtros["Mes"];
     if ((!vazio(anos) || !vazio(meses)) && camposData && camposData.length) {
@@ -600,8 +710,103 @@
   // Baixo", "Altissimo" - ver MATRIZES_RISCO); o painel usa sempre os 4
   // NIVEIS_RISCO. Sem este agrupamento, esses fatores eram silenciosamente
   // ignorados nas contagens (bug achado na calibracao dos indicadores, V 1.0).
-  const NIVEL_CANONICO = { "Muito Baixo": "Baixo", "Moderado": "Medio", "Altíssimo": "Muito Alto" };
+  const NIVEL_CANONICO = { "Muito Baixo": "Baixo", "Moderado": "Medio", "Altíssimo": "Muito Alto", "Irrelevante": "Baixo", "Tolerável": "Baixo", "Intolerável": "Muito Alto" };
   function nivelCanonico(nivel) { return NIVEL_CANONICO[nivel] || nivel; }
+
+  // ------------------------------------------------------------------
+  // V 1.29 - Origem de cada registro (AEP, AET ou Psicossocial) e risco do
+  // posto calculado pelo Inventario (substitui o Mapa de Risco manual).
+  // ------------------------------------------------------------------
+  const ORIGENS = ["AEP", "AET", "Psicossocial"];
+  // ------------------------------------------------------------------
+  // V 1.31 - evolucao do risco. Cada fator guarda "Historico Risco":
+  //   [{ data, de, para ("Eliminado" quando o risco deixou de existir), probabilidade, severidade, motivo, acaoId, nrAcao }]
+  // gravado ao concluir uma acao que reduz/elimina o risco (reavaliacao no Plano de Acao), ao
+  // reclassificar o fator no inventario e na reaplicacao do Psicossocial. O risco vigente e sempre
+  // o mais recente; um risco eliminado ("Risco Eliminado" = Sim) sai das contagens e do laudo vigente.
+  // ------------------------------------------------------------------
+  const riscoAtivo = (f) => !!f && f["Existe Fator Risco"] !== "Nao" && f["Risco Eliminado"] !== "Sim";
+  const dataInicioRisco = (f) => (f && (f["Dt Identificacao"] || String(f._criadoEm || "").slice(0, 10))) || "";
+  function eventosRisco(f) { return ((f && f["Historico Risco"]) || []).filter((e) => e && e.data).slice().sort((a, b) => String(a.data).localeCompare(String(b.data))); }
+  function graduacaoInicial(f) { const ev = eventosRisco(f); return f["Graduacao Inicial"] || (ev.length ? ev[0].de : f["Graduacao Risco"]) || ""; }
+  // Graduacao do fator numa data (AAAA-MM-DD): null se ainda nao existia; "Eliminado" se ja foi eliminado.
+  function graduacaoNaData(f, dataISO) {
+    if (!f || f["Existe Fator Risco"] === "Nao") return null;
+    const ini = dataInicioRisco(f);
+    if (!ini || String(dataISO) < ini) return null;
+    let n = graduacaoInicial(f);
+    eventosRisco(f).forEach((e) => { if (String(e.data) <= String(dataISO)) n = e.para; });
+    return n || null;
+  }
+  // Texto da evolucao: "Iniciou Alto · 10/11/2026 – Ação A-03 concluída: Baixo · 02/12/2026 – ...: risco eliminado"
+  function textoEvolucaoRisco(f) {
+    const ev = eventosRisco(f);
+    if (!ev.length) return "";
+    const br = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ""); return m ? `${m[3]}/${m[2]}/${m[1]}` : d; };
+    return [`Iniciou ${rotuloNivel(graduacaoInicial(f))}`].concat(ev.map((e) => `${br(e.data)} – ${e.motivo || "Reavaliação"}: ${e.para === "Eliminado" ? "risco eliminado" : rotuloNivel(e.para)}`)).join(" · ");
+  }
+  // Evolucao mensal (ultimos "nMeses" meses ate "ate"): por mes, quantos fatores em cada nivel (4 niveis do
+  // painel), quantos eliminados e quantos reduzidos (nivel abaixo do inicial) ate o fim do mes.
+  function evolucaoMensalRiscos(fatores, ate, nMeses) {
+    const lista = (fatores || []).filter((f) => f && f["Existe Fator Risco"] !== "Nao" && dataInicioRisco(f));
+    if (!lista.length) return [];
+    const fim = new Date(ate || new Date()); const ini0 = lista.map(dataInicioRisco).sort()[0];
+    const meses = []; let a = Number(ini0.slice(0, 4)); let m = Number(ini0.slice(5, 7));
+    while (a < fim.getFullYear() || (a === fim.getFullYear() && m <= fim.getMonth() + 1)) { meses.push(`${a}-${String(m).padStart(2, "0")}`); m++; if (m > 12) { m = 1; a++; } }
+    const ult = meses.slice(-(nMeses || 24));
+    return ult.map((mes) => {
+      const [aa, mm] = mes.split("-").map(Number); const fimMes = new Date(aa, mm, 0); const dia = `${mes}-${String(fimMes.getDate()).padStart(2, "0")}`;
+      const porNivel = {}; NIVEIS_RISCO.forEach((n) => (porNivel[n] = 0)); let eliminados = 0; let reduzidos = 0; const linhas = {};
+      lista.forEach((f) => {
+        const g = graduacaoNaData(f, dia); if (!g) return;
+        if (g === "Eliminado") { eliminados++; (linhas.Eliminado = linhas.Eliminado || []).push(f); return; }
+        const c = nivelCanonico(g); if (!(c in porNivel)) return;
+        porNivel[c]++; (linhas[c] = linhas[c] || []).push(f);
+        if (NIVEIS_RISCO.indexOf(c) < NIVEIS_RISCO.indexOf(nivelCanonico(graduacaoInicial(f)))) { reduzidos++; (linhas.Reduzidos = linhas.Reduzidos || []).push(f); }
+      });
+      return { mes, porNivel, eliminados, reduzidos, linhas };
+    });
+  }
+  function origemDe(l) {
+    const o = String((l && l.Origem) || "");
+    if (/psicoss/i.test(o)) return "Psicossocial";
+    if (/\baet\b/i.test(o)) return "AET";
+    return "AEP";
+  }
+  // O risco do posto e SEMPRE a maior graduacao entre os fatores existentes
+  // do posto (ex.: um fator Baixo e outro Alto -> posto Alto). Um "posto" =
+  // Cliente + Unidade + Setor + Posto + Cargo + Origem (no Psicossocial, o
+  // setor/GHE). Fator marcado "Nao" ou sem graduacao nao entra.
+  function riscoDosPostos(fatores, avaliacoes) {
+    const grupos = {};
+    const dataAval = {};
+    (avaliacoes || []).forEach((a) => {
+      const k = [a.Cliente, a.Unidade, a.Setor, a["Posto Trabalho"], a.Cargo].join("||");
+      const d = a["Data Avaliacao"] || String(a._criadoEm || "").slice(0, 10);
+      if (d && (!dataAval[k] || d > dataAval[k])) dataAval[k] = d;
+    });
+    (fatores || []).forEach((f) => {
+      if (!riscoAtivo(f)) return;
+      const nivel = nivelCanonico(f["Graduacao Risco"]);
+      const idx = NIVEIS_RISCO.indexOf(nivel);
+      if (idx < 0) return;
+      const origem = origemDe(f);
+      const k = [f.Cliente, f.Unidade, f.Setor, f["Posto Trabalho"] || "", f.Cargo || "", origem].join("||");
+      let g = grupos[k];
+      if (!g) {
+        const kAval = [f.Cliente, f.Unidade, f.Setor, f["Posto Trabalho"], f.Cargo].join("||");
+        g = grupos[k] = {
+          Cliente: f.Cliente, Unidade: f.Unidade, Setor: f.Setor, "Posto Trabalho": f["Posto Trabalho"] || "", Cargo: f.Cargo || "",
+          Origem: origem, _origem: origem, "Risco Global": nivel, "Graduacao Maxima": f["Graduacao Risco"],
+          "Fator Mais Grave": f.Fator || "", Fatores: 0, _idx: idx,
+          "Dt Avaliacao": dataAval[kAval] || f["Dt Identificacao"] || String(f._criadoEm || "").slice(0, 10) || null,
+        };
+      }
+      g.Fatores += 1;
+      if (idx > g._idx) { g._idx = idx; g["Risco Global"] = nivel; g["Graduacao Maxima"] = f["Graduacao Risco"]; g["Fator Mais Grave"] = f.Fator || ""; }
+    });
+    return Object.values(grupos).map((g) => { delete g._idx; return g; });
+  }
 
   function distribuicaoPorNivelRisco(linhas, campo) {
     const total = linhas.length;
@@ -668,8 +873,9 @@
   // Cobertura de Avaliacao Ergonomica: quantos postos (chave composta das 6
   // dimensoes) do universo do Mapa de Risco ja tem pelo menos 1 avaliacao
   // registrada.
+  // V 1.29: AEP por posto e cargo (sem atividade); o universo e o cadastro de cargos por posto.
   function coberturaAvaliacao(avaliacoesF, mapaRiscoF) {
-    const chaveDe = (l) => DIMENSOES.map((d) => l[d]).join("||");
+    const chaveDe = (l) => ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].map((d) => l[d]).join("||");
     const postosComAvaliacao = new Set(avaliacoesF.map(chaveDe));
     const universo = new Set(mapaRiscoF.map(chaveDe));
     const cobertos = Array.from(universo).filter((k) => postosComAvaliacao.has(k)).length;
@@ -760,10 +966,15 @@
   // Soma "Qtd Dias" de Absenteismo por regiao corporal - usado nos diagramas
   // de Med Ocup (frente/costas). Parametrizada por lista de regioes (nunca
   // uma funcao por regiao).
-  function somaDiasPorRegiao(absenteismoF, regioes) {
+  // V 1.29: no Absenteismo o segmento e geral (sem direito/esquerdo); registros antigos
+  // com lado entram no segmento geral ("Ombro Direito" -> "Ombro").
+  function regiaoSemLado(r) { return String(r || "").replace(/\s+(Direit[oa]|Esquerd[oa])$/, ""); }
+  function regioesSemLado(regioes) { return Array.from(new Set((regioes || []).map(regiaoSemLado))); }
+  function somaDiasPorRegiao(absenteismoF, regioes, semLado) {
     const mapa = {};
-    regioes.forEach((r) => (mapa[r] = 0));
-    absenteismoF.forEach((l) => { if (l["Regiao Corporal"] in mapa) mapa[l["Regiao Corporal"]] += Number(l["Qtd Dias"]) || 0; });
+    const norm = semLado ? regiaoSemLado : (r) => r;
+    (semLado ? regioesSemLado(regioes) : regioes).concat(SEGMENTOS_GERAIS).forEach((r) => (mapa[r] = 0));
+    absenteismoF.forEach((l) => { const r = norm(l["Regiao Corporal"]); if (r in mapa) mapa[r] += Number(l["Qtd Dias"]) || 0; });
     return mapa;
   }
 
@@ -821,9 +1032,11 @@
 
   // Conta restricoes (linhas) por regiao corporal (Segmento Corporal) - mesma
   // logica dos diagramas de Med Ocup, mas contando ocorrencias, nao dias.
+  // V 1.31: segmentos fora do corpo, em todas as listas de segmento e nos graficos
+  const SEGMENTOS_GERAIS = ["Psicossocial", "Não identificado"];
   function contagemPorRegiao(compativeisF, regioes) {
     const mapa = {};
-    regioes.forEach((r) => (mapa[r] = 0));
+    regioes.concat(SEGMENTOS_GERAIS).forEach((r) => (mapa[r] = 0));
     compativeisF.forEach((l) => { if (l["Segmento Corporal"] in mapa) mapa[l["Segmento Corporal"]] += 1; });
     return mapa;
   }
@@ -843,16 +1056,36 @@
 
   global.BI = global.BI || {};
   global.BI.Calc = {
+    CORES_RISCO_HEX,
+    CORES_STATUS_HEX,
+    corRiscoHex,
+    corStatusAcaoHex,
+    textoSobreHex,
+    hexParaRGB,
+    ORIGENS,
+    origemDe,
+    riscoAtivo,
+    eventosRisco,
+    graduacaoInicial,
+    graduacaoNaData,
+    textoEvolucaoRisco,
+    evolucaoMensalRiscos,
+    regiaoSemLado,
+    regioesSemLado,
+    SEGMENTOS_GERAIS,
+    riscoDosPostos,
     DIMENSOES,
     DIMENSOES_RISCO,
     NIVEIS_RISCO,
     GRUPOS_FATOR_RISCO,
     fatoresDoGrupo,
+    consequenciasDoFator,
     NOMES_MATRIZ_RISCO,
     MATRIZ_PADRAO,
     NOMES_CLASSIFICACAO_AET,
     classificarTextoAET,
-    escalaDaMatriz, rotuloEscala,
+    escalaDaMatriz, rotuloEscala, niveisDaMatriz, ordemNivel,
+    TODOS_NIVEIS: Array.from(new Set(NIVEIS_RISCO.concat(...Object.values(MATRIZES_RISCO).map((m) => m.niveis)))),
     nivelDaMatriz,
     pontuacaoDaMatriz,
     matrizDoCliente,

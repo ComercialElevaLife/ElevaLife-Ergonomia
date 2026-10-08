@@ -13,11 +13,21 @@
   // em chave de dado (nome de campo/valor gravado) - so no que vai pra tela.
   const T = (s) => (window.BI && window.BI.Rotulos ? window.BI.Rotulos.texto(s) : s);
 
-  const ORDEM_FILTROS = ["Ano", "Mes", "Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"];
+  // V 1.29: filtro unico para todas as abas, com a Origem (AEP, AET ou Psicossocial).
+  const ORDEM_FILTROS = ["Ano", "Mes", "Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Origem"];
   const LABELS_FILTRO = {
-    "Ano": "Ano", "Mes": "Mês", "Cliente": "Cliente", "Unidade": "Unidade", "Setor": "Setor",
-    "Posto Trabalho": "Posto de Trabalho", "Cargo": "Cargo", "Atividade": "Atividade",
+    "Ano": "Ano", "Mes": "Mês", "Cliente": "Cliente", "Unidade": "Unidade", "Setor": "Setor / GHE",
+    "Posto Trabalho": "Posto de Trabalho", "Cargo": "Cargo", "Atividade": "Atividade", "Origem": "Origem",
   };
+  // Colecoes que tem origem (AEP/AET/Psicossocial): recebem _origem (so em memoria) para o filtro.
+  const COLECOES_COM_ORIGEM = { fatorRisco: null, planoAcao: null, avaliacaoErgonomica: "AEP", laudo: null, aet: "AET" };
+  function carimbarOrigens() {
+    const d = window.BI.dados || {};
+    Object.keys(COLECOES_COM_ORIGEM).forEach((c) => {
+      const fixo = COLECOES_COM_ORIGEM[c];
+      (d[c] || []).forEach((l) => { if (l && typeof l === "object") l._origem = fixo || window.BI.Calc.origemDe(l); });
+    });
+  }
 
   const registroGraficos = {};
 
@@ -385,13 +395,15 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // colunas de exibicao por tabela de origem (mesma forma das listas de
   // Cadastros - ver CADASTROS_CONFIG mais abaixo neste arquivo)
   function colunasDrillDown(chave) {
+    // V 1.29: risco dos postos calculado pelo Inventario (maior graduacao dos fatores).
+    if (chave === "riscoPosto") return { colunas: ["Origem", "Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Risco Global", "Fator Mais Grave", "Fatores", "Dt Avaliacao"], colunasData: ["Dt Avaliacao"] };
     const cfg = CADASTROS_CONFIG[chave];
     const extra = chave === "planoAcao" ? ["Status Acao"] : [];
     return { colunas: cfg.colunasTabela.concat(extra), colunasData: cfg.colunasData || [] };
   }
 
   function celulaFormatada(col, linha, colunasData) {
-    let v = linha[col];
+    let v = col === "Origem" ? window.BI.Calc.origemDe(linha) : linha[col];
     if (colunasData.includes(col)) v = formatarDataBR(v);
     else if ((col === "Risco Global" || col === "Graduacao Risco") && v) v = window.BI.Calc.rotuloNivel(v);
     return v === null || v === undefined || v === "" ? "-" : T(String(v));
@@ -499,7 +511,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // Diagramas corporais (SVG) tambem sao clicaveis: cada rotulo de regiao
   // (js/diagramas.js) recebe um data-regiao - aqui so ligamos o clique
   // apos cada renderizacao (o SVG e recriado via innerHTML a cada vez).
-  function ligarCliqueDiagrama(containerId, linhasFonte, campoRegiao, chave) {
+  function ligarCliqueDiagrama(containerId, linhasFonte, campoRegiao, chave, semLado) {
     const el = document.getElementById(containerId);
     if (!el) return;
     el.querySelectorAll("[data-regiao]").forEach((g) => {
@@ -507,7 +519,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const abrir = (ev) => {
         abrirDrillDown(
           `Região corporal - ${regiao}`, "Registros desta região", chave,
-          linhasFonte.filter((l) => l[campoRegiao] === regiao), ev
+          linhasFonte.filter((l) => (semLado ? window.BI.Calc.regiaoSemLado(l[campoRegiao]) : l[campoRegiao]) === regiao), ev
         );
       };
       g.addEventListener("click", abrir);
@@ -727,14 +739,23 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // opcoesDeFiltro em js/calc.js) - cada nivel aparece no filtro assim que e
   // cadastrado, mesmo sem nenhum registro operacional (Mapa de Risco/
   // Avaliacao) lancado ainda. Bug critico relatado pelo Leo 02/10/2026.
+  // V 1.28: o filtro mostra so as empresas vinculadas ao usuario (Usuarios › Empresas vinculadas).
+  // Administrador sem nenhuma empresa marcada continua vendo todas.
+  function empresasDoFiltro() {
+    const i = window.BI.DB && window.BI.DB.estado.identidade;
+    const v = i && Array.isArray(i.empresasVinculadas) ? i.empresasVinculadas.filter(Boolean) : [];
+    return v.length ? new Set(v) : null;
+  }
   function dadosCadastroPorNivelFiltro() {
+    const ids = empresasDoFiltro();
+    const so = (lista, ehCliente) => (!ids ? lista : (lista || []).filter((l) => ids.has(ehCliente ? (l.id || l._id || l.EmpresaId) : l.EmpresaId)));
     return {
-      Cliente: window.BI.dados.cliente,
-      Unidade: window.BI.dados.unidade,
-      Setor: window.BI.dados.setor,
-      "Posto Trabalho": window.BI.dados.posto,
-      Cargo: window.BI.dados.cargo,
-      Atividade: window.BI.dados.atividade,
+      Cliente: so(window.BI.dados.cliente, true),
+      Unidade: so(window.BI.dados.unidade),
+      Setor: so(window.BI.dados.setor),
+      "Posto Trabalho": so(window.BI.dados.posto),
+      Cargo: so(window.BI.dados.cargo),
+      Atividade: so(window.BI.dados.atividade),
     };
   }
 
@@ -772,6 +793,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         atualizarMultiSelect(div, window.BI.filtros, campo, anos);
       } else if (campo === "Mes") {
         atualizarMultiSelect(div, window.BI.filtros, campo, meses, (mm) => window.BI.Calc.rotuloMes(mm));
+      } else if (campo === "Origem") {
+        atualizarMultiSelect(div, window.BI.filtros, campo, window.BI.Calc.ORIGENS);
       } else {
         atualizarMultiSelect(div, window.BI.filtros, campo, opcoes[campo]);
       }
@@ -902,8 +925,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       tile.addEventListener("click", (ev) => {
         ev.stopPropagation();
         abrirDrillDown(
-          `Mapa de Risco Global - ${window.BI.Calc.rotuloNivel(n.nivel)}`,
-          `${n.qtd} posto(s) de trabalho`, "mapaRisco",
+          `Risco Global dos Postos - ${window.BI.Calc.rotuloNivel(n.nivel)}`,
+          `${n.qtd} posto(s) de trabalho`, "riscoPosto",
           mapaRiscoF.filter((l) => l["Risco Global"] === n.nivel), ev
         );
       });
@@ -932,7 +955,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function renderTopSetores(lista, mapaRiscoF) {
-    const mapaCores = window.BI.Calc.construirMapaCores(window.BI.dados.mapaRisco.map((l) => l.Setor));
+    const mapaCores = window.BI.Calc.construirMapaCores((window.BI.riscoPostos || []).map((l) => l.Setor));
     const labels = lista.map((s) => s.setor);
     const valores = lista.map((s) => Number(s.pct.toFixed(1)));
     criarOuAtualizarGrafico("chart-top-setores", {
@@ -953,7 +976,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         },
       }, (el) => {
         const setor = labels[el.index];
-        return { titulo: `Top Setores críticos - ${setor}`, subtitulo: "Postos deste setor", chave: "mapaRisco", linhas: mapaRiscoF.filter((l) => l.Setor === setor) };
+        return { titulo: `Top Setores críticos - ${setor}`, subtitulo: "Postos deste setor", chave: "riscoPosto", linhas: mapaRiscoF.filter((l) => l.Setor === setor) };
       }),
     });
   }
@@ -1075,12 +1098,38 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         const setor = labels[el.index];
         const nivel = window.BI.Calc.NIVEIS_RISCO[el.datasetIndex];
         return {
-          titulo: `${setor} - Risco ${window.BI.Calc.rotuloNivel(nivel)}`, subtitulo: "Postos de trabalho", chave: "mapaRisco",
+          titulo: `${setor} - Risco ${window.BI.Calc.rotuloNivel(nivel)}`, subtitulo: "Postos de trabalho", chave: "riscoPosto",
           linhas: mapaRiscoF.filter((l) => l.Setor === setor && l["Risco Global"] === nivel),
         };
       }),
     });
     renderizarLegenda("legenda-risco-por-setor", window.BI.Calc.NIVEIS_RISCO.map((n) => ({ label: window.BI.Calc.rotuloNivel(n), cor: window.BI.Calc.corStatus(n) })));
+  }
+
+  // V 1.31: evolucao mes a mes dos riscos (quantos em cada nivel, quantos reduzidos e eliminados).
+  function renderEvolucaoRiscos(serie) {
+    const C = window.BI.Calc;
+    const labels = serie.map((s) => C.formatarMesLabel(s.mes));
+    const corElim = "#3E7B7E"; const corRed = "#2F6F9F";
+    const datasets = C.NIVEIS_RISCO.map((nivel) => ({
+      type: "bar", label: C.rotuloNivel(nivel), data: serie.map((s) => s.porNivel[nivel] || 0),
+      backgroundColor: C.corStatus(nivel), borderColor: corSurfaceCard(), borderWidth: 2, maxBarThickness: 34, borderRadius: 3, borderSkipped: false, stack: "st", order: 2,
+    })).concat([
+      { type: "line", label: "Eliminados (acumulado)", data: serie.map((s) => s.eliminados), borderColor: corElim, backgroundColor: corElim, borderWidth: 2.5, tension: 0.25, pointRadius: 3, order: 1 },
+      { type: "line", label: "Reduzidos (abaixo do nível inicial)", data: serie.map((s) => s.reduzidos), borderColor: corRed, backgroundColor: corRed, borderDash: [6, 4], borderWidth: 2, tension: 0.25, pointRadius: 3, order: 1 },
+    ]);
+    criarOuAtualizarGrafico("chart-evolucao-riscos", {
+      type: "bar", data: { labels, datasets },
+      options: comCliqueDrillDown({
+        scales: { x: { stacked: true, grid: { display: false }, border: { display: false } }, y: { stacked: true, beginAtZero: true, grid: { color: corGrid() }, border: { display: false }, ticks: { precision: 0 } } },
+      }, (el) => {
+        const s = serie[el.index]; const ds = el.datasetIndex; const n = C.NIVEIS_RISCO.length;
+        const chaveL = ds < n ? C.NIVEIS_RISCO[ds] : ds === n ? "Eliminado" : "Reduzidos";
+        const rot = ds < n ? "Risco " + C.rotuloNivel(chaveL) : ds === n ? "Riscos eliminados" : "Riscos reduzidos";
+        return { titulo: `${rot} - ${C.formatarMesLabel(s.mes)}`, subtitulo: "Fatores de risco no fim do mês", chave: "fatorRisco", linhas: (s.linhas[chaveL] || []) };
+      }),
+    });
+    renderizarLegenda("legenda-evolucao-riscos", C.NIVEIS_RISCO.map((n) => ({ label: C.rotuloNivel(n), cor: C.corStatus(n) })).concat([{ label: "Eliminados (acumulado)", cor: corElim, tipo: "linha" }, { label: "Reduzidos", cor: corRed, tipo: "linha" }]));
   }
 
   // ------------------------------------------------------------------
@@ -1222,7 +1271,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     cont.innerHTML = "";
     const itens = [
       { rotulo: "Avaliações registradas", valor: cob.total, sub: "Total de registros" },
-      { rotulo: "Postos cobertos", valor: cob.postosCobertos, sub: `de ${cob.universoPostos} no Mapa de Risco` },
+      { rotulo: "Postos cobertos", valor: cob.postosCobertos, sub: `de ${cob.universoPostos} postos/cargos cadastrados` },
       { rotulo: "Cobertura", valor: cob.pct.toFixed(1) + "%", sub: "dos postos avaliados" },
     ];
     itens.forEach((it) => {
@@ -1420,16 +1469,16 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const meta = window.BI.dados._meta;
     window.BI.Diagramas.renderizar(
       "diagrama-medocup-frente", "frente",
-      window.BI.Calc.somaDiasPorRegiao(absenteismoF, meta.regioes_frente),
-      { formatarValor: (v) => `${v} dia${v === 1 ? "" : "s"}`, titulo: "Dias perdidos por região - vista frontal" }
+      window.BI.Calc.somaDiasPorRegiao(absenteismoF, meta.regioes_frente, true),
+      { semLado: true, extras: window.BI.Calc.SEGMENTOS_GERAIS, formatarValor: (v) => `${v} dia${v === 1 ? "" : "s"}`, titulo: "Dias perdidos por segmento - vista frontal" }
     );
     window.BI.Diagramas.renderizar(
       "diagrama-medocup-costas", "costas",
-      window.BI.Calc.somaDiasPorRegiao(absenteismoF, meta.regioes_tras),
-      { formatarValor: (v) => `${v} dia${v === 1 ? "" : "s"}`, titulo: "Dias perdidos por região - vista posterior" }
+      window.BI.Calc.somaDiasPorRegiao(absenteismoF, meta.regioes_tras, true),
+      { semLado: true, formatarValor: (v) => `${v} dia${v === 1 ? "" : "s"}`, titulo: "Dias perdidos por segmento - vista posterior" }
     );
-    ligarCliqueDiagrama("diagrama-medocup-frente", absenteismoF, "Regiao Corporal", "absenteismo");
-    ligarCliqueDiagrama("diagrama-medocup-costas", absenteismoF, "Regiao Corporal", "absenteismo");
+    ligarCliqueDiagrama("diagrama-medocup-frente", absenteismoF, "Regiao Corporal", "absenteismo", true);
+    ligarCliqueDiagrama("diagrama-medocup-costas", absenteismoF, "Regiao Corporal", "absenteismo", true);
   }
 
   // ------------------------------------------------------------------
@@ -1628,7 +1677,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     window.BI.Diagramas.renderizar(
       "diagrama-compat-frente", "frente",
       window.BI.Calc.contagemPorRegiao(compativeisF, meta.regioes_frente),
-      { formatarValor: (v) => `${v} restr.`, titulo: "Restrições por região - vista frontal" }
+      { extras: window.BI.Calc.SEGMENTOS_GERAIS, formatarValor: (v) => `${v} restr.`, titulo: "Restrições por região - vista frontal" }
     );
     window.BI.Diagramas.renderizar(
       "diagrama-compat-costas", "costas",
@@ -1807,6 +1856,14 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // selects em cascata (tipo "cascata"), validados contra as 6 tabelas do
   // cadastro-mestre (aba Cadastro) - nunca texto livre. Ver
   // ligarCascataHierarquia() mais abaixo.
+  // V 1.28: a AEP (avaliacao, inventario e laudo) nao usa mais Atividade - so ate o Cargo.
+  function camposChaveAEP() {
+    return camposChave().filter((c) => c.campo !== "Atividade");
+  }
+  // V 1.28: Atividade opcional no Plano de Acao (as acoes que nascem da AEP nao tem atividade).
+  function camposChaveAtividadeOpcional() {
+    return camposChave().map((c) => (c.campo === "Atividade" ? Object.assign({}, c, { obrigatorio: false }) : c));
+  }
   function camposChave() {
     return [
       { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
@@ -1952,7 +2009,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function camposAvaliacaoErgonomica() {
-    return comSecao(camposChave().concat([
+    return comSecao(camposChaveAEP().concat([
       { campo: "Data Avaliacao", rotulo: "Data da avaliação", tipo: "data", obrigatorio: true, padraoHoje: true },
     ]), "🧭 Identificação do Posto").concat(
       comSecao([
@@ -1976,7 +2033,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
   function camposFatorRisco() {
     const Calc = window.BI.Calc;
-    return comSecao(camposChave(), "🧭 Identificação do Posto").concat(
+    return comSecao(camposChaveAEP(), "🧭 Identificação do Posto").concat(
       comSecao([
         // Grupo/Fator vem de uma checklist fixa (ISO TS-20646, mesma
         // referencia do sistema de gestao atual da ElevaLife) - nunca mais
@@ -1995,7 +2052,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // sao montados em runtime por ligarCascataFatorRisco, de acordo com
       // a matriz da empresa escolhida acima em "Identificação do Posto".
       comSecao([
-        { campo: "Criticidade", rotulo: "Criticidade (Gravidade)", tipo: "select", obrigatorio: true, opcoes: [] },
+        { campo: "Criticidade", rotulo: "Severidade (Criticidade)", tipo: "select", obrigatorio: true, opcoes: [] },
         { campo: "Probabilidade", rotulo: "Probabilidade", tipo: "select", obrigatorio: true, opcoes: [] },
         { campo: "Pontuacao Risco", rotulo: "Pontuação de Risco (calculada)", tipo: "calculado" },
         { campo: "Graduacao Risco", rotulo: "Graduação do Risco (calculada)", tipo: "calculado" },
@@ -2025,14 +2082,35 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // V 1.4: formulario enxuto. Campos que o sistema preenche sozinho (Texto, Emitido Por,
   // impressao digital e registros profissionais) continuam gravados no registro, mas ficam
   // ocultos (ver ligarGeracaoLaudo). O botao "Gerar Laudo" fica no rodape do formulario.
+  const ABRANGENCIAS_LAUDO = ["Empresa toda", "Unidade", "Setor", "Cargo", "Posto de trabalho"];
+  // Campos do recorte visiveis (e obrigatorios) em cada abrangencia.
+  const CAMPOS_ABRANGENCIA = {
+    "Empresa toda": { visiveis: [], obrigatorios: [] },
+    "Unidade": { visiveis: ["Unidade"], obrigatorios: ["Unidade"] },
+    "Setor": { visiveis: ["Unidade", "Setor"], obrigatorios: ["Setor"] },
+    "Cargo": { visiveis: ["Unidade", "Setor", "Cargo"], obrigatorios: ["Cargo"] },
+    "Posto de trabalho": { visiveis: ["Unidade", "Setor", "Posto Trabalho"], obrigatorios: ["Posto Trabalho"] },
+  };
+  function descreverAbrangencia(l) {
+    const ab = l.Abrangencia || (l["Posto Trabalho"] ? "Posto de trabalho" : (l.Setor ? "Setor" : "Empresa toda"));
+    if (l["Abrangencia Descricao"]) return l["Abrangencia Descricao"];
+    const partes = ["Unidade", "Setor", "Posto Trabalho", "Cargo"].map((c) => l[c]).filter(Boolean);
+    return ab === "Empresa toda" || !partes.length ? "Empresa toda" : `${ab}: ${partes.join(" › ")}`;
+  }
+
   function camposLaudo() {
     return comSecao([
       { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
       { campo: "Tipo", rotulo: "Tipo", tipo: "select", obrigatorio: true, opcoes: TIPOS_LAUDO_POOL },
-      // Setor/Posto sao OPCIONAIS (fora de camposChave): so restringem os Postos que entram
-      // no laudo gerado. Em branco, o laudo cobre todos os Postos com Avaliacao Ergonomica.
-      { campo: "Setor", rotulo: "Setor (opcional)", tipo: "cascata" },
-      { campo: "Posto Trabalho", rotulo: "Posto de Trabalho (opcional)", tipo: "cascata" },
+      // V 1.28: abrangencia do laudo - empresa toda, ou um recorte por
+      // unidade / setor / cargo / posto. Os campos do recorte aparecem
+      // conforme a abrangencia escolhida (ver ligarGeracaoLaudo).
+      { campo: "Abrangencia", rotulo: "Abrangência do laudo", tipo: "select", obrigatorio: true, opcoes: ABRANGENCIAS_LAUDO },
+      { campo: "Unidade", rotulo: "Unidade", tipo: "cascata" },
+      { campo: "Setor", rotulo: "Setor", tipo: "cascata" },
+      { campo: "Posto Trabalho", rotulo: "Posto de Trabalho", tipo: "cascata" },
+      { campo: "Cargo", rotulo: "Cargo", tipo: "cascata" },
+      { campo: "Abrangencia Descricao", rotulo: "Recorte", tipo: "texto" },
     ], "🏢 Identificação").concat(
       comSecao([
         { campo: "Responsavel Tecnico", rotulo: "Responsável técnico", tipo: "select", opcoes: () => (window.BI.dados.ergonomista || []).map((e) => e.Nome) },
@@ -2098,25 +2176,35 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   function camposModeloLaudo() {
     const T = window.BI.LaudoTextos;
     return [{ campo: "Nome", rotulo: "Nome do Modelo", tipo: "texto", obrigatorio: true }].concat(
-      (T ? T.CAMPOS_EDITAVEIS : []).map(([campo, rotulo]) => ({ campo, rotulo: rotulo + " (vazio = texto padrão ElevaLife)", tipo: "textarea" }))
+      (T ? T.CAMPOS_EDITAVEIS : []).map(([campo, rotulo]) => ({ campo, rotulo, tipo: "textarea" }))
     );
   }
 
-  // Botao do Editor de Texto: preenche com o texto padrao os campos ainda vazios,
-  // para a area tecnica partir do texto ElevaLife e editar so o que precisar.
-  function ligarTextoPadraoModelo(form) {
+  // V 1.32: o Editor de Texto mostra sempre exatamente o texto que sai no laudo (o salvo ou, se vazio, o
+  // padrao ElevaLife atual), com a marca "alterado" e o botao "Restaurar padrão" em cada campo. Ao salvar,
+  // o campo igual ao padrao e gravado vazio, para acompanhar as atualizacoes do texto padrao.
+  function ligarTextoPadraoModelo(form, ini) {
     const T = window.BI.LaudoTextos;
     if (!T) return;
-    const corpo = form.querySelector(".form-cadastro-corpo") || form;
-    const wrap = document.createElement("div");
-    wrap.className = "campo-form campo-form-largo";
-    const btn = document.createElement("button");
-    btn.type = "button"; btn.className = "btn-cad-secundario"; btn.textContent = "📝 Preencher campos vazios com o texto padrão ElevaLife";
-    btn.addEventListener("click", () => {
-      T.CAMPOS_EDITAVEIS.forEach(([campo]) => { const el = form._campos[campo]; if (el && !el.value) el.value = T.PADRAO[campo] || ""; });
+    ini = ini || {};
+    T.CAMPOS_EDITAVEIS.forEach(([campo]) => {
+      const el = form._campos[campo]; if (!el) return;
+      el.value = T.textoEfetivo(ini, campo);
+      el.rows = Math.min(18, Math.max(3, Math.ceil(el.value.length / 110) + el.value.split("\n").length));
+      const rot = el.closest(".campo-form") && el.closest(".campo-form").querySelector("label");
+      const tag = document.createElement("span"); tag.className = "editor-texto-alterado"; tag.textContent = "alterado";
+      const bt = document.createElement("button"); bt.type = "button"; bt.className = "btn-cad-secundario editor-texto-restaurar"; bt.textContent = "Restaurar padrão";
+      const pintar = () => { const alterado = el.value.trim() !== String(T.PADRAO[campo] || "").trim(); tag.hidden = !alterado; bt.hidden = !alterado || el.disabled || el.readOnly; };
+      bt.addEventListener("click", () => { el.value = T.PADRAO[campo] || ""; pintar(); });
+      el.addEventListener("input", pintar);
+      if (rot) { rot.appendChild(tag); rot.appendChild(bt); }
+      pintar();
     });
-    wrap.appendChild(btn);
-    corpo.insertBefore(wrap, corpo.firstChild);
+  }
+  function prepararTextoModelo(form, dados) {
+    const T = window.BI.LaudoTextos;
+    if (!T) return;
+    T.CAMPOS_EDITAVEIS.forEach(([campo]) => { if (String(dados[campo] || "").trim() === String(T.PADRAO[campo] || "").trim()) dados[campo] = ""; });
   }
 
   // V 1.3: cadastro GLOBAL de ergonomistas (responsavel tecnico e executor do laudo).
@@ -2125,6 +2213,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       { campo: "Nome", rotulo: "Nome completo", tipo: "texto", obrigatorio: true },
       { campo: "Titulo", rotulo: "Formação e certificações (ex.: Fisioterapeuta · Ergonomista certificado ABERGO)", tipo: "texto" },
       { campo: "Registro", rotulo: "Registro profissional (ex.: CREFITO-3 000000-F)", tipo: "texto" },
+      // V 1.28: e-mail de acesso ao SIGE - liga o usuario ao ergonomista (nome nas AEPs: quem cadastrou/atualizou)
+      { campo: "Email", rotulo: "E-mail de acesso ao SIGE (para mostrar o nome em quem cadastrou/atualizou a AEP)", tipo: "texto", inputType: "email" },
       {
         campo: "Assinatura", rotulo: "Imagem da assinatura (PNG com fundo transparente ou JPG, até 2MB)", tipo: "arquivo", multiplo: false,
         colecaoArquivo: "ergonomista", aceitaTipos: "image/jpeg,image/png", tamanhoMaximoBytes: 2 * 1024 * 1024,
@@ -2282,13 +2372,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // ver --risco-* em css/style.css) - o Laudo tinha uma paleta de risco
     // PROPRIA e diferente da do dashboard; agora e a mesma em qualquer lugar
     // que o usuario ve uma Graduacao de Risco.
-    function corDoNivel(nivel) {
-      const n = String(nivel || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-      if (n.includes("muito alto") || n.includes("altissimo")) return [124, 58, 237];
-      if (n.includes("alto")) return [217, 54, 54];
-      if (n.includes("moder") || n.includes("medio") || n.includes("toler")) return [201, 150, 12];
-      return [26, 156, 75]; // baixo / muito baixo
-    }
+    // V 1.30: cores padrao ElevaLife (as mesmas do laudo e da tela).
+    function corDoNivel(nivel) { return window.BI.LaudoPadrao ? window.BI.LaudoPadrao.corNivel(nivel) : [138, 122, 120]; }
     function rotuloSimNao(v) { return v === "Nao" ? "Não" : v === "Sim" ? "Sim" : v || "-"; }
 
     // Baixa (uma unica vez, antes das 2 passadas de construirDocumento) o
@@ -2568,9 +2653,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         registrar("matrizes");
         tituloSecao("4. Matriz de Severidade, Probabilidade e Risco");
         paragrafo(`Matriz de Risco em uso para ${opcoes.nomeCliente}: ${nomeMatriz} (conforme NR-01 - Gerenciamento de Riscos Ocupacionais).`, { espacoDepois: 10 });
-        subtitulo("Matriz de Risco (Probabilidade × Gravidade)");
+        subtitulo("Matriz de Risco (Probabilidade × Severidade)");
         const larguraColMatriz = larguraUtil / (escala.length + 1);
-        const cabecalhoMatriz = ["Prob. \\ Gravidade"].concat(escala);
+        const cabecalhoMatriz = ["Prob. \\ Severidade"].concat(escala);
         const linhasMatriz = escala.map((probabilidade) => {
           const linha = [probabilidade];
           escala.forEach((gravidade) => {
@@ -2691,8 +2776,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           if (fr["Medida Controle Existente"]) campoValor("Medida de Controle Existente", fr["Medida Controle Existente"]);
           const pontos = fr["Pontuacao Risco"] != null ? fr["Pontuacao Risco"] : Calc.pontuacaoDaMatriz(nomeMatriz, fr.Probabilidade, fr.Criticidade);
           const graduacao = fr["Graduacao Risco"] || Calc.nivelDaMatriz(nomeMatriz, fr.Probabilidade, fr.Criticidade);
-          campoValor("Criticidade (Gravidade)", fr.Criticidade);
-          campoValor("Probabilidade", fr.Probabilidade);
+          campoValor("Severidade", fr.Criticidade ? Calc.rotuloEscala(nomeMatriz, fr.Criticidade, "severidade") : "");
+          campoValor("Probabilidade", fr.Probabilidade ? Calc.rotuloEscala(nomeMatriz, fr.Probabilidade) : "");
           campoValor("Pontuação de Risco", pontos != null ? String(pontos) : "-");
           if (graduacao) badge(graduacao, corDoNivel(graduacao));
           // V 1.2: acoes do fator (Plano de Acao) e risco residual calculado.
@@ -2791,13 +2876,51 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   function ligarGeracaoLaudo(form, valoresIniciais) {
     const novoRegistro = !(valoresIniciais && valoresIniciais._id);
     // V 1.4: campos que o gerador preenche sozinho ficam ocultos (continuam no registro).
-    ["Texto", "Emitido Por", "Hash Documento", "Registro Responsavel", "Registro Executor"].forEach((nome) => {
+    ["Texto", "Emitido Por", "Hash Documento", "Registro Responsavel", "Registro Executor", "Abrangencia Descricao"].forEach((nome) => {
       const el = form._campos[nome];
       const caixa = el && el.closest ? el.closest(".campo-form") : null;
       if (caixa) caixa.hidden = true;
     });
-    if (novoRegistro && form._campos["Revisao"] && !form._campos["Revisao"].value) form._campos["Revisao"].value = "00";
+    // V 1.31: revisao sugerida = quantos laudos da AEP o cliente ja tem (00, 01, 02...)
+    const sugerirRevisao = () => {
+      const cli = form._campos["Cliente"] ? form._campos["Cliente"].value : "";
+      const n = (window.BI.dados.laudo || []).filter((l) => l.Cliente === cli && !/psicoss/i.test(String(l.Tipo || "") + String(l.Origem || ""))).length;
+      if (form._campos["Revisao"]) form._campos["Revisao"].value = String(n).padStart(2, "0");
+    };
+    if (novoRegistro && form._campos["Revisao"] && !form._campos["Revisao"].value) sugerirRevisao();
+    if (novoRegistro && form._campos["Cliente"]) form._campos["Cliente"].addEventListener("change", sugerirRevisao);
     if (novoRegistro && form._campos["Tipo"] && !form._campos["Tipo"].value) form._campos["Tipo"].value = "Laudo";
+    // V 1.28: o laudo responde ao filtro geral - com um unico Cliente filtrado,
+    // o formulario ja abre nele.
+    const elCli = form._campos["Cliente"];
+    const filtroCli = (window.BI.filtros && window.BI.filtros.Cliente) || [];
+    if (novoRegistro && elCli && !elCli.value && filtroCli.length === 1) {
+      if (!Array.from(elCli.options).some((o) => o.value === filtroCli[0])) {
+        const opt = document.createElement("option"); opt.value = opt.textContent = filtroCli[0]; elCli.appendChild(opt);
+      }
+      elCli.value = filtroCli[0];
+      elCli.dispatchEvent(new Event("change"));
+    }
+    // Abrangencia: mostra so os campos do recorte escolhido.
+    const selAbr = form._campos["Abrangencia"];
+    if (selAbr && !selAbr.value) {
+      const vi = valoresIniciais || {};
+      selAbr.value = vi["Posto Trabalho"] ? "Posto de trabalho" : (vi.Setor ? "Setor" : "Empresa toda");
+    }
+    const CAMPOS_RECORTE = ["Unidade", "Setor", "Posto Trabalho", "Cargo"];
+    function atualizarAbrangencia() {
+      const regra = CAMPOS_ABRANGENCIA[selAbr ? selAbr.value : ""] || CAMPOS_ABRANGENCIA["Empresa toda"];
+      CAMPOS_RECORTE.forEach((c) => {
+        const el = form._campos[c];
+        if (!el) return;
+        const caixa = el.closest ? el.closest(".campo-form") : null;
+        const visivel = regra.visiveis.includes(c);
+        if (caixa) caixa.hidden = !visivel;
+        el.required = regra.obrigatorios.includes(c);
+        if (!visivel && el.value) { el.value = ""; el.dispatchEvent(new Event("change")); }
+      });
+    }
+    if (selAbr) { selAbr.addEventListener("change", atualizarAbrangencia); atualizarAbrangencia(); }
     // Certificado de calibracao so aparece quando "Incluir" = Sim.
     const selIncluir = form._campos["Incluir Certificado Calibracao"];
     const caixaCert = form._campos["Certificado Calibracao"] && form._campos["Certificado Calibracao"].closest(".campo-form");
@@ -2832,7 +2955,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         return;
       }
       if (form._campos["Responsavel Tecnico"] && !form._campos["Responsavel Tecnico"].value) {
-        mostrarAviso("Selecione o Responsável técnico. Se a lista estiver vazia, cadastre o ergonomista em Cadastro › Ergonomistas.", true);
+        mostrarAviso("Selecione o Responsável técnico. Se a lista estiver vazia, cadastre o ergonomista em Cadastro Interno › Ergonomistas.", true);
         return;
       }
       if (!form.checkValidity()) { form.reportValidity(); return; }
@@ -2841,7 +2964,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         empresaId,
         nomeCliente,
         tipo: form._campos["Tipo"] ? form._campos["Tipo"].value : "Laudo",
+        unidade: form._campos["Unidade"] ? form._campos["Unidade"].value : "",
         setor: form._campos["Setor"] ? form._campos["Setor"].value : "",
+        cargo: form._campos["Cargo"] ? form._campos["Cargo"].value : "",
         postoTrabalho: form._campos["Posto Trabalho"] ? form._campos["Posto Trabalho"].value : "",
         apenasPaginasAvaliacao: form._campos["Apenas Paginas Avaliacao"] ? form._campos["Apenas Paginas Avaliacao"].value : "",
         incluirCertificado: form._campos["Incluir Certificado Calibracao"] ? form._campos["Incluir Certificado Calibracao"].value === "Sim" : false,
@@ -2853,6 +2978,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         revisao: (form._campos["Revisao"] && form._campos["Revisao"].value) || "00",
         codigo: (form._campos["Codigo Verificacao"] && form._campos["Codigo Verificacao"].dataset.valorReal) || "",
       };
+      const vAbr = {};
+      ["Abrangencia", "Unidade", "Setor", "Posto Trabalho", "Cargo"].forEach((c) => { vAbr[c] = form._campos[c] ? form._campos[c].value : ""; });
+      opcoes.abrangenciaDescricao = descreverAbrangencia(vAbr);
+      if (form._campos["Abrangencia Descricao"]) form._campos["Abrangencia Descricao"].value = opcoes.abrangenciaDescricao;
       if (!opcoes.codigo && window.BI.Laudo) {
         opcoes.codigo = window.BI.Laudo.novoCodigo((window.BI.dados.laudo || []).map((l) => l["Codigo Verificacao"]), "AEP");
       }
@@ -2862,6 +2991,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       mostrarAviso("Gerando laudo...");
       try {
         const bufferPDF = await gerarLaudoPDF(opcoes);
+        form._acoesLaudo = { ids: (opcoes.saida && opcoes.saida.acoes) || [], revisao: (form._campos["Revisao"] && form._campos["Revisao"].value) || "00" };
         // V 1.9: todo laudo sai em PDF e em Word (.docx editavel), do mesmo
         // conteudo (Editor de Texto). Se o Word falhar, nada e registrado.
         if (!window.BI.Laudo || !window.BI.Laudo.gerarDocx) throw new Error("O gerador de Word não carregou. Atualize a página (Ctrl+F5) e tente de novo.");
@@ -3191,13 +3321,14 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
   function ligarPlanoAcao(form, valoresIniciaisPlano) {
     const Calc = window.BI.Calc;
+    // V 1.29: risco do posto = maior graduacao dos fatores do Inventario (ver Calc.riscoDosPostos).
     function atualizarRiscoDoPosto() {
-      const chaveObj = {};
-      Calc.DIMENSOES.forEach((c) => { chaveObj[c] = form._campos[c].value; });
-      if (Calc.DIMENSOES.every((c) => chaveObj[c])) {
-        const achado = Calc.buscarPorChave(window.BI.dados.mapaRisco, chaveObj);
-        if (achado) form._campos["Risco Global"].value = achado["Risco Global"];
-      }
+      const v = (c) => (form._campos[c] ? form._campos[c].value : "");
+      if (!v("Cliente") || !v("Setor")) return;
+      const origem = Calc.origemDe(valoresIniciaisPlano || {});
+      const achado = (window.BI.riscoPostos || Calc.riscoDosPostos(window.BI.dados.fatorRisco || [], window.BI.dados.avaliacaoErgonomica || []))
+        .find((p) => p.Origem === origem && ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].every((c) => (p[c] || "") === v(c)));
+      if (achado && form._campos["Risco Global"]) form._campos["Risco Global"].value = achado["Risco Global"];
     }
     Calc.DIMENSOES.forEach((c) => form._campos[c].addEventListener("blur", atualizarRiscoDoPosto));
     atualizarRiscoDoPosto();
@@ -3224,6 +3355,34 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       if (cat) form._campos["Categoria Acao"].value = cat;
     });
     ligarPlanoAcaoV12(form, valoresIniciaisPlano);
+    travarCamposDaOrigem(form, valoresIniciaisPlano);
+  }
+
+  // V 1.29: a acao nasce na AEP (Inventario) ou no Psicossocial (AET quando existir); no Plano de
+  // Acao so se completa responsavel, e-mail, prazo, situacao, conclusao e evidencia. Os dados da
+  // propria acao ficam somente leitura aqui (mudam na origem).
+  const CAMPOS_DA_ORIGEM = ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Nr Acao", "Acao Recomendada", "Categoria Acao",
+    "Gestao Acao", "Tipo Acao", "Complexidade", "Segmento Corporal", "Risco Atual Segmento", "Reduz Risco", "Risco Apos Acao", "Risco Global"];
+  function travarCamposDaOrigem(form, ini) {
+    ini = ini || {};
+    if (!ini._id) return;
+    const recebida = !!ini["Fator Risco Id"] || /psicoss|aet/i.test(String(ini.Origem || ""));
+    if (!recebida) return;
+    const origem = window.BI.Calc.origemDe(ini);
+    CAMPOS_DA_ORIGEM.forEach((n) => {
+      const el = form._campos[n];
+      const caixa = el && el.closest ? el.closest(".campo-form") : null;
+      if (!caixa) return;
+      caixa.classList.add("campo-da-origem");
+      el.tabIndex = -1;
+      if ("readOnly" in el && el.tagName === "INPUT") el.readOnly = true;
+    });
+    const aviso = document.createElement("div");
+    aviso.className = "aviso-origem-acao";
+    aviso.textContent = `Ação recebida ${origem === "Psicossocial" ? "dos Riscos Psicossociais" : origem === "AET" ? "da AET" : "da AEP (Inventário de Riscos)"}. ` +
+      "A descrição, o segmento e a redução do risco são definidos na origem; aqui você define responsável, e-mail, prazo, conclusão e evidência. " +
+      "Com prazo, a ação passa a Em andamento; vencido, aparece como Atrasada; e o responsável recebe o e-mail automaticamente.";
+    form.insertBefore(aviso, form.firstChild.nextSibling);
   }
 
   // V 1.2 - Plano de Acao: ligacao com o Inventario, "reduz o risco para",
@@ -3253,7 +3412,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // "Reduz o risco para" so oferece niveis abaixo do atual do segmento.
     function atualizarAlvo() {
       const alvo = C["Risco Apos Acao"]; if (!alvo) return;
-      const permitidos = window.BI.Acoes ? window.BI.Acoes.niveisAbaixo(C["Risco Atual Segmento"].value) : [];
+      // V 1.32: niveis da matriz do fator (cliente); "Eliminado" sempre permitido
+      const fv = ini["Fator Risco Id"] ? (window.BI.dados.fatorRisco || []).find((f) => f._id === ini["Fator Risco Id"]) : null;
+      const mz = (fv && fv.Matriz) || Calc.matrizDoCliente(window.BI.dados.cliente, ini.Cliente || (C.Cliente && C.Cliente.value));
+      const permitidos = (window.BI.Acoes ? window.BI.Acoes.niveisAbaixo(C["Risco Atual Segmento"].value, mz) : []).concat([window.BI.Acoes ? window.BI.Acoes.ELIMINADO : "Eliminado"]);
       const atual = alvo.value;
       Array.from(alvo.options).forEach((o) => { o.hidden = !!o.value && !permitidos.includes(o.value); o.disabled = o.hidden; });
       if (atual && !permitidos.includes(atual)) alvo.value = "";
@@ -3430,6 +3592,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         const el = form._campos["Graduacao Risco"];
         return (el && el.dataset && el.dataset.valorReal) || "";
       },
+      matriz: () => { const el = form._campos["Matriz"]; return (el && el.dataset && el.dataset.valorReal) || ""; },
       nomeFator: () => lerCampo("Fator"),
       legado: { eliminacao: iniciais && iniciais["Acao Eliminacao"], organizacional: iniciais && iniciais["Controles Administrativos"] },
       aoAbrirNoPlano: (acao) => {
@@ -3488,7 +3651,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const nomeMatriz = nomeMatrizAtual();
       const escala = Calc.escalaDaMatriz(nomeMatriz);
       const rotuloEsc = (v) => Calc.rotuloEscala(nomeMatriz, v);
-      repopularSelectCascata(form._campos["Criticidade"], escala, valorDesejadoCriticidade, rotuloEsc);
+      repopularSelectCascata(form._campos["Criticidade"], escala, valorDesejadoCriticidade, (v) => Calc.rotuloEscala(nomeMatriz, v, "severidade"));
       repopularSelectCascata(form._campos["Probabilidade"], escala, valorDesejadoProbabilidade, rotuloEsc);
       const elMatriz = form._campos["Matriz"];
       elMatriz.textContent = nomeMatriz;
@@ -3614,12 +3777,102 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
   // Acha o registro de fatorRisco ja cadastrado (se algum) para esta
   // combinacao exata de posto (chave completa da Avaliacao) + Grupo/Fator.
+  // V 1.28: a AEP e por posto e cargo (sem atividade) - um fator pertence a AEP do mesmo Cliente/Unidade/Setor/Posto/Cargo.
+  function mesmoPostoAEP(f, av) {
+    return f.Cliente === av.Cliente && f.Unidade === av.Unidade && f.Setor === av.Setor &&
+      f.Cargo === av.Cargo && f["Posto Trabalho"] === av["Posto Trabalho"];
+  }
   function fatorRiscoExistente(linhaAval, grupo, fator) {
-    return (window.BI.dados.fatorRisco || []).find((f) =>
-      f.Cliente === linhaAval.Cliente && f.Unidade === linhaAval.Unidade && f.Setor === linhaAval.Setor &&
-      f.Cargo === linhaAval.Cargo && f["Posto Trabalho"] === linhaAval["Posto Trabalho"] && f.Atividade === linhaAval.Atividade &&
-      f.Grupo === grupo && f.Fator === fator
-    );
+    return (window.BI.dados.fatorRisco || []).find((f) => mesmoPostoAEP(f, linhaAval) && f.Grupo === grupo && f.Fator === fator);
+  }
+  // V 1.28: registra na AEP que ela foi atualizada (o servidor grava quem e quando - _editadoEm/_editadoPor
+  // - e o historico); a data da ultima atualizacao e a que sai no laudo.
+  // ------------------------------------------------------------------
+  // V 1.31 - Reavaliacao do risco ao concluir uma acao (AEP e AET). Abre uma janela com o fator, o risco
+  // atual e a expectativa da acao; o ergonomista informa a nova probabilidade e severidade (a graduacao vem
+  // da matriz do cliente) ou marca "risco eliminado". Devolve { data, probabilidade, severidade, graduacao,
+  // pontuacao, eliminado } ou null (cancelou).
+  // ------------------------------------------------------------------
+  function abrirReavaliacaoRisco(acao, fator, data) {
+    const Calc = window.BI.Calc;
+    const nomeMatriz = fator.Matriz || Calc.matrizDoCliente(window.BI.dados.cliente, fator.Cliente);
+    const escala = Calc.escalaDaMatriz(nomeMatriz);
+    return new Promise((resolver) => {
+      const fundo = document.createElement("div"); fundo.className = "reav-fundo";
+      const caixa = document.createElement("div"); caixa.className = "reav-caixa"; caixa.setAttribute("role", "dialog"); caixa.setAttribute("aria-label", "Reavaliação do risco");
+      const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+      caixa.appendChild(h("div", "reav-titulo", "Reavaliação do risco"));
+      const alvo = acao["Risco Apos Acao"] === window.BI.Acoes.ELIMINADO ? "eliminar o risco" : acao["Risco Apos Acao"] ? "reduzir o risco para " + Calc.rotuloNivel(acao["Risco Apos Acao"]) : "reduzir o risco";
+      caixa.appendChild(h("p", "reav-texto", `A ação ${acao["Nr Acao"] != null ? "A-" + String(acao["Nr Acao"]).padStart(2, "0") + " " : ""}“${acao["Acao Recomendada"] || ""}” foi proposta para ${alvo}. Ao concluí-la, informe como ficou o risco do fator no posto.`));
+      const info = h("div", "reav-info");
+      [["Fator", fator.Fator], ["Posto", `${fator.Setor || ""} › ${fator["Posto Trabalho"] || ""}${fator.Cargo ? " (" + fator.Cargo + ")" : ""}`], ["Segmento acometido", fator["Segmento Corporal"] || "-"],
+        ["Risco atual", `${fator["Graduacao Risco"] || "-"} (probabilidade ${Calc.rotuloEscala(nomeMatriz, fator.Probabilidade) || "-"} × severidade ${Calc.rotuloEscala(nomeMatriz, fator.Criticidade, "severidade") || "-"})`]]
+        .forEach(([r, v]) => { const l = h("div", "reav-linha"); l.appendChild(h("span", "reav-rot", r)); l.appendChild(h("span", null, v || "-")); info.appendChild(l); });
+      caixa.appendChild(info);
+      const grade = h("div", "reav-grade");
+      const sel = (rot, eixo) => { const d = h("label", "reav-campo"); d.appendChild(h("span", null, rot)); const s = document.createElement("select"); const o0 = document.createElement("option"); o0.value = ""; o0.textContent = "-"; s.appendChild(o0); escala.forEach((v) => { const o = document.createElement("option"); o.value = v; o.textContent = Calc.rotuloEscala(nomeMatriz, v, eixo); s.appendChild(o); }); d.appendChild(s); grade.appendChild(d); return s; };
+      const sP = sel("Nova probabilidade"); const sS = sel("Nova severidade", "severidade");
+      const dN = h("div", "reav-campo"); dN.appendChild(h("span", null, "Novo risco do fator")); const badge = h("span", "reav-badge", "-"); dN.appendChild(badge); grade.appendChild(dN);
+      caixa.appendChild(grade);
+      const lElim = h("label", "reav-elim"); const cElim = document.createElement("input"); cElim.type = "checkbox"; lElim.appendChild(cElim); lElim.appendChild(h("span", null, "Risco eliminado (o fator deixou de existir no posto)")); caixa.appendChild(lElim);
+      const erro = h("div", "reav-erro"); erro.hidden = true; caixa.appendChild(erro);
+      const pintar = () => {
+        sP.disabled = sS.disabled = cElim.checked;
+        const n = cElim.checked ? "" : (sP.value && sS.value ? Calc.nivelDaMatriz(nomeMatriz, sP.value, sS.value) : "");
+        const hx = n ? Calc.corRiscoHex(n) : null;
+        badge.textContent = cElim.checked ? "Eliminado" : (n || "-");
+        badge.style.background = hx ? "#" + hx : ""; badge.style.color = hx ? "#" + Calc.textoSobreHex(hx) : "";
+      };
+      [sP, sS, cElim].forEach((x) => x.addEventListener("change", pintar));
+      const barra = h("div", "reav-barra");
+      const bC = h("button", "btn-cad-secundario", "Cancelar"); bC.type = "button";
+      const bOk = h("button", "btn-cad-primario", "Confirmar e concluir a ação"); bOk.type = "button";
+      barra.appendChild(bC); barra.appendChild(bOk); caixa.appendChild(barra);
+      const fechar = (r) => { fundo.remove(); resolver(r); };
+      bC.addEventListener("click", () => fechar(null));
+      bOk.addEventListener("click", () => {
+        if (!cElim.checked && (!sP.value || !sS.value)) { erro.hidden = false; erro.textContent = "Informe a nova probabilidade e a nova severidade, ou marque “Risco eliminado”."; return; }
+        fechar(cElim.checked ? { data, eliminado: true } : { data, eliminado: false, probabilidade: sP.value, severidade: sS.value, graduacao: Calc.nivelDaMatriz(nomeMatriz, sP.value, sS.value), pontuacao: Calc.pontuacaoDaMatriz(nomeMatriz, sP.value, sS.value), matriz: nomeMatriz });
+      });
+      fundo.appendChild(caixa); document.body.appendChild(fundo);
+      pintar(); sP.focus();
+    });
+  }
+  // Grava a reavaliacao no fator (historico do risco) e registra a atualizacao da AEP do posto.
+  async function aplicarReavaliacaoRisco(acao, r) {
+    const fator = (window.BI.dados.fatorRisco || []).find((f) => f._id === acao["Fator Risco Id"]);
+    if (!fator || !r) return;
+    const nr = acao["Nr Acao"] != null ? "A-" + String(acao["Nr Acao"]).padStart(2, "0") : "ação";
+    const dados = semInternos(fator);
+    const anterior = fator["Risco Eliminado"] === "Sim" ? "Eliminado" : fator["Graduacao Risco"];
+    if (!dados["Graduacao Inicial"]) dados["Graduacao Inicial"] = window.BI.Calc.graduacaoInicial(fator) || anterior;
+    const evento = { data: r.data, de: anterior, para: r.eliminado ? "Eliminado" : r.graduacao, probabilidade: r.eliminado ? null : r.probabilidade, severidade: r.eliminado ? null : r.severidade, motivo: `Ação ${nr} concluída`, acaoId: acao._id || null, nrAcao: acao["Nr Acao"] != null ? acao["Nr Acao"] : null };
+    dados["Historico Risco"] = (fator["Historico Risco"] || []).concat([evento]);
+    if (r.eliminado) { dados["Risco Eliminado"] = "Sim"; dados["Eliminado Em"] = r.data; }
+    else { Object.assign(dados, { Probabilidade: r.probabilidade, Criticidade: r.severidade, "Graduacao Risco": r.graduacao, "Pontuacao Risco": r.pontuacao, "Risco Eliminado": null, "Eliminado Em": null }); }
+    await window.BI.DB.salvar("fatorRisco", fator._id, dados);
+    const aval = (window.BI.dados.avaliacaoErgonomica || []).find((a) => ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].every((c) => (a[c] || "") === (fator[c] || "")));
+    if (aval) await registrarAtualizacaoAEP(aval, `Risco reavaliado após a ação ${nr} (${fator.Fator}: ${r.eliminado ? "risco eliminado" : r.graduacao})`);
+  }
+
+  // V 1.31: marca as acoes com a revisao do laudo em que apareceram (so as que ainda nao tem revisao).
+  async function carimbarRevisaoAcoes(ids, revisao) {
+    const set = new Set(ids || []);
+    for (const a of (window.BI.dados.planoAcao || [])) {
+      if (!set.has(a._id) || (a["Revisao Laudo"] != null && a["Revisao Laudo"] !== "")) continue;
+      try { await window.BI.DB.salvar("planoAcao", a._id, Object.assign(semInternos(a), { "Revisao Laudo": revisao })); } catch (e) { console.error("revisao da acao", e); }
+    }
+  }
+  window.BI.carimbarRevisaoAcoes = carimbarRevisaoAcoes;
+
+  async function registrarAtualizacaoAEP(linhaAval, resumo) {
+    if (!linhaAval || !linhaAval._id || !window.BI.DB.estado.disponivel) return;
+    const atual = (window.BI.dados.avaliacaoErgonomica || []).find((a) => a._id === linhaAval._id) || linhaAval;
+    const dados = {};
+    Object.keys(atual).forEach((k) => { if (k[0] !== "_" && k !== "id") dados[k] = atual[k]; });
+    dados["Ultima Atualizacao"] = resumo || "Avaliação atualizada";
+    dados["Ultima Atualizacao Em"] = new Date().toISOString();
+    try { await window.BI.DB.salvar("avaliacaoErgonomica", linhaAval._id, dados); } catch (e) { console.error("AEP: falha ao registrar a atualização", e); }
   }
 
   function abrirInventarioChecklist(linhaAval) {
@@ -3630,7 +3883,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
     document.getElementById("checklist-titulo").textContent = "Inventário de Riscos - " + (linhaAval["Posto Trabalho"] || "");
     document.getElementById("checklist-sub").textContent =
-      [linhaAval.Cliente, linhaAval.Unidade, linhaAval.Setor, linhaAval.Cargo, linhaAval.Atividade].filter(Boolean).join(" › ");
+      [nrAvaliacaoTexto(linhaAval) !== "—" ? nrAvaliacaoTexto(linhaAval) : "", linhaAval.Cliente, linhaAval.Unidade, linhaAval.Setor, linhaAval.Cargo].filter(Boolean).join(" › ");
 
     const corpo = document.getElementById("checklist-corpo");
     corpo.innerHTML = "";
@@ -3650,6 +3903,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // pra decidir se cria/atualiza/marca "Nao" cada uma.
     const linhasChecklist = [];
 
+    // V 1.28: cada fator pode ser "repetido" (ex.: outro segmento corporal) - cada repeticao e um
+    // registro proprio do Inventario, com fonte, consequencia, medidas, classificacao e acoes.
+    // Todos os campos sao obrigatorios para salvar.
+    const fatoresPorChave = (grupo, fator) => (window.BI.dados.fatorRisco || []).filter((f) => mesmoPostoAEP(f, linhaAval) && f.Grupo === grupo && f.Fator === fator);
+
     Calc.GRUPOS_FATOR_RISCO.forEach((grupo) => {
       const tituloGrupo = document.createElement("div");
       tituloGrupo.className = "checklist-grupo-titulo";
@@ -3657,8 +3915,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       corpo.appendChild(tituloGrupo);
 
       Calc.fatoresDoGrupo(grupo).forEach((fator) => {
-        const registroExistente = fatorRiscoExistente(linhaAval, grupo, fator);
-        const marcadoInicialmente = !!registroExistente && registroExistente["Existe Fator Risco"] === "Sim";
+        const existentes = fatoresPorChave(grupo, fator);
+        const existentesSim = existentes.filter((r) => r["Existe Fator Risco"] === "Sim");
+        const marcadoInicialmente = existentesSim.length > 0;
 
         const linha = document.createElement("div");
         linha.className = "checklist-fator-linha";
@@ -3671,133 +3930,165 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         checkbox.disabled = !podeEditar;
         const textoFator = document.createElement("span");
         textoFator.textContent = fator;
+        const contador = document.createElement("span");
+        contador.className = "checklist-contador";
         cabecalhoLinha.appendChild(checkbox);
         cabecalhoLinha.appendChild(textoFator);
+        cabecalhoLinha.appendChild(contador);
         linha.appendChild(cabecalhoLinha);
 
         const detalhes = document.createElement("div");
-        detalhes.className = "checklist-fator-detalhes";
+        detalhes.className = "checklist-fator-detalhes checklist-fator-instancias";
         detalhes.hidden = !marcadoInicialmente;
+        const listaInst = document.createElement("div");
+        detalhes.appendChild(listaInst);
+        const btnRepetir = document.createElement("button");
+        btnRepetir.type = "button";
+        btnRepetir.className = "btn-cad-secundario checklist-repetir";
+        btnRepetir.textContent = "+ Repetir este fator (outro segmento)";
+        btnRepetir.disabled = !podeEditar;
+        detalhes.appendChild(btnRepetir);
+        linha.appendChild(detalhes);
+        corpo.appendChild(linha);
 
-        function campoDetalhe(rotulo) {
+        const instancias = [];
+        const ativasInst = () => instancias.filter((x) => !x.removida);
+        function atualizarContador() {
+          const n = checkbox.checked ? ativasInst().length : 0;
+          contador.textContent = n ? ` · ${n} cadastrado${n > 1 ? "s" : ""}` : "";
+          instancias.forEach((x) => {
+            if (x.removida) return;
+            const i = ativasInst().indexOf(x);
+            x.titulo.textContent = ativasInst().length > 1 ? `Cadastro ${i + 1} de ${ativasInst().length}` : "";
+            x.titulo.hidden = ativasInst().length <= 1;
+            x.btnRemover.hidden = ativasInst().length <= 1 || !podeEditar;
+          });
+        }
+
+        function campoDetalhe(rotulo, dentro) {
           const div = document.createElement("div");
           div.className = "campo-form";
           const lbl = document.createElement("label");
           lbl.textContent = rotulo;
           div.appendChild(lbl);
+          dentro.appendChild(div);
           return div;
         }
-
-        const reg = registroExistente || {};
-        function selecaoEscala(valorAtual) {
-          const sel = document.createElement("select");
-          sel.appendChild(document.createElement("option"));
-          escala.forEach((v) => { const o = document.createElement("option"); o.value = v; o.textContent = Calc.rotuloEscala(nomeMatriz, v); sel.appendChild(o); });
-          sel.value = valorAtual || "";
-          if (!podeEditar) sel.disabled = true;
-          return sel;
-        }
-        function areaTexto(rotulo, chave, dica) {
-          const div = campoDetalhe(rotulo);
-          div.className += " campo-form-largo";
-          const ta = document.createElement("textarea");
-          ta.rows = 2;
-          ta.value = reg[chave] || "";
-          if (dica) ta.placeholder = dica;
-          if (!podeEditar) ta.disabled = true;
-          div.appendChild(ta);
-          return { div, el: ta };
-        }
-        function badgeDe(rotulo) {
-          const div = campoDetalhe(rotulo);
-          const b = document.createElement("span");
-          b.className = "checklist-badge-graduacao";
-          div.appendChild(b);
-          return { div, el: b };
-        }
-        function titulinho(texto) {
+        function titulinho(texto, dentro) {
           const t = document.createElement("div");
           t.className = "checklist-sub-titulo";
           t.textContent = texto;
-          return t;
-        }
-        function pintar(elBadge, criticidade, probabilidade) {
-          const nivel = criticidade && probabilidade ? Calc.nivelDaMatriz(nomeMatriz, probabilidade, criticidade) : "";
-          elBadge.textContent = nivel || "-";
-          elBadge.style.color = nivel ? (Calc.corStatus(nivel) || "") : "";
+          dentro.appendChild(t);
         }
 
-        // --- Descrição do risco
-        detalhes.appendChild(titulinho("Descrição do risco"));
-        const tFonte = areaTexto("Fonte Geradora", "Circunstancia Geradora", "O que gera este risco no posto");
-        const tConseq = areaTexto("Consequência", "Consequencia", "Dano possível à saúde do trabalhador");
-        const tMedida = areaTexto("Medidas de Controle Existentes", "Medida Controle Existente", "O que já é feito hoje para controlar");
-        detalhes.appendChild(tFonte.div);
-        detalhes.appendChild(tConseq.div);
-        detalhes.appendChild(tMedida.div);
+        function criarInstancia(reg) {
+          reg = reg || {};
+          const inst = { registro: reg._id ? reg : null, removida: false, idFator: reg._id || novoIdRegistro(), editor: null };
+          const caixa = document.createElement("div");
+          caixa.className = "checklist-instancia";
+          inst.caixa = caixa;
+          const cab = document.createElement("div");
+          cab.className = "checklist-instancia-cab";
+          inst.titulo = document.createElement("div");
+          inst.titulo.className = "checklist-instancia-titulo";
+          inst.btnRemover = document.createElement("button");
+          inst.btnRemover.type = "button";
+          inst.btnRemover.className = "btn-cad-secundario";
+          inst.btnRemover.textContent = "Remover este cadastro";
+          inst.btnRemover.addEventListener("click", () => {
+            if (inst.registro && !window.confirm("Remover este cadastro do fator? Ao salvar, ele deixa de constar no inventário (as ações já lançadas no Plano de Ação continuam lá).")) return;
+            inst.removida = true; caixa.hidden = true; atualizarContador();
+          });
+          cab.appendChild(inst.titulo);
+          cab.appendChild(inst.btnRemover);
+          caixa.appendChild(cab);
 
-        // --- Classificação atual
-        detalhes.appendChild(titulinho("Classificação atual"));
-        const selCriticidade = selecaoEscala(reg.Criticidade);
-        const selProbabilidade = selecaoEscala(reg.Probabilidade);
-        const divCriticidade = campoDetalhe("Criticidade (Gravidade)"); divCriticidade.appendChild(selCriticidade);
-        const divProbabilidade = campoDetalhe("Probabilidade"); divProbabilidade.appendChild(selProbabilidade);
-        const bGrad = badgeDe("Graduação (calculada)");
-        detalhes.appendChild(divCriticidade);
-        detalhes.appendChild(divProbabilidade);
-        detalhes.appendChild(bGrad.div);
-        const recalcularGraduacao = () => pintar(bGrad.el, selCriticidade.value, selProbabilidade.value);
-        recalcularGraduacao();
-        selCriticidade.addEventListener("change", recalcularGraduacao);
-        selProbabilidade.addEventListener("change", recalcularGraduacao);
+          titulinho("Descrição do risco", caixa);
+          const area = (rotulo, chave, dica) => {
+            const div = campoDetalhe(rotulo + " *", caixa);
+            div.className += " campo-form-largo";
+            const ta = document.createElement("textarea");
+            ta.rows = 2; ta.value = reg[chave] || ""; if (dica) ta.placeholder = dica;
+            if (!podeEditar) ta.disabled = true;
+            div.appendChild(ta);
+            return { div, el: ta };
+          };
+          const tFonte = area("Fonte geradora", "Circunstancia Geradora", "O que gera este risco no posto");
+          const tConseq = area("Consequência", "Consequencia", "Escolha na lista acima ou descreva");
+          // lista padrao de consequencias do fator: cada escolha entra no texto (pode escolher mais de uma)
+          const padrao = Calc.consequenciasDoFator ? Calc.consequenciasDoFator(fator) : [];
+          if (padrao.length) {
+            const sel = document.createElement("select");
+            sel.className = "checklist-conseq-padrao";
+            const o0 = document.createElement("option"); o0.value = ""; o0.textContent = "Escolher consequência da lista padrão…"; sel.appendChild(o0);
+            padrao.forEach((t) => { const o = document.createElement("option"); o.value = t; o.textContent = t; sel.appendChild(o); });
+            sel.disabled = !podeEditar;
+            sel.addEventListener("change", () => {
+              const v = sel.value; sel.value = ""; if (!v) return;
+              const atual = tConseq.el.value.trim();
+              if (atual.split(/;\s*/).includes(v)) return;
+              tConseq.el.value = atual ? atual + "; " + v : v;
+            });
+            tConseq.div.insertBefore(sel, tConseq.el);
+          }
+          const tMedida = area("Medidas de controle existentes", "Medida Controle Existente", "O que já é feito hoje (se não houver, escreva \"Não há\")");
+          // V 1.31: segmento acometido e do risco (cada repeticao do fator = um segmento)
+          inst.selSegmento = document.createElement("select");
+          { const o0 = document.createElement("option"); o0.value = ""; o0.textContent = "-"; inst.selSegmento.appendChild(o0); }
+          window.BI.Acoes.segmentosDisponiveis().forEach((sg) => { const o = document.createElement("option"); o.value = sg; o.textContent = sg; inst.selSegmento.appendChild(o); });
+          { const sv = reg["Segmento Corporal"] || (window.BI.Acoes.acoesDoFator(reg._id).map((a) => a["Segmento Corporal"]).filter(Boolean)[0]) || ""; if (sv && !Array.from(inst.selSegmento.options).some((o) => o.value === sv)) { const o = document.createElement("option"); o.value = o.textContent = sv; inst.selSegmento.appendChild(o); } inst.selSegmento.value = sv; }
+          if (!podeEditar) inst.selSegmento.disabled = true;
+          campoDetalhe("Segmento acometido *", caixa).appendChild(inst.selSegmento);
 
-        // --- Ações (V 1.2): lista de acoes por fator, cada uma com tipo, segmento
-        // corporal, "reduz o risco para...", responsavel, prazo e evidencias.
-        // O risco apos a melhoria e CALCULADO a partir delas (js/acoes.js).
-        detalhes.appendChild(titulinho("Ações para reduzir o risco"));
-        const idFator = registroExistente ? registroExistente._id : novoIdRegistro();
-        const slotEditor = document.createElement("div");
-        slotEditor.className = "campo-form-largo";
-        detalhes.appendChild(slotEditor);
-        let editorAcoes = null;
-        const nivelDoFator = () => (selCriticidade.value && selProbabilidade.value
-          ? Calc.nivelDaMatriz(nomeMatriz, selProbabilidade.value, selCriticidade.value) : "");
-        function garantirEditor() {
-          if (editorAcoes) return editorAcoes;
-          editorAcoes = window.BI.Acoes.criarEditor({
-            fatorId: registroExistente ? registroExistente._id : null,
+          titulinho("Classificação atual", caixa);
+          const selecaoEscala = (valorAtual, eixo) => {
+            const sel = document.createElement("select");
+            sel.appendChild(document.createElement("option"));
+            escala.forEach((v) => { const o = document.createElement("option"); o.value = v; o.textContent = Calc.rotuloEscala(nomeMatriz, v, eixo); sel.appendChild(o); });
+            sel.value = valorAtual || ""; if (!podeEditar) sel.disabled = true;
+            return sel;
+          };
+          inst.selCriticidade = selecaoEscala(reg.Criticidade, "severidade");
+          inst.selProbabilidade = selecaoEscala(reg.Probabilidade);
+          campoDetalhe("Severidade *", caixa).appendChild(inst.selCriticidade);
+          campoDetalhe("Probabilidade *", caixa).appendChild(inst.selProbabilidade);
+          const divGrad = campoDetalhe("Graduação (calculada)", caixa);
+          const badge = document.createElement("span"); badge.className = "checklist-badge-graduacao"; divGrad.appendChild(badge);
+          inst.nivel = () => (inst.selCriticidade.value && inst.selProbabilidade.value ? Calc.nivelDaMatriz(nomeMatriz, inst.selProbabilidade.value, inst.selCriticidade.value) : "");
+          const pintar = () => { const n = inst.nivel(); const hx = n ? Calc.corRiscoHex(n) : null; badge.textContent = n || "-"; badge.style.background = hx ? "#" + hx : ""; badge.style.color = hx ? "#" + Calc.textoSobreHex(hx) : ""; badge.classList.toggle("com-cor", !!hx); if (inst.editor) inst.editor.atualizarNivel(); };
+          inst.selCriticidade.addEventListener("change", pintar);
+          inst.selProbabilidade.addEventListener("change", pintar);
+
+          titulinho("Ações para reduzir o risco", caixa);
+          const slot = document.createElement("div"); slot.className = "campo-form-largo"; caixa.appendChild(slot);
+          inst.editor = window.BI.Acoes.criarEditor({
+            fatorId: inst.registro ? inst.registro._id : null,
             podeEditar,
-            contexto: () => ({
-              Cliente: linhaAval.Cliente, Unidade: linhaAval.Unidade, Setor: linhaAval.Setor,
-              Cargo: linhaAval.Cargo, "Posto Trabalho": linhaAval["Posto Trabalho"], Atividade: linhaAval.Atividade,
-            }),
-            nivelAtual: nivelDoFator,
+            contexto: () => ({ Cliente: linhaAval.Cliente, Unidade: linhaAval.Unidade, Setor: linhaAval.Setor, Cargo: linhaAval.Cargo, "Posto Trabalho": linhaAval["Posto Trabalho"] }),
+            nivelAtual: inst.nivel,
+            matriz: () => nomeMatriz,
             nomeFator: () => fator,
+            segmento: () => inst.selSegmento.value,
             legado: { eliminacao: reg["Acao Eliminacao"], organizacional: reg["Controles Administrativos"] },
           });
-          slotEditor.appendChild(editorAcoes.el);
-          return editorAcoes;
+          slot.appendChild(inst.editor.el);
+          pintar();
+          inst.campos = { "Circunstancia Geradora": tFonte.el, Consequencia: tConseq.el, "Medida Controle Existente": tMedida.el };
+          listaInst.appendChild(caixa);
+          instancias.push(inst);
+          atualizarContador();
+          return inst;
         }
-        if (registroExistente && registroExistente["Existe Fator Risco"] === "Sim") garantirEditor();
-        const reaplicarNivel = () => { if (editorAcoes) editorAcoes.atualizarNivel(); };
-        selCriticidade.addEventListener("change", reaplicarNivel);
-        selProbabilidade.addEventListener("change", reaplicarNivel);
-        linha.appendChild(detalhes);
-        corpo.appendChild(linha);
 
+        existentesSim.forEach((r) => criarInstancia(r));
         checkbox.addEventListener("change", () => {
           detalhes.hidden = !checkbox.checked;
-          if (checkbox.checked) garantirEditor();
+          if (checkbox.checked && !ativasInst().length) criarInstancia(null);
+          atualizarContador();
         });
+        btnRepetir.addEventListener("click", () => { const x = criarInstancia(null); atualizarContador(); if (x.caixa.scrollIntoView) x.caixa.scrollIntoView({ block: "center", behavior: "smooth" }); });
 
-        linhasChecklist.push({
-          grupo, fator, registroExistente, checkbox, selCriticidade, selProbabilidade, linha, idFator,
-          getEditor: () => editorAcoes,
-          // chave gravada -> elemento (texto/selects da tela)
-          campos: {
-            "Circunstancia Geradora": tFonte.el, Consequencia: tConseq.el, "Medida Controle Existente": tMedida.el,
-          },
-        });
+        linhasChecklist.push({ grupo, fator, linha, checkbox, existentes, existentesSim, instancias, ativasInst });
       });
     });
 
@@ -3806,101 +4097,92 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     btnSalvar.onclick = async () => {
       erroEl.hidden = true;
       linhasChecklist.forEach((l) => l.linha.classList.remove("checklist-fator-com-erro"));
-
-      // Valida ANTES de salvar qualquer coisa: todo fator marcado precisa de
-      // Criticidade + Probabilidade (mesma exigencia do cadastro antigo,
-      // camposFatorRisco) - senao a Graduacao nao tem como ser calculada.
-      const semClassificacao = linhasChecklist.find((l) => l.checkbox.checked && (!l.selCriticidade.value || !l.selProbabilidade.value));
-      if (semClassificacao) {
+      const mostrarErroFator = (l, msg, alvo) => {
         erroEl.hidden = false;
-        erroEl.textContent = `Preencha Criticidade e Probabilidade do fator "${semClassificacao.fator}" (marcado, mas sem classificação).`;
-        semClassificacao.linha.classList.add("checklist-fator-com-erro");
-        if (typeof semClassificacao.linha.scrollIntoView === "function") {
-          semClassificacao.linha.scrollIntoView({ block: "center", behavior: "smooth" });
-        }
-        return;
-      }
+        erroEl.textContent = `Fator "${l.fator}": ${msg}`;
+        l.linha.classList.add("checklist-fator-com-erro");
+        const el = alvo || l.linha;
+        if (el && typeof el.scrollIntoView === "function") el.scrollIntoView({ block: "center", behavior: "smooth" });
+      };
 
+      // Valida ANTES de salvar qualquer coisa: nenhum campo do fator marcado pode ficar em branco.
       for (const l of linhasChecklist) {
-        const ed = l.checkbox.checked && l.getEditor();
-        const erroAcao = ed ? ed.validar() : null;
-        if (erroAcao) {
-          erroEl.hidden = false;
-          erroEl.textContent = `Fator "${l.fator}": ${erroAcao}`;
-          l.linha.classList.add("checklist-fator-com-erro");
-          return;
+        if (!l.checkbox.checked) continue;
+        for (const x of l.ativasInst()) {
+          const nomes = { "Circunstancia Geradora": "a fonte geradora", Consequencia: "a consequência", "Medida Controle Existente": "as medidas de controle existentes" };
+          const vazio = Object.keys(x.campos).find((k) => !String(x.campos[k].value || "").trim());
+          if (vazio) { mostrarErroFator(l, `preencha ${nomes[vazio]}.`, x.caixa); x.campos[vazio].focus(); return; }
+          if (!x.selSegmento.value) { mostrarErroFator(l, "informe o segmento acometido.", x.caixa); x.selSegmento.focus(); return; }
+          if (!x.selCriticidade.value || !x.selProbabilidade.value) { mostrarErroFator(l, "preencha Severidade e Probabilidade.", x.caixa); return; }
+          const erroAcao = x.editor.validar();
+          if (erroAcao) { mostrarErroFator(l, erroAcao, x.caixa); return; }
         }
       }
 
-      const paraSalvar = linhasChecklist.filter((l) => {
-        const jaEraSim = l.registroExistente && l.registroExistente["Existe Fator Risco"] === "Sim";
-        if (l.checkbox.checked) {
-          // Novo, ou existente mas com Criticidade/Probabilidade alteradas.
-          if (!jaEraSim) return true;
-          if (l.registroExistente.Criticidade !== l.selCriticidade.value || l.registroExistente.Probabilidade !== l.selProbabilidade.value) return true;
-          if (l.getEditor() && l.getEditor().temAlteracoes()) return true;
-          return Object.keys(l.campos).some((k) => (l.registroExistente[k] || "") !== (l.campos[k].value || ""));
-        }
-        // Desmarcado: so precisa salvar se antes estava "Sim" (senao nao ha nada pra mudar).
-        return jaEraSim;
+      // O que gravar: cada repeticao marcada (nova ou alterada) e os registros "Sim" que sairam.
+      const tarefas = [];
+      linhasChecklist.forEach((l) => {
+        const marcado = l.checkbox.checked;
+        const ativos = marcado ? l.ativasInst() : [];
+        ativos.forEach((x) => {
+          const r = x.registro;
+          const mudou = !r || r["Existe Fator Risco"] !== "Sim" || r.Criticidade !== x.selCriticidade.value || r.Probabilidade !== x.selProbabilidade.value || (r["Segmento Corporal"] || "") !== x.selSegmento.value ||
+            Object.keys(x.campos).some((k) => (r[k] || "") !== (x.campos[k].value || "")) || x.editor.temAlteracoes();
+          if (mudou) tarefas.push({ l, x, marcar: true });
+        });
+        // Registros que estavam "Sim" e nao estao mais ativos: passam a "Nao" (mantem o historico).
+        l.existentesSim.forEach((r) => {
+          if (!ativos.some((x) => x.registro && x.registro._id === r._id)) tarefas.push({ l, registroSair: r });
+        });
       });
-
-      if (!paraSalvar.length) { fecharPainelChecklist(); return; }
+      if (!tarefas.length) { fecharPainelChecklist(); return; }
 
       btnSalvar.disabled = true;
       const textoOriginal = btnSalvar.textContent;
+      let alterados = 0;
       try {
-        for (let i = 0; i < paraSalvar.length; i++) {
-          const l = paraSalvar[i];
-          btnSalvar.textContent = `Salvando (${i + 1}/${paraSalvar.length})...`;
-          const marcado = l.checkbox.checked;
-          const nivel = marcado ? Calc.nivelDaMatriz(nomeMatriz, l.selProbabilidade.value, l.selCriticidade.value) : "";
-          const pontuacao = marcado ? Calc.pontuacaoDaMatriz(nomeMatriz, l.selProbabilidade.value, l.selCriticidade.value) : null;
-          const dados = Object.assign(
-            {
-              Cliente: linhaAval.Cliente, Unidade: linhaAval.Unidade, Setor: linhaAval.Setor,
-              Cargo: linhaAval.Cargo, "Posto Trabalho": linhaAval["Posto Trabalho"], Atividade: linhaAval.Atividade,
-              Grupo: l.grupo, Fator: l.fator,
-              "Existe Fator Risco": marcado ? "Sim" : "Nao",
-              Criticidade: marcado ? l.selCriticidade.value : null,
-              Probabilidade: marcado ? l.selProbabilidade.value : null,
-              "Pontuacao Risco": pontuacao,
-              "Graduacao Risco": nivel || null,
-              Matriz: marcado ? nomeMatriz : null,
-              // Campos de acompanhamento que nao estao nesta tela
-              // (SLA, Observacao, Valido Ate) - preserva o que ja existia
-              // ou entra nulo num registro novo.
-              "Circunstancia Geradora": null, Consequencia: null, "Medida Controle Existente": null,
-              SLA: null, Observacao: null, "Valido Ate": null,
-              Status: STATUS_FATOR_RISCO_POOL[0],
-            },
-            l.registroExistente || {}
-          );
-          // Object.assign acima usa o registro existente como "base" de
-          // campos livres (preserva o que o ergonomista ja tinha escrito no
-          // cadastro antigo), mas os campos calculados/da checklist (Existe
-          // Fator Risco/Criticidade/Probabilidade/Pontuacao/Graduacao/
-          // Matriz) tem que vir sempre do que foi decidido AGORA na tela -
-          // reaplica por cima.
-          Object.assign(dados, {
-            "Existe Fator Risco": marcado ? "Sim" : "Nao",
-            Criticidade: marcado ? l.selCriticidade.value : null,
-            Probabilidade: marcado ? l.selProbabilidade.value : null,
-            "Pontuacao Risco": pontuacao,
-            "Graduacao Risco": nivel || null,
-            Matriz: marcado ? nomeMatriz : null,
-          });
-          if (marcado) {
-            Object.keys(l.campos).forEach((k) => { dados[k] = l.campos[k].value || null; });
-            if (l.getEditor() && l.getEditor().total() > 0) dados["Propor Acao"] = "Sim";
-            if (!dados["Dt Identificacao"]) dados["Dt Identificacao"] = BI.Datas.hojeISO();
+        for (let i = 0; i < tarefas.length; i++) {
+          const t = tarefas[i];
+          btnSalvar.textContent = `Salvando (${i + 1}/${tarefas.length})...`;
+          if (t.registroSair) {
+            const dados = Object.assign({}, t.registroSair, { "Existe Fator Risco": "Nao", Criticidade: null, Probabilidade: null, "Pontuacao Risco": null, "Graduacao Risco": null, Matriz: null });
+            delete dados._id;
+            await window.BI.DB.salvar("fatorRisco", t.registroSair._id, dados);
+            alterados++;
+            continue;
           }
+          const { l, x } = t;
+          const nivel = Calc.nivelDaMatriz(nomeMatriz, x.selProbabilidade.value, x.selCriticidade.value);
+          const pontuacao = Calc.pontuacaoDaMatriz(nomeMatriz, x.selProbabilidade.value, x.selCriticidade.value);
+          const dados = Object.assign({
+            SLA: null, Observacao: null, "Valido Ate": null, Status: STATUS_FATOR_RISCO_POOL[0],
+          }, x.registro || {}, {
+            Cliente: linhaAval.Cliente, Unidade: linhaAval.Unidade, Setor: linhaAval.Setor,
+            Cargo: linhaAval.Cargo, "Posto Trabalho": linhaAval["Posto Trabalho"], Atividade: null,
+            Grupo: l.grupo, Fator: l.fator,
+            "Existe Fator Risco": "Sim",
+            Criticidade: x.selCriticidade.value, Probabilidade: x.selProbabilidade.value,
+            "Pontuacao Risco": pontuacao, "Graduacao Risco": nivel || null, Matriz: nomeMatriz,
+          });
+          Object.keys(x.campos).forEach((k) => { dados[k] = String(x.campos[k].value || "").trim(); });
+          dados["Segmento Corporal"] = x.selSegmento.value || null;
+          // V 1.31: historico do risco - mudanca de graduacao no inventario fica registrada (evolucao do risco);
+          // um risco eliminado volta a valer se o ergonomista o reclassificar aqui.
+          if (x.registro && x.registro["Graduacao Risco"] && (x.registro["Graduacao Risco"] !== dados["Graduacao Risco"] || x.registro["Risco Eliminado"] === "Sim")) {
+            dados["Historico Risco"] = (x.registro["Historico Risco"] || []).concat([{ data: BI.Datas.hojeISO(), de: x.registro["Risco Eliminado"] === "Sim" ? "Eliminado" : x.registro["Graduacao Risco"], para: dados["Graduacao Risco"], probabilidade: dados.Probabilidade, severidade: dados.Criticidade, motivo: (x.registro.Matriz && dados.Matriz && x.registro.Matriz !== dados.Matriz && x.registro.Criticidade === dados.Criticidade && x.registro.Probabilidade === dados.Probabilidade) ? "Matriz de risco do cliente alterada para " + dados.Matriz : "Reavaliação no inventário de riscos" }]);
+            dados["Risco Eliminado"] = null; dados["Eliminado Em"] = null;
+          }
+          if (!dados["Graduacao Inicial"]) dados["Graduacao Inicial"] = (x.registro && x.registro["Graduacao Risco"]) || dados["Graduacao Risco"];
+          if (x.editor.total() > 0) dados["Propor Acao"] = "Sim";
+          if (!dados["Dt Identificacao"]) dados["Dt Identificacao"] = BI.Datas.hojeISO();
           delete dados._id;
-          if (l.registroExistente) await window.BI.DB.salvar("fatorRisco", l.registroExistente._id, dados);
-          else await window.BI.DB.salvar("fatorRisco", l.idFator, dados, true); // id escolhido aqui: as acoes nascem ligadas a ele
-          const ed = marcado ? l.getEditor() : null;
-          if (ed && ed.temAlteracoes()) await ed.salvar(l.idFator);
+          if (x.registro) await window.BI.DB.salvar("fatorRisco", x.registro._id, dados);
+          else await window.BI.DB.salvar("fatorRisco", x.idFator, dados, true); // id escolhido aqui: as acoes nascem ligadas a ele
+          if (x.editor.temAlteracoes()) await x.editor.salvar(x.idFator);
+          alterados++;
         }
+        // V 1.28: a AEP registra a atualizacao (data e ergonomista entram no historico e no laudo)
+        await registrarAtualizacaoAEP(linhaAval, `Inventário de riscos atualizado (${alterados} ${alterados === 1 ? "fator" : "fatores"})`);
         fecharPainelChecklist();
       } catch (e) {
         erroEl.hidden = false;
@@ -4006,14 +4288,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         descricao: "Importe a lista de colaboradores com unidade, setor/GHE, matrícula e nome. A matrícula é a chave: a mesma matrícula na mesma empresa é atualizada, nunca duplicada. É ela que o colaborador digita para responder o questionário HSE-IT.",
       },
     },
-    posto: {
-      grupo: "mestre", icone: "📍", tituloMenu: "Posto de Trabalho",
-      titulo: "Cadastro de Posto de Trabalho",
-      colunasTabela: ["Cliente", "Unidade", "Setor", "Posto Trabalho"],
-      colunasData: [], camposData: [],
-      campos: camposCadastroPosto(),
-      aoConstruir: comCascata(ligarSugestoesNivelProprio("Posto Trabalho", "posto", [])),
-    },
+    // V 1.28: no menu, Cargo vem antes de Posto de Trabalho (a hierarquia dos dados continua Setor › Posto › Cargo).
     cargo: {
       grupo: "mestre", icone: "💼", tituloMenu: "Cargo",
       titulo: "Cadastro de Cargo",
@@ -4021,6 +4296,14 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       colunasData: [], camposData: [],
       campos: camposCadastroCargo(),
       aoConstruir: comCascata(ligarSugestoesNivelProprio("Cargo", "cargo", [])),
+    },
+    posto: {
+      grupo: "mestre", icone: "📍", tituloMenu: "Posto de Trabalho",
+      titulo: "Cadastro de Posto de Trabalho",
+      colunasTabela: ["Cliente", "Unidade", "Setor", "Posto Trabalho"],
+      colunasData: [], camposData: [],
+      campos: camposCadastroPosto(),
+      aoConstruir: comCascata(ligarSugestoesNivelProprio("Posto Trabalho", "posto", [])),
     },
     atividade: {
       grupo: "mestre", icone: "🏷️", tituloMenu: "Atividade",
@@ -4031,7 +4314,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       aoConstruir: comCascata(ligarSugestoesNivelProprio("Atividade", "atividade", [])),
     },
     mapaRisco: {
-      grupo: "registro", icone: "⚠️", tituloMenu: "Mapa de Risco",
+      // V 1.29: o Mapa de Risco manual (12 notas) saiu do menu - o risco do posto passa a ser a
+      // maior graduacao dos fatores do Inventario (ver Calc.riscoDosPostos). Os registros antigos ficam.
+      grupo: "legado", icone: "⚠️", tituloMenu: "Mapa de Risco",
       titulo: "Mapa de Risco",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Dt Avaliacao", "Risco Global"],
       colunasData: ["Dt Avaliacao"],
@@ -4046,10 +4331,17 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     planoAcao: {
       grupo: "registro", icone: "🛠️", tituloMenu: "Plano de Ação",
       titulo: "Plano de Ação",
-      colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Acao Recomendada", "Responsavel Acao", "Dt Programada", "Dt Conclusao"],
+      // V 1.29: Plano de Acao unico - recebe as acoes da AEP (Inventario) e do Psicossocial
+      // (AET quando o modulo existir). Aqui so se completa responsavel, e-mail, prazo,
+      // conclusao e evidencia; o status e o e-mail ao responsavel sao automaticos.
+      colunasTabela: ["Origem", "Revisao Laudo", "Nr Acao", "Cliente", "Setor", "Posto Trabalho", "Fator Risco Nome", "Acao Recomendada", "Responsavel Acao", "Dt Programada", "Dt Conclusao"],
+      rotulosColunas: { "Revisao Laudo": "Revisão do laudo", "Nr Acao": "Nº", "Setor": "Setor / GHE", "Fator Risco Nome": "Fator", "Acao Recomendada": "Ação", "Responsavel Acao": "Responsável", "Dt Programada": "Prazo", "Dt Conclusao": "Conclusão" },
+      // V 1.31: a acao fica no plano como historico, marcada com a revisao do laudo em que apareceu.
+      colunasVirtuais: { Origem: (l) => window.BI.Calc.origemDe(l), "Revisao Laudo": (l) => (l["Revisao Laudo"] != null && l["Revisao Laudo"] !== "" ? "Rev. " + l["Revisao Laudo"] : "A emitir") },
+      semNovo: true,
       colunasData: ["Dt Programada", "Dt Conclusao"],
       camposData: ["Dt Programada", "Dt Conclusao"],
-      campos: camposChave().concat([
+      campos: camposChaveAtividadeOpcional().concat([
         { campo: "Nr Acao", rotulo: "Nr Acao", tipo: "numero", obrigatorio: true, min: 1 },
         { campo: "Acao Recomendada", rotulo: "Acao Recomendada", tipo: "texto", obrigatorio: true, sugestoesLista: Object.keys(ACOES_CATEGORIA_MAP) },
         { campo: "Categoria Acao", rotulo: "Categoria Acao", tipo: "select", obrigatorio: true, opcoes: CATEGORIAS_ACAO_POOL },
@@ -4068,8 +4360,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         { campo: "Tipo Acao", rotulo: "Tipo da ação", tipo: "select", opcoes: () => (window.BI.Acoes ? window.BI.Acoes.tipos().map((t) => ({ valor: t.codigo, label: t.rotulo })) : []) },
         { campo: "Complexidade", rotulo: "Complexidade de execução", tipo: "select", opcoes: () => (window.BI.Acoes ? window.BI.Acoes.COMPLEXIDADES : []) },
         { campo: "Segmento Corporal", rotulo: "Segmento corporal atingido", tipo: "select", opcoes: () => (window.BI.Acoes ? window.BI.Acoes.segmentosDisponiveis() : []) },
-        { campo: "Risco Atual Segmento", rotulo: "Risco atual do segmento", tipo: "select", opcoes: window.BI.Calc ? window.BI.Calc.NIVEIS_RISCO : [] },
-        { campo: "Risco Apos Acao", rotulo: "Esta ação reduz o risco para", tipo: "select", opcoes: window.BI.Calc ? window.BI.Calc.NIVEIS_RISCO : [] },
+        { campo: "Risco Atual Segmento", rotulo: "Risco atual do fator", tipo: "select", opcoes: window.BI.Calc ? window.BI.Calc.TODOS_NIVEIS : [] },
+        // V 1.31: marcacao do ergonomista - a acao vai reduzir ou eliminar o risco (reavaliacao ao concluir)
+        { campo: "Reduz Risco", rotulo: "Vai reduzir ou eliminar o risco?", tipo: "select", opcoes: [{ valor: "Sim", label: "Sim" }, { valor: "Nao", label: "Não (organizacional / de controle)" }] },
+        { campo: "Risco Apos Acao", rotulo: "Reduz o risco para", tipo: "select", opcoes: (window.BI.Calc ? window.BI.Calc.TODOS_NIVEIS : []).concat(["Eliminado"]) },
         { campo: "Status Execucao", rotulo: "Situação da execução", tipo: "select", opcoes: STATUS_EXECUCAO_POOL },
         {
           campo: "Evidencias", rotulo: "Evidências da conclusão (foto ou PDF, até 15MB cada)", tipo: "arquivo", multiplo: true,
@@ -4081,6 +4375,25 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       ]),
       aoConstruir: comCascata(ligarPlanoAcao),
       aoValidar: (form) => (form._validarEvidencia ? form._validarEvidencia() : null),
+      // V 1.31: ao concluir uma acao da AEP/AET que reduz ou elimina o risco, o ergonomista reavalia o fator
+      // (nova probabilidade e severidade, ou risco eliminado) - a evolucao fica no historico do risco.
+      aoConfirmarAntes: async (form, dados) => {
+        form._reavaliacao = null;
+        const ini = estadoCadastro.planoAcao.valoresForm || {};
+        const concluiAgora = !!(dados["Dt Conclusao"] || dados["Status Execucao"] === "Concluida") && !(ini["Dt Conclusao"] || ini["Status Execucao"] === "Concluida");
+        if (!concluiAgora || !window.BI.Acoes.reduzRisco(ini) || /psicoss/i.test(String(ini.Origem || "")) || !ini["Fator Risco Id"]) return true;
+        const fator = (window.BI.dados.fatorRisco || []).find((f) => f._id === ini["Fator Risco Id"]);
+        if (!fator) return true;
+        const r = await abrirReavaliacaoRisco(ini, fator, dados["Dt Conclusao"] || BI.Datas.hojeISO());
+        if (!r) { form._erroEl.hidden = false; form._erroEl.textContent = "Para concluir esta ação, faça a reavaliação do risco (nova probabilidade e severidade, ou risco eliminado)."; return false; }
+        form._reavaliacao = r;
+        return true;
+      },
+      aoSalvarDepois: async (form, idSalvo, dados) => {
+        if (!form._reavaliacao) return;
+        const ini = estadoCadastro.planoAcao.valoresForm || {};
+        await aplicarReavaliacaoRisco(Object.assign({}, ini, dados, { _id: idSalvo }), form._reavaliacao);
+      },
       // Excecao do Administrador so vale na hora em que ele conclui: nos demais
       // casos os dois campos seguem como estavam (sem apagar a dispensa).
       aoPrepararDados: (form, dados) => {
@@ -4090,22 +4403,35 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           dados["Justificativa Sem Evidencia"] = ini["Justificativa Sem Evidencia"] || null;
           dados["Prazo Evidencia"] = ini["Prazo Evidencia"] || null;
         }
+        if (form._reavaliacao) dados["Reavaliacao Risco"] = form._reavaliacao;
       },
     },
     absenteismo: {
-      grupo: "registro", icone: "🩺", tituloMenu: "Absenteísmo",
+      grupo: "mestre", icone: "🩺", tituloMenu: "Absenteísmo",
       titulo: "Absenteísmo",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cod CID", "Dt Afastamento", "Qtd Dias", "Regiao Corporal"],
+      rotulosColunas: { "Regiao Corporal": "Segmento corporal" },
+      colunasVirtuais: { "Regiao Corporal": (l) => window.BI.Calc.regiaoSemLado(l["Regiao Corporal"]) },
       colunasData: ["Dt Afastamento"],
       camposData: ["Dt Afastamento"],
       campos: camposChave().concat([
         { campo: "Cod CID", rotulo: "Cod CID", tipo: "cid-hierarquico", obrigatorio: true },
         { campo: "Dt Afastamento", rotulo: "Dt Afastamento", tipo: "data", obrigatorio: true },
         { campo: "Qtd Dias", rotulo: "Qtd Dias", tipo: "numero", obrigatorio: true, min: 1 },
-        { campo: "Regiao Corporal", rotulo: "Regiao Corporal", tipo: "select", obrigatorio: true, opcoes: () => regioesCorporais() },
+        // V 1.29: segmento geral, sem direito/esquerdo (pedido do Alexandre)
+        { campo: "Regiao Corporal", rotulo: "Segmento corporal", tipo: "select", obrigatorio: true, opcoes: () => window.BI.Calc.regioesSemLado(regioesCorporais()).concat(window.BI.Calc.SEGMENTOS_GERAIS) },
         { campo: "Dt Retorno", rotulo: "Dt Retorno", tipo: "data" },
       ]),
-      aoConstruir: comCascata(null),
+      aoConstruir: comCascata((form) => {
+        // V 1.29: registro antigo com lado ("Ombro Direito") abre no segmento geral ("Ombro").
+        const el = form._campos["Regiao Corporal"];
+        if (!el || !el.value) return;
+        const geral = window.BI.Calc.regiaoSemLado(el.value);
+        if (geral !== el.value && Array.from(el.options).some((o) => o.value === geral)) {
+          Array.from(el.options).forEach((o) => { if (o.value === el.value) o.remove(); });
+          el.value = geral;
+        }
+      }),
     },
     // HHT/Dias Uteis - base de calculo da Taxa de Frequencia (NBR 14280,
     // ver js/calc.js/hhtDaLinha e calcularTaxaFrequencia) no dashboard Med
@@ -4125,7 +4451,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // colaboradores do setor naquele mes; "Qtd Dias Uteis" = dias uteis
     // trabalhados no mes) - ver js/calc.js.
     diasUteis: {
-      grupo: "registro", icone: "🕒", tituloMenu: "HHT / Dias Úteis",
+      grupo: "mestre", icone: "🕒", tituloMenu: "HHT / Taxa de frequência",
       titulo: "HHT / Dias Úteis",
       colunasTabela: ["Cliente", "Unidade", "Setor", "Ano/Mes Uteis", "Qtd Colaboradores", "Qtd Dias Uteis"],
       colunasData: ["Ano/Mes Uteis"],
@@ -4153,7 +4479,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       },
     },
     compativeis: {
-      grupo: "registro", icone: "🔄", tituloMenu: "Restritos (Compatíveis)",
+      grupo: "mestre", icone: "🔄", tituloMenu: "Restritos",
       titulo: "Compatíveis",
       colunasTabela: ["Cliente", "Setor", "Funcionario", "Status Restricao", "Turno Trabalho", "Segmento Corporal", "Inicio Restricao"],
       colunasData: ["Inicio Restricao"],
@@ -4169,7 +4495,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         { campo: "Responsavel Area", rotulo: "Responsavel Area", tipo: "texto", sugestoesDe: "Responsavel Area" },
         { campo: "Medico Avaliador", rotulo: "Medico Avaliador", tipo: "texto", sugestoesDe: "Medico Avaliador" },
         { campo: "Queixa Principal", rotulo: "Queixa Principal", tipo: "texto", sugestoesDe: "Queixa Principal" },
-        { campo: "Segmento Corporal", rotulo: "Segmento Corporal", tipo: "select", opcoes: () => regioesCorporais() },
+        { campo: "Segmento Corporal", rotulo: "Segmento Corporal", tipo: "select", opcoes: () => regioesCorporais().concat(window.BI.Calc.SEGMENTOS_GERAIS) },
         { campo: "Restricao Medica", rotulo: "Restricao Medica", tipo: "texto", sugestoesDe: "Restricao Medica" },
         { campo: "Inicio Restricao", rotulo: "Inicio Restricao", tipo: "data", obrigatorio: true },
         { campo: "Fim Restricao", rotulo: "Fim Restricao", tipo: "data" },
@@ -4204,9 +4530,19 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // de Excel/PDF). Rotulo "(AEP)" no tituloMenu/titulo so pra deixar isso
     // visivel no menu, ja que antes so "AET" aparecia com sigla propria.
     avaliacaoErgonomica: {
-      grupo: "registro", icone: "📋", tituloMenu: "Avaliação Ergonômica (AEP)",
-      titulo: "Cadastro de Avaliação Ergonômica (AEP)",
-      colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Data Avaliacao"],
+      grupo: "aep", icone: "📋",
+      titulo: "Avaliações Ergonômicas (AEP)",
+      tituloMenu: "Avaliações (AEP)",
+      // V 1.28: numero, quem cadastrou, ultima atualizacao (data e ergonomista) - ver colunasVirtuais
+      colunasTabela: ["Nr Avaliacao", "Cliente", "Unidade", "Setor", "Cargo", "Posto Trabalho", "Cadastrado Em", "Cadastrado Por", "Atualizado Em", "Atualizado Por"],
+      rotulosColunas: { "Nr Avaliacao": "Nº", "Cadastrado Em": "Data de cadastro", "Cadastrado Por": "Cadastrada por", "Atualizado Em": "Última atualização", "Atualizado Por": "Atualizada por" },
+      colunasVirtuais: {
+        "Nr Avaliacao": (l) => nrAvaliacaoTexto(l),
+        "Cadastrado Em": (l) => dataCadastroAEP(l),
+        "Cadastrado Por": (l) => nomeDoUsuario(l._criadoPor),
+        "Atualizado Em": (l) => dataAtualizacaoAEP(l),
+        "Atualizado Por": (l) => nomeDoUsuario(l._editadoPor || l._criadoPor),
+      },
       colunasData: ["Data Avaliacao"], camposData: ["Data Avaliacao"],
       campos: camposAvaliacaoErgonomica(),
       aoConstruir: comCascata(null),
@@ -4231,12 +4567,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // Jornada/Pausas/Rodizio sao obrigatorios no formulario, mas historicos antigos
       // podem nao ter - na importacao ficam opcionais (ver "opcionais").
       importacao: {
-        chaveNatural: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Data Avaliacao"],
+        // V 1.28: sem Atividade - uma avaliacao por posto e cargo
+        chaveNatural: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"],
         arquivo: "historico-aep",
         nomePlanilha: "Dados",
-        colunasPrevia: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Data Avaliacao"],
-        // V 1.11: Atividade e Data da avaliacao tambem sao opcionais na importacao.
-        opcionais: ["Jornada de Trabalho", "Pausas", "Rodizio", "Atividade", "Data Avaliacao"],
+        colunasPrevia: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Data Avaliacao"],
+        // V 1.11: Data da avaliacao tambem e opcional na importacao.
+        opcionais: ["Jornada de Trabalho", "Pausas", "Rodizio", "Data Avaliacao"],
         // V 1.12: o relatorio de Inventario de Riscos do sistema anterior tambem tem Empresa/Unidade/Setor/Posto/Cargo;
         // importado aqui, so a hierarquia entra e as avaliacoes ficam vazias. Avisa para usar a tela certa.
         redirecionar: (cabecalhos) => {
@@ -4252,7 +4589,6 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
             : null;
         },
         padroes: [
-          { campo: "Atividade", rotulo: "Atividade para as linhas sem atividade (opcional – em branco, não preenche)", sugestao: "" },
           { campo: "Data Avaliacao", rotulo: "Data da avaliação para as linhas sem data (opcional – em branco, não preenche)", sugestao: "" },
         ],
         // Nomes de coluna comuns em planilhas do sistema anterior (reconhecidos sem mapear na mao).
@@ -4262,7 +4598,6 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           "Setor": ["Area", "Departamento"],
           "Posto Trabalho": ["Posto", "Posto de Trabalho"],
           "Cargo": ["Funcao"],
-          "Atividade": ["Tarefa"],
           "Data Avaliacao": ["Data", "Data da AEP", "Data AEP", "Data Avaliacao", "Dt Avaliacao", "Data da Avaliacao"],
           "Jornada de Trabalho": ["Jornada"],
           "Rodizio": ["Rodizio de Atividades"],
@@ -4272,13 +4607,16 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           "Historico Acidentes": ["Historico de Acidentes", "Acidentes"],
         },
         exemplo: { "Data Avaliacao": "15/03/2025", "Jornada de Trabalho": "Segunda a sexta, 08h às 17h48", "Pausas": "10 min a cada 50 min", "Rodizio": "Não há" },
-        descricao: "Importe o histórico de avaliações ergonômicas (AEP) de uma planilha Excel, inclusive a exportada do sistema anterior: na prévia você liga cada coluna do arquivo ao campo correspondente. Cliente, Unidade, Setor, Posto e Cargo precisam estar cadastrados (ou ser criados na prévia); Atividade e Data da avaliação são opcionais. Fotos não são importadas. Avaliações iguais (mesmo posto, cargo, atividade e data) são atualizadas, nunca duplicadas.",
+        descricao: "Importe o histórico de avaliações ergonômicas (AEP) de uma planilha Excel, inclusive a exportada do sistema anterior: na prévia você liga cada coluna do arquivo ao campo correspondente. Cliente, Unidade, Setor, Posto e Cargo precisam estar cadastrados (ou ser criados na prévia); a Data da avaliação é opcional. Fotos não são importadas. Há uma avaliação por posto e cargo: a mesma combinação é atualizada, nunca duplicada.",
       },
     },
     fatorRisco: {
-      grupo: "registro", icone: "🧩", tituloMenu: "Inventário de Riscos (AEP)",
+      grupo: "aep", icone: "🧩", tituloMenu: "Inventário de Riscos (AEP)",
       titulo: "Inventário de Riscos (AEP)",
-      colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Fator", "Graduacao Risco", "Dt Identificacao", "Status"],
+      colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Fator", "Segmento Corporal", "Graduacao Risco", "Evolucao Risco", "Dt Identificacao", "Status"],
+      rotulosColunas: { "Segmento Corporal": "Segmento", "Graduacao Risco": "Risco atual", "Evolucao Risco": "Evolução do risco" },
+      // V 1.31: risco vigente e a evolucao (reavaliacoes ao concluir acoes, reaplicacao do Psicossocial)
+      colunasVirtuais: { "Graduacao Risco": (l) => (l["Risco Eliminado"] === "Sim" ? "Eliminado" : l["Graduacao Risco"]), "Evolucao Risco": (l) => window.BI.Calc.textoEvolucaoRisco(l) || "-" },
       colunasData: ["Dt Identificacao", "Valido Ate"], camposData: ["Dt Identificacao"],
       campos: camposFatorRisco(),
       aoConstruir: comCascata(ligarCascataFatorRisco),
@@ -4315,11 +4653,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           "Posto Trabalho": ["Posto de trabalho", "Posto"],
           "Medida Controle Existente": ["Medida de controle existente"],
         },
-        // V 1.11: Atividade e Data da identificacao NAO sao obrigatorias na importacao
-        // (o sistema anterior nao traz). Ficam em branco; o padrao abaixo e opcional.
-        opcionais: ["Atividade", "Dt Identificacao"],
+        // V 1.11: Data da identificacao NAO e obrigatoria na importacao (o sistema anterior
+        // nao traz). V 1.28: a AEP nao usa mais Atividade.
+        opcionais: ["Dt Identificacao"],
         padroes: [
-          { campo: "Atividade", rotulo: "Atividade para as linhas sem atividade (opcional – em branco, não preenche)", sugestao: "" },
           { campo: "Dt Identificacao", rotulo: "Data de identificação para as linhas sem data (opcional – em branco, não preenche)", sugestao: "" },
         ],
         correspondencia: () => ({
@@ -4337,7 +4674,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           },
         }),
         duplicidade: {
-          campos: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade", "Grupo", "Fator", "Circunstancia Geradora"],
+          campos: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Grupo", "Fator", "Circunstancia Geradora"],
           ignorarNaAssinatura: ["Observacao", "Dt Identificacao", "Pontuacao Risco", "Graduacao Risco"],
         },
         marcas: {
@@ -4345,21 +4682,28 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           matrizDiverge: { chip: "matriz do cliente ≠ legado", rotulo: "Matriz do cliente difere da do legado" },
         },
         validarLinha: validarLinhaInventarioLegado,
-        // V 1.13: importacao unica - alem dos fatores e dos cadastros, cria a AEP (uma por posto+cargo[+atividade]) a que eles pertencem
+        // V 1.13: importacao unica - alem dos fatores e dos cadastros, cria a AEP (V 1.28: uma por posto+cargo) a que eles pertencem
         derivados: [{
           colecao: "avaliacaoErgonomica",
           rotulo: "avaliações de AEP",
           descricao: "O inventário pertence a uma avaliação (AEP) de cada posto e cargo. O SIGE cria a avaliação com os dados que a planilha tem (jornada, pausas e rodízio ficam para preencher depois) e reaproveita as que já existem.",
-          chave: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"],
+          chave: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"],
         }],
-        descricao: "Importe o Inventário de Riscos exportado do sistema anterior (uma linha por fator de risco). Cliente, Unidade, Setor, Posto, Cargo e Atividade que ainda não existirem podem ser criados automaticamente. A Graduação do Risco é mantida como veio do sistema anterior (as linhas em que ela difere da matriz do SIGE ficam marcadas). Linhas repetidas e nomes parecidos são apresentados para revisão. Antes de gravar nada, você confere tudo na prévia.",
+        descricao: "Importe o Inventário de Riscos exportado do sistema anterior (uma linha por fator de risco). Cliente, Unidade, Setor, Posto e Cargo que ainda não existirem podem ser criados automaticamente. A Graduação do Risco é mantida como veio do sistema anterior (as linhas em que ela difere da matriz do SIGE ficam marcadas). Linhas repetidas e nomes parecidos são apresentados para revisão. Antes de gravar nada, você confere tudo na prévia.",
       },
     },
     laudo: {
-      grupo: "registro", icone: "📄", tituloMenu: "Laudos",
+      grupo: "aep", icone: "📄", tituloMenu: "Laudos",
       titulo: "Laudos e Certificados",
-      colunasTabela: ["Cliente", "Tipo", "Emitido Em", "Emitido Por", "Codigo Verificacao"],
+      // V 1.28: a lista e o historico de laudos emitidos (do cliente filtrado).
+      colunasTabela: ["Emitido Em", "Cliente", "Abrangencia Descricao", "Tipo", "Revisao", "Emitido Por", "Codigo Verificacao"],
+      rotulosColunas: { "Abrangencia Descricao": "Abrangência", "Revisao": "Revisão", "Codigo Verificacao": "Código" },
+      colunasVirtuais: { "Abrangencia Descricao": (l) => descreverAbrangencia(l) },
       colunasData: ["Emitido Em"], camposData: ["Emitido Em"],
+      rotuloNovo: "📄 Emitir laudo",
+      semEditar: true,
+      // V 1.31: ao registrar o laudo, as acoes dele que ainda nao tem revisao recebem a revisao deste laudo.
+      aoSalvarDepois: async (form) => { if (form._acoesLaudo) await carimbarRevisaoAcoes(form._acoesLaudo.ids, form._acoesLaudo.revisao); },
       campos: camposLaudo(),
       // Alem da cascata Cliente/Setor/Posto (comCascata), injeta o botao
       // "Gerar Laudo (PDF)" - ver ligarGeracaoLaudo.
@@ -4379,7 +4723,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // de cada arquivo automaticamente (ver camposAET/extrairTextoParaClassificacaoAET
     // acima e docs/bi-ergonomia-manual.md, secao AET).
     aet: {
-      grupo: "registro", icone: "📊", tituloMenu: "AET",
+      grupo: "aet", icone: "📊", tituloMenu: "AET",
       titulo: "Análise Ergonômica do Trabalho (AET)",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Data Analise"],
       colunasData: ["Data Analise"], camposData: ["Data Analise"],
@@ -4392,25 +4736,26 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // camposCertificadoCalibracao/camposModeloLaudo acima). Por isso, sem
     // "aoConstruir": nao ha cascata Cliente/Unidade/... nenhuma aqui.
     certificadoCalibracao: {
-      grupo: "mestre", icone: "📐", tituloMenu: "Certificado Calibração",
+      grupo: "interno", icone: "📐", tituloMenu: "Certificado Calibração",
       titulo: "Certificados de Calibração",
       colunasTabela: ["Nome", "Validade"],
       colunasData: ["Validade"], camposData: ["Validade"],
       campos: camposCertificadoCalibracao(),
     },
     modeloLaudo: {
-      grupo: "mestre", icone: "📝", tituloMenu: "Editor de Texto",
+      grupo: "interno", icone: "📝", tituloMenu: "Editor de Texto",
       titulo: "Editor de Texto do Laudo",
       colunasTabela: ["Nome"],
       colunasData: [], camposData: [],
       campos: camposModeloLaudo(),
       aoConstruir: ligarTextoPadraoModelo,
+      aoPrepararDados: prepararTextoModelo,
     },
     // V 1.3: ergonomistas (global) - assinatura e registro usados no laudo.
     ergonomista: {
-      grupo: "mestre", icone: "🧑‍⚕️", tituloMenu: "Ergonomistas",
+      grupo: "interno", icone: "🧑‍⚕️", tituloMenu: "Ergonomistas",
       titulo: "Ergonomistas (responsável técnico do laudo)",
-      colunasTabela: ["Nome", "Registro", "Titulo"],
+      colunasTabela: ["Nome", "Registro", "Titulo", "Email"],
       colunasData: [], camposData: [],
       campos: camposErgonomista(),
     },
@@ -4662,7 +5007,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
     const titulo = document.createElement("div");
     titulo.className = "form-titulo";
-    titulo.textContent = valoresIniciais && valoresIniciais._id ? "Editar registro" : "Novo registro";
+    titulo.textContent = valoresIniciais && valoresIniciais._id ? "Editar registro" : (chave === "laudo" ? "Emitir laudo" : "Novo registro");
     form.appendChild(titulo);
 
     // Corpo do formulario: por padrao uma unica grade de campos (comportamento
@@ -5106,9 +5451,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   //                  Posto de Trabalho/Atividade
   //  - "registro" -> aba Registro (input do dia a dia): Mapa Risco/Plano
   //                  Acao/Absenteismo/Compativeis
+  // V 1.28: Cadastro Cliente (mestre), Cadastro Interno, AEP e Registro.
   const GRUPOS_CADASTRO = {
     mestre: { grade: "grade-cadastro-mestre", subnav: "subnav-cadastro-mestre" },
+    interno: { grade: "grade-cadastro-interno", subnav: "subnav-cadastro-interno" },
+    aep: { grade: "grade-aep", subnav: "subnav-aep" },
     registro: { grade: "grade-registro", subnav: "subnav-registro" },
+    aet: { grade: "grade-aet", subnav: "subnav-aet" },
   };
   const estadoSubAbaCadastro = {};
 
@@ -5138,8 +5487,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // Mapeamento entre o "grupo" usado no CADASTROS_CONFIG (mestre/registro)
   // e a aba correspondente no nav principal (cadastro/registro) - os nomes
   // divergem porque a aba "Cadastro" contem os dados MESTRE.
-  const ABA_DO_GRUPO = { mestre: "cadastro", registro: "registro" };
-  const GRUPO_DA_ABA = { cadastro: "mestre", registro: "registro" };
+  // V 1.29: "registro" e a aba Plano de Acao (so o planoAcao); "aet" e o modulo AET.
+  const ABA_DO_GRUPO = { mestre: "cadastro", interno: "interno", aep: "aep", registro: "registro", aet: "aet" };
+  const GRUPO_DA_ABA = { cadastro: "mestre", interno: "interno", aep: "aep", registro: "registro", aet: "aet" };
 
   // Constroi, dentro do proprio menu lateral, a arvore retratil de
   // sub-itens de "Cadastro" (6 entidades) e "Registro" (4 tabelas) - mesmo
@@ -5234,7 +5584,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // tempo para excluir informacoes do sistema" - exclusao em bloco.
       estadoCadastro[chave] = estadoCadastro[chave] || { formAberto: false, editandoId: null, busca: "", pagina: 1, valoresForm: null, ordenarCampo: null, ordenarAsc: true, selecionados: new Set() };
       const cfg = CADASTROS_CONFIG[chave];
-      const grade = document.getElementById(GRUPOS_CADASTRO[cfg.grupo].grade);
+      // V 1.29: grupo "legado" (Mapa de Risco manual) nao tem tela.
+      const grade = GRUPOS_CADASTRO[cfg.grupo] ? document.getElementById(GRUPOS_CADASTRO[cfg.grupo].grade) : null;
       if (!grade) return;
 
       const cartao = document.createElement("div");
@@ -5252,11 +5603,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       titulo.appendChild(contagem);
       const btnNovo = document.createElement("button");
       btnNovo.type = "button"; btnNovo.className = "btn-novo-registro"; btnNovo.id = "btn-novo-" + chave;
-      btnNovo.textContent = "+ Novo registro";
+      btnNovo.textContent = cfg.rotuloNovo || "+ Novo registro";
       btnNovo.addEventListener("click", () => abrirFormNovo(chave));
       cab.appendChild(titulo);
       // V 1.27: baixar a aba em Excel (todos os perfis; o cliente so consulta).
-      if (cfg.grupo === "registro" || cfg.grupo === "mestre") {
+      if (cfg.grupo === "registro" || cfg.grupo === "mestre" || cfg.grupo === "aep" || cfg.grupo === "interno" || cfg.grupo === "aet") {
         const btnExcel = document.createElement("button");
         btnExcel.type = "button"; btnExcel.className = "btn-cad-secundario btn-baixar-excel"; btnExcel.id = "btn-excel-" + chave;
         btnExcel.textContent = "⬇ Baixar Excel";
@@ -5271,10 +5622,20 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         btnImportar.addEventListener("click", () => abrirImportacao(chave));
         cab.appendChild(btnImportar);
       }
-      cab.appendChild(btnNovo);
+      if (!cfg.semNovo) cab.appendChild(btnNovo);
 
       const formContainer = document.createElement("div");
       formContainer.id = "form-container-" + chave;
+      let migEl = null;
+      // V 1.28: painel de emissao do laudo - mostra para qual cliente (filtro geral) o laudo sai.
+      if (chave === "laudo") {
+        migEl = document.createElement("div");
+        migEl.id = "laudo-emissao"; migEl.className = "laudo-emissao";
+      }
+      if (chave === "avaliacaoErgonomica") {
+        migEl = document.createElement("div");
+        migEl.id = "aep-migracao"; migEl.className = "aep-migracao"; migEl.hidden = true;
+      }
 
       const controles = document.createElement("div");
       controles.className = "tabela-controles";
@@ -5341,6 +5702,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       paginacao.id = "paginacao-cad-" + chave;
 
       cartao.appendChild(cab);
+      if (migEl) cartao.appendChild(migEl);
       cartao.appendChild(formContainer);
       cartao.appendChild(controles);
       cartao.appendChild(scroll);
@@ -5359,7 +5721,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
   function atualizarBotoesSomenteLeitura() {
     const disponivel = window.BI.DB.estado.disponivel;
-    ["aviso-somente-leitura-cadastro", "aviso-somente-leitura-registro"].forEach((id) => {
+    ["aviso-somente-leitura-cadastro", "aviso-somente-leitura-registro", "aviso-somente-leitura-interno", "aviso-somente-leitura-aep"].forEach((id) => {
       const aviso = document.getElementById(id);
       if (aviso) aviso.hidden = disponivel;
     });
@@ -5418,7 +5780,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         o[T(d.rotulo || d.campo)] = v == null ? "" : v;
       });
       if (chave === "planoAcao") o[T("Status Acao")] = window.BI.Calc.statusDaLinhaAcao(l, hoje);
-      if (l.Origem) o.Origem = l.Origem;
+      Object.keys(cfg.colunasVirtuais || {}).forEach((c) => { const v = valorColuna(cfg, c, l); o[T((cfg.rotulosColunas && cfg.rotulosColunas[c]) || c)] = /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? BI.Datas.isoParaBR(v) : (v || ""); });
+      if (l.Origem && !(cfg.colunasVirtuais && cfg.colunasVirtuais.Origem)) o.Origem = l.Origem;
       return o;
     });
     const wb = XLSX.utils.book_new();
@@ -5565,6 +5928,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         const erroGancho = cfg.aoValidar(form, dados);
         if (erroGancho) { form._erroEl.hidden = false; form._erroEl.textContent = erroGancho; return; }
       }
+      // V 1.31: gancho assincrono (ex.: reavaliacao do risco ao concluir uma acao que reduz/elimina o risco)
+      if (cfg.aoConfirmarAntes) {
+        const seguir = await cfg.aoConfirmarAntes(form, dados);
+        if (!seguir) return;
+      }
       if (cfg.aoPrepararDados) cfg.aoPrepararDados(form, dados);
       try {
         const idAtual = estado.editandoId;
@@ -5619,7 +5987,216 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // tela de cadastro - fatorado pra fora de renderizarListaCadastro porque
   // selecionarTodosFiltrados() (selecao em bloco) precisa do MESMO conjunto
   // (nao so a pagina atual de 10) sem duplicar a logica de filtro/busca.
+  // V 1.28 - AEP: numero, cadastro e ultima atualizacao (data e ergonomista).
+  // Autor e datas vem da auditoria do servidor (_criadoEm/_criadoPor/_editadoEm/_editadoPor);
+  // o e-mail do usuario vira o nome do ergonomista quando ele esta em Cadastro Interno › Ergonomistas.
+  function nomeDoUsuario(email) {
+    if (!email) return "—";
+    const e = String(email).trim().toLowerCase();
+    const erg = (window.BI.dados.ergonomista || []).find((x) => String(x.Email || "").trim().toLowerCase() === e);
+    return erg ? erg.Nome : email;
+  }
+  function nrAvaliacaoTexto(l) {
+    const n = Number(l["Nr Avaliacao"]);
+    return n ? "AEP-" + String(n).padStart(3, "0") : "—";
+  }
+  function dataCadastroAEP(l) {
+    if (l._criadoEm) return String(l._criadoEm).slice(0, 10);
+    return l["Data Avaliacao"] || "";
+  }
+  function dataAtualizacaoAEP(l) {
+    const datas = [l._editadoEm, l._criadoEm].filter(Boolean).map((d) => String(d).slice(0, 10));
+    return datas.length ? datas.sort().pop() : (l["Data Avaliacao"] || "");
+  }
+  function valorColuna(cfg, coluna, linha) {
+    const f = cfg.colunasVirtuais && cfg.colunasVirtuais[coluna];
+    return f ? f(linha) : linha[coluna];
+  }
+
+  // ------------------------------------------------------------------
+  // V 1.28 - AEP: "Mais detalhes" organizado (identificacao, registro, rotina,
+  // observacoes, inventario e historico de atualizacoes).
+  // ------------------------------------------------------------------
+  function abrirDetalhesAEP(linha) {
+    const Calc = window.BI.Calc;
+    const atual = (window.BI.dados.avaliacaoErgonomica || []).find((a) => a._id === linha._id) || linha;
+    window.BI.Historico.abrirPainel(`Avaliação ${nrAvaliacaoTexto(atual)} · ${atual["Posto Trabalho"] || ""}`, (corpo, h) => {
+      const { el, dh } = h;
+      const secao = (titulo) => { const d = el("div", "aep-det-secao"); d.appendChild(el("div", "aep-det-secao-titulo", titulo)); corpo.appendChild(d); return d; };
+      const grade = (pai, pares) => {
+        const g = el("div", "aep-det-grade");
+        pares.forEach(([rot, val, largo]) => {
+          if (val == null || val === "") return;
+          const c = el("div", "aep-det-item" + (largo ? " aep-det-largo" : ""));
+          c.appendChild(el("div", "aep-det-rot", rot));
+          c.appendChild(el("div", "aep-det-val", String(val)));
+          g.appendChild(c);
+        });
+        if (!g.children.length) g.appendChild(el("div", "aep-det-vazio", "Não informado."));
+        pai.appendChild(g);
+      };
+      const nome = nomeDoUsuario;
+
+      grade(secao("Identificação"), [
+        ["Nº da avaliação", nrAvaliacaoTexto(atual)], ["Cliente", atual.Cliente], ["Unidade", atual.Unidade], ["Setor", atual.Setor],
+        ["Cargo", atual.Cargo], ["Posto de trabalho", atual["Posto Trabalho"]], ["Data da avaliação", atual["Data Avaliacao"] ? formatarDataBR(atual["Data Avaliacao"]) : ""],
+      ]);
+      grade(secao("Registro"), [
+        ["Cadastrada em", atual._criadoEm ? dh(atual._criadoEm) : formatarDataBR(dataCadastroAEP(atual))],
+        ["Cadastrada por", atual._criadoPor ? nome(atual._criadoPor) : "sem informação (registro anterior ao histórico)"],
+        ["Última atualização", atual._editadoEm ? dh(atual._editadoEm) : formatarDataBR(dataAtualizacaoAEP(atual))],
+        ["Atualizada por", nome(atual._editadoPor || atual._criadoPor)],
+        ["Última alteração", atual["Ultima Atualizacao"]],
+      ]);
+      grade(secao("Rotina de trabalho"), [["Jornada", atual["Jornada de Trabalho"], true], ["Pausas", atual.Pausas, true], ["Rodízio", atual.Rodizio, true]]);
+      grade(secao("Observações da avaliação"), [
+        ["Descrição do setor", atual["Descricao Setor"], true], ["Atividade observada (tarefa real)", atual["Descricao Atividade Observada"], true],
+        ["Características dos trabalhadores", atual["Caracteristicas Trabalhadores"], true], ["Histórico de acidentes", atual["Historico Acidentes"], true],
+        ["Fotos", (atual.Fotos || []).length ? `${atual.Fotos.length} foto(s) anexada(s)` : ""],
+      ]);
+
+      // Inventario de riscos desta avaliacao
+      const sInv = secao("Inventário de riscos");
+      const fatores = (window.BI.dados.fatorRisco || []).filter((f) => mesmoPostoAEP(f, atual) && f["Existe Fator Risco"] === "Sim");
+      if (!fatores.length) sInv.appendChild(el("div", "aep-det-vazio", "Nenhum fator de risco registrado. Use o botão \"Inventário de Riscos\" na linha da avaliação."));
+      else {
+        const t = el("table", "tabela-dados aep-det-tabela");
+        const th = el("tr"); ["Grupo", "Fator", "Graduação", "Ações"].forEach((x) => th.appendChild(el("th", null, x)));
+        const thead = el("thead"); thead.appendChild(th); t.appendChild(thead);
+        const tb = el("tbody");
+        fatores.slice().sort((a, b) => (Calc.GRUPOS_FATOR_RISCO.indexOf(a.Grupo) - Calc.GRUPOS_FATOR_RISCO.indexOf(b.Grupo)) || String(a.Fator).localeCompare(String(b.Fator))).forEach((f) => {
+          const tr = el("tr");
+          tr.appendChild(el("td", null, f.Grupo || ""));
+          tr.appendChild(el("td", null, f.Fator || ""));
+          const td = el("td", null, f["Graduacao Risco"] || "-");
+          const cor = f["Graduacao Risco"] ? Calc.corStatus(f["Graduacao Risco"]) : ""; if (cor) { td.style.color = cor; td.style.fontWeight = "700"; }
+          tr.appendChild(td);
+          tr.appendChild(el("td", null, String(window.BI.Acoes ? window.BI.Acoes.acoesDoFator(f._id).length : 0)));
+          tb.appendChild(tr);
+        });
+        t.appendChild(tb);
+        const sc = el("div", "tabela-scroll"); sc.appendChild(t); sInv.appendChild(sc);
+      }
+
+      // Historico de atualizacoes (linha do tempo da auditoria do servidor)
+      const sHist = secao("Histórico de atualizações");
+      const hist = Array.isArray(atual._historico) ? atual._historico.slice().reverse() : [];
+      if (!hist.length) sHist.appendChild(el("div", "aep-det-vazio", "Sem histórico registrado (avaliação anterior ao controle de histórico)."));
+      const ROT = { "Data Avaliacao": "data da avaliação", "Jornada de Trabalho": "jornada", Pausas: "pausas", Rodizio: "rodízio", "Descricao Setor": "descrição do setor", "Descricao Atividade Observada": "atividade observada", "Caracteristicas Trabalhadores": "características dos trabalhadores", "Historico Acidentes": "histórico de acidentes", Fotos: "fotos", "Nr Avaliacao": "número", Atividade: "atividade" };
+      hist.forEach((x) => {
+        const item = el("div", "aep-det-hist");
+        item.appendChild(el("div", "aep-det-hist-cab", `${dh(x.em)} · ${nome(x.por)}`));
+        let texto;
+        if (x.acao === "criou") texto = "Cadastrou a avaliação";
+        else {
+          const alts = (x.alteracoes || []);
+          const inv = alts.find((a) => a.campo === "Ultima Atualizacao");
+          const outros = alts.filter((a) => !["Ultima Atualizacao", "Ultima Atualizacao Em"].includes(a.campo)).map((a) => ROT[a.campo] || String(a.campo).toLowerCase());
+          texto = [inv ? inv.para : "", outros.length ? "Editou: " + outros.join(", ") : ""].filter(Boolean).join(" · ") || "Atualizou a avaliação";
+        }
+        item.appendChild(el("div", "aep-det-hist-txt", texto));
+        sHist.appendChild(item);
+      });
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // V 1.28 - Atualizacao das AEPs antigas (so Administrador): tira a atividade,
+  // junta as avaliacoes do mesmo posto e cargo (mantem a mais recente e traz os
+  // dados que faltarem das outras; os fatores das outras passam a ser dela) e
+  // numera as avaliacoes que ainda nao tem numero.
+  // ------------------------------------------------------------------
+  const chaveAEP = (l) => ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].map((k) => String(l[k] || "").trim().toLowerCase()).join("|");
+  function pendenciasAEP() {
+    const avs = window.BI.dados.avaliacaoErgonomica || [];
+    const grupos = {};
+    avs.forEach((a) => { (grupos[chaveAEP(a)] = grupos[chaveAEP(a)] || []).push(a); });
+    const duplicadas = Object.values(grupos).filter((g) => g.length > 1);
+    const comAtividade = avs.filter((a) => String(a.Atividade || "").trim());
+    const semNumero = window.BI.DB.estado.modoApi ? avs.filter((a) => !Number(a["Nr Avaliacao"])) : [];
+    const fatoresComAtividade = (window.BI.dados.fatorRisco || []).filter((f) => String(f.Atividade || "").trim());
+    return { grupos, duplicadas, comAtividade, semNumero, fatoresComAtividade, total: duplicadas.length + comAtividade.length + semNumero.length + fatoresComAtividade.length };
+  }
+  function atualizarAvisoMigracaoAEP() {
+    const cont = document.getElementById("aep-migracao");
+    if (!cont) return;
+    const i = window.BI.DB.estado.identidade;
+    const admin = !!(i && i.papel === "Administrador");
+    const p = pendenciasAEP();
+    cont.hidden = !admin || !p.total || !window.BI.DB.estado.disponivel;
+    if (cont.hidden || cont.dataset.rodando === "1") return;
+    cont.innerHTML = "";
+    const t = document.createElement("div"); t.className = "aep-migracao-titulo"; t.textContent = "Atualizar as avaliações para o novo formato";
+    const d = document.createElement("div"); d.className = "aep-migracao-texto";
+    d.textContent = [
+      p.comAtividade.length ? `${p.comAtividade.length} avaliação(ões) ainda com atividade` : "",
+      p.duplicadas.length ? `${p.duplicadas.length} posto(s)/cargo(s) com mais de uma avaliação (serão juntadas na mais recente)` : "",
+      p.semNumero.length ? `${p.semNumero.length} sem número` : "",
+      p.fatoresComAtividade.length ? `${p.fatoresComAtividade.length} fator(es) do inventário com atividade` : "",
+    ].filter(Boolean).join(" · ") + ". A AEP passa a ser uma por posto e cargo, numerada por empresa.";
+    const b = document.createElement("button"); b.type = "button"; b.className = "btn-cad-primario"; b.textContent = "Atualizar agora";
+    const st = document.createElement("span"); st.className = "aep-migracao-status";
+    b.addEventListener("click", async () => {
+      if (b.dataset.armado !== "1") { b.dataset.armado = "1"; b.textContent = "Confirmar atualização"; return; }
+      b.disabled = true; cont.dataset.rodando = "1";
+      try { await migrarAEPs((m) => { st.textContent = m; }); st.textContent = "Avaliações atualizadas."; }
+      catch (e) { st.textContent = "Falhou: " + (e && e.message ? e.message : e) + ". Pode clicar de novo: continua de onde parou."; b.disabled = false; b.dataset.armado = ""; b.textContent = "Atualizar agora"; }
+      finally { cont.dataset.rodando = ""; renderizarTudo(); }
+    });
+    cont.appendChild(t); cont.appendChild(d); cont.appendChild(b); cont.appendChild(st);
+  }
+  function semInternos(l) { const o = {}; Object.keys(l).forEach((k) => { if (k[0] !== "_" && k !== "id") o[k] = l[k]; }); return o; }
+  async function migrarAEPs(progresso) {
+    const DB = window.BI.DB;
+    const recente = (a) => [a._editadoEm, a._criadoEm, a["Data Avaliacao"]].filter(Boolean).map((x) => String(x)).sort().pop() || "";
+    const CAMPOS_TEXTO = ["Data Avaliacao", "Jornada de Trabalho", "Pausas", "Rodizio", "Descricao Setor", "Descricao Atividade Observada", "Caracteristicas Trabalhadores", "Historico Acidentes"];
+    let p = pendenciasAEP(), n = 0;
+    // 1) junta as avaliacoes do mesmo posto e cargo
+    for (const g of p.duplicadas) {
+      const ord = g.slice().sort((a, b) => recente(b).localeCompare(recente(a)));
+      const fica = ord[0], saem = ord.slice(1);
+      const dados = semInternos(fica);
+      saem.forEach((o) => {
+        CAMPOS_TEXTO.forEach((k) => { if (!String(dados[k] || "").trim() && String(o[k] || "").trim()) dados[k] = o[k]; });
+        if (Array.isArray(o.Fotos) && o.Fotos.length) dados.Fotos = (dados.Fotos || []).concat(o.Fotos.filter((f) => !(dados.Fotos || []).some((x) => x && f && x.chave === f.chave)));
+      });
+      dados.Atividade = null;
+      dados["Ultima Atualizacao"] = `Avaliações do mesmo posto e cargo juntadas (${g.length})`;
+      progresso(`Juntando avaliações… ${++n} de ${p.duplicadas.length}`);
+      await DB.salvar("avaliacaoErgonomica", fica._id, dados);
+      for (const o of saem) await DB.excluir("avaliacaoErgonomica", o._id);
+    }
+    // 2) tira a atividade das avaliacoes e dos fatores
+    p = pendenciasAEP(); n = 0;
+    for (const a of p.comAtividade) {
+      progresso(`Tirando a atividade das avaliações… ${++n} de ${p.comAtividade.length}`);
+      await DB.salvar("avaliacaoErgonomica", a._id, Object.assign(semInternos(a), { Atividade: null }));
+    }
+    n = 0;
+    for (const f of p.fatoresComAtividade) {
+      progresso(`Atualizando o inventário… ${++n} de ${p.fatoresComAtividade.length}`);
+      await DB.salvar("fatorRisco", f._id, Object.assign(semInternos(f), { Atividade: null }));
+    }
+    // 3) numera por empresa, na ordem de cadastro
+    p = pendenciasAEP();
+    if (p.semNumero.length) {
+      const porCliente = {};
+      (window.BI.dados.avaliacaoErgonomica || []).forEach((a) => { (porCliente[a.Cliente] = porCliente[a.Cliente] || []).push(a); });
+      n = 0;
+      for (const cli of Object.keys(porCliente)) {
+        const lista = porCliente[cli];
+        let prox = Math.max(0, ...lista.map((a) => Number(a["Nr Avaliacao"]) || 0)) + 1;
+        const sem = lista.filter((a) => !Number(a["Nr Avaliacao"])).sort((a, b) => String(dataCadastroAEP(a)).localeCompare(String(dataCadastroAEP(b))));
+        for (const a of sem) {
+          progresso(`Numerando as avaliações… ${++n} de ${p.semNumero.length}`);
+          await DB.salvar("avaliacaoErgonomica", a._id, Object.assign(semInternos(a), { "Nr Avaliacao": prox++ }));
+        }
+      }
+    }
+  }
+
   function linhasFiltradasCadastro(chave) {
+    if (COLECOES_COM_ORIGEM.hasOwnProperty(chave)) carimbarOrigens();
     const cfg = CADASTROS_CONFIG[chave];
     const estado = estadoCadastro[chave];
     const linhasBrutas = window.BI.dados[chave] || [];
@@ -5627,7 +6204,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const totalFiltrado = linhas.length;
     if (estado.busca) {
       const termo = estado.busca.toLowerCase();
-      linhas = linhas.filter((l) => cfg.colunasTabela.some((c) => String(l[c] || "").toLowerCase().includes(termo)));
+      linhas = linhas.filter((l) => cfg.colunasTabela.some((c) => String(valorColuna(cfg, c, l) || "").toLowerCase().includes(termo)));
     }
     return { linhasBrutas, linhas, totalFiltrado };
   }
@@ -5643,7 +6220,40 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     return "Sem evidência";
   }
 
+  // V 1.28: painel acima do historico de laudos - para qual cliente (filtro
+  // geral) o laudo sai, quantas AEPs ele tem e o botao "Emitir laudo".
+  function atualizarPainelEmissaoLaudo() {
+    const el = document.getElementById("laudo-emissao");
+    if (!el) return;
+    const sel = (window.BI.filtros && window.BI.filtros.Cliente) || [];
+    el.innerHTML = "";
+    const txt = document.createElement("div");
+    txt.className = "laudo-emissao-texto";
+    if (sel.length === 1) {
+      const nAep = (window.BI.dados.avaliacaoErgonomica || []).filter((a) => a.Cliente === sel[0]).length;
+      const nLaudos = (window.BI.dados.laudo || []).filter((l) => l.Cliente === sel[0]).length;
+      const forte = document.createElement("strong");
+      forte.textContent = sel[0];
+      txt.appendChild(forte);
+      txt.appendChild(document.createTextNode(` · ${nAep} AEP(s) cadastrada(s) · ${nLaudos} laudo(s) emitido(s). Abaixo, o histórico de laudos deste cliente.`));
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.className = "btn-cad-primario";
+      btn.textContent = "📄 Emitir laudo atual";
+      btn.disabled = !nAep;
+      btn.title = nAep ? "Emite o laudo com as AEPs e o inventário atuais (empresa toda ou um recorte)" : "Cadastre ao menos uma AEP deste cliente";
+      btn.addEventListener("click", () => abrirFormNovo("laudo"));
+      el.appendChild(txt); el.appendChild(btn);
+    } else {
+      txt.textContent = sel.length > 1
+        ? "Vários clientes no filtro geral. Para emitir, escolha um único cliente no filtro (ou selecione o cliente no formulário). O histórico abaixo mostra os laudos dos clientes filtrados."
+        : "Selecione um cliente no filtro geral (topo da página) para emitir o laudo dele e ver o histórico de laudos já emitidos.";
+      el.appendChild(txt);
+    }
+  }
+
   function renderizarListaCadastro(chave) {
+    if (chave === "avaliacaoErgonomica") { try { atualizarAvisoMigracaoAEP(); } catch (e) { console.error(e); } }
+    if (chave === "laudo") { try { atualizarPainelEmissaoLaudo(); } catch (e) { console.error(e); } }
     const Calc = window.BI.Calc;
     const cfg = CADASTROS_CONFIG[chave];
     const estado = estadoCadastro[chave];
@@ -5663,7 +6273,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const ehStatusAcao = campoOrdenar === "Status Acao";
       const valorOrdenavel = (linha) => ehStatusAcao
         ? Calc.statusDaLinhaAcao(linha, hoje)
-        : (campoOrdenar === "Evidencia" ? textoEvidenciaAcao(linha) : linha[campoOrdenar]);
+        : (campoOrdenar === "Evidencia" ? textoEvidenciaAcao(linha) : valorColuna(cfg, campoOrdenar, linha));
       linhas = linhas.slice().sort((a, b) => {
         const r = compararValoresTabela(valorOrdenavel(a), valorOrdenavel(b), ehData);
         return estado.ordenarAsc ? r : -r;
@@ -5710,7 +6320,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
     colunas.forEach((c) => {
       const th = document.createElement("th");
-      th.textContent = T(c);
+      th.textContent = T((cfg.rotulosColunas && cfg.rotulosColunas[c]) || c);
       th.title = "Clique para ordenar";
       if (estado.ordenarCampo === c) {
         th.classList.add("ordenada-por");
@@ -5761,7 +6371,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         tr.appendChild(tdSelecao);
         cfg.colunasTabela.forEach((c) => {
           const td = document.createElement("td");
-          td.appendChild(noCelula(c, linha, cfg.colunasData || []));
+          if (cfg.colunasVirtuais && cfg.colunasVirtuais[c]) {
+            const v = valorColuna(cfg, c, linha);
+            td.textContent = /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? formatarDataBR(v) : (v || "—");
+            if (c === "Nr Avaliacao") td.style.fontWeight = "700";
+          } else td.appendChild(noCelula(c, linha, cfg.colunasData || []));
           tr.appendChild(td);
         });
         if (chave === "planoAcao") {
@@ -5795,7 +6409,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
               window.open(window.BI.DB.urlArquivo(itemArquivo.chave), "_blank", "noopener");
             });
           } else {
-            btnBaixar.title = "Este registro ainda não tem um arquivo gerado/anexado - use Editar e o botão \"Gerar Laudo (PDF)\"";
+            btnBaixar.title = "Este laudo não tem arquivo anexado - emita o laudo de novo para gerar o PDF";
           }
           tdAcoes.appendChild(btnBaixar);
         }
@@ -5844,9 +6458,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         const btnDetalhes = document.createElement("button");
         btnDetalhes.type = "button"; btnDetalhes.className = "btn-acao-linha btn-acao-linha-detalhes"; btnDetalhes.textContent = "Mais detalhes";
         btnDetalhes.title = "Quem criou/editou este registro, quando, e o histórico campo a campo";
-        btnDetalhes.addEventListener("click", () => BI.Historico.abrir(cfg, linha));
+        btnDetalhes.addEventListener("click", () => (chave === "avaliacaoErgonomica" ? abrirDetalhesAEP(linha) : BI.Historico.abrir(cfg, linha)));
         tdAcoes.appendChild(btnDetalhes);
-        tdAcoes.appendChild(btnEditar);
+        if (!cfg.semEditar) tdAcoes.appendChild(btnEditar);
         tdAcoes.appendChild(btnExcluir);
         tr.appendChild(tdAcoes);
         tbody.appendChild(tr);
@@ -5876,7 +6490,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function renderizarTodosCadastros() {
-    Object.keys(CADASTROS_CONFIG).forEach(renderizarListaCadastro);
+    Object.keys(CADASTROS_CONFIG).filter((c) => GRUPOS_CADASTRO[CADASTROS_CONFIG[c].grupo]).forEach(renderizarListaCadastro);
   }
 
   // Sincroniza a barra de selecao em bloco (contador, botao "Excluir
@@ -6042,7 +6656,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // Registro) abre sozinha e a outra recolhe - navegar para Ergo/Med
   // Ocup/Compativeis recolhe as duas.
   function ativarAba(aba) {
-    if (aba === "cadastro" && ehUsuarioCliente()) aba = "ergo";
+    if ((aba === "cadastro" || aba === "interno") && ehUsuarioCliente()) aba = "ergo";
     const nav = document.getElementById("nav-abas");
     const botoes = Array.from(nav.querySelectorAll("button[data-aba]"));
     const btn = botoes.find((b) => b.dataset.aba === aba);
@@ -6058,6 +6672,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     atualizarEstadoExportacao();
     expandirGrupoSidebar(GRUPO_DA_ABA[aba] ? aba : null);
     try { aplicarServicosContratados(); } catch (_) { /* dados ainda nao carregados */ }
+    if (aba === "psicossocial") sincronizarFiltroPsico(true);
   }
 
   function configurarAbas() {
@@ -6114,8 +6729,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // So disponivel nas 3 abas de dashboard (Ergo / Med Ocup / Compativeis).
   // ------------------------------------------------------------------
   const TITULOS_ABA = { ergo: "Dashboard Ergo", medocup: "Dashboard Med Ocup", compativeis: "Dashboard Compatíveis" };
-  const TABELAS_POR_ABA = { ergo: ["mapaRisco", "planoAcao"], medocup: ["absenteismo", "diasUteis"], compativeis: ["compativeis"] };
-  const NOMES_PLANILHA = { mapaRisco: "Mapa Risco", planoAcao: "Plano Ação", absenteismo: "Absenteísmo", compativeis: "Compatíveis", diasUteis: "HHT Dias Úteis" };
+  const TABELAS_POR_ABA = { ergo: ["riscoPosto", "fatorRisco", "planoAcao"], medocup: ["absenteismo", "diasUteis"], compativeis: ["compativeis"] };
+  const NOMES_PLANILHA = { riscoPosto: "Risco por Posto", fatorRisco: "Inventário", mapaRisco: "Mapa Risco", planoAcao: "Plano Ação", absenteismo: "Absenteísmo", compativeis: "Compatíveis", diasUteis: "HHT Dias Úteis" };
 
   function abaAtualChave() {
     const btn = document.querySelector('#nav-abas button[data-aba].ativa');
@@ -6151,6 +6766,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // graficos - garante que a exportacao reflita exatamente o que esta na
   // tela.
   function linhasFiltradasParaExportar(chaveTabela) {
+    if (chaveTabela === "riscoPosto") return window.BI.Calc.filtrar(window.BI.riscoPostos || [], window.BI.filtros, ["Dt Avaliacao"]);
+    carimbarOrigens();
     const cfg = CADASTROS_CONFIG[chaveTabela];
     let linhas = window.BI.Calc.filtrar(window.BI.dados[chaveTabela] || [], window.BI.filtros, cfg.camposData);
     if (chaveTabela === "compativeis") linhas = aplicarFiltrosPagina(linhas);
@@ -6171,7 +6788,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         const copia = {};
         const ROT_AUDIT = { _criadoEm: "Criado em", _criadoPor: "Criado por", _editadoEm: "Última edição em", _editadoPor: "Última edição por" };
         Object.keys(l).forEach((k) => {
-          if (k === "_id" || k === "_notif" || k === "_historico") return;
+          if (k === "_id" || k === "_notif" || k === "_historico" || k === "_origem") return;
           let v = l[k];
           if (ROT_AUDIT[k]) { copia[ROT_AUDIT[k]] = k.endsWith("Em") ? BI.Datas.dataHoraBR(v) : v; return; }
           if (typeof v === "string" && (/^\d{4}-\d{2}-\d{2}$/.test(v) || (k === "Ano/Mes Uteis" && /^\d{4}-\d{2}$/.test(v)))) v = BI.Datas.isoParaBR(v);
@@ -6579,7 +7196,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const escopo = filtroCli.length ? clientes.filter((c) => filtroCli.indexOf(c.Cliente) >= 0) : clientes;
     SERVICOS_SIGE.forEach((sv) => {
       if (sv.valor === "psicossocial") return; // o proprio modulo avisa, pela empresa escolhida nele
-      const sec = document.getElementById("aba-" + sv.valor);
+      // V 1.28: a aba AEP faz parte do servico Gestao de Risco (ergo)
+      (sv.valor === "ergo" ? ["ergo", "aep", "aet"] : [sv.valor]).forEach((abaServico) => {
+      const sec = document.getElementById("aba-" + abaServico);
       if (!sec) return;
       const semServico = escopo.length > 0 && !escopo.some((c) => empresaTemServico(c, sv.valor));
       sec.classList.toggle("sem-servico", semServico);
@@ -6596,13 +7215,35 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       p1.appendChild(document.createTextNode(escopo.length === 1 ? " não possui o serviço " + sv.label + "." : ") não possuem o serviço " + sv.label + "."));
       const p2 = document.createElement("p"); p2.textContent = "Caso queira saber mais, procure o time de especialistas da ElevaLife.";
       aviso.appendChild(h); aviso.appendChild(p1); aviso.appendChild(p2);
+      });
     });
   }
+
+  // V 1.28: o modulo Riscos Psicossociais acompanha o filtro global - com 1 cliente filtrado,
+  // abre a pagina daquela empresa; sem cliente filtrado, volta ao painel geral.
+  function clienteUnicoDoFiltro() {
+    const sel = (window.BI.filtros && window.BI.filtros.Cliente) || [];
+    if (sel.length !== 1) return null;
+    const c = (window.BI.dados.cliente || []).find((x) => x.Cliente === sel[0]);
+    return c ? (c.id || c._id) : null;
+  }
+  let ultimoClientePsico;
+  function sincronizarFiltroPsico(forcar) {
+    const frame = document.getElementById("frame-psicossocial");
+    if (!frame || !frame.contentWindow) return;
+    const id = clienteUnicoDoFiltro();
+    if (!forcar && id === ultimoClientePsico) return;
+    ultimoClientePsico = id;
+    try { frame.contentWindow.postMessage({ tipo: "psico-cliente", clienteId: id }, location.origin); } catch (e) { /* modulo ainda carregando */ }
+  }
+  window.BI.sincronizarFiltroPsico = sincronizarFiltroPsico;
+  window.BI.abrirAba = (aba) => { ativarAba(aba); if (GRUPO_DA_ABA[aba]) selecionarSubAbaCadastro(GRUPO_DA_ABA[aba], chavesDoGrupo(GRUPO_DA_ABA[aba])[0]); };
 
   function renderizarTudo() {
     try {
       renderizarTudoInterno();
       aplicarServicosContratados();
+      sincronizarFiltroPsico(false);
     } catch (erro) {
       console.error("BI Ergonomia - erro ao renderizar:", erro);
       mostrarErro(erro && erro.message ? erro.message : String(erro));
@@ -6614,20 +7255,33 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const filtros = window.BI.filtros;
     const Calc = window.BI.Calc;
 
-    const mapaRiscoF = Calc.filtrar(window.BI.dados.mapaRisco, filtros, ["Dt Avaliacao"]);
+    // V 1.29: o risco de cada posto vem do Inventario (AEP, Psicossocial e, quando existir, AET):
+    // e a maior graduacao entre os fatores do posto. O Mapa de Risco manual nao entra mais.
+    carimbarOrigens();
+    const riscoPostosTodos = Calc.riscoDosPostos(window.BI.dados.fatorRisco || [], window.BI.dados.avaliacaoErgonomica || []);
+    window.BI.riscoPostos = riscoPostosTodos;
+    const mapaRiscoF = Calc.filtrar(riscoPostosTodos, filtros, ["Dt Avaliacao"]);
     const planoAcaoF = Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Programada", "Dt Conclusao"]);
     const planoAcaoFPrevistas = Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Programada"]);
     const planoAcaoFConcluidas = Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Conclusao"]).filter((a) => a["Dt Conclusao"]);
 
     const chip = document.getElementById("chip-contagem-postos");
-    if (chip) chip.innerHTML = `<strong>${mapaRiscoF.length}</strong> de ${window.BI.dados.mapaRisco.length} postos`;
+    if (chip) chip.innerHTML = `<strong>${mapaRiscoF.length}</strong> de ${riscoPostosTodos.length} postos`;
 
-    const planoAcaoFCriticos = planoAcaoF.filter((a) => a["Risco Global"] === "Alto" || a["Risco Global"] === "Muito Alto");
+    // V 1.29: "posto critico" pelo risco ATUAL do posto (maior graduacao dos fatores), nao pelo gravado na acao.
+    const riscoPorChave = {};
+    riscoPostosTodos.forEach((p) => { riscoPorChave[[p.Cliente, p.Unidade, p.Setor, p["Posto Trabalho"], p.Cargo, p.Origem].join("||")] = p["Risco Global"]; });
+    const comRiscoAtual = (lista) => lista.map((a) => {
+      const r = riscoPorChave[[a.Cliente, a.Unidade, a.Setor, a["Posto Trabalho"] || "", a.Cargo || "", Calc.origemDe(a)].join("||")];
+      return r && r !== a["Risco Global"] ? Object.assign({}, a, { "Risco Global": r }) : a;
+    });
+    const planoAcaoFComRisco = comRiscoAtual(planoAcaoF);
+    const planoAcaoFCriticos = planoAcaoFComRisco.filter((a) => a["Risco Global"] === "Alto" || a["Risco Global"] === "Muito Alto");
 
     renderTilesRiscoGlobal(Calc.mapaRiscoGlobal(mapaRiscoF), mapaRiscoF);
     renderTopSetores(Calc.topSetores(mapaRiscoF, 3), mapaRiscoF);
     renderDonutStatus("chart-plano-global", "legenda-plano-global", Calc.statusPlanoAcao(planoAcaoF, hoje), planoAcaoF, hoje);
-    renderDonutStatus("chart-plano-criticos", "legenda-plano-criticos", Calc.planoAcaoPostosCriticos(planoAcaoF, hoje), planoAcaoFCriticos, hoje);
+    renderDonutStatus("chart-plano-criticos", "legenda-plano-criticos", Calc.planoAcaoPostosCriticos(planoAcaoFComRisco, hoje), planoAcaoFCriticos, hoje);
     renderLinhaMensal("chart-acoes-previstas", Calc.serieMensal(planoAcaoFPrevistas, "Dt Programada"), "Ações previstas", Calc.resolverCorCSS("var(--teal)"), planoAcaoFPrevistas, "Dt Programada");
     renderLinhaMensal("chart-acoes-concluidas", Calc.serieMensal(planoAcaoFConcluidas, "Dt Conclusao"), "Ações concluídas", Calc.resolverCorCSS("var(--vinho-medio)"), planoAcaoFConcluidas, "Dt Conclusao");
     renderPorResponsavel(Calc.planoAcaoPorResponsavel(planoAcaoF, hoje), planoAcaoF, hoje);
@@ -6638,7 +7292,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // registro que tem a data lancada (V 1.1).
     const avaliacaoF = Calc.filtrar(window.BI.dados.avaliacaoErgonomica || [], filtros, ["Data Avaliacao"]);
     // Fator marcado "Nao" no checklist nao e' risco: fica fora de todas as contagens.
-    const fatorRiscoF = Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, ["Dt Identificacao"]).filter((l) => l["Existe Fator Risco"] !== "Nao");
+    // V 1.31: risco eliminado sai das contagens (fica so na evolucao)
+    const fatorRiscoTodosF = Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, []).filter((l) => l["Existe Fator Risco"] !== "Nao");
+    const fatorRiscoF = Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, ["Dt Identificacao"]).filter((l) => Calc.riscoAtivo(l));
     const fatorRiscoAbertoF = fatorRiscoF.filter((l) => ["A validar", "Em andamento"].includes(l.Status));
     const laudoF = Calc.filtrar(window.BI.dados.laudo || [], filtros, ["Emitido Em"]);
     const aetF = Calc.filtrar(window.BI.dados.aet || [], filtros, ["Data Analise"]);
@@ -6646,8 +7302,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
     // Trilha AEP (nativa) - ver titulo-secao-grade "AEP" no index.html.
     renderTilesFatorRiscoGraduacao(Calc.distribuicaoPorNivelRisco(fatorRiscoF, "Graduacao Risco"), fatorRiscoF);
+    renderEvolucaoRiscos(Calc.evolucaoMensalRiscos(fatorRiscoTodosF, hoje, 24));
     renderDonutFatorRiscoStatus(Calc.distribuicaoPorStatus(fatorRiscoF, "Status", STATUS_FATOR_RISCO_POOL), fatorRiscoF);
-    renderTilesAvaliacaoCobertura(Calc.coberturaAvaliacao(avaliacaoF, mapaRiscoF));
+    renderTilesAvaliacaoCobertura(Calc.coberturaAvaliacao(avaliacaoF, Calc.filtrar(window.BI.dados.cargo || [], filtros, [])));
     renderTilesFatorRiscoPrazos(Calc.distribuicaoVencimento(fatorRiscoAbertoF, "Valido Ate", hoje, DIAS_ALERTA_PRAZO), fatorRiscoAbertoF, hoje, DIAS_ALERTA_PRAZO);
     renderTopSetoresFatorRisco(Calc.topSetoresPorCampo(fatorRiscoF, "Status", ["A validar", "Em andamento"], 5), fatorRiscoF);
     renderDonutLaudosTipo(laudoF);
@@ -7303,7 +7960,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // Ocup/Compativeis - o filtro selecionado vale para todas as telas.
       window.BI.filtros = {
         Cliente: [], Unidade: [], Setor: [],
-        "Posto Trabalho": [], Cargo: [], Atividade: [], Ano: [], Mes: [],
+        "Posto Trabalho": [], Cargo: [], Atividade: [], Ano: [], Mes: [], Origem: [],
       };
       window.BI.filtrosPagina = { "Status Restricao": [], "Turno Trabalho": [] };
 

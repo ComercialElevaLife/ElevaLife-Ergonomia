@@ -36,6 +36,11 @@
   ];
   const GESTAO = ["ElevaLife", "Cliente"];
   const SEGMENTOS_EXTRA = ["Membros Superiores", "Membros Inferiores", "Corpo Todo"];
+  // V 1.31: em todas as listas de segmento - "Psicossocial" e "Não identificado" (tambem nos graficos).
+  const SEGMENTOS_GERAIS = ["Psicossocial", "Não identificado"];
+  const ELIMINADO = "Eliminado"; // alvo da acao que elimina o risco
+  // A acao reduz/elimina o risco? (registros antigos: tinham so o alvo)
+  const reduzRisco = (a) => !!a && (a["Reduz Risco"] === "Sim" || (a["Reduz Risco"] == null && !!a["Risco Apos Acao"]));
 
   const SUGESTOES = {
     Eliminacao: [
@@ -84,11 +89,17 @@
   }
 
   // ---- Niveis de risco -------------------------------------------------------
-  const niveis = () => Calc().NIVEIS_RISCO;
-  const idx = (n) => niveis().indexOf(n);
-  function niveisAbaixo(nivel) {
+  // V 1.32: as acoes usam as graduacoes da matriz cadastrada no cliente (ex.: 5x5 Muito Baixo ... Altissimo;
+  // Gerdau Irrelevante ... Intoleravel). A comparacao entre niveis usa a escala unica Calc.ordemNivel (0 a 4).
+  const niveis = (matriz) => (matriz && Calc().niveisDaMatriz ? Calc().niveisDaMatriz(matriz) : Calc().NIVEIS_RISCO);
+  const idx = (n) => (Calc().ordemNivel ? Calc().ordemNivel(n) : Calc().NIVEIS_RISCO.indexOf(n));
+  // Niveis abaixo de "nivel" na matriz informada (sem matriz: a matriz cujos niveis contem "nivel").
+  function niveisAbaixo(nivel, matriz) {
     const i = idx(nivel);
-    return i <= 0 ? [] : niveis().slice(0, i);
+    if (i <= 0) return [];
+    let lista = matriz ? niveis(matriz) : null;
+    if (!lista) { const C = Calc(); const nomes = (C.NOMES_MATRIZ_RISCO || []).filter((m) => C.niveisDaMatriz(m).includes(nivel)); lista = nomes.length ? C.niveisDaMatriz(nomes[0]) : C.NIVEIS_RISCO; }
+    return lista.filter((n) => idx(n) >= 0 && idx(n) < i);
   }
   const maisAlto = (lista) => lista.filter((n) => idx(n) >= 0).sort((a, b) => idx(b) - idx(a))[0] || null;
   const maisBaixo = (lista) => lista.filter((n) => idx(n) >= 0).sort((a, b) => idx(a) - idx(b))[0] || null;
@@ -162,13 +173,14 @@
   }
   function pilulaNivel(nivel) {
     const p = el("span", "acao-pilula", rotuloNivel(nivel));
-    const cor = nivel && Calc().corStatus ? Calc().corStatus(nivel) : "";
-    if (cor) { p.style.color = cor; p.style.borderColor = cor; }
+    // V 1.30: pilula preenchida com a cor padrao do nivel (texto escuro sobre azul-claro e amarelo)
+    const hx = nivel && Calc().corRiscoHex ? Calc().corRiscoHex(nivel) : null;
+    if (hx) { p.style.background = "#" + hx; p.style.borderColor = "#" + hx; p.style.color = "#" + Calc().textoSobreHex(hx); }
     return p;
   }
   function segmentosDisponiveis() {
     const m = (BI.dados && BI.dados._meta) || {};
-    return [].concat(m.regioes_frente || [], m.regioes_tras || [], SEGMENTOS_EXTRA);
+    return [].concat(m.regioes_frente || [], m.regioes_tras || [], SEGMENTOS_EXTRA, SEGMENTOS_GERAIS);
   }
   const EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -181,6 +193,11 @@
   //   opts.legado          -> { eliminacao, organizacional } textos antigos (opcional)
   //   opts.aoAbrirNoPlano(acao) -> navega para a acao no Plano de Acao
   function criarEditor(opts) {
+    // V 1.32: a acao usa a graduacao da matriz do cliente como esta (ex.: "Altíssimo", "Intolerável");
+    // opts.matriz() informa a matriz para a lista "Reduz o risco para".
+    const nivelBruto = opts.nivelAtual;
+    const matrizEd = () => (opts.matriz ? opts.matriz() : "") || "";
+    opts = Object.assign({}, opts, { nivelAtual: () => (nivelBruto ? nivelBruto() : "") || "" });
     const raiz = el("div", "acoes-editor");
     const lista = el("div", "acoes-lista");
     const aviso = el("div", "acoes-aviso");
@@ -204,63 +221,42 @@
       return {
         tipo: c.f.tipo.value,
         descricao: c.f.descricao.value.trim(),
-        segmento: c.f.segmento.value,
+        reduz: !!c.f.reduz.checked,
         atual: c.f.atual.value,
-        alvo: c.f.alvo.value,
+        alvo: c.f.reduz.checked ? c.f.alvo.value : "",
         complexidade: c.f.complexidade.value,
         gestao: c.f.gestao.value,
-        responsavel: c.f.responsavel.value.trim(),
-        email: c.f.email.value.trim(),
-        prazo: c.f.prazo.value,
       };
     }
 
-    function rascunhoParaResumo() {
-      return cards.filter((c) => !c.removida).map((c) => {
-        if (c.existente && estaConcluida(c.existente)) return c.existente;
-        const v = lerCard(c);
-        return { "Segmento Corporal": v.segmento, "Risco Atual Segmento": v.atual, "Risco Apos Acao": v.alvo, "Dt Conclusao": c.existente ? c.existente["Dt Conclusao"] : null, "Status Execucao": c.existente ? c.existente["Status Execucao"] : null };
-      });
-    }
-
+    // V 1.31: o resumo mostra o risco atual do fator e quantas acoes reduzem ou eliminam o risco.
+    // (Previsto/realizado sairam: o risco novo vem da reavaliacao feita ao concluir a acao no Plano de Acao.)
     function atualizarResumo() {
       resumoEl.innerHTML = "";
       const nivel = opts.nivelAtual();
-      const r = resumoRisco(nivel, rascunhoParaResumo());
       btnAdd.disabled = !podeEditar || !nivel;
-      aviso.textContent = !nivel ? "Defina Criticidade e Probabilidade do fator para poder propor ações." : "";
+      aviso.textContent = !nivel ? "Defina Severidade e Probabilidade do fator para poder propor ações." : "";
       aviso.hidden = !!nivel;
-      if (!r) {
-        if (nivel) resumoEl.appendChild(el("div", "acoes-resumo-vazio", "Nenhuma ação proposta para este fator. Sem ação, o risco após a melhoria não se aplica."));
-        return;
-      }
+      const at = cards.filter((c) => !c.removida);
+      if (!nivel) return;
+      if (!at.length) { resumoEl.appendChild(el("div", "acoes-resumo-vazio", "Nenhuma ação proposta para este fator.")); return; }
       const linha = el("div", "acoes-resumo-linha");
-      [["Risco atual", nivel || r.atual], ["Previsto após as ações", r.previsto], ["Realizado (ações concluídas)", r.realizado]].forEach(([rot, n]) => {
-        const b = el("div", "acoes-resumo-item");
-        b.appendChild(el("span", "acoes-resumo-rot", rot));
-        b.appendChild(pilulaNivel(n));
-        linha.appendChild(b);
-      });
+      const b = el("div", "acoes-resumo-item"); b.appendChild(el("span", "acoes-resumo-rot", "Risco atual do fator")); b.appendChild(pilulaNivel(nivel)); linha.appendChild(b);
+      const nRed = at.filter((c) => (c.existente && c.travada ? reduzRisco(c.existente) : c.f.reduz.checked)).length;
+      linha.appendChild(el("div", "acoes-resumo-item", `${at.length} ação(ões) · ${nRed} vão reduzir ou eliminar o risco (reavaliação ao concluir, no Plano de Ação)`));
       resumoEl.appendChild(linha);
-      const tab = el("div", "acoes-resumo-segs");
-      r.segmentos.forEach((s) => {
-        const l = el("div", "acoes-resumo-seg");
-        l.appendChild(el("span", "acoes-resumo-segnome", T(s.segmento)));
-        l.appendChild(el("span", "acoes-resumo-segtxt", `${rotuloNivel(s.atual)} → ${rotuloNivel(s.previsto)} previsto · realizado: ${rotuloNivel(s.realizado)} (${s.concluidas}/${s.total} ações concluídas)`));
-        tab.appendChild(l);
-      });
-      resumoEl.appendChild(tab);
     }
 
     function repopularAlvo(c) {
-      const abaixo = niveisAbaixo(c.f.atual.value);
+      const abaixo = niveisAbaixo(c.f.atual.value, matrizEd() || null);
       const valorAtual = c.f.alvo.value;
       c.f.alvo.innerHTML = "";
-      const branco = document.createElement("option"); branco.value = ""; branco.textContent = abaixo.length ? "-" : "já está no menor nível";
-      c.f.alvo.appendChild(branco);
-      abaixo.forEach((n) => { const o = document.createElement("option"); o.value = n; o.textContent = rotuloNivel(n); c.f.alvo.appendChild(o); });
-      c.f.alvo.value = abaixo.includes(valorAtual) ? valorAtual : "";
-      c.f.alvo.disabled = !abaixo.length || c.travada;
+      const branco = document.createElement("option"); branco.value = ""; branco.textContent = "Escolha…"; c.f.alvo.appendChild(branco);
+      abaixo.forEach((n) => { const o = document.createElement("option"); o.value = n; o.textContent = "Reduz para " + rotuloNivel(n); c.f.alvo.appendChild(o); });
+      const oe = document.createElement("option"); oe.value = ELIMINADO; oe.textContent = "Elimina o risco"; c.f.alvo.appendChild(oe);
+      c.f.alvo.value = abaixo.includes(valorAtual) || valorAtual === ELIMINADO ? valorAtual : "";
+      c.f.alvo.disabled = c.travada || !podeEditar;
+      if (c.caixaAlvo) c.caixaAlvo.hidden = !c.f.reduz.checked;
     }
 
     function atualizarSugestoes(c) {
@@ -314,46 +310,40 @@
       c.f.gestao = select(GESTAO, base["Gestao Acao"] || "ElevaLife", false);
       c.f.descricao = document.createElement("input"); c.f.descricao.type = "text"; c.f.descricao.value = base["Acao Recomendada"] || base.descricao || "";
       c.f.descricao.setAttribute("list", c.dl.id); c.f.descricao.placeholder = "Escolha uma sugestão ou descreva a ação";
-      c.f.segmento = select(segmentosDisponiveis().map((s) => ({ valor: s, label: s })), base["Segmento Corporal"] || "");
-      c.f.atual = select(niveis(), base["Risco Atual Segmento"] || nivelFator || "");
+      // V 1.31: o segmento acometido e do fator (inventario); a acao marca se vai reduzir/eliminar o risco.
+      const valorAtualNivel = c.travada ? (base["Risco Atual Segmento"] || nivelFator || "") : (nivelFator || base["Risco Atual Segmento"] || "");
+      const listaNiveis = niveis(matrizEd() || null).slice(); if (valorAtualNivel && !listaNiveis.includes(valorAtualNivel)) listaNiveis.push(valorAtualNivel);
+      c.f.atual = select(listaNiveis, valorAtualNivel);
+      c.f.reduz = document.createElement("input"); c.f.reduz.type = "checkbox"; c.f.reduz.checked = reduzRisco(base);
+      c.f.atual.disabled = true;
+      c.f.atual.title = "Preenchido automaticamente com a graduação do fator";
       c.f.alvo = document.createElement("select");
-      c.f.responsavel = document.createElement("input"); c.f.responsavel.type = "text"; c.f.responsavel.value = base["Responsavel Acao"] || "";
-      c.f.responsavel.setAttribute("list", "dl-acao-responsaveis");
-      c.f.email = document.createElement("input"); c.f.email.type = "email"; c.f.email.value = base["E-mail Responsavel"] || "";
-      c.f.prazo = BI.Datas.criarCampo("data", base["Dt Programada"] || "");
 
       const grade = el("div", "acao-grade");
       grade.appendChild(campo("Tipo da ação", c.f.tipo));
       grade.appendChild(campo("Complexidade de execução", c.f.complexidade));
       grade.appendChild(campo("Gestão da ação", c.f.gestao));
       const d = campo("Ação", c.f.descricao, true); d.appendChild(c.dl); grade.appendChild(d);
-      grade.appendChild(campo("Segmento corporal atingido", c.f.segmento));
-      grade.appendChild(campo("Risco atual do segmento", c.f.atual));
-      grade.appendChild(campo("Esta ação reduz o risco para", c.f.alvo));
-      grade.appendChild(campo("Responsável", c.f.responsavel));
-      grade.appendChild(campo("E-mail do responsável", c.f.email));
-      grade.appendChild(campo("Prazo (data programada)", c.f.prazo.elementoDOM || c.f.prazo));
+      grade.appendChild(campo("Risco atual do fator", c.f.atual));
+      const caixaReduz = el("label", "acao-campo acao-reduz");
+      caixaReduz.appendChild(c.f.reduz); caixaReduz.appendChild(el("span", null, "Esta ação vai reduzir ou eliminar o risco"));
+      grade.appendChild(caixaReduz);
+      c.caixaAlvo = campo("Reduz o risco para", c.f.alvo); grade.appendChild(c.caixaAlvo);
       c.raiz.appendChild(grade);
+      c.raiz.appendChild(el("div", "acao-card-nota", "Sem a marcação, a ação é organizacional / de controle. Responsável, e-mail, prazo e situação ficam no Plano de Ação; ao concluir uma ação que reduz ou elimina o risco, o ergonomista reavalia o fator."));
       const msg = el("div", "acao-card-erro"); msg.hidden = true; c.msg = msg; c.raiz.appendChild(msg);
 
       repopularAlvo(c);
       if (base["Risco Apos Acao"]) { c.f.alvo.value = base["Risco Apos Acao"]; if (c.f.alvo.value !== base["Risco Apos Acao"]) c.f.alvo.value = ""; }
       atualizarSugestoes(c);
       if (c.travada || !podeEditar) Object.values(c.f).forEach((x) => { try { x.disabled = true; } catch (_) { /* campo composto */ } });
-      if (c.travada || !podeEditar) { const dt = c.f.prazo.elementoDOM || c.f.prazo; if (dt.querySelectorAll) dt.querySelectorAll("input,button").forEach((i) => { i.disabled = true; }); }
 
       function renumerar() { c.titulo.textContent = `Ação ${cards.filter((x) => !x.removida).indexOf(c) + 1}${c.f.tipo.value ? " · " + rotuloTipo(c.f.tipo.value) : ""}`; }
       c.renumerar = renumerar;
       c.f.tipo.addEventListener("change", () => { atualizarSugestoes(c); renumerar(); notificar(); });
-      c.f.atual.addEventListener("change", () => { repopularAlvo(c); atualizarResumo(); notificar(); c.tocouAtual = true; });
-      [c.f.alvo, c.f.segmento, c.f.complexidade, c.f.gestao].forEach((x) => x.addEventListener("change", () => { atualizarResumo(); notificar(); }));
-      [c.f.descricao, c.f.email, c.f.prazo].forEach((x) => x.addEventListener("input", notificar));
-      c.f.responsavel.addEventListener("change", () => {
-        if (c.f.email.value) return;
-        const anterior = ((BI.dados && BI.dados.planoAcao) || []).find((a) => a["Responsavel Acao"] === c.f.responsavel.value && a["E-mail Responsavel"]);
-        if (anterior) c.f.email.value = anterior["E-mail Responsavel"];
-      });
-      if (!c.f.prazo.addEventListener) { /* elemento composto */ }
+      [c.f.alvo, c.f.complexidade, c.f.gestao].forEach((x) => x.addEventListener("change", () => { atualizarResumo(); notificar(); }));
+      c.f.reduz.addEventListener("change", () => { c.caixaAlvo.hidden = !c.f.reduz.checked; atualizarResumo(); notificar(); });
+      c.f.descricao.addEventListener("input", notificar);
 
       cards.push(c);
       lista.appendChild(c.raiz);
@@ -405,14 +395,11 @@
         const v = lerCard(c);
         let erro = null;
         if (!v.tipo) erro = "Escolha o tipo da ação.";
+        else if (!v.complexidade) erro = "Informe a complexidade de execução.";
         else if (!v.descricao) erro = "Descreva a ação.";
-        else if (!v.segmento) erro = "Informe o segmento corporal atingido.";
-        else if (!v.atual) erro = "Informe o risco atual do segmento.";
-        else if (niveisAbaixo(v.atual).length && !v.alvo) erro = "Informe para qual nível esta ação reduz o risco.";
-        else if (v.alvo && !(idx(v.alvo) < idx(v.atual))) erro = "A ação precisa reduzir o risco para um nível menor que o atual.";
-        else if (!v.responsavel) erro = "Informe o responsável pela ação.";
-        else if (!EMAIL_OK.test(v.email)) erro = "Informe um e-mail válido do responsável (ele será avisado da atribuição).";
-        else if (!v.prazo || (c.f.prazo.validationMessage)) erro = "Informe o prazo (data programada) em DD/MM/AAAA.";
+        else if (!v.atual) erro = "Classifique o fator (severidade e probabilidade) antes de propor a ação.";
+        else if (v.reduz && !v.alvo) erro = "Informe para qual nível a ação reduz o risco (ou se elimina o risco).";
+        else if (v.reduz && v.alvo !== ELIMINADO && !(idx(v.alvo) < idx(v.atual))) erro = "A ação precisa reduzir o risco para um nível menor que o atual.";
         c.msg.hidden = !erro; c.msg.textContent = erro || "";
         c.raiz.classList.toggle("acao-card-com-erro", !!erro);
         if (erro && !primeiroErro) primeiroErro = { c, erro };
@@ -432,8 +419,7 @@
       const v = lerCard(c);
       return {
         "Tipo Acao": v.tipo, "Acao Recomendada": v.descricao, "Categoria Acao": categoriaDoTipo(v.tipo), "Gestao Acao": v.gestao || "ElevaLife",
-        "Responsavel Acao": v.responsavel, "E-mail Responsavel": v.email, "Dt Programada": v.prazo,
-        "Segmento Corporal": v.segmento, "Risco Atual Segmento": v.atual, "Risco Apos Acao": v.alvo || null, Complexidade: v.complexidade || null,
+        "Segmento Corporal": opts.segmento ? (opts.segmento() || null) : null, "Risco Atual Segmento": v.atual, "Reduz Risco": v.reduz ? "Sim" : "Nao", "Risco Apos Acao": v.reduz ? (v.alvo || null) : null, Complexidade: v.complexidade || null,
       };
     }
     function mudou(c) {
@@ -449,7 +435,13 @@
     async function salvar(fatorId) {
       const ctx = opts.contexto();
       let nr = proximoNr(ctx.Cliente);
-      const mapa = ((BI.dados && BI.dados.mapaRisco) || []).find((m) => Calc().DIMENSOES.every((d) => m[d] === ctx[d]));
+      // V 1.29: risco do posto = maior graduacao dos fatores do posto (Inventario), nunca menor que a deste fator.
+      const N = Calc().NIVEIS_RISCO;
+      const posto = Calc().riscoDosPostos((BI.dados && BI.dados.fatorRisco) || [], (BI.dados && BI.dados.avaliacaoErgonomica) || [])
+        .find((m) => m.Origem === "AEP" && ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].every((d) => (m[d] || "") === (ctx[d] || "")));
+      const nivelFator = opts.nivelAtual();
+      const riscoPosto = [posto ? posto["Risco Global"] : "", nivelFator].filter(Boolean).sort((a, b) => N.indexOf(b) - N.indexOf(a))[0] || null;
+      const mapa = { "Risco Global": riscoPosto };
       let gravadas = 0;
       for (const c of cards) {
         if (c.removida) {
@@ -468,7 +460,7 @@
           c.existente = Object.assign({}, c.existente, dados);
         } else {
           dados = Object.assign({}, ctx, novo, {
-            "Nr Acao": nr++, "Fator Risco Id": fatorId, "Fator Risco Nome": opts.nomeFator(), "Status Execucao": "Nao iniciada",
+            Origem: "AEP", "Nr Acao": nr++, "Fator Risco Id": fatorId, "Fator Risco Nome": opts.nomeFator(), "Status Execucao": "Nao iniciada",
             "Risco Global": mapa ? mapa["Risco Global"] : null,
           });
           const idNovo = await BI.DB.salvar("planoAcao", null, dados);
@@ -485,7 +477,7 @@
       total: () => ativas().length,
       atualizarNivel() {
         cards.forEach((c) => {
-          if (c.removida || c.travada || c.tocouAtual) return;
+          if (c.removida || c.travada) return;
           c.f.atual.value = opts.nivelAtual() || "";
           repopularAlvo(c);
         });
@@ -538,7 +530,7 @@
   }
 
   BI.Acoes = {
-    TIPOS_PADRAO, COMPLEXIDADES, SUGESTOES, tipos, rotuloTipo, categoriaDoTipo, niveisAbaixo, acoesDoFator, resumoRisco,
+    TIPOS_PADRAO, COMPLEXIDADES, SUGESTOES, SEGMENTOS_GERAIS, ELIMINADO, reduzRisco, tipos, rotuloTipo, categoriaDoTipo, niveisAbaixo, acoesDoFator, resumoRisco,
     estaConcluida, criarEditor, montarTelaConfiguracoes, segmentosDisponiveis,
   };
 })(window);

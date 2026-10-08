@@ -57,6 +57,8 @@
   // ---------------------------------------------------------------- xml
   const esc = (s) => String(s == null ? "" : s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const hex = (c) => (Array.isArray(c) ? c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("").toUpperCase() : c);
+  // V 1.30: texto escuro sobre as cores claras do padrao (azul-claro e amarelo), branco nas demais
+  const sobre = (c) => (BI.Calc && BI.Calc.textoSobreHex ? BI.Calc.textoSobreHex(hex(c)) : "FFFFFF");
 
   function run(txt, o) {
     o = o || {};
@@ -101,7 +103,7 @@
     const tam = spec.tam || 8.5;
     let paras;
     if (spec.paras) paras = spec.paras;
-    else if (spec.pilula) paras = par(run(spec.t, { b: true, cor: "FFFFFF", tam }), { jc: "center", depois: 0, antes: 20 });
+    else if (spec.pilula) paras = par(run(spec.t, { b: true, cor: sobre(spec.pilula), tam }), { jc: "center", depois: 0, antes: 20 });
     else {
       paras = par(rico(spec.t == null || spec.t === "" ? "-" : spec.t, { b: spec.b, cor: spec.cor, tam, i: spec.i }), { jc: spec.jc, depois: 0 });
       if (spec.extra) paras += par(run(spec.extra, { b: true, cor: "2E5F62", tam: tam - 0.6 }), { depois: 0 });
@@ -180,7 +182,7 @@
 
   // ---------------------------------------------------------------- documento
   async function construir(ctx, opcoes) {
-    const { Calc, Acoes, PAL, corNivel, dataBR, hojeISO, ROTULO_ESCALA, URL_VERIFICACAO, dadosAcao, avaliacoes, fatoresDoPosto, grau, pontos, rotCanon, acoesDe,
+    const { Calc, Acoes, PAL, corNivel, dataBR, hojeISO, ROTULO_ESCALA, URL_VERIFICACAO, dadosAcao, avaliacoes, fatoresDoPosto, eliminadosDoPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, niveisMz, ordemNivel, contaNivelMz, maiorGrau, grau, pontos, rotCanon, acoesDe,
       nomeMatriz, escala, docCliente, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4,
       setoresAv, unidadesAv, periodo, emissao, codigo, revisao, texto, linhasDe, celulas, mapaDe, titDe } = ctx;
 
@@ -203,7 +205,7 @@
     const H2 = (chave, padrao) => { const t = titDe(chave, padrao); toc.push([2, t]); return par(run(t), { estilo: "Heading2" }); };
     const H3 = (t) => par(run(t), { estilo: "Heading3" });
     const caixa = (titulo, paras, fundo) => tbl([100], [[{ paras: par(run(titulo, { b: true, cor: C.vinhoE, tam: 10 }), { depois: 60, bordaEsq: C.vinho }) + paras, fundo: fundo || C.creme }]], { semBorda: true, margemV: 90 });
-    const azulejos = (itens) => tbl(itens.map(() => 1), [itens.map((it) => ({ paras: par(run(String(it.n), { b: true, cor: "FFFFFF", tam: 18 }), { jc: "center", depois: 0 }) + par(run(it.rot, { cor: "FFFFFF", tam: 8 }), { jc: "center", depois: 0 }), fundo: hex(it.cor) }))], { bordaBranca: true, semBorda: true, margemV: 90 });
+    const azulejos = (itens) => tbl(itens.map(() => 1), [itens.map((it) => ({ paras: par(run(String(it.n), { b: true, cor: sobre(it.cor), tam: 18 }), { jc: "center", depois: 0 }) + par(run(it.rot, { cor: sobre(it.cor), tam: 8 }), { jc: "center", depois: 0 }), fundo: hex(it.cor) }))], { bordaBranca: true, semBorda: true, margemV: 90 });
     const imagemPar = (url, maxW, maxH, o) => {
       const info = imgs[url]; if (!info) return "";
       let w = maxW; let h = w * info.h / info.w; if (h > maxH) { h = maxH; w = h * info.w / info.h; }
@@ -232,7 +234,7 @@
       const end = [docCliente.Logradouro, docCliente.Numero, docCliente.Complemento, docCliente.Bairro, [docCliente.Cidade, docCliente.Estado].filter(Boolean).join("/"), docCliente.CEP ? "CEP " + docCliente.CEP : ""].filter(Boolean).join(", ");
       const ficha = [["Razão social", opcoes.nomeCliente], ["CNPJ", docCliente.CNPJ], ["Inscrição estadual", docCliente["Inscricao Estadual"]], ["CNAE", docCliente.CNAE],
         ["Grau de risco (NR-04)", docCliente["Grau Risco NR4"]], ["Unidade avaliada", unidadesAv.join(" · ")], ["Endereço", end], ["Telefone", docCliente.Telefone],
-        ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo]].filter((r) => r[1]);
+        ["Abrangência do laudo", opcoes.abrangenciaDescricao && opcoes.abrangenciaDescricao !== "Empresa toda" ? opcoes.abrangenciaDescricao : ""], ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo]].filter((r) => r[1]);
       B.push(tbl([30, 70], ficha.map((r) => [{ t: r[0], b: true, fundo: C.creme }, String(r[1])]), { tam: 9 }));
     }
 
@@ -286,14 +288,14 @@
     B.push(H1("s8", "8. Identificação e classificação do risco", true));
     {
       const defG = mapaDe("Gravidade"); const defP = mapaDe("Probabilidade"); const defN = mapaDe("Graduacao");
-      B.push(paragrafos("Risco Intro"), H2("s81", "8.1 Gravidade e probabilidade"));
-      B.push(tbl([26, 74], escala.map((g, i) => [{ t: `${Calc.rotuloEscala(nomeMatriz, g)} (${i + 1})`, b: true }, defG[g] || ""]), { cab: ["Gravidade", "Efeitos"], zebra: true }));
-      B.push(tbl([26, 74], escala.map((g, i) => [{ t: `${Calc.rotuloEscala(nomeMatriz, g)} (${i + 1})`, b: true }, defP[g] || ""]), { cab: ["Probabilidade", "Perfil de exposição qualitativa"], zebra: true }));
+      B.push(paragrafos("Risco Intro"), H2("s81", "8.1 Severidade e probabilidade"));
+      B.push(tbl([26, 74], escala.map((g, i) => [{ t: `${Calc.rotuloEscala(nomeMatriz, g, "severidade")} (${i + 1})`, b: true }, defG[Calc.rotuloEscala(nomeMatriz, g, "severidade")] || defG[g] || ""]), { cab: ["Severidade", "Efeitos"], zebra: true }));
+      B.push(tbl([26, 74], escala.map((g, i) => [{ t: `${Calc.rotuloEscala(nomeMatriz, g)} (${i + 1})`, b: true }, defP[Calc.rotuloEscala(nomeMatriz, g)] || defP[g] || ""]), { cab: ["Probabilidade", "Perfil de exposição qualitativa"], zebra: true }));
       B.push(H2("s82", "8.2 Matriz de risco e graduação"), paragrafos("Matriz Intro"));
       {
         const n = escala.length; const rows = [];
-        rows.push([{ t: "", fundo: "FFFFFF" }, { t: "GRAVIDADE", b: true, cor: "FFFFFF", fundo: C.vinho, jc: "center", span: n, tam: 8 }]);
-        rows.push([{ t: "PROBABILIDADE", b: true, cor: "FFFFFF", fundo: C.vinho, tam: 7.5 }].concat(escala.map((g) => ({ t: Calc.rotuloEscala(nomeMatriz, g), b: true, cor: "FFFFFF", fundo: C.vinhoM, jc: "center", tam: 8 }))));
+        rows.push([{ t: "", fundo: "FFFFFF" }, { t: "SEVERIDADE", b: true, cor: "FFFFFF", fundo: C.vinho, jc: "center", span: n, tam: 8 }]);
+        rows.push([{ t: "PROBABILIDADE", b: true, cor: "FFFFFF", fundo: C.vinho, tam: 7.5 }].concat(escala.map((g) => ({ t: Calc.rotuloEscala(nomeMatriz, g, "severidade"), b: true, cor: "FFFFFF", fundo: C.vinhoM, jc: "center", tam: 8 }))));
         for (let r = 0; r < n; r++) {
           const prob = escala[n - 1 - r];
           rows.push([{ t: Calc.rotuloEscala(nomeMatriz, prob), b: true, fundo: C.creme, jc: "right", tam: 8 }].concat(escala.map((g) => ({ t: String(Calc.pontuacaoDaMatriz(nomeMatriz, prob, g)), b: true, jc: "center", pilula: hex(corNivel(Calc.nivelDaMatriz(nomeMatriz, prob, g))), tam: 10 }))));
@@ -301,27 +303,26 @@
         B.push(tbl([16].concat(escala.map(() => 84 / n)), rows, { bordaBranca: true, semBorda: true, margemV: 70 }));
       }
       const niveis = []; escala.forEach((p) => escala.forEach((g) => { const n = Calc.nivelDaMatriz(nomeMatriz, p, g); if (n && !niveis.includes(n)) niveis.push(n); }));
-      B.push(tbl([14, 18, 68], niveis.map((n) => {
-        const ps = []; escala.forEach((p) => escala.forEach((g) => { if (Calc.nivelDaMatriz(nomeMatriz, p, g) === n) ps.push(Calc.pontuacaoDaMatriz(nomeMatriz, p, g)); }));
-        return [`${Math.min.apply(null, ps)} a ${Math.max.apply(null, ps)}`, { t: n, pilula: hex(corNivel(n)) }, defN[n] || ""];
-      }), { cab: ["Pontuação", "Graduação", "Descrição do risco e conduta"], zebra: true }));
+      B.push(tbl([16, 18, 66], niveis.sort((a, b) => ordemNivel(a) - ordemNivel(b)).map((n) => [pontuacoesDoNivel(n), { t: n, pilula: hex(corNivel(n)) }, defN[n] || ""]), { cab: ["Pontuações (P × S)", "Graduação", "Descrição do risco e conduta"], zebra: true }));
+      B.push(legenda(NOTA_MATRIZ));
+      B.push(P(TXT_RISCO_POSTO));
     }
-    B.push(H2("s83", "8.3 Medidas de controle e risco residual"), paragrafos("Medidas Intro"));
+    B.push(H2("s83", "8.3 Medidas de controle e evolução do risco"), paragrafos("Medidas Intro"));
     {
       const desc = linhasDe("Medidas Tipos"); const pil = [C.vinhoE, C.tealE, C.vinhoM];
       B.push(tbl([22, 78], (Acoes ? Acoes.tipos() : []).map((t, i) => [{ t: t.rotulo, pilula: pil[i % 3] }, desc[i % (desc.length || 1)] || ""]), {}));
     }
-    B.push(caixa(titDe("caixa-residual", "Como o risco residual é calculado"), texto("Residual Caixa").split("\n").map((t) => par(rico(t, { tam: 9, cor: C.texto }), { jc: "both", depois: 50 })).join("")));
+    B.push(caixa(titDe("caixa-residual", "Como a evolução do risco é registrada"), texto("Residual Caixa").split("\n").map((t) => par(rico(t, { tam: 9, cor: C.texto }), { jc: "both", depois: 50 })).join("")));
 
     // ================================================================ 9
     B.push(H1("s9", "9. Avaliações ergonômicas preliminares", true), paragrafos("Avaliacoes Intro"));
     let nFigura = 0;
     avaliacoes.forEach((av, i) => {
       const fatores = fatoresDoPosto(av);
-      const titPosto = `9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]}`;
+      const titPosto = `9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]}${av.Cargo ? ` (${av.Cargo})` : ""}`;
       toc.push([2, titPosto]);
       B.push(par(run(titPosto), { estilo: "Heading2", quebraAntes: i > 0 }));
-      const campos = [["Setor", av.Setor], ["Posto de trabalho", av["Posto Trabalho"]], ["Cargo", av.Cargo], ["Atividade", av.Atividade], ["Jornada", av["Jornada de Trabalho"]], ["Pausas", av.Pausas], ["Rodízio", av.Rodizio], ["Histórico de acidentes e doenças", av["Historico Acidentes"]]].filter((c) => c[1]);
+      const campos = [["Avaliação", [av._nrTexto, av._atualizadaEm ? "última atualização em " + dataBR(av._atualizadaEm) : ""].filter(Boolean).join(" · ")], ["Unidade", av.Unidade], ["Setor", av.Setor], ["Cargo", av.Cargo], ["Posto de trabalho", av["Posto Trabalho"]], ["Risco do posto", riscoDoPosto(av) ? riscoDoPosto(av) + " (maior graduação dos fatores)" : ""], ["Jornada", av["Jornada de Trabalho"]], ["Pausas", av.Pausas], ["Rodízio", av.Rodizio], ["Histórico de acidentes e doenças", av["Historico Acidentes"]]].filter((c) => c[1]);
       {
         const linhas = [];
         for (let k = 0; k < campos.length; k += 2) {
@@ -343,12 +344,12 @@
       if (av["Descricao Atividade Observada"]) B.push(H3(titDe("p-descatividade", "Descrição da atividade (tarefa real observada)")), P(av["Descricao Atividade Observada"]));
       if (av["Caracteristicas Trabalhadores"]) B.push(H3(titDe("p-caract", "Características dos trabalhadores")), P(av["Caracteristicas Trabalhadores"]));
       B.push(H3(titDe("p-panorama", "Panorama do posto")));
-      const cnt = contaNivel(fatores);
-      B.push(azulejos(NIVEIS4.map(([k, r]) => ({ n: cnt[k], rot: r, cor: corNivel(k) }))));
+      const cnt = contaNivelMz(fatores);
+      B.push(azulejos(niveisMz.map((k) => ({ n: cnt[k], rot: k, cor: corNivel(k) }))));
       B.push(tbl([8, 52, 11, 11, 18], Calc.GRUPOS_FATOR_RISCO.map((g, gi) => {
         const doGrupo = fatores.filter((f) => f.Grupo === g);
-        const maior = doGrupo.map((f) => grau(f)).sort((a, b) => NIVEIS4.findIndex(([k]) => k === Calc.nivelCanonico(b)) - NIVEIS4.findIndex(([k]) => k === Calc.nivelCanonico(a)))[0];
-        return [{ t: String(gi + 1), jc: "center" }, g, { t: String(Calc.fatoresDoGrupo(g).length), jc: "center" }, { t: String(doGrupo.length), jc: "center" }, maior ? { t: rotCanon(Calc.nivelCanonico(maior)), pilula: hex(corNivel(maior)) } : { t: "-", jc: "center", cor: C.cinza }];
+        const maior = maiorGrau(doGrupo);
+        return [{ t: String(gi + 1), jc: "center" }, g, { t: String(Calc.fatoresDoGrupo(g).length), jc: "center" }, { t: String(doGrupo.length), jc: "center" }, maior ? { t: maior, pilula: hex(corNivel(maior)) } : { t: "Sem risco identificado", jc: "center", cor: C.cinza }];
       }), { cab: ["Grupo", "Grupo de fatores (ISO/TS 20646)", "Avaliados", "Com risco", "Diagnóstico"], zebra: true, tam: 8 }));
       B.push(H3(titDe("p-fatores", "Fatores de risco identificados, medidas e ações")));
       if (!fatores.length) B.push(P("Nenhum fator de risco com “Existe Fator de Risco: Sim” cadastrado para este posto de trabalho.", { cor: C.cinza }));
@@ -358,97 +359,146 @@
         const g = grau(fr); const p = pontos(fr);
         B.push(tbl([80, 20], [[{ t: `${codigoF} ${fr.Fator || ""}`.trim(), b: true, cor: C.vinhoE, fundo: C.creme, tam: 9.5 }, { t: `${g}${p != null ? " · " + p : ""}`, pilula: hex(corNivel(g)), tam: 8 }]], { margemV: 70 }));
         B.push(tbl([1, 1, 1], [[
-          ["Circunstância geradora", fr["Circunstancia Geradora"]], ["Consequência", fr.Consequencia], ["Medida de controle existente", fr["Medida Controle Existente"] || "Nenhuma medida de controle existente."],
+          ["Fonte geradora", fr["Circunstancia Geradora"]], ["Consequência", fr.Consequencia], ["Medida de controle existente", fr["Medida Controle Existente"] || "Nenhuma medida de controle existente."],
         ].map(([t, v]) => ({ paras: par(run(t.toUpperCase(), { b: true, cor: C.cinza, tam: 6.5 }), { depois: 20 }) + par(run(String(v || "-"), { tam: 8.5, cor: C.texto }), { depois: 0 }), fundo: "FFFFFF", v: "top" }))], { semBorda: true }));
-        B.push(par(run(`Gravidade ${Calc.rotuloEscala(nomeMatriz, fr.Criticidade) || "-"}  ×  Probabilidade ${Calc.rotuloEscala(nomeMatriz, fr.Probabilidade) || "-"}  =  Pontuação ${p != null ? p : "-"}`, { tam: 8.5, cor: C.texto }), { depois: 60 }));
-        const acoesF = acoesDe(fr); const resumo = acoesF.length ? Acoes.resumoRisco(g, acoesF) : null;
+        // V 1.31: risco do fator, probabilidade, severidade e segmento acometido (+ evolucao)
         const lbl = (t) => ({ t, b: true, cor: C.cinza, tam: 7, fundo: "FFFFFF" });
-        const cels = [lbl("RISCO DO FATOR"), { t: rotCanon(Calc.nivelCanonico(g)), pilula: hex(corNivel(g)), tam: 8 }];
-        if (resumo) cels.push(lbl("PREVISTO"), { t: rotCanon(resumo.previsto), pilula: hex(corNivel(resumo.previsto)), tam: 8 }, lbl("REALIZADO"), { t: rotCanon(resumo.realizado), pilula: hex(corNivel(resumo.realizado)), tam: 8 });
-        else cels.push({ t: "sem ação proposta (risco residual não calculado)", cor: C.cinza, tam: 8, span: 4, fundo: "FFFFFF" });
-        B.push(tbl(resumo ? [17, 13, 13, 13, 13, 13] : [17, 13, 13, 13, 13, 13], [cels], { semBorda: true, bordaBranca: true }));
+        B.push(tbl([1, 1, 1, 1], [[lbl("RISCO DO FATOR"), lbl("PROBABILIDADE"), lbl("SEVERIDADE"), lbl("SEGMENTO ACOMETIDO")], [{ t: g, pilula: hex(corNivel(g)), tam: 8 }, { t: Calc.rotuloEscala(nomeMatriz, fr.Probabilidade) || "-", b: true, tam: 9, fundo: "FFFFFF" }, { t: Calc.rotuloEscala(nomeMatriz, fr.Criticidade, "severidade") || "-", b: true, tam: 9, fundo: "FFFFFF" }, { t: fr["Segmento Corporal"] || "Não identificado", b: true, tam: 9, fundo: "FFFFFF" }]], { semBorda: true, bordaBranca: true, margemV: 30 }));
+        B.push(par(run(`Probabilidade ${Calc.rotuloEscala(nomeMatriz, fr.Probabilidade) || "-"}  ×  Severidade ${Calc.rotuloEscala(nomeMatriz, fr.Criticidade, "severidade") || "-"}  =  Pontuação ${p != null ? p : "-"} · graduação pela matriz do cliente`, { tam: 8, cor: C.cinza }), { depois: 60 }));
+        const ev = Calc.textoEvolucaoRisco ? Calc.textoEvolucaoRisco(fr) : "";
+        if (ev) B.push(par(rico(`**Evolução do risco:** ${ev}`, { tam: 8.5, cor: C.texto }), { depois: 60 }));
+        const acoesF = acoesDe(fr);
         if (acoesF.length) {
           const sorted = acoesF.slice().sort((a, b) => (Number(a["Nr Acao"]) || 0) - (Number(b["Nr Acao"]) || 0));
-          B.push(tbl([9, 31, 16, 14, 14, 16], sorted.map((a) => { const d = dadosAcao(a, g); return [{ t: d.nr, b: true }, { t: `${d.tipo ? d.tipo + " – " : ""}${d.descricao}`, extra: d.evidencia }, d.segmentoRisco, d.responsavel, d.prazo, { t: d.status.rotulo, pilula: hex(d.status.cor), tam: 7.5 }]; }), { cab: ["Ação", "Descrição", "Segmento · risco", "Responsável", "Prazo", "Situação"], zebra: true, tam: 8 }));
-        }
+          B.push(tbl([9, 17, 44, 30], sorted.map((a) => { const d = dadosAcao(a, g); return [{ t: d.nr, b: true }, d.tipo || "-", { t: d.descricao || "-", extra: d.evidencia }, d.efeito]; }), { cab: ["Ação", "Tipo", "Descrição", "Efeito no risco"], zebra: true, tam: 8 }));
+        } else B.push(P("Sem ação proposta para este fator.", { cor: C.cinza }));
       });
+      const elim = eliminadosDoPosto(av);
+      if (elim.length) {
+        B.push(H3(titDe("p-eliminados", "Riscos eliminados neste posto")));
+        B.push(tbl([30, 16, 12, 42], elim.map((f) => [f.Fator || "-", f["Segmento Corporal"] || "-", dataBR(f["Eliminado Em"]), Calc.textoEvolucaoRisco(f) || "-"]), { cab: ["Fator de risco", "Segmento", "Eliminado em", "Evolução"], zebra: true, tam: 8 }));
+      }
     });
 
     // ================================================================ 10 a 12
-    B.push(H1("s10", "10. Plano de ação e risco residual", true), paragrafos("Recomendacoes"));
+    B.push(H1("s10", "10. Plano de ação e evolução dos riscos", true), paragrafos("Recomendacoes"));
     {
-      const hoje = ctx.hoje; const cont = { c: 0, a: 0, n: 0 };
-      todasAcoes.forEach(({ a }) => { const s = Calc.statusDaLinhaAcao ? Calc.statusDaLinhaAcao(a, hoje) : ""; if (Acoes.estaConcluida(a)) cont.c++; else if (s === "Em Andamento" || s === "Atrasada") cont.a++; else cont.n++; });
-      B.push(azulejos([{ n: todasAcoes.length, rot: "Ações no plano", cor: PAL.vinhoE }, { n: cont.c, rot: "Concluídas", cor: PAL.verde }, { n: cont.a, rot: "Em andamento / atrasadas", cor: PAL.azul }, { n: cont.n, rot: "Não iniciadas", cor: [138, 122, 120] }]));
+      B.push(azulejos(contagemStatus(todasAcoes, ctx.hoje)));
     }
     if (todasAcoes.length) {
       const ord = todasAcoes.slice().sort((x, z) => (x.av.Setor + x.av["Posto Trabalho"]).localeCompare(z.av.Setor + z.av["Posto Trabalho"], "pt-BR") || (Number(x.a["Nr Acao"]) || 0) - (Number(z.a["Nr Acao"]) || 0));
       B.push(tbl([7, 19, 12, 22, 12, 13, 15], ord.map(({ av, fr, a }) => { const d = dadosAcao(a, grau(fr)); return [{ t: d.nr, b: true }, `${av.Setor} · ${fr.Fator || ""}`, d.tipo || "-", { t: d.descricao || "-", extra: d.evidencia }, d.responsavel, d.prazo, { t: d.status.rotulo, pilula: hex(d.status.cor), tam: 7.5 }]; }), { cab: ["Ação", "Setor · fator", "Tipo", "Descrição", "Responsável", "Prazo", "Situação"], zebra: true, tam: 7.8 }));
     } else B.push(P("Nenhuma ação cadastrada para os fatores deste documento.", { cor: C.cinza }));
-    B.push(H3(titDe("residual", "Risco residual por fator")));
-    B.push(tbl([14, 44, 14, 14, 14], todosFatores.map(({ av, fr }) => {
-      const g = grau(fr); const ac = acoesDe(fr); const r = ac.length ? Acoes.resumoRisco(g, ac) : null;
-      return [av.Setor, fr.Fator || "", { t: rotCanon(Calc.nivelCanonico(g)), pilula: hex(corNivel(g)), tam: 7.5 }, r ? { t: rotCanon(r.previsto), pilula: hex(corNivel(r.previsto)), tam: 7.5 } : { t: "Sem ação proposta", cor: C.cinza }, r ? { t: rotCanon(r.realizado), pilula: hex(corNivel(r.realizado)), tam: 7.5 } : { t: "–", cor: C.cinza }];
-    }), { cab: ["Setor", "Fator de risco", "Risco atual", "Previsto", "Realizado"], zebra: true, tam: 8 }));
+    B.push(H3(titDe("residual", "Evolução dos riscos")));
+    B.push(tbl([16, 24, 12, 12, 12, 24], todosComEliminados.map(({ av, fr }) => {
+      const ini = Calc.graduacaoInicial(fr) || grau(fr); const elim = fr["Risco Eliminado"] === "Sim";
+      return [`${av.Setor} · ${av["Posto Trabalho"]}`, fr.Fator || "", fr["Segmento Corporal"] || "-", { t: ini, pilula: hex(corNivel(ini)), tam: 7.5 }, elim ? { t: "Eliminado", b: true, cor: C.tealE } : { t: grau(fr), pilula: hex(corNivel(grau(fr))), tam: 7.5 }, Calc.textoEvolucaoRisco(fr) || "Sem reavaliação"];
+    }), { cab: ["Setor · posto", "Fator de risco", "Segmento", "Risco inicial", "Risco atual", "Evolução"], zebra: true, tam: 7.8 }));
     B.push(legenda(texto("Residual Legenda")));
     B.push(H1("s11", "11. Referências", false));
     linhasDe("Referencias").forEach((r, i) => B.push(par(run(`${i + 1}.\t`, { tam: 9, cor: C.texto }) + rico(r, { tam: 9, cor: C.texto }), { recuo: 400, suspenso: 400, depois: 60, tabs: '<w:tab w:val="left" w:pos="400"/>' })));
     B.push(H1("s12", "12. Conclusão e validação do documento", true), paragrafos("Conclusao"));
     {
-      const ass = assinantes.length ? assinantes : [{ Nome: "Responsável técnico" }];
-      B.push(tbl(ass.map(() => 1), [ass.map((p) => ({
-        paras: (p._assinatura && imgs[p._assinatura] ? imagemPar(p._assinatura, 150, 48, { jc: "center", depois: 0, nome: "Assinatura de " + p.Nome }) : par("", { depois: 600 }))
-          + par(run(p.Nome || "-", { b: true, tam: 10, cor: C.texto }), { jc: "center", depois: 20, antes: 40, bordaEsq: null })
-          + par(run([Calc.formatarCargo(p.Titulo), p.Registro].filter(Boolean).join(" · ") || " ", { tam: 8, cor: C.cinza }), { jc: "center", depois: 0 }),
-        fundo: "FFFFFF", v: "bottom", bordas: '<w:bottom w:val="single" w:sz="6" w:space="0" w:color="C99AA0"/>',
-      }))], { semBorda: true, bordaBranca: true, margemV: 40 }));
-      B.push(par("", { depois: 120 }));
-      B.push(caixa(titDe("cliente-assinatura", `Cliente – ${opcoes.nomeCliente}`),
-        par(run("Nome / cargo: ______________________________________      Data: ____ / ____ / ________", { tam: 9, cor: C.texto }), { depois: 120 }) + par(run("Assinatura: ___________________________________________", { tam: 9, cor: C.texto }), { depois: 0 }), "FFFFFF"));
-      const qrInfo = urlQr && imgs[urlQr];
-      B.push(tbl([22, 78], [[
-        qrInfo ? { paras: imagemPar(urlQr, 84, 84, { jc: "center", depois: 0, nome: "QR Code de validação" }), fundo: "FFFFFF" } : { t: "QR Code indisponível", cor: C.cinza, tam: 8, jc: "center", fundo: "FFFFFF" },
-        { paras: par(run(titDe("validacao", "Validação do documento"), { b: true, cor: C.tealE, tam: 10 }), { depois: 60 }) + par(rico(texto("Validacao Texto"), { tam: 8.5, cor: C.texto }), { depois: 0 }), fundo: "ECF6F5", v: "top" },
-      ]], { margemV: 100 }));
+      const rc = resumoConclusao();
+      if (rc.postos.length) {
+        B.push(P(rc.fraseP));
+        B.push(tbl([16, 15, 20, 33, 16], rc.postos.map((p) => [p.av.Unidade || "-", p.av.Setor || "-", `${p.av["Posto Trabalho"] || "-"}${p.av.Cargo ? ` (${p.av.Cargo})` : ""}`, p.determinantes.join("; ") || "Sem fator de risco identificado", p.risco ? { t: p.risco, pilula: hex(corNivel(p.risco)) } : { t: "–", cor: C.cinza }]), { cab: ["Unidade", "Setor", "Posto (cargo)", "Fatores determinantes", "Risco do posto"], zebra: true, tam: 8 }));
+        if (todosFatores.length) {
+          B.push(P("Quantidade de fatores por graduação em cada grupo de fatores da ISO/TS 20646, somando todos os postos deste documento:"));
+          B.push(tbl([40].concat(niveisMz.map(() => 60 / niveisMz.length)), rc.grupos.map((g) => [g.grupo].concat(g.cont.map((q) => ({ t: String(q), jc: "center", b: q > 0, cor: q ? C.texto : C.cinza })))).concat([[{ t: "Total", b: true }].concat(rc.total.map((q) => ({ t: String(q), jc: "center", b: true })))]), { cab: ["Grupo de fatores"].concat(niveisMz), zebra: true, tam: 8 }));
+          if (rc.frase) B.push(P(rc.frase));
+        }
+      }
     }
+    B.push(fechamentoXml({
+      assinantes: assinantes.map((p) => ({ nome: p.Nome, cargo: [Calc.formatarCargo(p.Titulo), p.Registro].filter(Boolean).join(" · "), assinatura: p._assinatura })),
+      tituloCliente: titDe("cliente-assinatura", `Cliente – ${opcoes.nomeCliente}`), urlQr,
+      tituloValidacao: titDe("validacao", "Validação do documento"), textoValidacao: texto("Validacao Texto"),
+    }, imgs));
 
-    // ================================================================ capa
-    const capa = [];
-    {
-      const alvo = (txt, o) => par(run(txt, o), { depois: o.depois != null ? o.depois : 0, jc: o.jc });
-      const logo = logoCliente && imgs[logoCliente] ? imagemPar(logoCliente, 130, 44, { jc: "center", depois: 0, nome: "Logotipo do cliente" }) : par(run(opcoes.nomeCliente, { b: true, cor: C.vinho, tam: 10 }), { jc: "center", depois: 0 });
-      capa.push(tbl([68, 32], [
-        [{ paras: (logoEleva && imgs[logoEleva] ? imagemPar(logoEleva, 150, 31, { jc: "left", depois: 80, nome: "Logotipo ElevaLife" }) : alvo("ElevaLife", { b: true, cor: "FFFFFF", tam: 26 })) + alvo(texto("Capa Lema"), { cor: "E8D6D8", tam: 9.5 }), fundo: C.vinhoE, v: "top" }, { paras: logo, fundo: "FFFFFF", v: "center" }],
-        [{ span: 2, paras: par("", { depois: 1400 }) + linhasDe("Capa Titulo").map((l) => alvo(l, { b: true, cor: "FFFFFF", tam: 30 })).join("") + par("", { depois: 120 }) + alvo(texto("Capa Subtitulo"), { cor: "E8D6D8", tam: 10 }) + par("", { depois: 500 }), fundo: C.vinhoE, v: "top" }],
-      ], { semBorda: true, bordaBranca: true, margemV: 180 }));
-      capa.push(par("", { depois: 160 }));
-      const infos = [["Empresa avaliada", opcoes.nomeCliente], ["Unidade", unidadesAv.join(" · ")], ["Setores avaliados", setoresAv.join(" · ")], ["Período da avaliação", periodo], ["Data de emissão", emissao], ["Responsável técnico", responsavel ? responsavel.Nome : "-"], ["Documento / revisão", `${codigo} · Rev. ${revisao}`]];
-      const celInfo = (it) => ({ paras: par(run(it[0].toUpperCase(), { cor: C.cinza, tam: 6.5 }), { depois: 10 }) + par(run(String(it[1] || "-"), { b: true, cor: C.vinhoE, tam: 10 }), { depois: 0 }), fundo: C.creme, v: "top" });
-      const linhasInfo = [[Object.assign(celInfo(infos[0]), { span: 2 })]];
-      for (let k = 1; k < infos.length; k += 2) { const l = infos.slice(k, k + 2).map(celInfo); if (l.length < 2) l.push({ t: "", fundo: "FFFFFF" }); linhasInfo.push(l); }
-      capa.push(tbl([1, 1], linhasInfo, { semBorda: true, bordaBranca: true, margemV: 80 }));
-      const resumo = [[avaliacoes.length, "postos de trabalho avaliados"], [todosFatores.length, "fatores de risco identificados"], [todasAcoes.length, `ações no plano${concluidas ? ", " + concluidas + " já concluídas" : ""}`]];
-      capa.push(tbl([1, 1, 1], [resumo.map((r) => ({ paras: par(run(String(r[0]), { b: true, cor: C.vinho, tam: 24 }), { depois: 0 }) + par(run(r[1], { cor: C.cinza, tam: 8 }), { depois: 0 }), fundo: "FFFFFF", v: "top" }))], { semBorda: true }));
-      capa.push(par(run("Documento gerado pelo S.I.G.E – Sistema Integrado de Gestão ElevaLife.", { tam: 7.5, cor: C.cinza }), { depois: 0 }));
-    }
+    const capa = capaXml({
+      logoEleva, logoCliente, nomeCliente: opcoes.nomeCliente, lema: texto("Capa Lema"), titulo: linhasDe("Capa Titulo"), subtitulo: texto("Capa Subtitulo"),
+      infos: [["Empresa avaliada", opcoes.nomeCliente], ["Unidade", unidadesAv.join(" · ")], ["Setores avaliados", setoresAv.join(" · ")], ["Período da avaliação", periodo], ["Data de emissão", emissao], ["Responsável técnico", responsavel ? responsavel.Nome : "-"], ["Documento / revisão", `${codigo} · Rev. ${revisao}`]],
+      numeros: [[avaliacoes.length, "postos de trabalho avaliados"], [todosFatores.length, "fatores de risco identificados"], [todasAcoes.length, `ações no plano${concluidas ? ", " + concluidas + " já concluídas" : ""}`]],
+    }, imgs);
+    return pacote({
+      corpo: capa + sumarioXml(toc) + B.join(""), imgs,
+      cabecalho: titDe("cabecalho", "ElevaLife · Avaliação Ergonômica Preliminar (AEP)"), codigo, revisao,
+      rodape: `${opcoes.nomeCliente} – ${unidadesAv.join(" · ")}`,
+      titulo: "Avaliação Ergonômica Preliminar – " + opcoes.nomeCliente, palavras: "AEP, NR-17, NR-01, ergonomia",
+    });
+  }
 
-    // ---- sumario (campo do Word + entradas ja preenchidas)
-    const sumario = [];
+  // ================================================================ PADRAO (V 1.30)
+  // Pecas do padrao de laudo ElevaLife em Word, usadas pelo laudo da AEP e pelo laudo de
+  // Riscos Psicossociais (deBlocos): capa, fechamento (assinaturas, cliente e validacao),
+  // sumario (campo do Word) e o pacote .docx (estilos, cabecalho e rodape).
+  const CORES = () => { const P = BI.LaudoPadrao.PAL; return { vinhoE: hex(P.vinhoE), vinho: hex(P.vinho), vinhoM: hex(P.vinhoM), suave: hex(P.suave), creme: hex(P.creme), texto: hex(P.texto), cinza: hex(P.cinza), teal: hex(P.teal), tealE: hex(P.tealE) }; };
+  function imagemParDe(imgs, url, maxW, maxH, o) {
+    const info = imgs[url]; if (!info) return "";
+    let w = maxW; let h = w * info.h / info.w; if (h > maxH) { h = maxH; w = h * info.w / info.h; }
+    return par(imgXml(info, Math.round(w * EMU_PT), Math.round(h * EMU_PT), o && o.nome), { jc: (o && o.jc) || "left", depois: (o && o.depois) != null ? o.depois : 60 });
+  }
+  // o = { logoEleva, logoCliente, nomeCliente, lema, titulo: [linhas], subtitulo, infos: [[rotulo, valor]], numeros: [[n, rotulo]] }
+  function capaXml(o, imgs) {
+    const C = CORES(); const capa = [];
+    const alvo = (txt, op) => par(run(txt, op), { depois: op.depois != null ? op.depois : 0, jc: op.jc });
+    const logo = o.logoCliente && imgs[o.logoCliente] ? imagemParDe(imgs, o.logoCliente, 130, 44, { jc: "center", depois: 0, nome: "Logotipo do cliente" }) : par(run(o.nomeCliente, { b: true, cor: C.vinho, tam: 10 }), { jc: "center", depois: 0 });
+    const titulo = Array.isArray(o.titulo) ? o.titulo : [o.titulo];
+    const tamT = titulo.join(" ").length > 60 ? 24 : 30;
+    capa.push(tbl([68, 32], [
+      [{ paras: (o.logoEleva && imgs[o.logoEleva] ? imagemParDe(imgs, o.logoEleva, 150, 31, { jc: "left", depois: 80, nome: "Logotipo ElevaLife" }) : alvo("ElevaLife", { b: true, cor: "FFFFFF", tam: 26 })) + alvo(o.lema || "", { cor: "E8D6D8", tam: 9.5 }), fundo: C.vinhoE, v: "top" }, { paras: logo, fundo: "FFFFFF", v: "center" }],
+      [{ span: 2, paras: par("", { depois: tamT === 30 ? 1400 : 1100 }) + titulo.map((l) => alvo(l, { b: true, cor: "FFFFFF", tam: tamT })).join("") + par("", { depois: 120 }) + alvo(o.subtitulo || "", { cor: "E8D6D8", tam: 10 }) + par("", { depois: 500 }), fundo: C.vinhoE, v: "top" }],
+    ], { semBorda: true, bordaBranca: true, margemV: 180 }));
+    capa.push(par("", { depois: 160 }));
+    const infos = o.infos || [];
+    const celInfo = (it) => ({ paras: par(run(String(it[0]).toUpperCase(), { cor: C.cinza, tam: 6.5 }), { depois: 10 }) + par(run(String(it[1] || "-"), { b: true, cor: C.vinhoE, tam: 10 }), { depois: 0 }), fundo: C.creme, v: "top" });
+    const linhasInfo = infos.length ? [[Object.assign(celInfo(infos[0]), { span: 2 })]] : [];
+    for (let k = 1; k < infos.length; k += 2) { const l = infos.slice(k, k + 2).map(celInfo); if (l.length < 2) l.push({ t: "", fundo: "FFFFFF" }); linhasInfo.push(l); }
+    if (linhasInfo.length) capa.push(tbl([1, 1], linhasInfo, { semBorda: true, bordaBranca: true, margemV: 80 }));
+    const nums = o.numeros || [];
+    if (nums.length) capa.push(tbl(nums.map(() => 1), [nums.map((r) => ({ paras: par(run(String(r[0]), { b: true, cor: C.vinho, tam: 24 }), { depois: 0 }) + par(run(r[1], { cor: C.cinza, tam: 8 }), { depois: 0 }), fundo: "FFFFFF", v: "top" }))], { semBorda: true }));
+    capa.push(par(run("Documento gerado pelo S.I.G.E – Sistema Integrado de Gestão ElevaLife.", { tam: 7.5, cor: C.cinza }), { depois: 0 }));
+    return capa.join("");
+  }
+  // o = { assinantes: [{ nome, cargo, assinatura }], tituloCliente, urlQr, tituloValidacao, textoValidacao }
+  function fechamentoXml(o, imgs) {
+    const C = CORES(); const B = [];
+    const ass = (o.assinantes && o.assinantes.length) ? o.assinantes : [{ nome: "Responsável técnico" }];
+    B.push(tbl(ass.map(() => 1), [ass.map((p) => ({
+      paras: (p.assinatura && imgs[p.assinatura] ? imagemParDe(imgs, p.assinatura, 150, 48, { jc: "center", depois: 0, nome: "Assinatura de " + p.nome }) : par("", { depois: 600 }))
+        + par(run(p.nome || "-", { b: true, tam: 10, cor: C.texto }), { jc: "center", depois: 20, antes: 40, bordaEsq: null })
+        + par(run(p.cargo || " ", { tam: 8, cor: C.cinza }), { jc: "center", depois: 0 }),
+      fundo: "FFFFFF", v: "bottom", bordas: '<w:bottom w:val="single" w:sz="6" w:space="0" w:color="C99AA0"/>',
+    }))], { semBorda: true, bordaBranca: true, margemV: 40 }));
+    B.push(par("", { depois: 120 }));
+    B.push(tbl([100], [[{ paras: par(run(o.tituloCliente || "Cliente", { b: true, cor: C.vinhoE, tam: 10 }), { depois: 60, bordaEsq: C.vinho })
+      + par(run("Nome / cargo: ______________________________________      Data: ____ / ____ / ________", { tam: 9, cor: C.texto }), { depois: 120 }) + par(run("Assinatura: ___________________________________________", { tam: 9, cor: C.texto }), { depois: 0 }), fundo: "FFFFFF" }]], { semBorda: true, margemV: 90 }));
+    const qrInfo = o.urlQr && imgs[o.urlQr];
+    B.push(tbl([22, 78], [[
+      qrInfo ? { paras: imagemParDe(imgs, o.urlQr, 84, 84, { jc: "center", depois: 0, nome: "QR Code de validação" }), fundo: "FFFFFF" } : { t: "QR Code indisponível", cor: C.cinza, tam: 8, jc: "center", fundo: "FFFFFF" },
+      { paras: par(run(o.tituloValidacao || "Validação do documento", { b: true, cor: C.tealE, tam: 10 }), { depois: 60 }) + par(rico(o.textoValidacao || "", { tam: 8.5, cor: C.texto }), { depois: 0 }), fundo: "ECF6F5", v: "top" },
+    ]], { margemV: 100 }));
+    return B.join("");
+  }
+  // toc = [[nivel, titulo]]
+  function sumarioXml(toc) {
+    const C = CORES(); const sumario = [];
     sumario.push(par(run("Sumário", { b: true, cor: C.vinho, tam: 15 }), { quebraAntes: true, depois: 160, bordaEsq: null }));
-    {
-      const entradas = toc.map(([nivel, t]) => ({ nivel, t }));
-      entradas.forEach((e, k) => {
-        const ini = k === 0 ? '<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \\o "1-2" \\h \\z \\u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>' : "";
-        const fim = k === entradas.length - 1 ? '<w:r><w:fldChar w:fldCharType="end"/></w:r>' : "";
-        sumario.push(par(ini + run(e.t, { tam: e.nivel === 1 ? 10 : 9, b: e.nivel === 1, cor: C.texto }) + fim, { estilo: e.nivel === 1 ? "TOC1" : "TOC2" }));
-      });
-      sumario.push(par(run("O sumário é um campo do Word: ao abrir, aceite a atualização dos campos (ou clique com o botão direito no sumário › Atualizar campo) para exibir os números de página.", { tam: 8, cor: C.cinza }), { antes: 200 }));
-    }
-
-    // ---- montagem do pacote
+    toc.forEach(([nivel, t], k) => {
+      const ini = k === 0 ? '<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \\o "1-2" \\h \\z \\u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>' : "";
+      const fim = k === toc.length - 1 ? '<w:r><w:fldChar w:fldCharType="end"/></w:r>' : "";
+      sumario.push(par(ini + run(t, { tam: nivel === 1 ? 10 : 9, b: nivel === 1, cor: C.texto }) + fim, { estilo: nivel === 1 ? "TOC1" : "TOC2" }));
+    });
+    sumario.push(par(run("O sumário é um campo do Word: ao abrir, aceite a atualização dos campos (ou clique com o botão direito no sumário › Atualizar campo) para exibir os números de página.", { tam: 8, cor: C.cinza }), { antes: 200 }));
+    return sumario.join("");
+  }
+  // o = { corpo, imgs, cabecalho, codigo, revisao, rodape, titulo, palavras }
+  function pacote(o) {
+    const C = CORES(); const imgs = o.imgs || {}; const codigo = o.codigo; const revisao = o.revisao || "00";
     const sect = '<w:sectPr><w:headerReference w:type="default" r:id="rIdHdr1"/><w:footerReference w:type="default" r:id="rIdFtr1"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="850" w:bottom="1134" w:left="850" w:header="567" w:footer="567" w:gutter="0"/><w:titlePg/></w:sectPr>';
     const NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
-    const documento = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${NS}><w:body>${capa.join("")}${sumario.join("")}${B.join("")}${sect}</w:body></w:document>`;
+    const documento = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${NS}><w:body>${o.corpo}${sect}</w:body></w:document>`;
 
     const estilos = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${FONTE}" w:hAnsi="${FONTE}" w:cs="${FONTE}" w:eastAsia="${FONTE}"/><w:color w:val="${C.texto}"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:lang w:val="pt-BR"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="100" w:line="264" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>`
       + `<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>`
@@ -462,9 +512,9 @@
 
     const numeracao = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="400" w:hanging="260"/></w:pPr><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:color w:val="' + C.vinho + '"/></w:rPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>';
     const config = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:updateFields w:val="true"/><w:defaultTabStop w:val="708"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>';
-    const cab = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">${par(run(titDe("cabecalho", "ElevaLife · Avaliação Ergonômica Preliminar (AEP)"), { b: true, cor: C.vinho, tam: 8 }) + run("\t" + `Doc. ${codigo} · Rev. ${revisao}`, { cor: C.cinza, tam: 8 }), { estilo: "Header", depois: 0, bordaEsq: null }).replace("<w:spacing", `<w:pBdr><w:bottom w:val="single" w:sz="4" w:space="3" w:color="${C.suave}"/></w:pBdr><w:spacing`)}</w:hdr>`;
+    const cab = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">${par(run(o.cabecalho, { b: true, cor: C.vinho, tam: 8 }) + run("\t" + `Doc. ${codigo} · Rev. ${revisao}`, { cor: C.cinza, tam: 8 }), { estilo: "Header", depois: 0, bordaEsq: null }).replace("<w:spacing", `<w:pBdr><w:bottom w:val="single" w:sz="4" w:space="3" w:color="${C.suave}"/></w:pBdr><w:spacing`)}</w:hdr>`;
     const campo = (instr, txt) => `<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> ${instr} </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>${run(txt, { b: true, cor: C.vinho, tam: 8 })}<w:r><w:fldChar w:fldCharType="end"/></w:r>`;
-    const rodape = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">${par(run(`${opcoes.nomeCliente} – ${unidadesAv.join(" · ")}`, { cor: C.cinza, tam: 7.5 }) + run("\tPágina ", { b: true, cor: C.vinho, tam: 8 }) + campo("PAGE", "1") + run(" de ", { b: true, cor: C.vinho, tam: 8 }) + campo("NUMPAGES", "1"), { estilo: "Footer", depois: 0 }).replace("<w:spacing", `<w:pBdr><w:top w:val="single" w:sz="4" w:space="3" w:color="${C.suave}"/></w:pBdr><w:spacing`)}</w:ftr>`;
+    const rodape = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">${par(run(o.rodape, { cor: C.cinza, tam: 7.5 }) + run("\tPágina ", { b: true, cor: C.vinho, tam: 8 }) + campo("PAGE", "1") + run(" de ", { b: true, cor: C.vinho, tam: 8 }) + campo("NUMPAGES", "1"), { estilo: "Footer", depois: 0 }).replace("<w:spacing", `<w:pBdr><w:top w:val="single" w:sz="4" w:space="3" w:color="${C.suave}"/></w:pBdr><w:spacing`)}</w:ftr>`;
 
     const usados = Object.keys(imgs).map((k) => imgs[k]);
     const relsDoc = ['<Relationship Id="rIdSty" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>', '<Relationship Id="rIdNum" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>', '<Relationship Id="rIdSet" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>', '<Relationship Id="rIdHdr1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>', '<Relationship Id="rIdFtr1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>']
@@ -473,7 +523,7 @@
     const arquivos = [
       ["[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>'],
       ["_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>'],
-      ["docProps/core.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${esc("Avaliação Ergonômica Preliminar – " + opcoes.nomeCliente)}</dc:title><dc:subject>${esc("Documento " + codigo)}</dc:subject><dc:creator>ElevaLife – S.I.G.E</dc:creator><cp:keywords>AEP, NR-17, NR-01, ergonomia</cp:keywords><dcterms:created xsi:type="dcterms:W3CDTF">${hojeIso}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${hojeIso}</dcterms:modified></cp:coreProperties>`],
+      ["docProps/core.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${esc(o.titulo)}</dc:title><dc:subject>${esc("Documento " + codigo)}</dc:subject><dc:creator>ElevaLife – S.I.G.E</dc:creator><cp:keywords>${esc(o.palavras || "")}</cp:keywords><dcterms:created xsi:type="dcterms:W3CDTF">${hojeIso}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${hojeIso}</dcterms:modified></cp:coreProperties>`],
       ["docProps/app.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>S.I.G.E ElevaLife</Application></Properties>'],
       ["word/document.xml", documento], ["word/styles.xml", estilos], ["word/numbering.xml", numeracao], ["word/settings.xml", config], ["word/header1.xml", cab], ["word/footer1.xml", rodape],
       ["word/_rels/document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relsDoc.join("")}</Relationships>`],
@@ -482,5 +532,47 @@
     return zip.buffer.slice(zip.byteOffset, zip.byteOffset + zip.byteLength);
   }
 
-  BI.LaudoDocx = { construir, criarZip, crc32 };
+  // ================================================================ blocos -> Word (V 1.30)
+  // Converte o modelo de blocos do laudo de Riscos Psicossociais (o mesmo que vira PDF em
+  // psicossocial.html/renderPDF) em .docx no padrao ElevaLife. Blocos:
+  //   { t:"p", runs:[{x,b,c,s}], al, sb, sa, pb, ind, mark, s, c }  { t:"h", l, x, toc, pb }
+  //   { t:"tb", w:[...], rows:[[{ p:[{runs,s,sa,al,c}], f, span, c }]], hdr, zebra }
+  //   { t:"img", d, w, h }  { t:"toc" }  { t:"pb" }  { t:"esp", h }  { t:"fech", ...fechamento }
+  // o = { capa, cabecalho, codigo, revisao, rodape, titulo, palavras }
+  async function deBlocos(blocos, o) {
+    const C = CORES();
+    const urls = [];
+    if (o.capa) urls.push(o.capa.logoEleva, o.capa.logoCliente);
+    blocos.forEach((b) => { if (b.t === "img") urls.push(b.d); if (b.t === "fech") { (b.assinantes || []).forEach((a) => urls.push(a.assinatura)); if (b.codigo) { b.urlQr = qrComoPng((BI.LaudoPadrao ? BI.LaudoPadrao.URL_VERIFICACAO : "") + b.codigo); urls.push(b.urlQr); } } });
+    const imgs = await registrarImagens(urls.filter(Boolean));
+    const JC = { j: "both", c: "center", r: "right", l: "left" };
+    const runsXml = (runs, tam, corBase) => (runs || []).map((r) => run(r.x, { b: !!r.b, cor: r.c || corBase || C.texto, tam: r.s || tam })).join("");
+    const toc = []; const corpo = []; let posToc = -1;
+    blocos.forEach((b) => {
+      if (b.t === "p") {
+        const tam = b.s || 9.5; const conteudo = (b.mark ? run(b.mark + " ", { b: true, cor: b.markCor || C.vinho, tam }) : "") + runsXml(b.runs, tam, b.c);
+        corpo.push(par(conteudo, { jc: JC[b.al || "j"], depois: Math.round((b.sa != null ? b.sa : 6) * 20), antes: Math.round((b.sb || 0) * 20), recuo: b.ind ? Math.round(b.ind * 20) : 0, suspenso: b.mark ? Math.round((b.markW || 12) * 20) : 0, quebraAntes: !!b.pb, manter: !!b.keep }));
+      } else if (b.t === "h") {
+        if (b.l <= 1) { toc.push([b.l + 1, b.x]); corpo.push(par(run(b.x), { estilo: b.l === 0 ? "Heading1" : "Heading2", quebraAntes: !!b.pb })); }
+        else corpo.push(par(run(b.x, { b: true, cor: C.vinhoE, tam: 10.5 }), { antes: 160, depois: 80, manter: true, quebraAntes: !!b.pb }));
+      } else if (b.t === "tb") {
+        const linhas = b.rows.map((row) => row.map((cel) => ({
+          paras: (cel.p || []).map((pp) => par(runsXml(pp.runs, pp.s || 8, pp.c || cel.c), { jc: JC[pp.al || "l"], depois: Math.round((pp.sa || 0) * 20) })).join("") || par("", { depois: 0 }),
+          fundo: cel.f, span: cel.span, v: b.va === "t" ? "top" : "center",
+        })));
+        corpo.push(tbl(b.w, linhas, { zebra: b.zebra !== false }));
+      } else if (b.t === "img") {
+        const info = imgs[b.d]; if (info) corpo.push(imagemParDe(imgs, b.d, Math.min(b.w || 480, 480), 680, { jc: "center", depois: 120, nome: "Gráfico" }));
+      } else if (b.t === "toc") { posToc = corpo.length; corpo.push(""); }
+      else if (b.t === "pb") corpo.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
+      else if (b.t === "esp") corpo.push(par("", { depois: Math.round((b.h || 8) * 20) }));
+      else if (b.t === "fech") corpo.push(fechamentoXml(b, imgs));
+    });
+    const sumario = sumarioXml(toc);
+    if (posToc >= 0) corpo[posToc] = sumario;
+    const capa = o.capa ? capaXml(o.capa, imgs) : "";
+    return pacote({ corpo: capa + (posToc >= 0 ? "" : sumario) + corpo.join(""), imgs, cabecalho: o.cabecalho, codigo: o.codigo, revisao: o.revisao, rodape: o.rodape, titulo: o.titulo, palavras: o.palavras });
+  }
+
+  BI.LaudoDocx = { construir, criarZip, crc32, capaXml, fechamentoXml, sumarioXml, pacote, registrarImagens, qrComoPng, deBlocos };
 })(window);

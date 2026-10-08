@@ -143,11 +143,35 @@
   function renderizar(containerId, tipo, valoresPorRegiao, opts) {
     const el = document.getElementById(containerId);
     if (!el) return;
-    const config = tipo === "frente" ? CONFIG_FRENTE : CONFIG_COSTAS;
+    let config = tipo === "frente" ? CONFIG_FRENTE : CONFIG_COSTAS;
+    // V 1.29: "semLado" (Absenteismo) - um rotulo por segmento (Ombro, Joelho...), sem direito/esquerdo.
+    if (opts && opts.semLado) {
+      config = config.filter((i) => !/\sEsquerd[oa]$/.test(i.regiao)).map((i) => Object.assign({}, i, { regiao: i.regiao.replace(/\s+Direit[oa]$/, "") }));
+    }
     const formatarValor = (opts && opts.formatarValor) || ((v) => String(v));
     const titulo = (opts && opts.titulo) || (tipo === "frente" ? "Diagrama corporal - vista frontal" : "Diagrama corporal - vista posterior");
     el.innerHTML = construirSvg(config, tipo === "costas", valoresPorRegiao, formatarValor, titulo, containerId);
+    // V 1.31: segmentos fora do corpo - "Psicossocial" (cerebro) e "Nao identificado" - abaixo da figura.
+    if (opts && opts.extras && opts.extras.length) {
+      const faixa = document.createElement("div");
+      faixa.className = "bi-diagrama-extras";
+      opts.extras.forEach((nome) => {
+        const v = valoresPorRegiao[nome] || 0;
+        const b = document.createElement("div");
+        b.className = "bi-diagrama-extra" + (v ? " com-valor" : "");
+        b.setAttribute("data-regiao", nome); b.setAttribute("tabindex", "0"); b.setAttribute("role", "button");
+        b.setAttribute("aria-label", `${nome}: ${formatarValor(v)}`);
+        b.innerHTML = `<span class="bi-diagrama-extra-icone" aria-hidden="true">${nome === "Psicossocial" ? ICONE_CEREBRO : ICONE_INTERROGACAO}</span><span class="bi-diagrama-extra-txt"><span class="bi-diagrama-extra-nome"></span><strong></strong></span>`;
+        b.querySelector(".bi-diagrama-extra-nome").textContent = nome;
+        b.querySelector("strong").textContent = formatarValor(v);
+        faixa.appendChild(b);
+      });
+      el.appendChild(faixa);
+    }
   }
+  // Icones simples desenhados aqui (traco generico, sem imagem de terceiros).
+  const ICONE_CEREBRO = '<svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 8c-3.5-2-8 0-8.6 3.8C9.6 12.2 7.4 16 8.8 19.2 6 21 5.6 25.4 8 27.8c-1.2 3.4 1 7 4.6 7.4.6 3.6 4.8 5.4 7.8 3.4L22 38V8z"/><path d="M26 8c3.5-2 8 0 8.6 3.8 3.8.4 6 4.2 4.6 7.4 2.8 1.8 3.2 6.2.8 8.6 1.2 3.4-1 7-4.6 7.4-.6 3.6-4.8 5.4-7.8 3.4L26 38V8z"/><path d="M14 18c2 0 3.5 1.4 3.5 3.4M34 18c-2 0-3.5 1.4-3.5 3.4M13.5 28.5c2-.6 4 .4 4.6 2.4M34.5 28.5c-2-.6-4 .4-4.6 2.4M22 22h-3M26 22h3"/></svg>';
+  const ICONE_INTERROGACAO = '<svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="24" r="17"/><path d="M18.5 19a5.6 5.6 0 0 1 11 1.4c0 3.8-5.5 4.6-5.5 8.2"/><path d="M24 34.5h.01"/></svg>';
 
   global.BI = global.BI || {};
   global.BI.Diagramas = {
