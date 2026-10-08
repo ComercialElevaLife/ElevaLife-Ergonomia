@@ -35,25 +35,24 @@
   --status-critical: #d03b3b;
   --status-neutral: #8A7A78;
 
-  /* Mapa de Risco (paleta fixa, nunca tematizada por marca - convencao de
-     semaforo de risco ocupacional, obrigatoria por definicao de produto):
-     Baixo=verde, Moderado=amarelo, Alto=vermelho, Muito Alto=roxo. */
-  --risco-baixo: #1a9c4b;
-  --risco-muitobaixo: #6fc78b;
-  --risco-moderado: #c9960c;
-  --risco-alto: #d93636;
-  --risco-muitoalto: #7c3aed;
+  /* V 1.30 - PADRAO ElevaLife de cores de risco (igual em todo o sistema, nos
+     laudos e no modulo Psicossocial; igual no tema claro e no escuro):
+     Trivial/Muito Baixo=azul-claro #8CCBEB, Baixo=verde #2E8B57,
+     Moderado=amarelo #F2C230, Alto=vermelho #C62828, Muito Alto/Altissimo=roxo #6A3D9A. */
+  --risco-baixo: #2E8B57;
+  --risco-muitobaixo: #8CCBEB;
+  --risco-moderado: #F2C230;
+  --risco-alto: #C62828;
+  --risco-muitoalto: #6A3D9A;
 
-  /* Plano de Acao / Status (paleta fixa, distinta da paleta de risco mesmo
-     onde o "verde" se repete - tom deliberadamente diferente do
-     --risco-baixo para nao confundir "sem risco" com "acao concluida"):
-     Nao iniciado=cinza, Em andamento=azul, Concluida=verde-agua,
-     Concluida com atraso=laranja, Atrasada=vermelho. */
-  --acao-nao-iniciado: #8A7A78;
-  --acao-andamento: #2f6fed;
-  --acao-concluida: #0f9d78;
-  --acao-atraso: #e2751a;
-  --acao-atrasada: #d93636;
+  /* V 1.30 - PADRAO ElevaLife de status do Plano de Acao: Nao iniciada=laranja
+     #E8833A, Em andamento=amarelo #F2C230, Atrasada=vermelho #C62828,
+     Concluida=verde #2E8B57 (Concluida com atraso = verde escuro #1E6B44). */
+  --acao-nao-iniciado: #E8833A;
+  --acao-andamento: #F2C230;
+  --acao-concluida: #2E8B57;
+  --acao-atraso: #1E6B44;
+  --acao-atrasada: #C62828;
 
   /* Categorica (identidade: Setor, Responsavel, Categoria Acao) - tons
      derivados exclusivamente da marca ElevaLife (vinho + teal), alternando
@@ -98,17 +97,17 @@
     --status-critical: #e66767;
     --status-neutral: #a08f8c;
 
-    --risco-baixo: #2fb865;
-    --risco-muitobaixo: #7fd9a0;
-    --risco-moderado: #f0b429;
-    --risco-alto: #e35d5d;
-    --risco-muitoalto: #9b71f5;
+    --risco-baixo: #2E8B57;
+    --risco-muitobaixo: #8CCBEB;
+    --risco-moderado: #F2C230;
+    --risco-alto: #C62828;
+    --risco-muitoalto: #6A3D9A;
 
-    --acao-nao-iniciado: #a08f8c;
-    --acao-andamento: #5b91ff;
-    --acao-concluida: #1fbf95;
-    --acao-atraso: #f0883f;
-    --acao-atrasada: #e35d5d;
+    --acao-nao-iniciado: #E8833A;
+    --acao-andamento: #F2C230;
+    --acao-concluida: #2E8B57;
+    --acao-atraso: #1E6B44;
+    --acao-atrasada: #C62828;
 
     --cat-1: #3a7376;
     --cat-2: #a3505a;
@@ -144,17 +143,17 @@
   --status-critical: #e66767;
   --status-neutral: #a08f8c;
 
-  --risco-baixo: #2fb865;
-  --risco-muitobaixo: #7fd9a0;
-  --risco-moderado: #f0b429;
-  --risco-alto: #e35d5d;
-  --risco-muitoalto: #9b71f5;
+  --risco-baixo: #2E8B57;
+  --risco-muitobaixo: #8CCBEB;
+  --risco-moderado: #F2C230;
+  --risco-alto: #C62828;
+  --risco-muitoalto: #6A3D9A;
 
-  --acao-nao-iniciado: #a08f8c;
-  --acao-andamento: #5b91ff;
-  --acao-concluida: #1fbf95;
-  --acao-atraso: #f0883f;
-  --acao-atrasada: #e35d5d;
+  --acao-nao-iniciado: #E8833A;
+  --acao-andamento: #F2C230;
+  --acao-concluida: #2E8B57;
+  --acao-atraso: #1E6B44;
+  --acao-atrasada: #C62828;
 
   --cat-1: #3a7376;
   --cat-2: #a3505a;
@@ -2126,9 +2125,86 @@ body.hist-aberto { overflow: hidden; }
 
 /* V 1.27 - perfil Usuario Cliente: sem Cadastro; Registro somente consulta e Excel */
 body.perfil-cliente .sidebar-nav-grupo[data-grupo-nav="cadastro"],
+body.perfil-cliente .sidebar-nav-grupo[data-grupo-nav="interno"],
+body.perfil-cliente .laudo-emissao,
+body.perfil-cliente .aep-migracao,
 body.perfil-cliente .bloco-cadastro .btn-novo-registro,
 body.perfil-cliente .bloco-cadastro .btn-importar-excel,
 body.perfil-cliente .bloco-cadastro .col-selecao,
 body.perfil-cliente .bloco-cadastro .barra-selecao,
 body.perfil-cliente .bloco-cadastro .btn-acao-editar,
 body.perfil-cliente .bloco-cadastro .btn-acao-excluir { display: none !important; }
+
+/* V 1.28 - Inventario de riscos: repeticao do fator, consequencias padrao */
+.checklist-contador { margin-left: 6px; font-size: 0.8rem; font-weight: 700; color: var(--vinho); }
+.checklist-fator-instancias { display: flex; flex-direction: column; gap: 10px; }
+.checklist-instancia { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--linha); border-radius: 10px; background: var(--card); }
+.checklist-instancia > .campo-form-largo, .checklist-instancia > .checklist-sub-titulo, .checklist-instancia > .checklist-instancia-cab { grid-column: 1 / -1; }
+.checklist-instancia-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.checklist-instancia-cab:empty { display: none; }
+.checklist-instancia-titulo { font-weight: 700; color: var(--vinho); font-size: 0.85rem; }
+.checklist-conseq-padrao { width: 100%; margin-bottom: 4px; }
+.checklist-repetir { align-self: flex-start; }
+.acao-card-nota { font-size: 0.78rem; color: var(--texto-secundario); margin-top: 4px; }
+@media (max-width: 760px) { .checklist-instancia { grid-template-columns: 1fr; } }
+.checklist-fator-instancias[hidden], .checklist-instancia[hidden], .checklist-instancia-cab [hidden] { display: none !important; }
+
+/* V 1.28 - AEP: atualizacao das avaliacoes antigas e "Mais detalhes" */
+.aep-migracao { margin: 6px 0 12px; padding: 12px 14px; border-left: 5px solid var(--vinho); border-radius: 10px; background: var(--fundo-suave, #f5efea); display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.laudo-emissao { margin: 6px 0 12px; padding: 12px 14px; border-left: 5px solid var(--verde, #2E8B57); border-radius: 10px; background: var(--fundo-suave, #f5efea); display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; }
+.laudo-emissao-texto { flex: 1 1 320px; }
+.aep-migracao[hidden] { display: none; }
+.aep-migracao-titulo { font-weight: 700; color: var(--vinho); width: 100%; }
+.aep-migracao-texto { font-size: 0.86rem; color: var(--texto-secundario); flex: 1 1 320px; }
+.aep-migracao-status { font-size: 0.82rem; color: var(--texto-secundario); }
+.aep-det-secao { margin-bottom: 14px; }
+.aep-det-secao-titulo { font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--teal); border-bottom: 1px solid var(--linha); padding-bottom: 4px; margin-bottom: 8px; }
+.aep-det-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 14px; }
+.aep-det-item { min-width: 0; }
+.aep-det-largo { grid-column: 1 / -1; }
+.aep-det-rot { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--cinza-quente); font-weight: 700; }
+.aep-det-val { font-size: 13.5px; white-space: pre-wrap; word-break: break-word; }
+.aep-det-vazio { font-size: 13px; color: var(--texto-secundario); }
+.aep-det-tabela td, .aep-det-tabela th { font-size: 12.5px; }
+.aep-det-hist { padding: 6px 0 6px 10px; border-left: 2px solid var(--linha); margin-left: 4px; }
+.aep-det-hist-cab { font-size: 11.5px; color: var(--texto-secundario); }
+.aep-det-hist-txt { font-size: 13px; }
+
+/* V 1.29 - AET em desenvolvimento e coluna Origem do Plano de Acao */
+.aet-em-desenvolvimento { margin: 0 0 14px; padding: 12px 14px; border-left: 5px solid var(--teal, #2b7a78); border-radius: 10px; background: var(--fundo-suave, #f5efea); line-height: 1.45; }
+.pilula-origem { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .78rem; font-weight: 700; white-space: nowrap; border: 1px solid currentColor; }
+.pilula-origem.origem-aep { color: #2b6f8f; }
+.pilula-origem.origem-psicossocial { color: #7a3d6a; }
+.pilula-origem.origem-aet { color: #6b5a1e; }
+.campo-da-origem select, .campo-da-origem input { pointer-events: none; background: var(--fundo-suave, #f3efe9) !important; color: var(--texto-suave, #555); }
+.aviso-origem-acao { margin: 4px 0 12px; padding: 10px 12px; border-left: 4px solid var(--teal, #2b7a78); border-radius: 8px; background: var(--fundo-suave, #f5efea); font-size: .9rem; line-height: 1.4; }
+.checklist-badge-graduacao.com-cor { display: inline-block; padding: 3px 12px; border-radius: 999px; }
+/* V 1.31 - acao: marcacao "vai reduzir ou eliminar o risco" */
+.acao-reduz { flex-direction: row !important; align-items: center; gap: 8px !important; font-weight: 600; font-size: 13px; align-self: end; padding-bottom: 6px; }
+.acao-reduz input { width: auto !important; }
+/* V 1.31 - reavaliacao do risco ao concluir a acao */
+.reav-fundo { position: fixed; inset: 0; background: rgba(30, 18, 20, .45); z-index: 4000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.reav-caixa { background: var(--card, #fff); color: var(--texto-principal, #3d2e30); border-radius: 14px; max-width: 620px; width: 100%; padding: 20px 22px; box-shadow: 0 20px 50px rgba(0,0,0,.25); max-height: 92vh; overflow: auto; }
+.reav-titulo { font-weight: 800; font-size: 18px; color: var(--vinho, #8B3A42); margin-bottom: 6px; }
+.reav-texto { margin: 0 0 10px; line-height: 1.45; font-size: 14px; }
+.reav-info { background: var(--fundo-suave, #f5efea); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; font-size: 13px; margin-bottom: 12px; }
+.reav-linha { display: flex; gap: 8px; flex-wrap: wrap; }
+.reav-rot { font-weight: 700; min-width: 140px; color: var(--texto-secundario, #8a7a78); }
+.reav-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.reav-campo { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; }
+.reav-campo select { padding: 8px 10px; border: 1px solid var(--linha, #e5d8d8); border-radius: 8px; background: var(--card, #fff); color: inherit; font: inherit; font-weight: 500; font-size: 13.5px; }
+.reav-badge { display: inline-block; padding: 6px 12px; border-radius: 999px; font-weight: 800; border: 1px solid var(--linha, #e5d8d8); align-self: flex-start; }
+.reav-elim { display: flex; gap: 8px; align-items: center; font-weight: 600; margin: 4px 0 10px; }
+.reav-erro { color: var(--status-critical, #c62828); font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+.reav-barra { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+/* V 1.31 - segmentos fora do corpo nos diagramas (Psicossocial e Nao identificado) */
+.bi-diagrama-extras { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.bi-diagrama-extra { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border: 1.5px dashed var(--linha, #e5d8d8); border-radius: 12px; cursor: pointer; color: var(--texto-secundario, #8a7a78); background: var(--card, #fff); min-width: 170px; }
+.bi-diagrama-extra.com-valor { border-style: solid; border-color: var(--vinho, #8B3A42); color: var(--vinho, #8B3A42); }
+.bi-diagrama-extra:hover, .bi-diagrama-extra:focus { outline: 2px solid var(--teal, #3E7B7E); outline-offset: 2px; }
+.bi-diagrama-extra-txt { display: flex; flex-direction: column; font-size: 12px; line-height: 1.25; }
+.bi-diagrama-extra-txt strong { font-size: 14px; color: var(--texto-principal, #3d2e30); }
+.bi-diagrama-extra-icone { display: inline-flex; }
+/* V 1.32: Editor de Texto do laudo - marca de texto alterado e restaurar padrao */
+.editor-texto-alterado { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: var(--fundo-suave, #f5efea); color: var(--vinho, #8B3A42); font-size: 11px; font-weight: 700; text-transform: none; letter-spacing: 0; }
+.editor-texto-restaurar { margin-left: 8px; padding: 2px 10px !important; font-size: 11.5px !important; text-transform: none; letter-spacing: 0; }
