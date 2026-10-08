@@ -62,6 +62,8 @@ const REGRAS_POR_COLECAO = {
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "application/vnd.ms-excel",
       "application/pdf",
+      // V 1.34: fotos do modulo AET (foto geral do posto e fotos das atividades)
+      "image/jpeg", "image/png",
     ],
     tamanhoMaximoBytes: 20 * 1024 * 1024,
   },

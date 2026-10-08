@@ -202,7 +202,8 @@ async function avaliarPlanoAcaoComArquivos(existente, novo, identidade, context)
 async function notificarAcaoPsico(context, container, resource, reenviar) {
   try {
     const email = String(resource["E-mail Responsavel"] || "").trim();
-    if (!resource["Responsavel Acao"] || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !resource["Dt Programada"]) return resource;
+    // V 1.33: sai com e-mail e previsao de conclusao (o nome do responsavel deixou de ser obrigatorio)
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !resource["Dt Programada"]) return resource;
     if (resource["Dt Conclusao"] || resource["Status Execucao"] === "Concluida") return resource;
     const assinatura = [resource["Responsavel Acao"], email.toLowerCase(), resource["Dt Programada"]].join("|");
     if (!reenviar && resource._notifPsico && resource._notifPsico.assinatura === assinatura) return resource;
@@ -220,14 +221,19 @@ async function notificarAcaoPsico(context, container, resource, reenviar) {
   }
 }
 
-async function notificarPlanoAcao(context, existente, resource) {
+async function notificarPlanoAcao(context, existente, resource, container, reenviar) {
   try {
-    if (resource.Origem !== "Riscos Psicossociais" && precisaNotificarAtribuicao(existente, resource)) {
+    if (resource.Origem !== "Riscos Psicossociais" && (precisaNotificarAtribuicao(existente, resource) || (reenviar && precisaNotificarAtribuicao(null, resource)))) {
       await enviarEmail({
         para: resource["E-mail Responsavel"],
         assunto: ESTAGIOS_PLANO_ACAO.atribuida.assunto(resource),
         htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio: "atribuida", acao: resource }),
       });
+      // V 1.33: registra o envio (a tela mostra "e-mail enviado em ...")
+      if (container) {
+        const atualizado = Object.assign({}, resource, { _notifAtrib: { para: String(resource["E-mail Responsavel"]).trim().toLowerCase(), em: new Date().toISOString() } });
+        try { const { resource: salvo } = await container.items.upsert(atualizado); resource = salvo || atualizado; } catch (e) { context.error("registro do envio", e); }
+      }
     }
   } catch (erro) {
     context.error("Falha ao enviar e-mail de acao atribuida (Plano de Acao)", erro);
@@ -248,6 +254,7 @@ async function notificarPlanoAcao(context, existente, resource) {
   } catch (erro) {
     context.error("Falha ao enviar e-mail de dispensa de evidencia (Plano de Acao)", erro);
   }
+  return resource;
 }
 
 async function tratar(request, context) {
@@ -348,11 +355,11 @@ async function tratar(request, context) {
           paraGravar = avaliacao.doc;
         }
         const doc = aplicarAuditoria(jaExistia, paraGravar, identidade.email);
-        const reenviarPsico = colecao === "planoAcao" && !!doc._reenviarPsico;
-        if (colecao === "planoAcao") delete doc._reenviarPsico;
+        const reenviarPsico = colecao === "planoAcao" && !!(doc._reenviarPsico || doc._reenviarAcao);
+        if (colecao === "planoAcao") { delete doc._reenviarPsico; delete doc._reenviarAcao; }
         let { resource } = await container.items.upsert(doc);
         if (colecao === "planoAcao") {
-          await notificarPlanoAcao(context, jaExistia, resource);
+          resource = await notificarPlanoAcao(context, jaExistia, resource, container, reenviarPsico);
           if (resource.Origem === "Riscos Psicossociais") resource = await notificarAcaoPsico(context, container, resource, reenviarPsico);
         }
         return { status: 201, jsonBody: resource };
@@ -383,11 +390,11 @@ async function tratar(request, context) {
           mesclado = avaliacao.doc;
         }
         const doc = aplicarAuditoria(existente, mesclado, identidade.email);
-        const reenviarPsico = colecao === "planoAcao" && !!doc._reenviarPsico;
-        if (colecao === "planoAcao") delete doc._reenviarPsico;
+        const reenviarPsico = colecao === "planoAcao" && !!(doc._reenviarPsico || doc._reenviarAcao);
+        if (colecao === "planoAcao") { delete doc._reenviarPsico; delete doc._reenviarAcao; }
         let { resource } = await container.item(id, empresaIdDoDocumento(colecao, doc)).replace(doc);
         if (colecao === "planoAcao") {
-          await notificarPlanoAcao(context, existente, resource);
+          resource = await notificarPlanoAcao(context, existente, resource, container, reenviarPsico);
           if (resource.Origem === "Riscos Psicossociais") resource = await notificarAcaoPsico(context, container, resource, reenviarPsico);
         }
         // Tirou uma foto/arquivo do registro: apaga o arquivo do Storage tambem.
