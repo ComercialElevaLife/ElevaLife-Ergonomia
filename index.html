@@ -104,6 +104,12 @@
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17V10"/><path d="M9.5 17V6"/><path d="M16 17V13"/><path d="M2.5 17h15"/></svg></span>
         <span class="rotulo">Gestão de Risco</span>
       </button>
+      <!-- V 1.33: logo depois da Gestao de Risco. V 1.29: o antigo "Registro" virou o Plano de Acao unico (AEP, AET e Psicossocial);
+           Absenteismo, HHT e Restritos foram para o Cadastro Cliente. data-aba continua "registro". -->
+      <button type="button" data-aba="registro" title="Plano de Ação">
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h9M8 10h9M8 15h9"/><path d="M3 5l1 1 2-2M3 10l1 1 2-2M3 15l1 1 2-2"/></svg></span>
+        <span class="rotulo">Plano de Ação</span>
+      </button>
       <button type="button" data-aba="medocup" title="Gestão de Absenteísmo">
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 11h3l2-4 3 7 2-5.5 1.5 2.5h3.5"/></svg></span>
         <span class="rotulo">Gestão de Absenteísmo</span>
@@ -122,13 +128,7 @@
         </button>
         <div class="sidebar-subnav-lateral" id="sidebar-sub-psicossocial" hidden></div>
       </div>
-      <!-- V 1.29: o antigo "Registro" virou o Plano de Acao unico (AEP, AET e Psicossocial);
-           Absenteismo, HHT e Restritos foram para o Cadastro Cliente. data-aba continua "registro". -->
-      <button type="button" data-aba="registro" title="Plano de Ação">
-        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h9M8 10h9M8 15h9"/><path d="M3 5l1 1 2-2M3 10l1 1 2-2M3 15l1 1 2-2"/></svg></span>
-        <span class="rotulo">Plano de Ação</span>
-      </button>
-      <!-- V 1.29: AET como modulo proprio (em desenvolvimento). -->
+      <!-- V 1.29: AET como modulo proprio; V 1.34: modulo completo (js/aet.js). -->
       <button type="button" data-aba="aet" title="AET">
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="12" height="14" rx="1.6"/><path d="M7 13v-2M10 13V8M13 13v-4"/></svg></span>
         <span class="rotulo">AET</span>
@@ -232,83 +232,26 @@
         <div class="grade-status grade-status--destaque" id="tiles-risco-global"></div>
       </div>
 
-      <!-- 2. Top 3 Setores -->
+      <!-- V 1.33: Gestao de Risco e o cenario de TODOS os riscos (AEP, AET e Psicossocial). Os graficos de
+           acoes foram para a aba Plano de Acao. -->
+      <div class="cartao col-8">
+        <div class="cartao-titulo">Risco dos Postos por Setor / GHE</div>
+        <div class="cartao-sub">Contagem de postos por nível de risco (maior graduação dos fatores da AEP, AET e Psicossocial)</div>
+        <div class="altura-chart alta"><canvas id="chart-risco-por-setor"></canvas></div>
+        <div class="legenda" id="legenda-risco-por-setor"></div>
+      </div>
+
       <div class="cartao col-4">
         <div class="cartao-titulo">Top 3 Setores críticos</div>
         <div class="cartao-sub">% de postos em risco Alto/Muito Alto</div>
         <div class="altura-chart"><canvas id="chart-top-setores"></canvas></div>
       </div>
 
-      <!-- 3. Plano Acao Global -->
-      <div class="cartao col-4">
-        <div class="cartao-titulo">Plano de Ação - Global</div>
-        <div class="cartao-sub">Distribuição por status</div>
-        <div class="altura-chart"><canvas id="chart-plano-global"></canvas></div>
-        <div class="legenda" id="legenda-plano-global"></div>
-      </div>
-
-      <!-- 4. Plano Acao Postos Criticos -->
-      <div class="cartao col-4">
-        <div class="cartao-titulo">Plano de Ação - Postos Críticos</div>
-        <div class="cartao-sub">Risco = Alto ou Muito Alto</div>
-        <div class="altura-chart"><canvas id="chart-plano-criticos"></canvas></div>
-        <div class="legenda" id="legenda-plano-criticos"></div>
-      </div>
-
-      <!-- 6. Acoes previstas -->
-      <div class="cartao col-6">
-        <div class="cartao-titulo">Ações previstas no período</div>
-        <div class="cartao-sub">Por Ano/Mês Programado</div>
-        <div class="altura-chart alta"><canvas id="chart-acoes-previstas"></canvas></div>
-      </div>
-
-      <!-- 7. Acoes concluidas -->
-      <div class="cartao col-6">
-        <div class="cartao-titulo">Ações concluídas no período</div>
-        <div class="cartao-sub">Por Ano/Mês Concluída</div>
-        <div class="altura-chart alta"><canvas id="chart-acoes-concluidas"></canvas></div>
-      </div>
-
-      <!-- 5. Plano de Acao por Responsavel -->
-      <div class="cartao col-6">
-        <div class="cartao-titulo">Plano de Ação por Responsável</div>
-        <div class="cartao-sub">Contagem de ações por status</div>
-        <div class="altura-chart alta"><canvas id="chart-por-responsavel"></canvas></div>
-        <div class="legenda" id="legenda-por-responsavel"></div>
-      </div>
-
-      <!-- 9. Status Plano Acao por Setor -->
-      <div class="cartao col-6">
-        <div class="cartao-titulo">Status do Plano de Ação por Setor</div>
-        <div class="cartao-sub">Contagem de ações por status</div>
-        <div class="altura-chart alta"><canvas id="chart-status-por-setor"></canvas></div>
-        <div class="legenda" id="legenda-status-por-setor"></div>
-      </div>
-
-      <!-- 8. Mapa Risco por Setor -->
-      <div class="cartao col-12">
-        <div class="cartao-titulo">Risco dos Postos por Setor / GHE</div>
-        <div class="cartao-sub">Contagem de postos por nível de risco (maior graduação dos fatores)</div>
-        <div class="altura-chart alta"><canvas id="chart-risco-por-setor"></canvas></div>
-        <div class="legenda" id="legenda-risco-por-setor"></div>
-      </div>
-
-      <!-- Sistema de Gestao Integrada: Inventario de Riscos, Avaliacao
-           Ergonomica, Laudos e AET - indicadores dos 4 cadastros de
-           Registro, seguindo os mesmos filtros globais (Cliente/Unidade/
-           Setor/.../Ano/Mes) da secao do Mapa de Risco acima.
-
-           Pedido do Leo (28/09/2026): "gestão visual" clara entre o que e
-           AEP e o que e AET, pra ninguem se confundir olhando um indicador
-           sem saber de qual modulo ele e. Por isso 2 titulos de secao
-           separados (nunca 1 so bloco misturado) - ordem dentro de cada um
-           tambem revista: primeiro o retrato geral (graduacao/cobertura),
-           depois status/prazos, por ultimo o detalhe por setor. -->
-      <div class="col-12 titulo-secao-grade titulo-secao-grade--aep">AEP · Avaliação Ergonômica e Inventário de Riscos</div>
+      <div class="col-12 titulo-secao-grade titulo-secao-grade--aep">Inventário de Riscos · AEP, AET e Psicossocial</div>
 
       <div class="cartao col-12">
         <div class="cartao-titulo">Inventário de Riscos - Graduação do Risco</div>
-        <div class="cartao-sub">Fatores de risco cadastrados, por nível</div>
+        <div class="cartao-sub">Fatores de risco vigentes, por nível (AEP, AET e Psicossocial)</div>
         <div class="grade-status grade-status--destaque" id="tiles-fatorrisco-graduacao"></div>
       </div>
 
@@ -320,41 +263,31 @@
         <div class="legenda" id="legenda-evolucao-riscos"></div>
       </div>
 
-      <div class="cartao col-6">
+      <div class="cartao col-12">
+        <div class="cartao-titulo">Inventário de Riscos - Prazos</div>
+        <div class="cartao-sub">Campo "Válido Até" de cada fator de risco em tratativa</div>
+        <div class="grade-status" id="tiles-fatorrisco-prazos"></div>
+      </div>
+
+      <div class="col-12 titulo-secao-grade titulo-secao-grade--aet">Avaliações realizadas · AEP e AET</div>
+
+      <div class="cartao col-12">
         <div class="cartao-titulo">Avaliação Ergonômica - Cobertura</div>
         <div class="cartao-sub">Postos e cargos cadastrados com AEP registrada</div>
         <div class="grade-totais" id="tiles-avaliacao-cobertura"></div>
       </div>
 
       <div class="cartao col-6">
-        <div class="cartao-titulo">Inventário de Riscos - Status</div>
-        <div class="cartao-sub">Distribuição por status de tratativa</div>
-        <div class="altura-chart"><canvas id="chart-fatorrisco-status"></canvas></div>
-        <div class="legenda" id="legenda-fatorrisco-status"></div>
+        <div class="cartao-titulo">AEPs realizadas mês a mês</div>
+        <div class="cartao-sub">Avaliações Ergonômicas Preliminares por mês da avaliação</div>
+        <div class="altura-chart"><canvas id="chart-aep-mensal"></canvas></div>
       </div>
 
-      <div class="cartao col-4">
-        <div class="cartao-titulo">Inventário de Riscos - Prazos</div>
-        <div class="cartao-sub">Campo "Válido Até" de cada fator de risco</div>
-        <div class="grade-status" id="tiles-fatorrisco-prazos"></div>
+      <div class="cartao col-6">
+        <div class="cartao-titulo">AETs realizadas mês a mês</div>
+        <div class="cartao-sub">Análises Ergonômicas do Trabalho por mês da análise</div>
+        <div class="altura-chart"><canvas id="chart-aet-mensal"></canvas></div>
       </div>
-
-      <div class="cartao col-8">
-        <div class="cartao-titulo">Top Setores - Riscos em Aberto</div>
-        <div class="cartao-sub">% de fatores de risco com status Em andamento/A validar</div>
-        <div class="altura-chart"><canvas id="chart-fatorrisco-top-setores"></canvas></div>
-      </div>
-
-      <div class="cartao col-12">
-        <div class="cartao-titulo">Laudos e Certificados - Por Tipo</div>
-        <div class="cartao-sub">Total de laudos/certificados emitidos a partir de dados da AEP</div>
-        <div class="altura-chart"><canvas id="chart-laudos-tipo"></canvas></div>
-        <div class="legenda" id="legenda-laudos-tipo"></div>
-      </div>
-
-      <!-- AET so ganhou indicador proprio neste pedido (28/09/2026) - antes
-           so existia como tela de cadastro/upload, sem nenhum numero aqui. -->
-      <div class="col-12 titulo-secao-grade titulo-secao-grade--aet">AET · Análise Ergonômica do Trabalho</div>
 
       <div class="cartao col-12">
         <div class="cartao-titulo">AET - Arquivos Anexados por Classificação</div>
@@ -514,16 +447,57 @@
       dados fictícios de exemplo, mas novos lançamentos não podem ser salvos por aqui agora.
     </div>
     <nav class="subnav-cadastro" id="subnav-registro" hidden></nav>
+    <!-- V 1.33: indicadores das acoes (vieram da Gestao de Risco) - AEP, AET e Psicossocial -->
+    <div class="grade" id="painel-plano">
+      <div class="cartao col-4">
+        <div class="cartao-titulo">Plano de Ação - Global</div>
+        <div class="cartao-sub">Distribuição por status</div>
+        <div class="altura-chart"><canvas id="chart-plano-global"></canvas></div>
+        <div class="legenda" id="legenda-plano-global"></div>
+      </div>
+      <div class="cartao col-4">
+        <div class="cartao-titulo">Plano de Ação - Postos Críticos</div>
+        <div class="cartao-sub">Risco = Alto ou Muito Alto</div>
+        <div class="altura-chart"><canvas id="chart-plano-criticos"></canvas></div>
+        <div class="legenda" id="legenda-plano-criticos"></div>
+      </div>
+      <div class="cartao col-4">
+        <div class="cartao-titulo">Inventário de Riscos - Status</div>
+        <div class="cartao-sub">Fatores de risco por status de tratativa</div>
+        <div class="altura-chart"><canvas id="chart-fatorrisco-status"></canvas></div>
+        <div class="legenda" id="legenda-fatorrisco-status"></div>
+      </div>
+      <div class="cartao col-6">
+        <div class="cartao-titulo">Ações previstas no período</div>
+        <div class="cartao-sub">Por Ano/Mês Programado</div>
+        <div class="altura-chart alta"><canvas id="chart-acoes-previstas"></canvas></div>
+      </div>
+      <div class="cartao col-6">
+        <div class="cartao-titulo">Ações concluídas no período</div>
+        <div class="cartao-sub">Por Ano/Mês Concluída</div>
+        <div class="altura-chart alta"><canvas id="chart-acoes-concluidas"></canvas></div>
+      </div>
+      <div class="cartao col-6">
+        <div class="cartao-titulo">Plano de Ação por Responsável</div>
+        <div class="cartao-sub">Contagem de ações por status</div>
+        <div class="altura-chart alta"><canvas id="chart-por-responsavel"></canvas></div>
+        <div class="legenda" id="legenda-por-responsavel"></div>
+      </div>
+      <div class="cartao col-6">
+        <div class="cartao-titulo">Status do Plano de Ação por Setor</div>
+        <div class="cartao-sub">Contagem de ações por status</div>
+        <div class="altura-chart alta"><canvas id="chart-status-por-setor"></canvas></div>
+        <div class="legenda" id="legenda-status-por-setor"></div>
+      </div>
+    </div>
     <div class="grade" id="grade-registro"></div>
   </section>
 
-  <!-- V 1.29: AET - modulo em desenvolvimento. Por enquanto guarda as analises anexadas;
-       o inventario de riscos e as acoes da AET entram aqui quando o modulo for definido. -->
+  <!-- V 1.29: AET com aba propria. V 1.34: AET feita no sistema (riscos no Inventario, acoes no Plano,
+       laudo proprio); abaixo, as AETs anexadas (arquivos de analises feitas fora do sistema). -->
   <section id="aba-aet" hidden>
-    <div class="aet-em-desenvolvimento">
-      <strong>AET · módulo em desenvolvimento.</strong>
-      Por enquanto, a AET é anexada aqui (arquivo da análise). Quando o módulo for definido, os riscos e as ações da AET passam a alimentar a Gestão de Risco e o Plano de Ação, com a origem "AET" — os filtros e a coluna Origem já estão prontos para isso.
-    </div>
+    <!-- V 1.34: modulo AET (modelo AET ElevaLife 2026) - analises por posto, atividades, ferramentas e laudo -->
+    <div class="grade" id="aet-modulo"></div>
     <nav class="subnav-cadastro" id="subnav-aet" hidden></nav>
     <div class="grade" id="grade-aet"></div>
   </section>
@@ -670,6 +644,11 @@
 <script src="js/laudo-padrao.js"></script>
 <script src="js/laudo-docx.js"></script>
 <script src="js/laudo.js"></script>
+<script src="js/ferramentas-dados.js"></script>
+<script src="js/ferramentas.js"></script>
+<script src="js/laudo-blocos.js"></script>
+<script src="js/laudo-aet.js"></script>
+<script src="js/aet.js"></script>
 <script src="js/importador.js"></script>
 <script src="js/app.js"></script>
 <script>
