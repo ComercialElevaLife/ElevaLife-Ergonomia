@@ -208,12 +208,25 @@
     };
     const secao = (id, rot) => { const s = h("section", "aet-secao"); s.id = "aet-sec-" + id; s.appendChild(h("h3", "aet-secao-titulo", rot)); const b = h("a", null, rot); b.href = "#"; b.addEventListener("click", (ev) => { ev.preventDefault(); s.scrollIntoView({ behavior: "smooth", block: "start" }); }); nav.appendChild(b); area.appendChild(s); return s; };
     const grade = (pai) => { const gr = h("div", "aet-grade"); pai.appendChild(gr); return gr; };
+    // V 1.37: foto grande (celular) e reduzida antes do envio - ate 1920 px no maior lado, JPEG 85%.
+    // Deixa o laudo mais leve e permite que a foto va no e-mail da acao ao responsavel.
+    async function reduzirFoto(arq) {
+      try {
+        if (arq.size <= 700 * 1024 || !g.createImageBitmap) return arq;
+        const bmp = await g.createImageBitmap(arq); const lado = Math.max(bmp.width, bmp.height); const k = Math.min(1, 1920 / lado);
+        const cv = document.createElement("canvas"); cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+        const cx = cv.getContext("2d"); cx.fillStyle = "#fff"; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(bmp, 0, 0, cv.width, cv.height);
+        const blob = await new Promise((ok) => cv.toBlob(ok, "image/jpeg", 0.85));
+        if (!blob || blob.size >= arq.size) return arq;
+        return new File([blob], arq.name.replace(/\.(png|jpe?g)$/i, "") + ".jpg", { type: "image/jpeg" });
+      } catch (e) { return arq; }
+    }
     async function enviarFotos(lista, input, depois) {
       const emp = (BI.dados.cliente || []).find((c) => c.Cliente === st.Cliente); const empresaId = emp ? (emp.id || emp._id) : null;
       if (!empresaId) { window.alert("Escolha o cliente antes de anexar fotos."); return; }
       for (const arq of Array.from(input.files || [])) {
         if (!/^image\/(jpeg|png)$/.test(arq.type)) { window.alert(`${arq.name}: use JPG ou PNG.`); continue; }
-        try { const r = await BI.DB.enviarArquivo("aet", empresaId, arq); lista.push({ chave: r.chave, nomeArquivo: r.nomeArquivo || arq.name }); marcar(); } catch (e) { window.alert(`Não foi possível enviar ${arq.name}: ${e && e.message ? e.message : e}`); }
+        try { const f = await reduzirFoto(arq); const r = await BI.DB.enviarArquivo("aet", empresaId, f); lista.push({ chave: r.chave, nomeArquivo: r.nomeArquivo || f.name }); marcar(); } catch (e) { window.alert(`Não foi possível enviar ${arq.name}: ${e && e.message ? e.message : e}`); }
       }
       input.value = ""; depois();
     }
@@ -343,7 +356,25 @@
       // ferramentas
       const blocoF = h("div", "aet-ferramentas"); blocoF.appendChild(h("div", "aet-subtitulo", "Ferramentas ergonômicas (metodologia de estudo)"));
       const listaF = h("div", "aet-ferr-lista"); blocoF.appendChild(listaF);
+      // V 1.37: ferramentas recomendadas para o fator (js/recomendacoes.js) - clique aplica a ferramenta.
+      const recF = h("div", "aet-ferr-rec"); blocoF.insertBefore(recF, listaF);
+      const nomeFatorAtual = () => (fa.fator === "__outro" ? fa.outro : fa.fator) || "";
+      const aplicarNova = (id) => { const it = { id, valores: {}, exposicao: null, nivelManual: "" }; fa.ferramentas.push(it); marcar(); desenharFerr(); pintar(); desenharExp(); abrirFerramenta(it, () => { marcar(); desenharFerr(); pintar(); desenharExp(); }); };
+      const desenharRecF = () => {
+        recF.innerHTML = ""; const RC = BI.Recomendacoes; const nome = nomeFatorAtual();
+        if (!RC || !nome) { recF.hidden = true; return; } recF.hidden = false;
+        const recs = RC.ferramentasDoFator(nome);
+        recF.appendChild(h("span", "aet-rot", "Ferramentas recomendadas para este fator: "));
+        recs.forEach((r) => {
+          const usada = fa.ferramentas.some((it) => it.id === r.id);
+          const b = h("button", "aet-ferr-chip" + (r.principal ? " aet-ferr-chip--principal" : "") + (usada ? " aet-ferr-chip--usada" : ""), (r.principal ? "★ " : "") + r.sigla + (usada ? " ✓" : ""));
+          b.type = "button"; b.title = r.nome + (r.principal ? " (mais indicada)" : "") + (usada ? " – já aplicada" : editar ? " – clique para aplicar" : "");
+          b.disabled = !editar || usada; b.addEventListener("click", () => aplicarNova(r.id)); recF.appendChild(b);
+        });
+        const obs = RC.observacaoDoFator(nome); if (obs) recF.appendChild(h("div", "aet-nota", obs));
+      };
       const desenharFerr = () => {
+        desenharRecF();
         listaF.innerHTML = "";
         if (!fa.ferramentas.length) listaF.appendChild(h("div", "aet-nota", "Nenhuma ferramenta aplicada: informe a severidade e a probabilidade abaixo."));
         fa.ferramentas.forEach((it, ii) => {
@@ -358,8 +389,11 @@
         });
         if (editar) {
           const add = h("div", "aet-ferr-add"); const s = h("select"); const o0 = h("option", null, "+ Aplicar ferramenta…"); o0.value = ""; s.appendChild(o0);
-          F().LISTA.forEach((d) => { const o = h("option", null, d.nome); o.value = d.id; s.appendChild(o); });
-          s.addEventListener("change", () => { if (!s.value) return; const it = { id: s.value, valores: {}, exposicao: null, nivelManual: "" }; fa.ferramentas.push(it); s.value = ""; marcar(); desenharFerr(); pintar(); desenharExp(); abrirFerramenta(it, () => { marcar(); desenharFerr(); pintar(); desenharExp(); }); });
+          const recIds = BI.Recomendacoes ? BI.Recomendacoes.ferramentasDoFator(nomeFatorAtual()).map((r) => r.id) : [];
+          const grp = (rot, defs) => { if (!defs.length) return; const og = h("optgroup"); og.label = rot; defs.forEach((d) => { const o = h("option", null, d.nome); o.value = d.id; og.appendChild(o); }); s.appendChild(og); };
+          if (recIds.length) { grp("Recomendadas para este fator", recIds.map((id) => F().porId(id)).filter(Boolean)); grp("Demais ferramentas", F().LISTA.filter((d) => !recIds.includes(d.id))); }
+          else F().LISTA.forEach((d) => { const o = h("option", null, d.nome); o.value = d.id; s.appendChild(o); });
+          s.addEventListener("change", () => { if (!s.value) return; const id = s.value; s.value = ""; aplicarNova(id); });
           add.appendChild(s); listaF.appendChild(add);
         }
       };

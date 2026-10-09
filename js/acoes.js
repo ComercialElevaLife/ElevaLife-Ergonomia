@@ -204,12 +204,17 @@
     const resumoEl = el("div", "acoes-resumo");
     const legadoEl = el("div", "acoes-legado");
     const barra = el("div", "acoes-barra");
-    const btnAdd = el("button", "btn-cad-secundario acoes-add", "+ Adicionar ação");
+    // V 1.37: "outras ações" - o ergonomista digita a ação livremente (alem das recomendacoes padronizadas)
+    const btnAdd = el("button", "btn-cad-secundario acoes-add", "+ Outra ação (digitar)");
     btnAdd.type = "button";
+    btnAdd.title = "Ação que não está nas recomendações padronizadas: descreva livremente";
     barra.appendChild(btnAdd);
+    const recEl = el("div", "acoes-recomendadas");
+    let recMostrarTodas = false, recChave = null, recAberto = null;
     raiz.appendChild(resumoEl);
     raiz.appendChild(lista);
     raiz.appendChild(aviso);
+    raiz.appendChild(recEl);
     raiz.appendChild(barra);
     raiz.appendChild(legadoEl);
 
@@ -231,7 +236,59 @@
 
     // V 1.31: o resumo mostra o risco atual do fator e quantas acoes reduzem ou eliminam o risco.
     // (Previsto/realizado sairam: o risco novo vem da reavaliacao feita ao concluir a acao no Plano de Acao.)
+    // V 1.37: recomendacoes padronizadas do fator (js/recomendacoes.js), filtradas pelo nivel de risco.
+    // "+ Usar" cria a acao ja preenchida (tipo, texto, complexidade); o texto pode ser editado.
+    function desenharRecomendacoes(forcar) {
+      const RC = BI.Recomendacoes;
+      if (!RC || opts.semRecomendacoes) { recEl.hidden = true; return; }
+      const fator = opts.nomeFator ? String(opts.nomeFator() || "") : "";
+      const nivel = opts.nivelAtual();
+      const usadas = new Set(cards.filter((c) => !c.removida).map((c) => RC.norm(c.f.descricao.value)));
+      const chave = [fator, nivel, recMostrarTodas, Array.from(usadas).join("|"), podeEditar].join("¦");
+      if (!forcar && chave === recChave) return;
+      recChave = chave;
+      recEl.innerHTML = ""; recEl.hidden = !fator;
+      if (!fator) return;
+      const ord = nivel ? idx(nivel) : -1;
+      const todas = RC.acoesDoFator(fator);
+      const indicadas = nivel ? RC.acoesParaNivel(fator, ord) : [];
+      const visiveis = recMostrarTodas || !nivel ? todas : indicadas;
+      const det = document.createElement("details"); det.className = "acoes-rec-det";
+      det.open = recAberto == null ? true : recAberto;
+      det.addEventListener("toggle", () => { recAberto = det.open; });
+      const sum = document.createElement("summary");
+      sum.textContent = `Recomendações padronizadas para este fator${nivel ? ` · risco ${rotuloNivel(nivel)} (${indicadas.length})` : ""}`;
+      det.appendChild(sum);
+      if (!nivel) det.appendChild(el("div", "acoes-rec-nota", "Classifique o fator (graduação do risco) para ver as ações indicadas para o nível de risco e poder usá-las."));
+      else det.appendChild(el("div", "acoes-rec-nota", "Ações indicadas para o nível de risco do fator, na ordem da hierarquia de controle (NR-01): eliminação, engenharia/adequação e organizacionais. Clique em “+ Usar” para incluir; o texto pode ser ajustado. Para uma ação que não está na lista, use “+ Outra ação (digitar)”."));
+      const ul = el("div", "acoes-rec-lista");
+      visiveis.forEach((a) => {
+        const li = el("div", "acoes-rec-item" + (nivel && !indicadas.includes(a) ? " acoes-rec-item--fora" : ""));
+        li.appendChild(el("span", "acoes-rec-tipo acoes-rec-tipo--" + a.tipo.toLowerCase(), rotuloTipo(a.tipo)));
+        li.appendChild(el("span", "acoes-rec-texto", a.texto));
+        li.appendChild(el("span", "acoes-rec-comp", "Complexidade " + (COMPLEXIDADES.find((c) => c.valor === a.complexidade) || {}).label));
+        const ja = usadas.has(RC.norm(a.texto));
+        const b = el("button", "btn-cad-secundario acoes-rec-usar", ja ? "✓ Incluída" : "+ Usar"); b.type = "button";
+        b.disabled = ja || !podeEditar || !nivel;
+        b.addEventListener("click", () => {
+          adicionarCard(null, Object.assign({ "Tipo Acao": a.tipo, "Acao Recomendada": a.texto, Complexidade: a.complexidade }, a.tipo === "Eliminacao" ? { "Reduz Risco": "Sim", "Risco Apos Acao": ELIMINADO } : {}));
+          notificar(); desenharRecomendacoes(true);
+        });
+        li.appendChild(b); ul.appendChild(li);
+      });
+      if (!visiveis.length) ul.appendChild(el("div", "acoes-rec-nota", "Nenhuma recomendação padronizada para este nível."));
+      det.appendChild(ul);
+      const fora = todas.length - indicadas.length;
+      if (nivel && fora > 0) {
+        const t = el("button", "acoes-rec-todas", recMostrarTodas ? "Mostrar só as indicadas para este nível" : `Mostrar também as outras ${fora} recomendação(ões) do fator`); t.type = "button";
+        t.addEventListener("click", () => { recMostrarTodas = !recMostrarTodas; desenharRecomendacoes(true); });
+        det.appendChild(t);
+      }
+      recEl.appendChild(det);
+    }
+
     function atualizarResumo() {
+      desenharRecomendacoes();
       resumoEl.innerHTML = "";
       const nivel = opts.nivelAtual();
       btnAdd.disabled = !podeEditar || !nivel;
@@ -261,7 +318,8 @@
 
     function atualizarSugestoes(c) {
       c.dl.innerHTML = "";
-      (SUGESTOES[c.f.tipo.value] || []).forEach((s) => { const o = document.createElement("option"); o.value = s; c.dl.appendChild(o); });
+      const doFator = BI.Recomendacoes && opts.nomeFator ? BI.Recomendacoes.acoesDoFator(opts.nomeFator()).filter((a) => a.tipo === c.f.tipo.value).map((a) => a.texto) : [];
+      Array.from(new Set(doFator.concat(SUGESTOES[c.f.tipo.value] || []))).forEach((s) => { const o = document.createElement("option"); o.value = s; c.dl.appendChild(o); });
     }
 
     function statusTexto(a) {
@@ -353,7 +411,7 @@
       return c;
     }
 
-    function notificar() { if (opts.aoMudar) opts.aoMudar(); }
+    function notificar() { desenharRecomendacoes(); if (opts.aoMudar) opts.aoMudar(); }
 
     // Lista de nomes ja usados como responsaveis (autocompletar).
     (function garantirListaResponsaveis() {

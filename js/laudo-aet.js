@@ -188,9 +188,17 @@
             const def = BI.Ferramentas.porId(it.id); if (!def) return; const r = BI.Ferramentas.calcular(it.id, it.valores || {});
             const nv = r.ok && r.nivel != null ? r.nivel : (it.nivelManual !== "" && it.nivelManual != null ? Number(it.nivelManual) : null);
             const linhas = [[cell(`${def.nome} – ${(fa.fator === "__outro" ? fa.outro : fa.fator) || ""}`, { fill: COR.tint, bold: true, color: COR.deep, span: 2 })]];
+            // V 1.37: dados preenchidos na ferramenta (entradas), depois o calculo (memorial) e o resultado
+            const ent = BI.Ferramentas.entradas ? BI.Ferramentas.entradas(it.id, it.valores || {}) : [];
+            if (ent.length) {
+              linhas.push([cell("Dados preenchidos na ferramenta", { bold: true, size: 7.8, color: COR.deep, fill: "F6EEEF", span: 2 })]);
+              let sec = null;
+              ent.forEach(([k, v, sc]) => { if (sc && sc !== sec) { sec = sc; linhas.push([cell(sc, { bold: true, size: 7.4, color: COR.mut, span: 2 })]); } linhas.push([cell(k, { size: 7.6 }), cell(v, { size: 7.6 })]); });
+            } else linhas.push([cell("Dados preenchidos na ferramenta", { bold: true, size: 7.8 }), cell("Ferramenta aplicada sem dados de entrada preenchidos.", { size: 7.8 })]);
+            if ((r.memorial || []).length) linhas.push([cell("Cálculo", { bold: true, size: 7.8, color: COR.deep, fill: "F6EEEF", span: 2 })]);
             (r.memorial || []).forEach(([k, v]) => linhas.push([cell(k, { bold: true, size: 7.8 }), cell(v, { size: 7.8 })]));
             linhas.push([cell("Resultado", { bold: true, size: 7.8 }), cell(`${r.ok ? r.pontuacao + " – " : ""}${r.classe}${nv != null ? " (nível " + BI.Ferramentas.NIVEIS[nv].toLowerCase() + ")" : ""} · ${BI.AET.comExposicao(it) ? "considera o tempo de exposição: define o risco" : "cruzado com a probabilidade (exposição)"}`, { size: 7.8 })]);
-            table(linhas, [3300, 6054], { header: false, va: "t", keep: true });
+            table(linhas, [4300, 5054], { header: false, va: "t", keep: linhas.length <= 24 });
           });
         }
       }

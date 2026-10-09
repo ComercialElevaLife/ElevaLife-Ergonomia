@@ -613,9 +613,7 @@
     const salvarEntrada = () => O.fila.atualizar(entrada).catch(() => {});
     try {
       if (entrada.tipo === "excluir") {
-        const respDel = await fetch("/api/" + encodeURIComponent(entrada.colecao) + "/" + encodeURIComponent(entrada.id), {
-          method: "DELETE", credentials: "same-origin",
-        });
+        const respDel = await fetchExcluir(entrada.colecao, entrada.id);
         if (respDel.ok || respDel.status === 204 || respDel.status === 404) { // 404 = ja nao existe, objetivo cumprido
           await O.fila.remover(entrada.seq);
           filaCache = filaCache.filter((e) => e.seq !== entrada.seq);
@@ -997,6 +995,17 @@
     return "/api/arquivos?chave=" + encodeURIComponent(chave);
   }
 
+  // V 1.37: excluir uma empresa-cliente apaga todos os dados dela no servidor, em lotes - enquanto
+  // faltar, a API responde 202 { restante: true } e o DELETE e repetido.
+  async function fetchExcluir(colecaoChave, id) {
+    let resp;
+    for (let i = 0; i < 200; i++) {
+      resp = await fetch("/api/" + encodeURIComponent(colecaoChave) + "/" + encodeURIComponent(id), { method: "DELETE", credentials: "same-origin" });
+      if (resp.status !== 202) return resp;
+    }
+    return resp;
+  }
+
   async function excluir(colecaoChave, id) {
     if (estado.modoApi) {
       // Registro criado offline e ainda nao enviado: basta tirar da fila.
@@ -1008,10 +1017,7 @@
       if (!podeFila && semInternetAgora()) throw new Error(MSG_PRECISA_INTERNET);
       let resp;
       try {
-        resp = await fetch("/api/" + encodeURIComponent(colecaoChave) + "/" + encodeURIComponent(id), {
-          method: "DELETE",
-          credentials: "same-origin",
-        });
+        resp = await fetchExcluir(colecaoChave, id);
       } catch (erroRede) {
         if (!ehErroDeRede(erroRede)) throw erroRede;
         estado.offlineAgora = true;
@@ -1021,7 +1027,8 @@
       }
       if (resp.status === 401 && podeFila) { estado.sessaoExpirada = true; await enfileirarExclusao(colecaoChave, id); return; }
       if (!resp.ok && resp.status !== 204) throw new Error(await corpoDeErro(resp));
-      await recarregarColecaoApi(colecaoChave);
+      if (colecaoChave === "cliente") await carregarTudoOuCopia(); // os dados da empresa sairam de todas as colecoes
+      else await recarregarColecaoApi(colecaoChave);
       return;
     }
 
@@ -1044,14 +1051,12 @@
       }
       if (semInternetAgora()) throw new Error(MSG_PRECISA_INTERNET);
       const resultados = await Promise.allSettled(ids.map((id) =>
-        fetch("/api/" + encodeURIComponent(colecaoChave) + "/" + encodeURIComponent(id), {
-          method: "DELETE",
-          credentials: "same-origin",
-        }).then(async (resp) => {
+        fetchExcluir(colecaoChave, id).then(async (resp) => {
           if (!resp.ok && resp.status !== 204) throw new Error(await corpoDeErro(resp));
         })
       ));
-      await recarregarColecaoApi(colecaoChave);
+      if (colecaoChave === "cliente") await carregarTudoOuCopia();
+      else await recarregarColecaoApi(colecaoChave);
       return { total: ids.length, falhas: resultados.filter((r) => r.status === "rejected").length };
     }
 
@@ -1134,6 +1139,7 @@
     salvar,
     salvarEmLote,
     excluir,
+    recarregarTudo: carregarTudoOuCopia, // V 1.37
     excluirEmLote,
     enviarArquivo,
     urlArquivo,

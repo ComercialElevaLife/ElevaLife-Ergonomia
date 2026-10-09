@@ -652,5 +652,31 @@
     return raiz;
   }
 
-  BI.Ferramentas = { LISTA: FERRAMENTAS, NIVEIS, porId, camposDe, calcular, formulario };
+  // V 1.37: dados de entrada preenchidos na ferramenta (para o laudo: "Dados preenchidos"), na ordem do
+  // formulario -> [[rotulo, resposta]]. Campos com lado: "Esq.: x · Dir.: y". Campos vazios ficam de fora.
+  function entradas(id, valores) {
+    const f = porId(id); if (!f) return [];
+    const v = valores || {}; const out = []; let secao = "";
+    const txt = (c, x) => {
+      if (x == null || x === "" || (Array.isArray(x) && !x.length)) return null;
+      const opcs = typeof c.ops === "function" ? c.ops(v) : c.ops || [];
+      if (c.tipo === "num") return fmt(Number(x));
+      if (c.tipo === "multi") return (Array.isArray(x) ? x : [x]).map((k) => { const o = opcs.find((o2) => o2.v === String(k)); return o ? o.t : String(k); }).join("; ");
+      const o = opcs.find((o2) => o2.v === String(x)); return o ? o.t : String(x);
+    };
+    try {
+      camposDe(f).forEach((c) => {
+        if (c.tipo === "titulo") { secao = c.rot; return; }
+        if (c.tipo === "nota") return;
+        if (c.se && !c.se(v)) return;
+        let resp;
+        if (c.lados) { const e = txt(c, v[c.id + "_e"]), d = txt(c, v[c.id + "_d"]); if (e == null && d == null) return; resp = e === d ? `${e} (esq. e dir.)` : [e != null ? "Esq.: " + e : "", d != null ? "Dir.: " + d : ""].filter(Boolean).join(" · "); }
+        else { resp = txt(c, v[c.id]); if (resp == null) return; }
+        out.push([c.rot, resp, secao]);
+      });
+    } catch (e) { console.error("entradas da ferramenta " + id, e); }
+    return out;
+  }
+
+  BI.Ferramentas = { LISTA: FERRAMENTAS, NIVEIS, porId, camposDe, calcular, formulario, entradas };
 })(window);

@@ -4031,6 +4031,17 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           { const sv = reg["Segmento Corporal"] || (window.BI.Acoes.acoesDoFator(reg._id).map((a) => a["Segmento Corporal"]).filter(Boolean)[0]) || ""; if (sv && !Array.from(inst.selSegmento.options).some((o) => o.value === sv)) { const o = document.createElement("option"); o.value = o.textContent = sv; inst.selSegmento.appendChild(o); } inst.selSegmento.value = sv; }
           if (!podeEditar) inst.selSegmento.disabled = true;
           campoDetalhe("Segmento acometido *", caixa).appendChild(inst.selSegmento);
+          // V 1.37: ferramentas ergonomicas recomendadas para o fator (para a AET / avaliacao aprofundada)
+          if (window.BI.Recomendacoes) {
+            const recs = window.BI.Recomendacoes.ferramentasDoFator(fator);
+            if (recs.length) {
+              const dv = document.createElement("div"); dv.className = "campo-form-largo checklist-ferr-rec";
+              const tt = document.createElement("span"); tt.className = "checklist-ferr-rec-rot"; tt.textContent = "Ferramentas ergonômicas recomendadas para este fator (avaliação aprofundada / AET): "; dv.appendChild(tt);
+              recs.forEach((r) => { const c = document.createElement("span"); c.className = "aet-ferr-chip" + (r.principal ? " aet-ferr-chip--principal" : ""); c.textContent = (r.principal ? "★ " : "") + r.sigla; c.title = r.nome + (r.principal ? " (mais indicada)" : ""); dv.appendChild(c); });
+              const ob = window.BI.Recomendacoes.observacaoDoFator(fator); if (ob) { const n = document.createElement("div"); n.className = "checklist-ferr-rec-obs"; n.textContent = ob; dv.appendChild(n); }
+              caixa.appendChild(dv);
+            }
+          }
 
           titulinho("Classificação atual", caixa);
           const selecaoEscala = (valorAtual, eixo) => {
@@ -5688,6 +5699,16 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         btnImportar.addEventListener("click", () => abrirImportacao(chave));
         cab.appendChild(btnImportar);
       }
+      // V 1.37: Administrador limpa os dados que sobraram de empresas excluidas antes desta versao.
+      if (chave === "cliente") {
+        const bOrf = document.createElement("button");
+        bOrf.type = "button"; bOrf.className = "btn-cad-secundario"; bOrf.id = "btn-orfaos-cliente";
+        bOrf.textContent = "🧹 Dados de empresas excluídas";
+        bOrf.title = "Lista e apaga os dados que ficaram no sistema de empresas já excluídas";
+        bOrf.hidden = !ehAdministradorAtual();
+        bOrf.addEventListener("click", abrirLimpezaOrfaos);
+        cab.appendChild(bOrf);
+      }
       if (!cfg.semNovo) cab.appendChild(btnNovo);
 
       const formContainer = document.createElement("div");
@@ -6056,7 +6077,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   function excluirRegistro(chave, id) {
     if (ehUsuarioCliente()) return;
     if (!window.BI.DB.estado.disponivel) return;
-    if (!window.confirm("Excluir este registro definitivamente? Essa ação não pode ser desfeita.")) return;
+    // V 1.37: excluir a empresa-cliente apaga todos os dados dela
+    if (!window.confirm("Excluir este registro definitivamente? Essa ação não pode ser desfeita." + (chave === "cliente" ? " A empresa e TODOS os dados dela (unidades, setores, cargos, AEP, AET, Inventário, Plano de Ação, laudos, colaboradores e Riscos Psicossociais) serão apagados." : ""))) return;
     window.BI.DB.excluir(chave, id).catch((e) => {
       mostrarErro("Erro ao excluir registro: " + (e && e.message ? e.message : String(e)));
     });
@@ -6333,7 +6355,58 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     }
   }
 
+  function ehAdministradorAtual() { const i = window.BI.DB && window.BI.DB.estado.identidade; return !!(i && i.papel === "Administrador"); }
+  // V 1.37: dados de empresas excluidas (antes da exclusao completa) - lista e apaga, so Administrador.
+  async function abrirLimpezaOrfaos() {
+    if (!ehAdministradorAtual()) return;
+    const fundo = document.createElement("div"); fundo.className = "aet-modal-fundo";
+    const cx = document.createElement("div"); cx.className = "aet-modal orfaos-modal"; fundo.appendChild(cx);
+    const tit = document.createElement("div"); tit.className = "aet-modal-titulo"; tit.textContent = "Dados de empresas excluídas"; cx.appendChild(tit);
+    const corpo = document.createElement("div"); corpo.textContent = "Procurando dados de empresas que não estão mais cadastradas…"; cx.appendChild(corpo);
+    const barra = document.createElement("div"); barra.className = "reav-barra";
+    const bF = document.createElement("button"); bF.type = "button"; bF.className = "btn-cad-secundario"; bF.textContent = "Fechar"; bF.addEventListener("click", () => fundo.remove());
+    barra.appendChild(bF); cx.appendChild(barra); document.body.appendChild(fundo);
+    const NOMES = { unidade: "unidades", setor: "setores/GHE", cargo: "cargos", posto: "postos", atividade: "atividades", planoAcao: "ações do Plano", avaliacaoErgonomica: "AEP", fatorRisco: "fatores do Inventário", laudo: "laudos", aet: "AET", colaborador: "colaboradores", absenteismo: "absenteísmo", diasUteis: "HHT/dias úteis", mapaRisco: "mapa de risco", compativeis: "compatíveis" };
+    let algoApagado = false;
+    async function listar() {
+      corpo.innerHTML = "";
+      let lista;
+      try {
+        const r = await fetch("/api/manutencao/orfaos", { credentials: "same-origin" });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erro || "Falha (" + r.status + ")");
+        lista = (await r.json()).empresas || [];
+      } catch (e) { corpo.textContent = "Não foi possível consultar: " + (e && e.message ? e.message : e); return; }
+      if (!lista.length) { corpo.textContent = "Nenhum dado de empresa excluída. Está tudo limpo."; return; }
+      const p = document.createElement("p"); p.className = "aet-nota"; p.textContent = "Estas empresas já foram excluídas, mas os dados abaixo ainda estão no banco (exclusões feitas antes da V 1.37). Apagar remove os registros e as fotos/arquivos de forma definitiva."; corpo.appendChild(p);
+      lista.forEach((e) => {
+        const l = document.createElement("div"); l.className = "orfaos-linha";
+        const t = document.createElement("div");
+        const b = document.createElement("strong"); b.textContent = e.Cliente || "(empresa sem nome)"; t.appendChild(b);
+        const d = document.createElement("div"); d.className = "aet-nota"; d.textContent = `${e.total} registro(s): ` + Object.keys(e.porColecao).map((k) => `${e.porColecao[k]} ${NOMES[k] || k}`).join(", "); t.appendChild(d);
+        l.appendChild(t);
+        const bx = document.createElement("button"); bx.type = "button"; bx.className = "btn-excluir"; bx.textContent = "Apagar dados";
+        bx.addEventListener("click", async () => {
+          if (!window.confirm(`Apagar definitivamente os ${e.total} registro(s) da empresa excluída “${e.Cliente || e.EmpresaId}”?`)) return;
+          bx.disabled = true; bx.textContent = "Apagando…";
+          try {
+            for (let i = 0; i < 200; i++) {
+              const r = await fetch("/api/manutencao/orfaos", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ EmpresaId: e.EmpresaId }) });
+              const j = await r.json().catch(() => ({}));
+              if (!r.ok) throw new Error(j.erro || "Falha (" + r.status + ")");
+              if (!j.restante) break;
+            }
+            algoApagado = true; await listar();
+          } catch (err) { bx.disabled = false; bx.textContent = "Apagar dados"; window.alert("Não foi possível apagar: " + (err && err.message ? err.message : err)); }
+        });
+        l.appendChild(bx); corpo.appendChild(l);
+      });
+    }
+    bF.addEventListener("click", () => { if (algoApagado && window.BI.DB.recarregarTudo) window.BI.DB.recarregarTudo(); });
+    await listar();
+  }
+
   function renderizarListaCadastro(chave) {
+    if (chave === "cliente") { const bo = document.getElementById("btn-orfaos-cliente"); if (bo) bo.hidden = !ehAdministradorAtual(); }
     if (chave === "planoAcao") { try { renderPlanoLista(); } catch (e) { console.error(e); } }
     if (chave === "avaliacaoErgonomica") { try { atualizarAvisoMigracaoAEP(); } catch (e) { console.error(e); } }
     if (chave === "laudo") { try { atualizarPainelEmissaoLaudo(); } catch (e) { console.error(e); } }
@@ -6640,7 +6713,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const mensagem = ids.length === 1
       ? `Excluir o registro selecionado de "${cfg.titulo}"? Essa ação não pode ser desfeita.`
       : `Excluir os ${ids.length} registros selecionados de "${cfg.titulo}"? Essa ação não pode ser desfeita.`;
-    if (!window.confirm(mensagem)) return;
+    if (!window.confirm(mensagem + (chave === "cliente" ? " A empresa e TODOS os dados dela (unidades, setores, cargos, AEP, AET, Inventário, Plano de Ação, laudos, colaboradores e Riscos Psicossociais) serão apagados." : ""))) return;
 
     const btnExcluir = document.getElementById("btn-excluir-selecionados-" + chave);
     if (btnExcluir) btnExcluir.disabled = true;
@@ -7451,7 +7524,18 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const bloqueado = somenteLeitura || concluida;
       const inp = (tipo, campo, valor, ph) => { const i = document.createElement("input"); i.type = tipo; i.value = valor || ""; if (ph) i.placeholder = ph; i.dataset.pl = campo; i.disabled = bloqueado; return i; };
       const tdP = h("td"); const iP = inp("date", "Dt Programada", a["Dt Programada"]); iP.setAttribute("aria-label", "Prazo (previsão de conclusão)"); tdP.appendChild(iP); tr.appendChild(tdP);
-      const tdR = h("td"); const iR = inp("text", "Responsavel Acao", a["Responsavel Acao"], "Nome"); iR.setAttribute("aria-label", "Responsável"); tdR.appendChild(iR); tr.appendChild(tdR);
+      const tdR = h("td"); const iR = inp("text", "Responsavel Acao", a["Responsavel Acao"], "Nome"); iR.setAttribute("aria-label", "Responsável"); tdR.appendChild(iR);
+      // V 1.37: botao para excluir o responsavel e o prazo da acao (volta a "Nao iniciada", sem e-mail)
+      if (!bloqueado && (a["Responsavel Acao"] || a["Dt Programada"] || a["E-mail Responsavel"])) {
+        const bl = h("button", "plano-limpar-resp", "✕ Excluir responsável e prazo"); bl.type = "button";
+        bl.title = "Apaga o prazo, o responsável e o e-mail desta ação";
+        bl.addEventListener("click", () => {
+          if (!window.confirm("Excluir o responsável, o e-mail e o prazo desta ação? Ela volta para “Não iniciada” e o responsável deixa de receber os avisos.")) return;
+          salvarCampoPlano(a, "_limparResp", true);
+        });
+        tdR.appendChild(bl);
+      }
+      tr.appendChild(tdR);
       const tdE = h("td"); const iE = inp("email", "E-mail Responsavel", a["E-mail Responsavel"], a["Dt Programada"] ? "email@empresa.com.br" : "informe o prazo antes");
       iE.setAttribute("aria-label", "E-mail do responsável");
       if (!a["Dt Programada"]) { iE.disabled = true; iE.title = "Informe a previsão de conclusão (prazo) para liberar o e-mail"; }
@@ -7489,6 +7573,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   async function salvarCampoPlano(a, campo, valor) {
     const dados = semInternos(a);
     if (campo === "_reenviarAcao") dados._reenviarAcao = valor;
+    else if (campo === "_limparResp") { dados["Responsavel Acao"] = null; dados["E-mail Responsavel"] = null; dados["Dt Programada"] = null; if (!dados["Dt Conclusao"] && dados["Status Execucao"] !== "Concluida") dados["Status Execucao"] = "Nao iniciada"; }
     else dados[campo] = valor || null;
     // Sem prazo, o e-mail sai (nao ha aviso sem previsao de conclusao).
     if (campo === "Dt Programada" && !valor) dados["E-mail Responsavel"] = null;
@@ -7498,7 +7583,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     try {
       await window.BI.DB.salvar("planoAcao", a._id, dados);
       const email = dados["E-mail Responsavel"];
-      msg = campo === "_reenviarAcao" ? `E-mail reenviado para ${email}.` : campo === "E-mail Responsavel" && email ? `Salvo · e-mail enviado para ${email}.` : campo === "E-mail Responsavel" ? "Salvo · o responsável deixa de receber e-mails desta ação." : campo === "Dt Programada" && !valor && a["E-mail Responsavel"] ? "Salvo · sem prazo, o e-mail foi retirado." : "Salvo.";
+      msg = campo === "_limparResp" ? "Responsável, e-mail e prazo excluídos. A ação voltou para “Não iniciada”." : campo === "_reenviarAcao" ? `E-mail reenviado para ${email}.` : campo === "E-mail Responsavel" && email ? `Salvo · e-mail enviado para ${email}.` : campo === "E-mail Responsavel" ? "Salvo · o responsável deixa de receber e-mails desta ação." : campo === "Dt Programada" && !valor && a["E-mail Responsavel"] ? "Salvo · sem prazo, o e-mail foi retirado." : "Salvo.";
     } catch (e) { msg = "Não foi possível salvar: " + (e && e.message ? e.message : String(e)); }
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     renderizarTudo();
