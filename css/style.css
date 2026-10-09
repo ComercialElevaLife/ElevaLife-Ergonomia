@@ -16,9 +16,10 @@
   --vinho-suave-2: #C99AA0;
   --creme: #F5EFEA;
   --card: #FFFFFF;
-  --texto: #3D2E30;
-  --texto-secundario: #6E5C5C;
-  --cinza-quente: #8A7A78;
+  /* V 1.38: mais contraste nos textos (pedido: "tudo cinza, dificil de visualizar") */
+  --texto: #2a1f21;
+  --texto-secundario: #4a3c3d;
+  --cinza-quente: #6a5c5a;
   --teal: #3E7B7E;
   --teal-escuro: #2E5F62;
   --teal-claro: #6FA8AA;
@@ -83,9 +84,9 @@
     --vinho-suave-2: #7a4048;
     --creme: #201a19;
     --card: #2b2322;
-    --texto: #f3eae7;
-    --texto-secundario: #cbb9b6;
-    --cinza-quente: #a08f8c;
+    --texto: #fbf6f4;
+    --texto-secundario: #e8dedb;
+    --cinza-quente: #c9bab7;
     --teal: #4f9497;
     --teal-escuro: #3a7376;
     --teal-claro: #7dbdbf;
@@ -129,9 +130,9 @@
   --vinho-suave-2: #7a4048;
   --creme: #201a19;
   --card: #2b2322;
-  --texto: #f3eae7;
-  --texto-secundario: #cbb9b6;
-  --cinza-quente: #a08f8c;
+  --texto: #fbf6f4;
+  --texto-secundario: #e8dedb;
+  --cinza-quente: #c9bab7;
   --teal: #4f9497;
   --teal-escuro: #3a7376;
   --teal-claro: #7dbdbf;
@@ -1110,8 +1111,9 @@ main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1600px; margin: 0 a
   display: flex;
   flex-wrap: wrap;
   gap: 8px 14px;
-  font-size: 11.5px;
-  color: var(--texto-secundario);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--texto);
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px dashed var(--linha);
@@ -2399,3 +2401,28 @@ span.aet-ferr-chip { cursor: default; margin: 2px 4px 2px 0; }
 .orfaos-linha { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--linha); }
 .plano-limpar-resp { display: block; margin-top: 4px; padding: 0; border: none; background: none; color: var(--texto-secundario); cursor: pointer; font-size: 11.5px; text-decoration: underline; white-space: normal; text-align: left; max-width: 100%; }
 .plano-limpar-resp:hover { color: #b3261e; }
+
+/* V 1.38 */
+.sige-toast { position: fixed; right: 20px; bottom: 20px; z-index: 5000; max-width: 420px; background: var(--vinho-escuro); color: #fff; padding: 12px 16px; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.25); font-size: 14px; font-weight: 600; opacity: 0; transform: translateY(10px); transition: opacity .2s, transform .2s; pointer-events: none; }
+.sige-toast.visivel { opacity: 1; transform: none; }
+.aet-ferr-resultado--topo { position: sticky; top: -18px; z-index: 3; background: var(--card); border: 2px solid var(--vinho); border-radius: 10px; padding: 10px 12px; margin: 8px 0 12px; box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.aet-ferr-res-cab { display: flex; flex-direction: column; gap: 2px; font-size: 15px; }
+.aet-ferr-res-risco { margin-top: 6px; font-size: 13px; }
+.aet-ferr-memorial summary { cursor: pointer; font-size: 12.5px; margin-top: 6px; color: var(--vinho); font-weight: 600; }
+.aet-modo-risco { border: 1px solid var(--linha); border-radius: 10px; padding: 10px 12px; margin: 10px 0; background: var(--creme); }
+.aet-radio { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; cursor: pointer; font-size: 13.5px; }
+.aet-radio input { margin-top: 3px; }
+.aet-aviso-ferr { color: #8a4b00; }
+.campo-arquivo-add { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin-top: 6px; }
+.campo-arquivo-input-oculto { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.fotos-anon-fundo { z-index: 4000; }
+.fotos-anon { max-width: 1000px; }
+.fotos-anon-tela { display: block; max-width: 100%; max-height: 62vh; margin: 8px auto; cursor: crosshair; border-radius: 8px; touch-action: none; }
+.fotos-anon-modo { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.fotos-anon-cont { margin-left: auto; font-weight: 700; color: var(--vinho); }
+.acao-imagens { margin-top: 8px; }
+.acao-imagens > label { display: block; font-size: 12px; font-weight: 700; color: var(--texto); margin-bottom: 4px; }
+.aviso-servico-parcial { margin: 10px 0; padding: 10px 14px; border-radius: 10px; background: #fff4e0; border: 1px solid #f0c27a; color: #5a3b00; font-size: 13.5px; font-weight: 600; }
+:root[data-theme="dark"] .aviso-servico-parcial { background: #3a2a10; color: #ffd89a; border-color: #8a6420; }
+.campo-atualizar { border: 2px solid #d97706 !important; background: #fff7e6 !important; color: #8a4b00 !important; font-weight: 700; }
+:root[data-theme="dark"] .campo-atualizar { background: #3a2a10 !important; color: #ffd89a !important; }
