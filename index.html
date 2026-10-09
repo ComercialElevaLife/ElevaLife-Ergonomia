@@ -444,23 +444,18 @@
     <div class="barra-origem-aba" id="origem-registro" data-aba-origem="registro"></div>
     <!-- V 1.33: indicadores das acoes (vieram da Gestao de Risco) - AEP, AET e Psicossocial -->
     <div class="grade" id="painel-plano">
-      <div class="cartao col-4">
-        <div class="cartao-titulo">Plano de Ação - Global</div>
-        <div class="cartao-sub">Distribuição por status</div>
+      <!-- V 1.38: um grafico com todas as acoes + postos criticos (o Status do Inventario saiu); respondem aos filtros -->
+      <div class="cartao col-6">
+        <div class="cartao-titulo">Plano de Ação - Todas as ações</div>
+        <div class="cartao-sub">Todas as ações existentes, por status</div>
         <div class="altura-chart"><canvas id="chart-plano-global"></canvas></div>
         <div class="legenda" id="legenda-plano-global"></div>
       </div>
-      <div class="cartao col-4">
+      <div class="cartao col-6">
         <div class="cartao-titulo">Plano de Ação - Postos Críticos</div>
-        <div class="cartao-sub">Risco = Alto ou Muito Alto</div>
+        <div class="cartao-sub">Ações dos postos de risco Alto ou Muito Alto, por status</div>
         <div class="altura-chart"><canvas id="chart-plano-criticos"></canvas></div>
         <div class="legenda" id="legenda-plano-criticos"></div>
-      </div>
-      <div class="cartao col-4">
-        <div class="cartao-titulo">Inventário de Riscos - Status</div>
-        <div class="cartao-sub">Fatores de risco por status de tratativa</div>
-        <div class="altura-chart"><canvas id="chart-fatorrisco-status"></canvas></div>
-        <div class="legenda" id="legenda-fatorrisco-status"></div>
       </div>
       <div class="cartao col-6">
         <div class="cartao-titulo">Ações previstas no período</div>
@@ -637,6 +632,7 @@
 <script src="js/ferramentas-imagens.js"></script>
 <script src="js/ferramentas.js"></script>
 <script src="js/recomendacoes.js"></script>
+<script src="js/fotos.js"></script>
 <script src="js/laudo-blocos.js"></script>
 <script src="js/laudo-aet.js"></script>
 <script src="js/aet.js"></script>

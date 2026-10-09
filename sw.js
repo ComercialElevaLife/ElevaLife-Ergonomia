@@ -20,7 +20,7 @@
 
 "use strict";
 
-const VERSAO = "sige-v46";
+const VERSAO = "sige-v47";
 const CACHE_SITE = `${VERSAO}-site`;
 const CACHE_EXTERNO = `${VERSAO}-externo`;
 
@@ -46,6 +46,7 @@ const ARQUIVOS_BASE = [
   "/js/ferramentas-dados.js",
   "/js/ferramentas.js",
   "/js/recomendacoes.js",
+  "/js/fotos.js",
   "/js/laudo-blocos.js",
   "/js/laudo-aet.js",
   "/js/aet.js",
