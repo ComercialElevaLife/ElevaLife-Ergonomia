@@ -2,6 +2,31 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.36 — 09/10/2026
+
+Migração completa do sistema anterior: laudo da AEP em PDF.
+
+- **Laudo do sistema anterior (`js/aep-laudo-import.js`, AEP › Importar Excel):** lê o laudo "Análise Ergonômica Preliminar" do Sistema de Gestão Integrada (PDF): capa (empresa e unidade), cada posto da seção 4 (data, setor, cargo, posto, máquina/linha/célula, jornada, características dos trabalhadores, pausas, rodízio, histórico de acidentes, descrição da atividade e do setor), as fotos da interação com o posto (bytes originais da imagem do PDF, via pdf.js) e os fatores de risco (seções 4.N.M: grupo, fator, existe fator, circunstância geradora, consequência, medida de controle, criticidade, probabilidade, pontuação, graduação, propor ação, ação para eliminação e controles administrativos).
+- **Conferência e gravação:** cada posto é ligado à AEP da planilha (chave Cliente + Unidade + Setor + Posto + Cargo, ou a mais parecida — o usuário confirma ou escolhe outra, ou manda criar nova). Campos vazios são completados (opção para trocar os preenchidos); obrigatórios ausentes no laudo ficam "Não informado no laudo do sistema anterior". Fotos com hash (`Fotos Laudo Anterior`) não se repetem; fatores existentes são completados (inclui segmento pela consequência), os que faltam são criados com a escala do cliente e a graduação do laudo; as ações (eliminação e controles administrativos) viram ações do Plano de Ação (uma vez por fator). O PDF antigo vai para AEP › Laudos.
+- **Riscos Psicossociais (`psicossocial.html`):** cópia de segurança das respostas do HSE-IT em Excel (`baixarBackupExcel`, ExcelJS) — anônima (sem matrícula nem nome), com aplicação, unidade, setor/GHE, tipo, data, situação e P1–P35 (1 a 5), abas "Perguntas e escala" e "Resumo por setor-GHE". A cópia técnica em JSON continua como opção.
+- **Ajuda, fluxo "Migração do sistema anterior" e cache (`sw.js` v45)** atualizados.
+
+## V 1.35 — 08/10/2026
+
+Menu reorganizado, sub-abas da AEP e da AET, Gestão de Riscos e Plano de Ação com filtro de origem, laudos com recorte em cascata e certificados no arquivo, importação de AET e aviso de vencimento de certificados.
+
+- **Menu (`index.html`, `js/app.js`):** ordem AEP, AET, Psicossocial, Gestão de Riscos, Gestão do Plano de Ação, Gestão de Absenteísmo, Gestão de Restritos, Cadastro Empresa, Cadastro Interno e Ajuda. Usuários virou sub-aba do Cadastro Interno (`SUBABAS_EXTRAS.usuarios`); a aba Configurações saiu (os nomes de tipos de ação já gravados continuam valendo).
+- **Sub-abas de tela própria (`SUBABAS_EXTRAS`, `chavesDoGrupo(grupo, paraMenu)`):** AEP › Avaliações, Laudos, Importar Excel (avaliações e inventário do sistema anterior) e Editor de texto (só campos da AEP; os da AET são preservados ao salvar). AET › AETs, Laudos, Importar AET e Editor de texto. O Inventário de Riscos (AEP) e as AETs anexadas saem do menu (`semMenu`); os registros continuam guardados.
+- **Serviços contratados:** um por aba (AEP, AET, Psicossocial, Gestão de Riscos, Gestão do Plano de Ação, Absenteísmo e Restritos). Cadastro antigo com "Gestão de Risco" conta como AEP, AET e Plano de Ação (`empresaTemServico`).
+- **Gestão de Riscos:** filtro de origem no topo (`estadoOrigemAba`, aplicado depois do filtro geral); Risco Global dos Postos e Inventário em rosca com total no centro (`pluginTotalCentro`) e texto explicativo; Evolução mensal logo abaixo do risco por setor, com o total de cada mês e drill-down por seções (graduações, reduzidos de/para, eliminados); tabela do Inventário com busca. Saíram Inventário - Prazos e AET - Arquivos anexados.
+- **Gestão do Plano de Ação:** filtro de origem no topo, valendo para gráficos, Status do Inventário e lista (saiu o filtro Origem da lista); lista com quebra de texto nas colunas (antes o texto passava por cima das vizinhas).
+- **Laudo da AEP:** recorte em cascata Unidade › Setor › Cargo › Posto ("Todas as unidades" = empresa toda); certificados marcados saem no próprio arquivo (seção 13, uma página por certificado; PDF página a página via `LaudoPadrao.paginasDoArquivo`), em PDF e em Word. A lista mostra só os laudos da AEP.
+- **Laudo da AET (`js/laudo-aet.js`):** sub-aba com emissão pelo recorte em cascata e histórico dos laudos emitidos (download PDF/Word); editor de texto próprio (`renderEditorTexto`); certificados em imagem ou PDF.
+- **Importar AET (`js/aet-import.js`):** Word (.docx, com fotos) ou PDF (texto com posição, tabelas reconstruídas). Identifica empresa, setor, posto, cargo, organização, demandas, ambiente e medições, ciclo, cargas, atividades, fatores (com sinônimos para a lista ISO/TS 20646, consequência, segmento, metodologia, criticidade, probabilidade e grau) e diagnóstico. Conferência com criação do que falta no Cadastro Empresa (`BI.garantirHierarquia`) e abertura no editor da AET (`abrirEditor(null, rascunho)`). Fator sem ferramenta preenchida usa a severidade e a probabilidade do documento ou o grau informado (`grauImportado`).
+- **Ferramentas:** imagens de referência da planilha FERRAMENTAS_ERGONOMIA_GERAL junto de cada campo (RULA, REBA, OCRA, ROSA, KIM-LHC, KIM-PP e Checklist OCRA) - `js/ferramentas-imagens.js`, `img/ferramentas/`.
+- **Certificado de calibração:** validade obrigatória; certificado em PDF ou imagem (até 10 MB, `api/src/functions/arquivos.js`); o job diário (`api/src/functions/lembretesPlanoAcao.js`, `executarCertificados`) avisa os Administradores por e-mail 30 dias antes de vencer e no vencimento (controle em `_notifVenc`, recomeça quando a validade muda).
+- **Ajuda, fluxos (AET importada, Certificado de calibração), indicadores e cache (`sw.js` v44)** atualizados.
+
 ## V 1.34 — 08/10/2026
 
 Módulo AET completo: análise por posto e atividade, ferramentas ergonômicas, Inventário, Plano de Ação e laudo.
@@ -14,6 +39,7 @@ Módulo AET completo: análise por posto e atividade, ferramentas ergonômicas, 
 - **Editor de Texto:** campos "AET · ..." com os textos padrão do laudo.
 - **API (`api/src/functions/arquivos.js`):** a coleção `aet` aceita fotos JPG e PNG.
 - **AETs anexadas:** a lista antiga passa a se chamar "AETs anexadas (arquivos de análises feitas fora do sistema)"; a classificação automática vale só para elas.
+- **Carregamento (`js/app.js`):** gráfico cujo `<canvas>` não existe no `index.html` (index de outra versão em cache) é ignorado, em vez de travar o S.I.G.E com "Cannot read properties of null (reading 'getContext')".
 - **Ajuda, fluxos, indicadores e cache (`sw.js` v43)** atualizados.
 
 ## V 1.33 — 08/10/2026
