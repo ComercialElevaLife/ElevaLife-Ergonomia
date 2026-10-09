@@ -2,6 +2,20 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.37 — 09/10/2026
+
+Recomendações por fator de risco (ferramentas e ações), memorial completo no laudo da AET, foto da atividade no e-mail da ação e exclusão completa da empresa.
+
+- **Biblioteca de recomendações (`js/recomendacoes.js`, `BI.Recomendacoes`):** para cada um dos 42 fatores da ISO/TS 20646 (e um conjunto geral para "Outro"), as ferramentas ergonômicas indicadas (ids de `js/ferramentas.js`, a 1ª é a mais indicada, com observação de avaliação quantitativa quando cabe — NHO-01/06/09/10/11) e as ações padronizadas `[tipo, texto, complexidade, nivelMinimo, nivelMaximo?]` (base: NR-17, NR-01/GRO, ISO 11228-1/-2/-3, ISO 11226, ISO/TS 20646, ISO 9241, ISO 10075, ISO 45003). `acoesParaNivel(fator, ordemNivel)` filtra pelo nível de risco: baixo = manutenção/monitoramento; moderado = + engenharia e organização; alto ou acima = + eliminação/substituição.
+- **AET (`js/aet.js`):** no fator, botões "Ferramentas recomendadas para este fator" (★ a mais indicada; clique aplica e abre a ferramenta) e `+ Aplicar ferramenta…` com o grupo "Recomendadas para este fator" primeiro. Fotos acima de 700 KB são reduzidas no navegador antes do envio (até 1920 px, JPEG 85%).
+- **Editor de ações (`js/acoes.js`, AEP e AET):** painel "Recomendações padronizadas para este fator · risco X (n)" com tipo, texto e complexidade; "+ Usar" cria a ação preenchida (Eliminação já marcada como "Elimina o risco"), "✓ Incluída" marca as já usadas; opção de ver as recomendações dos demais níveis. O botão passou a "+ Outra ação (digitar)" (ação livre). As sugestões do campo Ação trazem primeiro as do fator.
+- **AEP (`js/app.js`, checklist do Inventário):** em cada fator, as ferramentas recomendadas para a avaliação aprofundada.
+- **Laudo da AET (`js/laudo-aet.js`, `BI.Ferramentas.entradas`):** o memorial de cálculo passou a trazer "Dados preenchidos na ferramenta" (cada campo, por seção, com esquerdo/direito), depois "Cálculo" e o resultado — antes saíam só os escores intermediários.
+- **E-mail da ação da AET (`api/src/shared/fotosAET.js`, `email.js`):** `enviarEmail({ anexos })` envia anexos inline (Microsoft Graph, `isInline`/`contentId`); a atribuição (`entidades.js`) e os lembretes do prazo (`lembretesPlanoAcao.js`) das ações de origem AET levam até 4 fotos da atividade (cada uma até 2 MB, total até 2,7 MB; a que não couber é indicada no texto). O e-mail mostra também a atividade e o fator de risco.
+- **Plano de Ação:** "✕ Excluir responsável e prazo" em cada ação (apaga prazo, responsável e e-mail; status volta a "Não iniciada").
+- **Exclusão de empresa (`api/src/shared/empresaExclusao.js`):** `DELETE /api/cliente/{id}` apaga, em lotes, todos os documentos da empresa nas coleções por empresa (com os arquivos no Storage), os dados do módulo Riscos Psicossociais (partição `e_sige-<id>` e documento raiz) e tira a empresa de `EmpresasVinculadas`; enquanto houver dados responde `202 { restante: true }` e o navegador repete (`fetchExcluir` em `js/db.js`); o cadastro sai por último e o app recarrega todas as coleções. As listas (`listarComFiltro`) não devolvem mais documentos de empresa sem cadastro. `GET/POST /api/manutencao/orfaos` (só Administrador) lista e apaga os dados de empresas excluídas antes desta versão — botão "🧹 Dados de empresas excluídas" em Cadastro Empresa › Cliente.
+- **Ajuda, fluxo da AET e cache (`sw.js` v46)** atualizados.
+
 ## V 1.36 — 09/10/2026
 
 Migração completa do sistema anterior: laudo da AEP em PDF.
