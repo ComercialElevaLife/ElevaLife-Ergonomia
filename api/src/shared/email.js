@@ -77,7 +77,9 @@ async function obterTokenGraph() {
 }
 
 // { para, assunto, htmlCorpo } -> envia via /users/{caixa}/sendMail.
-async function enviarEmail({ para, assunto, htmlCorpo }) {
+// V 1.37: "anexos" opcional - [{ nome, tipo, conteudo (Buffer), cid }]; com cid o anexo vai INLINE
+// (a imagem aparece no corpo do e-mail via <img src="cid:...">), como a foto da atividade da AET.
+async function enviarEmail({ para, assunto, htmlCorpo, anexos }) {
   const { caixaEnvio } = variaveisObrigatorias();
   const token = await obterTokenGraph();
 
@@ -90,6 +92,13 @@ async function enviarEmail({ para, assunto, htmlCorpo }) {
     },
     saveToSentItems: true,
   };
+  if (Array.isArray(anexos) && anexos.length) {
+    payload.message.attachments = anexos.map((a) => Object.assign({
+      "@odata.type": "#microsoft.graph.fileAttachment",
+      name: a.nome, contentType: a.tipo || "application/octet-stream",
+      contentBytes: Buffer.from(a.conteudo).toString("base64"),
+    }, a.cid ? { isInline: true, contentId: a.cid } : {}));
+  }
 
   const resp = await fetch(url, {
     method: "POST",
@@ -245,7 +254,16 @@ const ESTAGIOS_PLANO_ACAO = {
   },
 };
 
-function modeloPlanoAcao({ nomeApp, estagio, acao, paraAdmin }) {
+// V 1.37: fotos = [{ cid, legenda }] (anexos inline) - foto(s) da atividade nas acoes da AET.
+function blocoFotosEmail(fotos, semFoto) {
+  const lista = Array.isArray(fotos) ? fotos : [];
+  if (!lista.length) return semFoto ? `<p style="font-size:12.5px;color:#7a6a6a;line-height:1.6">${semFoto}</p>` : "";
+  return `<p style="font-size:13.5px;font-weight:600;margin:16px 0 6px">Registro fotográfico da atividade</p>
+        <div>${lista.map((f) => `<div style="margin:0 0 10px"><img src="cid:${f.cid}" alt="Foto da atividade" style="display:block;max-width:100%;width:512px;height:auto;border-radius:8px;border:1px solid #e5d9d9">${f.legenda ? `<div style="font-size:12px;color:#7a6a6a;margin-top:3px">${escHtml(f.legenda)}</div>` : ""}</div>`).join("")}</div>`;
+}
+const escHtml = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function modeloPlanoAcao({ nomeApp, estagio, acao, paraAdmin, fotos, semFoto }) {
   const cfg = ESTAGIOS_PLANO_ACAO[estagio];
   const linhaAdmin = paraAdmin
     ? `<p style="font-size:12.5px;color:#7a6a6a;line-height:1.6">Cópia enviada a você como Administrador do ${nomeApp}, ${estagio.indexOf("evid") === 0 ? "porque a evidência desta ação está pendente." : "porque esta ação está em atraso."}</p>`
@@ -263,11 +281,14 @@ function modeloPlanoAcao({ nomeApp, estagio, acao, paraAdmin }) {
         <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px">
           <tr><td style="padding:4px 0;color:#7a6a6a">Cliente</td><td style="padding:4px 0">${acao.Cliente || "-"}</td></tr>
           <tr><td style="padding:4px 0;color:#7a6a6a">Setor / Posto</td><td style="padding:4px 0">${acao.Setor || "-"} / ${acao["Posto Trabalho"] || "-"}</td></tr>
+          ${acao.Atividade ? `<tr><td style="padding:4px 0;color:#7a6a6a">Atividade</td><td style="padding:4px 0">${escHtml(acao.Atividade)}</td></tr>` : ""}
+          ${acao["Fator Risco Nome"] ? `<tr><td style="padding:4px 0;color:#7a6a6a">Fator de risco</td><td style="padding:4px 0">${escHtml(acao["Fator Risco Nome"])}</td></tr>` : ""}
           <tr><td style="padding:4px 0;color:#7a6a6a">Ação recomendada</td><td style="padding:4px 0">${acao["Acao Recomendada"] || "-"}</td></tr>
           <tr><td style="padding:4px 0;color:#7a6a6a">Responsável</td><td style="padding:4px 0">${acao["Responsavel Acao"] || "-"}</td></tr>
           <tr><td style="padding:4px 0;color:#7a6a6a">Data programada</td><td style="padding:4px 0">${formatarDataBR(acao["Dt Programada"])}</td></tr>
           ${(cfg.extra ? cfg.extra(acao) : []).map(([r, v]) => `<tr><td style="padding:4px 0;color:#7a6a6a">${r}</td><td style="padding:4px 0">${v}</td></tr>`).join("")}
         </table>
+        ${blocoFotosEmail(fotos, semFoto)}
         ${linhaAdmin}
         <p style="font-size:12.5px;color:#7a6a6a;line-height:1.6">Acesse o ${nomeApp} (aba Registro &gt; Plano de Ação) para ver o histórico completo e registrar a data de conclusão quando a ação for concluída.</p>
       </div>
