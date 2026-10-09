@@ -1,4 +1,4 @@
-/* S.I.G.E V 1.35 - imagens de referencia das ferramentas ergonomicas, tiradas da planilha
+/* S.I.G.E V 1.35 (revisto na V 1.38) - imagens de referencia das ferramentas ergonomicas, tiradas da planilha
    FERRAMENTAS_ERGONOMIA_GERAL 2025 (cada imagem fica junto do campo correspondente no formulario).
    Arquivos em img/ferramentas/. Formato: { ferramenta: { campo: [[arquivo, legenda], ...] } } */
 (function (g) {
@@ -145,6 +145,12 @@
   ]
  },
  "reba": {
+  "tr": [
+   [
+    "reba-1.jpg",
+    "Tronco: ereto (1) · 0°–20° (2) · 20°–60° (3) · > 60° (4)"
+   ]
+  ],
   "pe": [
    [
     "reba-33.jpg",
@@ -414,41 +420,20 @@
    ],
    [
     "kimPp-88.jpg",
-    "Combinação de flexão e rotação do tronco (8)"
+    "Corpo baixo, inclinado, ajoelhado (4)"
    ]
   ]
  },
  "ocraTrad": {
-  "po": [
-   [
-    "ocraTrad-95.jpg",
-    "Mão em pega pinça, palmar ou gancho"
-   ],
-   [
-    "ocraTrad-96.jpg",
-    "Mão em pega pinça, palmar ou gancho"
-   ],
-   [
-    "ocraTrad-94.jpg",
-    "Braço quase na altura do ombro"
-   ],
-   [
-    "ocraTrad-91.jpg",
-    "Desvios extremos do punho"
-   ],
-   [
-    "ocraTrad-92.jpg",
-    "Desvios extremos do punho"
-   ],
-   [
-    "ocraTrad-90.jpg",
-    "Rotação completa de objetos / flexo-extensão do cotovelo"
-   ],
-   [
-    "ocraTrad-93.jpg",
-    "Rotação completa de objetos / flexo-extensão do cotovelo"
-   ]
-  ]
+  "pMao": [["ocraTrad-95.jpg", "Mão em pega pinça, palmar ou gancho"], ["ocraTrad-96.jpg", "Mão em pega pinça, palmar ou gancho"]],
+  "pOmb": [["ocraTrad-94.jpg", "Braço quase na altura do ombro"]],
+  "pPun": [["ocraTrad-91.jpg", "Desvios extremos do punho"], ["ocraTrad-92.jpg", "Desvios extremos do punho"]],
+  "pCot": [["ocraTrad-90.jpg", "Rotação completa de objetos / flexo-extensão do cotovelo"], ["ocraTrad-93.jpg", "Rotação completa de objetos / flexo-extensão do cotovelo"]]
+ },
+ "niosh": {
+  "h": [["niosh-38.jpg", "Medidas H (distância horizontal), V (altura das mãos) e D (deslocamento vertical)"]],
+  "vv": [["niosh-38.jpg", "Medidas H, V e D"]],
+  "dd": [["niosh-38.jpg", "Medidas H, V e D"]]
  }
 };
 })(window);

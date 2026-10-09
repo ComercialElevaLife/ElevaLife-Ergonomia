@@ -67,7 +67,9 @@
   const ocraDuracao = (min) => (min == null ? null : min < 60 ? 0.5 : min <= 120 ? 0.5 : min <= 180 ? 0.65 : min <= 240 ? 0.75 : min <= 300 ? 0.85 : min <= 360 ? 0.925 : min <= 420 ? 0.95 : min <= 480 ? 1 : 1.5);
   const ocraClasse = (p) => (p <= 7.5 ? ["Aceitável (verde)", 0] : p <= 11 ? ["Risco muito leve (amarelo)", 1] : p <= 14 ? ["Risco leve (vermelho leve)", 2] : p <= 22.5 ? ["Risco médio (vermelho médio)", 3] : ["Risco elevado (violeta)", 4]);
   const OCRA_FREQ_AC = [[2.5, 0], [7.5, 0], [12.5, 0], [17.5, 0], [20, 0], [22.5, 0.5], [27.5, 1], [30, 1], [32.5, 2], [35, 2], [37.5, 3], [40, 3], [42.5, 4], [45, 4], [47.5, 5], [50, 5], [52.5, 6], [55, 6], [57.5, 7], [60, 7], [62.5, 8], [65, 8], [67.5, 9], [70, 9], [72.5, 9]];
-  const ocraFreqPorAcoes = (apm, semInterrupcao) => { let p = 0; OCRA_FREQ_AC.forEach(([lim, s]) => { if (apm >= lim) p = s; }); if (semInterrupcao && p >= 3) p += 1; if (apm >= 72.5) p = semInterrupcao ? 10 : 9; return p; };
+  // V 1.38: sem breves interrupcoes, tabela da aba CHECK TRADICIONAL (linha 30)
+  const OCRA_FREQ_SEM = [[0, 0], [2.5, 0], [7.5, 0], [12.5, 0], [17.5, 0], [20, 0], [22.5, 0.5], [27.5, 1], [30, 2], [32.5, 2], [35, 2], [37.5, 4], [40, 4], [42.5, 5], [45, 5], [47.5, 6], [50, 6], [52.5, 7], [55, 7], [57.5, 8], [60, 8], [62.5, 9], [65, 9], [67.5, 10], [70, 10], [72.5, 10]];
+  const ocraFreqPorAcoes = (apm, semInterrupcao) => { let p = 0; (semInterrupcao ? OCRA_FREQ_SEM : OCRA_FREQ_AC).forEach(([lim, s]) => { if (apm >= lim) p = s; }); if (!semInterrupcao && apm >= 72.5) p = 9; return p; };
 
   // ------------------------------------------------------------------ definicoes
   const FERRAMENTAS = [
@@ -143,9 +145,10 @@
         { id: "pe", rot: "Pescoço (1: 0-20°; 2: > 20° ou extensão; +1 rotação ou inclinação)", tipo: "sel", ops: ops(["1", "2", "3"]) },
         { id: "pn", rot: "Pernas (1 apoio bilateral; 2 unilateral; +1 joelhos 30-60°; +2 > 60°)", tipo: "sel", ops: ops(["1", "2", "3", "4"]) },
         { id: "cg", rot: "Carga/força (0 < 5 kg; 1: 5-10 kg; 2 > 10 kg; +1 choque ou aumento rápido)", tipo: "sel", ops: ops(["0", "1", "2", "3"]) },
-        { id: "br", rot: "Braço (1: 20° ext. a 20° flex.; 2: > 20° ext. ou 20-45°; 3: 45-90°; 4: > 90°; +1 abdução/rotação; +1 ombro elevado; −1 apoiado)", tipo: "sel", lados: true, ops: ops(["1", "2", "3", "4", "5", "6"]) },
-        { id: "ab", rot: "Antebraço (1: 60-100°; 2: < 60° ou > 100°)", tipo: "sel", lados: true, ops: ops(["1", "2"]) },
-        { id: "pu", rot: "Punho (1: 0-15°; 2: > 15°; +1 desvio ou torção)", tipo: "sel", lados: true, ops: ops(["1", "2", "3"]) },
+        // V 1.38: como na planilha, braco, antebraco e punho avaliados uma vez (bilateral - o lado mais exigido)
+        { id: "br", rot: "Braço (1: 20° ext. a 20° flex.; 2: > 20° ext. ou 20-45°; 3: 45-90°; 4: > 90°; +1 abdução/rotação; +1 ombro elevado; −1 apoiado)", tipo: "sel", ops: ops(["1", "2", "3", "4", "5", "6"]) },
+        { id: "ab", rot: "Antebraço (1: 60-100°; 2: < 60° ou > 100°)", tipo: "sel", ops: ops(["1", "2"]) },
+        { id: "pu", rot: "Punho (1: 0-15°; 2: > 15°; +1 desvio ou torção)", tipo: "sel", ops: ops(["1", "2", "3"]) },
         { id: "pg", rot: "Pega (0 boa; 1 razoável; 2 ruim; 3 inaceitável)", tipo: "sel", ops: ops(["0", "1", "2", "3"]) },
         { id: "at", rot: "Atividade (+1 estática > 1 min; +1 repetição > 4×/min; +1 mudanças rápidas de postura)", tipo: "sel", ops: ops(["0", "1", "2", "3"]) },
       ],
@@ -153,17 +156,19 @@
         const c = ["tr", "pe", "pn", "cg", "pg", "at"].map((k) => num(pegar(v, k)));
         if (c.some((x) => x == null)) return incompleto();
         const A = REBA_A[c[0] - 1][c[1] - 1][c[2] - 1] + c[3];
-        const lado = (s) => { const b = ["br", "ab", "pu"].map((k) => num(pegar(v, k + s))); if (b.some((x) => x == null)) return null; const B = REBA_B[b[0] - 1][b[1] - 1][b[2] - 1] + c[4]; return { B, final: REBA_C[Math.min(A, 12) - 1][Math.min(B, 12) - 1] + c[5] }; };
-        const e = lado("_e"), d = lado("_d"); if (!e && !d) return incompleto();
+        // registros anteriores a V 1.38 (esq./dir.): vale o lado mais exigido
+        const um = (k) => { const x = num(pegar(v, k)); if (x != null) return x; const lados = [num(pegar(v, k + "_e")), num(pegar(v, k + "_d"))].filter((y) => y != null); return lados.length ? Math.max(...lados) : null; };
+        const b = ["br", "ab", "pu"].map(um); if (b.some((x) => x == null)) return incompleto();
+        const B = REBA_B[b[0] - 1][b[1] - 1][b[2] - 1] + c[4]; const fin = REBA_C[Math.min(A, 12) - 1][Math.min(B, 12) - 1] + c[5];
         const cl = (s) => (s <= 1 ? ["Risco insignificante – ação não necessária", 0] : s <= 3 ? ["Risco baixo – ação pode ser necessária", 1] : s <= 7 ? ["Risco médio – ação necessária", 2] : s <= 10 ? ["Risco alto – ação necessária em breve", 3] : ["Risco muito alto – ação necessária imediatamente", 4]);
-        const pior = Math.max(e ? e.final : 0, d ? d.final : 0); const [classe, nivel] = cl(pior);
-        return res(true, `Pontuação REBA: esq. ${e ? e.final : "-"} · dir. ${d ? d.final : "-"}`, classe, nivel, [["Pontuação A (tronco, pescoço, pernas + carga)", String(A)], ["Pontuação B – esq./dir.", `${e ? e.B : "-"} / ${d ? d.B : "-"}`], ["REBA final – esquerdo", e ? `${e.final} – ${cl(e.final)[0]}` : "-"], ["REBA final – direito", d ? `${d.final} – ${cl(d.final)[0]}` : "-"]]);
+        const [classe, nivel] = cl(fin);
+        return res(true, `Pontuação REBA ${fin}`, classe, nivel, [["Pontuação A (tronco, pescoço, pernas + carga)", String(A)], ["Pontuação B (braço, antebraço, punho + pega)", String(B)], ["Tabela C + atividade", `${fin - c[5]} + ${c[5]} = ${fin}`], ["REBA final", `${fin} – ${classe}`]]);
       },
     },
     {
       id: "hal", nome: "HAL – Nível de Atividade da Mão (ACGIH TLV)", sigla: "HAL",
       ref: "Latko, W. A. et al. Development and evaluation of an observational method for assessing repetition in hand tasks. AIHA Journal, 1997. ACGIH TLV for Hand Activity.",
-      descricao: "Relaciona o nível de atividade da mão (0 a 10) com o pico de força normalizado (escala de Borg CR-10). A razão pico de força ÷ (10 − HAL) abaixo de 0,56 está abaixo do limite de ação; entre 0,56 e 0,78 está entre o limite de ação e o TLV; acima de 0,78 está acima do TLV.",
+      descricao: "Relaciona o nível de atividade da mão (0 a 10) com o pico de força normalizado (escala de Borg CR-10). A razão pico de força ÷ (10,1 − HAL) abaixo de 0,56 está abaixo do limite de ação; entre 0,56 e 0,78 está entre o limite de ação e o TLV; acima de 0,78 está acima do TLV.",
       exposicao: false,
       campos: [
         { id: "hal", rot: "Nível de atividade da mão", tipo: "sel", lados: true, ops: ops([["0", "0 – mãos ociosas a maior parte do tempo"], ["2", "2 – movimentos muito lentos ou pausas longas"], ["4", "4 – movimentos lentos, pausas frequentes"], ["6", "6 – movimentos constantes, pausas menos frequentes"], ["8", "8 – movimentos rápidos, sem pausas regulares"], ["10", "10 – rápidos com dificuldade de acompanhar"]]) },
@@ -174,7 +179,7 @@
         const e = lado("_e"), d = lado("_d"); if (e == null && d == null) return incompleto();
         const cl = (r) => (r < 0.56 ? ["Abaixo do limite de ação – sem risco", 1] : r <= 0.78 ? ["Entre o limite de ação e o TLV – risco significativo", 2] : ["Acima do TLV – risco elevado", 3]);
         const [classe, nivel] = cl(Math.max(e || 0, d || 0));
-        return res(true, `Razão esq. ${fmt(e, 2)} · dir. ${fmt(d, 2)}`, classe, nivel, [["Esquerdo (pico ÷ (10 − HAL))", e == null ? "-" : `${fmt(e, 2)} – ${cl(e)[0]}`], ["Direito (pico ÷ (10 − HAL))", d == null ? "-" : `${fmt(d, 2)} – ${cl(d)[0]}`]]);
+        return res(true, `Razão esq. ${fmt(e, 2)} · dir. ${fmt(d, 2)}`, classe, nivel, [["Esquerdo (pico ÷ (10,1 − HAL))", e == null ? "-" : `${fmt(e, 2)} – ${cl(e)[0]}`], ["Direito (pico ÷ (10,1 − HAL))", d == null ? "-" : `${fmt(d, 2)} – ${cl(d)[0]}`]]);
       },
     },
     {
@@ -334,6 +339,7 @@
         { id: "pc", rot: "Cotovelo", tipo: "sel", lados: true, ops: ops([["0", "0"], ["2", "2 – amplos movimentos ~1/3 do tempo"], ["4", "4 – mais da metade do tempo"], ["8", "8 – o tempo inteiro"]]) },
         { id: "pp", rot: "Punho", tipo: "sel", lados: true, ops: ops([["0", "0"], ["2", "2 – desvios extremos ≥ 1/3 do tempo"], ["4", "4 – mais da metade do tempo"], ["8", "8 – quase o tempo todo"]]) },
         { id: "pd", rot: "Mãos e dedos (pinça, preensão palmar, gancho)", tipo: "sel", lados: true, ops: ops([["0", "0"], ["2", "2 – ~1/3 do tempo"], ["4", "4 – mais da metade do tempo"], ["8", "8 – quase o tempo inteiro"]]) },
+        { id: "pa", rot: "Mãos trabalham acima da altura da cabeça? (dobra a pontuação do ombro)", tipo: "sel", ops: SN },
         { id: "es", rot: "Estereotipia", tipo: "sel", ops: ops([["0", "Ausente"], ["1.5", "Moderada (1,5)"], ["3", "Elevada (3)"]]) },
         { tipo: "titulo", rot: "Fatores complementares" },
         { id: "cf", rot: "Fatores físicos", tipo: "sel", ops: ops([["0", "Ausentes"], ["2", "2 – algum fator > metade do tempo"], ["3", "3 – um ou mais fatores quase o tempo todo"], ["4", "4 – ferramentas de alta vibração ≥ 1/3 do tempo"]]) },
@@ -346,7 +352,7 @@
         const rec = OCRA_REC[Math.round(hr * 2)] || 1, cor = ocraDuracao(liq), comp = (num(v.cf) || 0) + (num(v.co) || 0), est = num(v.es) || 0;
         const lado = (s) => {
           const f1 = num(pegar(v, "fd" + s)), f2 = num(pegar(v, "fs" + s)); if (f1 == null && f2 == null) return null;
-          const freq = Math.max(f1 || 0, f2 || 0), forca = num(pegar(v, "fo" + s)) || 0, post = Math.max(...["po", "pc", "pp", "pd"].map((k) => num(pegar(v, k + s)) || 0)) + est;
+          const freq = Math.max(f1 || 0, f2 || 0), forca = num(pegar(v, "fo" + s)) || 0, post = Math.max((num(pegar(v, "po" + s)) || 0) * (v.pa === "Sim" ? 2 : 1), ...["pc", "pp", "pd"].map((k) => num(pegar(v, k + s)) || 0)) + est;
           const intr = (freq + forca + post + comp) * rec; return { freq, forca, post, intr, final: intr * cor };
         };
         const e = lado("_e"), d = lado("_d"); if (!e && !d) return incompleto();
@@ -356,36 +362,73 @@
       },
     },
     {
+      // V 1.38: revisto pela aba CHECK TRADICIONAL da planilha FERRAMENTAS_ERGONOMIA_GERAL (forca em tres blocos
+      // somados, postura por segmento + estereotipia por lado, complementares fisicos por lado, frequencia sem
+      // interrupcoes pela tabela da planilha, horas sem recuperacao calculadas pelo turno e pausas).
       id: "ocraTrad", nome: "Checklist OCRA – modelo tradicional (frequência por ações técnicas)", sigla: "OCRA tradicional",
       ref: "Colombini, D.; Occhipinti, E.; Cerbai, M.; Santino, E.; Facci, R. Checklist OCRA – modelo tradicional. EPM, Milão, 2011.",
-      descricao: "Mesma lógica do Checklist OCRA, com a frequência calculada a partir do número de ações técnicas contadas no ciclo e do tempo de ciclo (ações por minuto), considerando se há possibilidade de breves interrupções.",
+      descricao: "Frequência calculada pelas ações técnicas contadas no ciclo (ações por minuto), com ou sem possibilidade de breves interrupções; força (moderada + picos fortes + picos intensos), postura (maior entre ombro, cotovelo, punho e mão + estereotipia) e complementares por lado, multiplicados pela recuperação e corrigidos pela duração líquida. Até 7,5 aceitável; 7,6 a 11 muito leve; 11,1 a 14 leve; 14,1 a 22,5 médio; 22,6 ou mais elevado.",
       exposicao: true,
-      campos: [
-        { tipo: "titulo", rot: "Duração e ciclo" },
-        { id: "t_ef", rot: "Duração efetiva do turno (min)", tipo: "num" },
-        { id: "t_pa", rot: "Pausas efetivas (min, exceto refeição)", tipo: "num" },
-        { id: "t_re", rot: "Refeição dentro do turno (min)", tipo: "num" },
-        { id: "t_nr", rot: "Trabalhos não repetitivos (min)", tipo: "num" },
-        { id: "ciclo", rot: "Tempo de ciclo (s)", tipo: "num" },
-        { tipo: "titulo", rot: "Frequência" },
-        { id: "na", rot: "Nº de ações técnicas no ciclo", tipo: "num", lados: true },
-        { id: "int", rot: "São possíveis breves interrupções?", tipo: "sel", ops: SN },
-        { id: "fs", rot: "Ações estáticas", tipo: "sel", lados: true, ops: ops([["0", "0 – < 2/3 do ciclo"], ["2.5", "2,5 – ≥ 5 s em 2/3 do ciclo"], ["4.5", "4,5 – ≥ 5 s em 3/3 do ciclo"]]) },
-        { tipo: "titulo", rot: "Recuperação, força, postura e complementares" },
-        { id: "hr", rot: "Horas sem recuperação adequada", tipo: "sel", ops: ops(["0", "0.5", "1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5", "5.5", "6", "6.5", "7", "7.5", "8"]) },
-        { id: "fo", rot: "Força (pontuação do checklist)", tipo: "sel", lados: true, ops: ops(["0", "2", "4", "6", "8", "12", "16", "24", "32"]) },
-        { id: "po", rot: "Postura – maior pontuação entre ombro, cotovelo, punho e mão", tipo: "sel", lados: true, ops: ops(["0", "1", "2", "4", "6", "8", "12", "24"]) },
-        { id: "es", rot: "Estereotipia", tipo: "sel", ops: ops([["0", "Ausente"], ["1.5", "Moderada (1,5)"], ["3", "Elevada (3)"]]) },
-        { id: "cf", rot: "Fatores complementares (físicos + organizacionais)", tipo: "sel", ops: ops(["0", "1", "2", "3", "4", "5", "6"]) },
-      ],
+      campos: () => {
+        const T5 = (v5) => ops([["", "-"], [v5[0], `${v5[0]} – menos de 1/3 do tempo`], [v5[1], `${v5[1]} – cerca de 1/3 do tempo`], [v5[2], `${v5[2]} – cerca de metade do tempo`], [v5[3], `${v5[3]} – cerca de 2/3 do tempo`], [v5[4], `${v5[4]} – quase o tempo todo`]].slice(1));
+        const T4 = (v4) => ops([[v4[0], `${v4[0]} – picos de 1-2 s a cada 10 min`], [v4[1], `${v4[1]} – cerca de 1% do tempo`], [v4[2], `${v4[2]} – cerca de 5% do tempo`], [v4[3], `${v4[3]} – cerca de 10% do tempo ou mais`]]);
+        return [
+          { tipo: "titulo", rot: "Duração e ciclo" },
+          { id: "t_ef", rot: "Duração efetiva do turno (min)", tipo: "num" },
+          { id: "t_pa", rot: "Pausas efetivas (min, exceto refeição)", tipo: "num" },
+          { id: "t_re", rot: "Refeição dentro do turno (min)", tipo: "num" },
+          { id: "t_nr", rot: "Trabalhos não repetitivos (min)", tipo: "num" },
+          { id: "pecas", rot: "Nº de peças (ciclos) por turno", tipo: "num", nota: "se informado, o ciclo = tempo líquido × 60 ÷ peças" },
+          { id: "ciclo", rot: "Tempo de ciclo ou de observação (s)", tipo: "num" },
+          { tipo: "titulo", rot: "Frequência" },
+          { id: "na", rot: "Nº de ações técnicas no ciclo", tipo: "num", lados: true },
+          { id: "int", rot: "São possíveis breves interrupções?", tipo: "sel", ops: SN },
+          { id: "fs", rot: "Ações estáticas", tipo: "sel", lados: true, ops: ops([["0", "0 – < 2/3 do ciclo"], ["2.5", "2,5 – ≥ 5 s em 2/3 do ciclo"], ["4.5", "4,5 – ≥ 5 s em 3/3 do ciclo"]]) },
+          { tipo: "titulo", rot: "Recuperação" },
+          { id: "rc", rot: "Há recuperação adequada dentro do próprio ciclo?", tipo: "sel", ops: SN, nota: "Sim = multiplicador 1" },
+          { id: "np", rot: "Nº de pausas de pelo menos 8 min no turno (fora a refeição)", tipo: "num" },
+          { id: "npf", rot: "Nº de interrupções de 30 min ou mais fora do horário de trabalho (refeição ou outras)", tipo: "num" },
+          { id: "hr", rot: "Horas sem recuperação adequada (só para corrigir o cálculo automático)", tipo: "sel", ops: ops(["0", "0.5", "1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5", "5.5", "6", "6.5", "7", "7.5", "8"]) },
+          { tipo: "titulo", rot: "Força" },
+          { id: "fMod", rot: "Força moderada (Borg 3-4) no uso de ferramentas ou outra ação", tipo: "sel", lados: true, ops: T5(["1", "2", "4", "6", "8"]) },
+          { id: "fFor", rot: "Picos de força forte (Borg 5-6-7)", tipo: "sel", lados: true, ops: T4(["4", "8", "16", "24"]) },
+          { id: "fInt", rot: "Picos de força intensa (Borg 8-9-10)", tipo: "sel", lados: true, ops: T4(["6", "12", "24", "32"]) },
+          { tipo: "titulo", rot: "Postura (maior pontuação entre os segmentos + estereotipia)" },
+          { id: "pOmb", rot: "Ombro – braço quase na altura do ombro", tipo: "sel", lados: true, ops: T5(["2", "6", "8", "12", "24"]) },
+          { id: "pCot", rot: "Cotovelo – rotação completa de objetos ou amplas flexo-extensões", tipo: "sel", lados: true, ops: T5(["1", "2", "3", "4", "8"]) },
+          { id: "pPun", rot: "Punho – desvios extremos", tipo: "sel", lados: true, ops: T5(["1", "2", "3", "4", "8"]) },
+          { id: "pMao", rot: "Mão – pega em pinça, palmar ou gancho (não em grip)", tipo: "sel", lados: true, ops: T5(["1", "2", "3", "4", "8"]) },
+          { id: "esC", rot: "Estereotipia – duração do ciclo", tipo: "sel", lados: true, ops: ops([["0", "0 – superior a 15 s"], ["1.5", "1,5 – entre 9 e 15 s"], ["3", "3 – igual ou inferior a 8 s"]]) },
+          { id: "esR", rot: "Estereotipia – repete sempre as mesmas ações técnicas", tipo: "sel", lados: true, ops: ops([["0", "0 – não"], ["1.5", "1,5 – boa parte do tempo (mais da metade)"], ["3", "3 – quase o tempo todo"]]) },
+          { tipo: "titulo", rot: "Fatores complementares" },
+          { id: "cfis", rot: "Riscos físicos (martelos/golpes, mãos para golpear ≥ 10×/h, ferramentas vibratórias, outros) – itens presentes", tipo: "sel", lados: true, ops: ops([["0", "0 – nenhum"], ["2", "2 – um item"], ["3", "3 – dois ou mais itens"]]) },
+          { id: "corg", rot: "Organizacionais – ritmo", tipo: "sel", ops: ops([["0", "0 – ritmo não imposto pela máquina"], ["1", "1 – imposto, com possibilidade de modulação"], ["1.5", "1,5 – imposto: linha em funcionamento muito lenta"], ["2", "2 – imposto, sem possibilidade de modulação"]]) },
+        ];
+      },
       calcular(v) {
-        const [ef, pa, re, nr, ciclo] = ["t_ef", "t_pa", "t_re", "t_nr", "ciclo"].map((k) => num(pegar(v, k)) || 0);
-        const liq = ef - pa - re - nr; const hr = num(pegar(v, "hr")); if (!ef || !ciclo || hr == null || !v.int) return incompleto();
-        const rec = OCRA_REC[Math.round(hr * 2)] || 1, cor = ocraDuracao(liq), comp = num(v.cf) || 0, est = num(v.es) || 0;
-        const lado = (s) => { const n = num(pegar(v, "na" + s)); if (n == null) return null; const apm = n * 60 / ciclo; const freq = Math.max(ocraFreqPorAcoes(apm, v.int === "Não"), num(pegar(v, "fs" + s)) || 0); const intr = (freq + (num(pegar(v, "fo" + s)) || 0) + (num(pegar(v, "po" + s)) || 0) + est + comp) * rec; return { apm, freq, final: intr * cor }; };
+        const [ef, pa, re, nr] = ["t_ef", "t_pa", "t_re", "t_nr"].map((k) => num(pegar(v, k)) || 0);
+        const liq = ef - pa - re - nr; if (!ef || !v.int) return incompleto();
+        const pecas = num(pegar(v, "pecas")); const ciclo = pecas ? liq * 60 / pecas : num(pegar(v, "ciclo")); if (!ciclo) return incompleto();
+        // recuperacao: manual > dentro do ciclo > calculo pelo turno (base da planilha) menos as pausas
+        let hr = num(pegar(v, "hr")), origemHr = "informada";
+        if (hr == null) {
+          if (v.rc === "Sim") { hr = 0; origemHr = "recuperação dentro do ciclo"; }
+          else { const BASE = [[0, 0], [120, 1], [180, 2], [210, 2.5], [240, 3], [250, 3.5], [270, 4], [300, 4.5], [330, 5], [360, 5.5], [390, 6], [420, 6.5], [440, 6.5], [460, 7], [480, 7]]; let b = 0; BASE.forEach(([m, h]) => { if (ef >= m) b = h; }); const n = (num(pegar(v, "np")) || 0) + (re > 0 ? 1 : 0) + (num(pegar(v, "npf")) || 0); hr = Math.max(0, b - n); origemHr = `calculada: ${fmt(b, 1)} h pelo turno − ${n} pausa(s)`; }
+        }
+        const rec = OCRA_REC[Math.min(16, Math.round(hr * 2))] || 1, cor = ocraDuracao(liq), org = num(v.corg) || 0;
+        const lado = (s) => {
+          const n = num(pegar(v, "na" + s)); if (n == null) return null;
+          const apm = n * 60 / ciclo; const freq = Math.max(ocraFreqPorAcoes(apm, v.int === "Não"), num(pegar(v, "fs" + s)) || 0);
+          const forca = ["fMod", "fFor", "fInt"].reduce((a, k) => a + (num(pegar(v, k + s)) || 0), 0) || (num(pegar(v, "fo" + s)) || 0); // fo: registros antigos
+          const seg = Math.max(...["pOmb", "pCot", "pPun", "pMao"].map((k) => num(pegar(v, k + s)) || 0)) || (num(pegar(v, "po" + s)) || 0);
+          const est = Math.max(num(pegar(v, "esC" + s)) || 0, num(pegar(v, "esR" + s)) || 0) || (num(v.es) || 0);
+          const comp = ((num(pegar(v, "cfis" + s)) || 0) + org) || (num(v.cf) || 0);
+          const intr = (freq + forca + seg + est + comp) * rec; return { apm, freq, forca, post: seg + est, comp, final: intr * cor };
+        };
         const e = lado("_e"), d = lado("_d"); if (!e && !d) return incompleto();
         const [classe, nivel] = ocraClasse(Math.max(e ? e.final : 0, d ? d.final : 0));
-        return res(true, `Esq. ${e ? fmt(e.final, 1) : "-"} · dir. ${d ? fmt(d.final, 1) : "-"}`, classe, nivel, [["Tempo líquido / fator de duração", `${fmt(liq, 0)} min / ${cor}`], ["Multiplicador de recuperação", String(rec)], ["Esquerdo", e ? `${fmt(e.apm, 1)} ações/min (freq. ${e.freq}) → ${fmt(e.final, 1)}` : "-"], ["Direito", d ? `${fmt(d.apm, 1)} ações/min (freq. ${d.freq}) → ${fmt(d.final, 1)}` : "-"], ["Classificação", classe]]);
+        const det = (x) => (x ? `${fmt(x.apm, 1)} ações/min · (freq. ${fmt(x.freq, 1)} + força ${fmt(x.forca, 1)} + postura ${fmt(x.post, 1)} + compl. ${fmt(x.comp, 1)}) × ${rec} × ${cor} = ${fmt(x.final, 1)}` : "-");
+        return res(true, `Esq. ${e ? fmt(e.final, 1) : "-"} · dir. ${d ? fmt(d.final, 1) : "-"}`, classe, nivel, [["Tempo líquido / ciclo", `${fmt(liq, 0)} min (fator de duração ${cor}) · ciclo ${fmt(ciclo, 1)} s`], ["Horas sem recuperação / multiplicador", `${fmt(hr, 1)} h (${origemHr}) → ${rec}`], ["Esquerdo", det(e)], ["Direito", det(d)], ["Classificação", classe]]);
       },
     },
     {
@@ -475,8 +518,11 @@
         if (v.modo === "rolar") { if (v.equip == null || v.massaR == null) return incompleto(); massa = (R.v[Number(v.massaR)] || [])[Number(v.equip)]; } else { if (v.massaD == null) return incompleto(); massa = S.v[Number(v.massaD)]; }
         if (massa == null) return res(true, "Combinação a evitar", "Massa e equipamento em área crítica – deve ser evitada", 4, [["Massa/equipamento", "Combinação crítica ou a evitar (sem pontuação na tabela)"]]);
         const soma = massa + pr + po + co; const total = soma * t * (v.sexo === "F" ? 1.3 : 1);
+        // V 1.38: celulas marcadas em vermelho na planilha (pontuam, mas sao combinacoes criticas)
+        const CRIT = { 1: [2, 3], 4: [3], 2: [4, 5], 0: [5, 6] };
+        const critico = v.modo === "rolar" && (CRIT[Number(v.equip)] || []).includes(Number(v.massaR));
         const cl = total < 10 ? ["Sobrecarga leve (nível 1)", 1] : total < 25 ? ["Sobrecarga moderada (nível 2)", 2] : total < 50 ? ["Sobrecarga alta (nível 3)", 3] : ["Sobrecarga muito elevada (nível 4)", 4];
-        return res(true, `Pontuação ${fmt(total, 1)}`, cl[0], cl[1], [["(Massa + precisão + postura + condições) × tempo", `(${massa} + ${pr} + ${po} + ${co}) × ${t}${v.sexo === "F" ? " × 1,3" : ""} = ${fmt(total, 1)}`], ["Nível de risco", cl[0]]]);
+        return res(true, `Pontuação ${fmt(total, 1)}`, cl[0] + (critico ? " · massa/equipamento em área crítica" : ""), cl[1], [["(Massa + precisão + postura + condições) × tempo", `(${massa} + ${pr} + ${po} + ${co}) × ${t}${v.sexo === "F" ? " × 1,3" : ""} = ${fmt(total, 1)}`], ["Nível de risco", cl[0]]].concat(critico ? [["Atenção", "Combinação de massa e equipamento marcada como crítica na tabela (área vermelha): deve ser evitada"]] : []));
       },
     },
     {
@@ -553,7 +599,7 @@
         out.push({ tipo: "titulo", rot: "Coluna A – postura, dispêndio energético e ambiente" });
         out.push({ id: "A1", rot: "A1 – postura do corpo", tipo: "sel", ops: ops([["0", "Alternado sentado e de pé (0)"], ["3", "De pé com apoio de nádegas e tapete (3)"], ["5", "De pé com banco de apoio / andando sem carga (5)"], ["4", "Sentado – bem sentado (4)"], ["8", "Parado com refeição e tapete (8)"], ["9", "Parado sem refeição, com tapete (9)"], ["10", "Parado com refeição sem tapete / mal sentado (10)"], ["11", "Parado sem refeição e sem tapete (11)"], ["14", "Andando com impedimento ou carga (14)"], ["20", "Tronco predominantemente encurvado (20) – exigência crítica"]]) });
         out.push({ id: "A2", rot: "A2 – dispêndio energético", tipo: "sel", ops: ops([["0", "Leve (0)"], ["10", "De pé fazendo força (10)"], ["30", "Cargas até 23 kg frequentes (30)"], ["50", "Pesado/pesadíssimo (50)"]]) });
-        out.push({ id: "A3", rot: "A3 – calor", tipo: "sel", ops: ops(["0", "3", "4", "5", "8", "9", "10", "11", "12", "14", "20", "25", "30", "50", "75"].map((x) => [x, x])) });
+        out.push({ id: "A3", rot: "A3 – calor", tipo: "sel", ops: ops([["0", "0 – sem calor"], ["9", "9 – prédios industriais, galpões, ambientes externos, áreas não climatizadas"], ["12", "12 – calor moderado com atividade pesada, intermitente"], ["25", "25 – calor moderado com atividade pesada, constante"], ["30", "30 – calor significativo com atividade moderada, intermitente"], ["50", "50 – calor significativo com atividade moderada constante, ou pesada intermitente"], ["75", "75 – calor significativo com atividade pesada, constante"]]) });
         out.push({ id: "A4", rot: "A4 – frio", tipo: "sel", ops: ops([["0", "0"], ["12", "Ambiente externo ou salas muito frias (12)"]]) });
         out.push({ id: "A5", rot: "A5 – frigoríficos e câmaras frias", tipo: "sel", ops: ops([["0", "0"], ["25", "Antecâmaras, salas de corte (25)"], ["75", "Câmaras de resfriamento (75)"], ["87", "Túneis de congelamento (87)"]]) });
         out.push({ id: "A6", rot: "A6 – vibração segmentar", tipo: "sel", ops: ops([["0", "0"], ["20", "Média vibração, intermitente (20)"], ["50", "Média vibração, constante (50)"], ["70", "Alta vibração, intermitente (70)"], ["90", "Alta vibração, constante (90)"]]) });
@@ -562,9 +608,9 @@
         out.push({ tipo: "titulo", rot: "Coluna B – variáveis da tarefa" });
         out.push({ id: "B1", rot: "B1 – repetitividade", tipo: "sel", ops: ops(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]), nota: "9 ou 10 = exigência crítica" });
         out.push({ id: "B2", rot: "B2 – força", tipo: "sel", ops: ops(["0", "2", "3", "5", "7", "8", "10", "15", "20", "25"]) });
-        out.push({ id: "B3", rot: "B3 – peso movimentado (kg × m × n por hora → pontuação)", tipo: "sel", ops: ops(["0", "2", "3", "4", "5", "7", "8", "10", "12", "14"]) });
+        out.push({ id: "B3", rot: "B3 – peso movimentado (kg × m × n por hora → pontuação)", tipo: "sel", ops: ops(["0", "2", "3", "4", "5", "7", "8", ["10", "10 (*) – > 2250 kg·m/h com postura boa"], "12", ["14", "14 (*) – > 1125 kg·m/h com postura ruim"]].map((x) => (Array.isArray(x) ? x : [x, x]))), nota: "(*) exigência crítica" });
         out.push({ id: "B4", rot: "B4 – postura em desvio (maior FPD)", tipo: "num" });
-        out.push({ id: "B5", rot: "B5 – esforço estático (maior FEE)", tipo: "sel", ops: ops(["0", "1", "2", "3", "4", "5", "7", "10", "14", "20"]) });
+        out.push({ id: "B5", rot: "B5 – esforço estático (maior FEE)", tipo: "sel", ops: ops(["0", "1", "2", "3", "4", "5", "7", "10", "14", ["20", "20 (*) – exigência crítica"]].map((x) => (Array.isArray(x) ? x : [x, x]))) });
         out.push({ id: "B6", rot: "B6 – carga mental (itens presentes, máx. 5)", tipo: "multi", ops: (d.iceB6 || []).map((t, i) => ({ v: String(i), t })) });
         out.push({ id: "B7", rot: "B7 – graus de dificuldade (máx. 5)", tipo: "multi", ops: (d.iceB7 || []).map((t, i) => ({ v: String(i), t })) });
         out.push({ id: "B8", rot: "B8 – mecanismos de regulação (máx. 5)", tipo: "multi", ops: (d.iceB8 || []).map((t, i) => ({ v: String(i), t })) });
@@ -575,7 +621,7 @@
         const B = ["B1", "B2", "B3", "B4", "B5"].map((k) => num(pegar(v, k)) || 0);
         const cnt = (k) => Math.min(5, Array.isArray(v[k]) ? v[k].length : 0);
         const colA = 100 - Math.max(...A), colB = 95 - (B.reduce((a, b) => a + b, 0) + cnt("B6") + cnt("B7")) + cnt("B8"), ice = Math.min(colA, colB);
-        const desq = (D().iceDesq || []).some((t, i) => v["dq" + i] === "Sim") || num(v.A1) === 20 || num(v.B1) >= 9;
+        const desq = (D().iceDesq || []).some((t, i) => v["dq" + i] === "Sim") || num(v.A1) === 20 || num(v.B1) >= 9 || num(v.B5) === 20; // V 1.38: B5 = 20 (*) e critico, como na planilha
         let cl = ice >= 87 ? ["Condição ergonômica boa", 1] : ice >= 77 ? ["Condição razoável; exigência ergonômica moderada", 2] : ice >= 67 ? ["Exigência ergonômica intensa; condição ruim", 3] : ice >= 57 ? ["Exigência ergonômica muito intensa; condição muito ruim", 4] : ["Exigência ergonômica crítica", 4];
         if (desq) cl = ["Exigência ergonômica crítica (item de desqualificação)", 4];
         return res(true, `ICE ${fmt(ice, 1)}`, cl[0], cl[1], [["Coluna A (100 − maior valor)", fmt(colA, 1)], ["Coluna B (95 − B1…B7 + B8)", fmt(colB, 1)], ["Índice de conforto ergonômico", `${fmt(ice, 1)} – ${cl[0]}`]].concat(desq ? [["Desqualificação", "Há item de desqualificação: exigência crítica"]] : []));
@@ -591,8 +637,8 @@
         const qs = D().nr17 || []; let s = 0, n = 0, na = 0; const porSec = {};
         qs.forEach((q, i) => { if (!q.resp) return; const r = pegar(v, "q" + i); if (r === "Sim") s++; else if (r === "Não") { n++; porSec[q.sec] = (porSec[q.sec] || 0) + 1; } else if (r === "NA") na++; });
         if (!s && !n) return incompleto();
-        const tot = s + n;
-        return res(true, `Atende ${s} · não atende ${n} · NA ${na}`, "Nível atribuído pelo ergonomista", null, [["Itens atendidos", `${s} (${fmt(tot ? s / tot * 100 : 0, 0)}%)`], ["Itens não atendidos", `${n} (${fmt(tot ? n / tot * 100 : 0, 0)}%)`]].concat(Object.keys(porSec).map((k) => ["Não atende – " + k, String(porSec[k])])));
+        const tot = qs.filter((q) => q.resp).length; // V 1.38: como na planilha, percentual sobre o total de itens do checklist (48)
+        return res(true, `Atende ${s} · não atende ${n} · NA ${na}`, "Nível atribuído pelo ergonomista", null, [["Itens atendidos", `${s} de ${tot} (${fmt(tot ? s / tot * 100 : 0, 1)}%)`], ["Itens não atendidos", `${n} de ${tot} (${fmt(tot ? n / tot * 100 : 0, 1)}%)`], ["Não se aplica", `${na} de ${tot} (${fmt(tot ? na / tot * 100 : 0, 1)}%)`]].concat(Object.keys(porSec).map((k) => ["Não atende – " + k, String(porSec[k])])));
       },
     },
   ];

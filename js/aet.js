@@ -134,10 +134,27 @@
       const r = riscoDaAET(a); const tdR = h("td"); if (r) { const p = h("span", "plano-pilula", r); const hx = Calc().corRiscoHex(r); if (hx) { p.style.background = "#" + hx; p.style.color = "#" + Calc().textoSobreHex(hx); } tdR.appendChild(p); } else tdR.textContent = "-"; tr.appendChild(tdR);
       const tdA = h("td", "aet-acoes-linha");
       const bA = h("button", "btn-cad-secundario", podeEditar() ? "Abrir" : "Ver"); bA.type = "button"; bA.addEventListener("click", () => abrirEditor(a)); tdA.appendChild(bA);
+      if (podeEditar()) { const bD = h("button", "btn-cad-secundario", "Duplicar"); bD.type = "button"; bD.title = "Cria uma nova AET a partir desta (empresa, unidade, setor, posto e cargo editáveis)"; bD.addEventListener("click", () => duplicarAET(a)); tdA.appendChild(bD); }
       if (podeEditar()) { const bX = h("button", "btn-excluir", "Excluir"); bX.type = "button"; bX.addEventListener("click", () => excluirAET(a)); tdA.appendChild(bX); }
       tr.appendChild(tdA); tbody.appendChild(tr);
     });
     tb.appendChild(tbody); wrap.appendChild(tb); cartao.appendChild(wrap); raiz.appendChild(cartao);
+  }
+
+  // V 1.38: duplicar/copiar AET - abre como nova, com empresa, unidade, setor, posto e cargo editaveis;
+  // copia atividades, fatores, ferramentas e as acoes propostas (sem responsavel/prazo); fotos sao copiadas ao salvar.
+  function duplicarAET(a) {
+    const r = clone(a); const idOrig = a._id || a.id;
+    ["_id", "id", "Nr AET", "EmpresaId", "_criadoEm", "_criadoPor", "_editadoEm", "_editadoPor", "_historico", "Ultima Atualizacao Em", "Arquivo Importado"].forEach((k) => delete r[k]);
+    Object.keys(r).forEach((k) => { if (k[0] === "_") delete r[k]; });
+    r["Data Analise"] = hojeISO(); r["Duplicada De"] = a["Nr AET"] ? "AET-" + String(a["Nr AET"]).padStart(3, "0") + " · " + (a.Cliente || "") : idOrig;
+    const marcarFotos = (l) => (l || []).map((f) => Object.assign({}, f, { copiada: true }));
+    r["Foto Geral"] = marcarFotos(r["Foto Geral"]);
+    r.Atividades = (r.Atividades || []).map((at) => Object.assign({}, at, { uid: uid(), fotos: marcarFotos(at.fotos), fatores: (at.fatores || []).map((fa) => {
+      const acs = (BI.dados.planoAcao || []).filter((p) => p["Fator Risco Id"] === idFatorRow(idOrig, fa)).map((p) => ({ "Tipo Acao": p["Tipo Acao"], "Acao Recomendada": p["Acao Recomendada"], Complexidade: p.Complexidade, "Gestao Acao": p["Gestao Acao"], "Reduz Risco": p["Reduz Risco"], "Risco Apos Acao": p["Risco Apos Acao"], "Imagens Exemplo": p["Imagens Exemplo"] || [] }));
+      return Object.assign({}, fa, { uid: uid(), _acoesCopia: acs });
+    }) }));
+    abrirEditor(null, r, { duplicada: true });
   }
 
   async function excluirAET(a) {
@@ -167,7 +184,7 @@
   function novoFator() { return { uid: uid(), grupo: "", fator: "", outro: "", consequencia: "", segmento: "", fonte: "", ferramentas: [], exposicao: "", severidade: "" }; }
 
   // V 1.35: "rascunho" = AET montada pela importacao (Word/PDF), aberta como nova para conferir e salvar.
-  function abrirEditor(aet, rascunho) {
+  function abrirEditor(aet, rascunho, opcAbrir) {
     const editar = podeEditar();
     const st = aet ? clone(Object.assign({}, aet)) : rascunho ? Object.assign(novaAET(), clone(rascunho)) : novaAET();
     const idAET = aet ? (aet._id || aet.id) : null;
@@ -182,7 +199,8 @@
     const bSalvar = h("button", "btn-cad-primario", "Salvar AET"); bSalvar.type = "button"; bSalvar.hidden = !editar;
     acoesTopo.appendChild(bFechar); acoesTopo.appendChild(bSalvar); topo.appendChild(acoesTopo);
     caixa.appendChild(topo); caixa.appendChild(msg);
-    if (rascunho) { const av = h("div", "aet-msg"); av.textContent = `AET importada de “${rascunho["Arquivo Importado"] || "arquivo"}”. Confira os dados, complete o que faltar (ferramentas, severidade e probabilidade, ações) e clique em Salvar AET.`; caixa.appendChild(av); }
+    if (rascunho && opcAbrir && opcAbrir.duplicada) { const av = h("div", "aet-msg"); av.textContent = `Cópia da ${rascunho["Duplicada De"] || "AET"}. Escolha a empresa, a unidade, o setor, o posto e o cargo da nova AET, revise e clique em Salvar AET. As ações propostas foram copiadas (sem responsável e prazo).`; caixa.appendChild(av); }
+    else if (rascunho) { const av = h("div", "aet-msg"); av.textContent = `AET importada de “${rascunho["Arquivo Importado"] || "arquivo"}”. Confira os dados, complete o que faltar (ferramentas, severidade e probabilidade, ações) e clique em Salvar AET.`; caixa.appendChild(av); }
     const corpo = h("div", "aet-corpo"); const nav = h("nav", "aet-nav"); const area = h("div", "aet-area"); corpo.appendChild(nav); corpo.appendChild(area); caixa.appendChild(corpo);
     document.body.appendChild(fundo); document.body.classList.add("aet-aberta");
     const fechar = () => { if (sujo && editar && !window.confirm("Há alterações não salvas na AET. Fechar mesmo assim?")) return; fundo.remove(); document.body.classList.remove("aet-aberta"); };
@@ -201,9 +219,15 @@
       opc = opc || {}; const d = h("label", "aet-campo" + (opc.largo ? " aet-campo--largo" : "")); d.appendChild(h("span", "aet-rot", rot));
       const s = h("select"); const o0 = h("option", null, opc.vazio || "-"); o0.value = ""; s.appendChild(o0);
       opcoes.forEach((o) => { const op = h("option", null, Array.isArray(o) ? o[1] : o); op.value = Array.isArray(o) ? o[0] : o; s.appendChild(op); });
-      s.value = obj[chave] != null ? String(obj[chave]) : ""; if (s.value !== String(obj[chave] == null ? "" : obj[chave]) && obj[chave]) { const op = h("option", null, obj[chave]); op.value = obj[chave]; s.appendChild(op); s.value = obj[chave]; }
+      s.value = obj[chave] != null ? String(obj[chave]) : ""; if (s.value !== String(obj[chave] == null ? "" : obj[chave]) && obj[chave]) { const op = h("option", null, obj[chave] + (opc.novo ? " (novo)" : "")); op.value = obj[chave]; s.appendChild(op); s.value = obj[chave]; }
+      // V 1.38: "+ Cadastrar novo…" (unidade, setor, posto e cargo) - entra no Cadastro Empresa ao salvar a AET
+      if (opc.novo && editar) { const op = h("option", null, "+ Cadastrar novo…"); op.value = "__novo__"; s.appendChild(op); }
       s.disabled = !editar || !!opc.desabilitado;
-      s.addEventListener("change", () => { obj[chave] = s.value; marcar(); if (aoMudar) aoMudar(s.value); });
+      s.addEventListener("change", () => {
+        if (s.value === "__novo__") { const nome = String(window.prompt(`Nome do novo ${opc.novo}:`) || "").trim(); if (!nome) { s.value = obj[chave] || ""; return; } obj[chave] = nome; if (!Array.from(s.options).some((o) => o.value === nome)) { const op = h("option", null, nome + " (novo)"); op.value = nome; s.insertBefore(op, s.lastChild); } s.value = nome; }
+        else obj[chave] = s.value;
+        marcar(); if (aoMudar) aoMudar(obj[chave]);
+      });
       d.appendChild(s); return d;
     };
     const secao = (id, rot) => { const s = h("section", "aet-secao"); s.id = "aet-sec-" + id; s.appendChild(h("h3", "aet-secao-titulo", rot)); const b = h("a", null, rot); b.href = "#"; b.addEventListener("click", (ev) => { ev.preventDefault(); s.scrollIntoView({ behavior: "smooth", block: "start" }); }); nav.appendChild(b); area.appendChild(s); return s; };
@@ -224,9 +248,11 @@
     async function enviarFotos(lista, input, depois) {
       const emp = (BI.dados.cliente || []).find((c) => c.Cliente === st.Cliente); const empresaId = emp ? (emp.id || emp._id) : null;
       if (!empresaId) { window.alert("Escolha o cliente antes de anexar fotos."); return; }
-      for (const arq of Array.from(input.files || [])) {
-        if (!/^image\/(jpeg|png)$/.test(arq.type)) { window.alert(`${arq.name}: use JPG ou PNG.`); continue; }
-        try { const f = await reduzirFoto(arq); const r = await BI.DB.enviarArquivo("aet", empresaId, f); lista.push({ chave: r.chave, nomeArquivo: r.nomeArquivo || f.name }); marcar(); } catch (e) { window.alert(`Não foi possível enviar ${arq.name}: ${e && e.message ? e.message : e}`); }
+      const validos = Array.from(input.files || []).filter((arq) => { if (/^image\/(jpeg|png)$/.test(arq.type)) return true; window.alert(`${arq.name}: use JPG ou PNG.`); return false; });
+      // V 1.38: reduz e anonimiza os rostos (conferencia) antes de enviar
+      const prontos = BI.Fotos ? await BI.Fotos.prepararLista(validos) : await Promise.all(validos.map(reduzirFoto));
+      for (const f of prontos) {
+        try { const r = await BI.DB.enviarArquivo("aet", empresaId, f); lista.push({ chave: r.chave, nomeArquivo: r.nomeArquivo || f.name }); marcar(); } catch (e) { window.alert(`Não foi possível enviar ${f.name}: ${e && e.message ? e.message : e}`); }
       }
       input.value = ""; depois();
     }
@@ -237,7 +263,7 @@
         linha.innerHTML = "";
         lista.forEach((f, i) => { const c = h("div", "aet-foto"); const img = h("img"); img.src = BI.DB.urlArquivo(f.chave); img.alt = f.nomeArquivo || "foto"; c.appendChild(img); const leg = h("input"); leg.type = "text"; leg.placeholder = "Legenda (opcional)"; leg.value = f.legenda || ""; leg.disabled = !editar; leg.addEventListener("input", () => { f.legenda = leg.value; marcar(); }); c.appendChild(leg);
           if (editar) { const x = h("button", "aet-foto-x", "×"); x.type = "button"; x.title = "Remover"; x.addEventListener("click", () => { lista.splice(i, 1); marcar(); desenhar(); }); c.appendChild(x); } linha.appendChild(c); });
-        if (editar && lista.length < max) { const lb = h("label", "aet-foto-add"); lb.appendChild(h("span", null, "+ Foto")); const inp = h("input"); inp.type = "file"; inp.accept = "image/jpeg,image/png"; inp.multiple = true; inp.addEventListener("change", () => enviarFotos(lista, inp, desenhar)); lb.appendChild(inp); linha.appendChild(lb); }
+        if (editar && lista.length < max) { const lb = h("label", "aet-foto-add"); lb.appendChild(h("span", null, lista.length ? "+ Adicionar mais fotos" : "+ Adicionar fotos")); const inp = h("input"); inp.type = "file"; inp.accept = "image/jpeg,image/png"; inp.multiple = true; inp.addEventListener("change", () => enviarFotos(lista, inp, desenhar)); lb.appendChild(inp); linha.appendChild(lb); }
       };
       desenhar(); return d;
     };
@@ -268,10 +294,12 @@
       const filtroC = (d) => cargos.filter((c) => (!st.Cliente || c.Cliente === st.Cliente) && (d < 1 || !st.Unidade || c.Unidade === st.Unidade) && (d < 2 || !st.Setor || c.Setor === st.Setor) && (d < 3 || !st["Posto Trabalho"] || c["Posto Trabalho"] === st["Posto Trabalho"]));
       const casc = (k, nivel) => () => { ["Unidade", "Setor", "Posto Trabalho", "Cargo"].slice(nivel).forEach((x) => { st[x] = ""; }); desenhar(); };
       g1.appendChild(campoSelect(st, "Cliente", "Cliente *", clientes, casc("Cliente", 0), { desabilitado: !!idAET }));
-      g1.appendChild(campoSelect(st, "Unidade", "Unidade *", uniq(filtroC(0).map((c) => c.Unidade)), casc("Unidade", 1)));
-      g1.appendChild(campoSelect(st, "Setor", "Setor / GHE *", uniq(filtroC(1).map((c) => c.Setor)), casc("Setor", 2)));
-      g1.appendChild(campoSelect(st, "Posto Trabalho", "Posto de trabalho *", uniq(filtroC(2).map((c) => c["Posto Trabalho"])), casc("Posto Trabalho", 3)));
-      g1.appendChild(campoSelect(st, "Cargo", "Cargo / função *", uniq(filtroC(3).map((c) => c.Cargo)), atualizarTitulo));
+      // V 1.38: unidade/setor/posto/cargo vem das tabelas proprias (nao so dos cargos ja cadastrados) e aceitam "+ Cadastrar novo…"
+      const de = (col, campo, d) => uniq(filtroC(d).map((c) => c[campo]).concat((BI.dados[col] || []).filter((x) => (!st.Cliente || x.Cliente === st.Cliente) && (d < 1 || !st.Unidade || x.Unidade === st.Unidade) && (d < 2 || !st.Setor || x.Setor === st.Setor) && (d < 3 || !st["Posto Trabalho"] || x["Posto Trabalho"] === st["Posto Trabalho"])).map((x) => x[campo])));
+      g1.appendChild(campoSelect(st, "Unidade", "Unidade *", st.Cliente ? de("unidade", "Unidade", 0) : [], casc("Unidade", 1), { novo: st.Cliente ? "unidade" : "" }));
+      g1.appendChild(campoSelect(st, "Setor", "Setor / GHE *", st.Unidade ? de("setor", "Setor", 1) : [], casc("Setor", 2), { novo: st.Unidade ? "setor / GHE" : "" }));
+      g1.appendChild(campoSelect(st, "Posto Trabalho", "Posto de trabalho *", st.Setor ? de("posto", "Posto Trabalho", 2) : [], casc("Posto Trabalho", 3), { novo: st.Setor ? "posto de trabalho" : "" }));
+      g1.appendChild(campoSelect(st, "Cargo", "Cargo / função *", st["Posto Trabalho"] ? de("cargo", "Cargo", 3) : [], atualizarTitulo, { novo: st["Posto Trabalho"] ? "cargo / função" : "" }));
       g1.appendChild(campoTexto(st, "Data Analise", "Data da análise *", { tipo: "date" }));
       g1.appendChild(campoSelect(st, "Ergonomista", "Ergonomista responsável pela análise", uniq((BI.dados.ergonomista || []).map((e) => e.Nome))));
       s1.appendChild(h("p", "aet-nota", `Matriz de risco do cliente: ${mz}. O cadastro de unidade, setor/GHE, posto e cargo é o do Cadastro Cliente.`));
@@ -291,7 +319,7 @@
       // 5. Posto
       const s5 = secao("posto", "5. Análise do posto de trabalho"); const g5 = grade(s5);
       g5.appendChild(campoTexto(st, "Descricao Posto", "Posto de trabalho (equipamentos, cargas e pesos, dimensões)", { linhas: 4, largo: true }));
-      s5.appendChild(blocoFotos(st["Foto Geral"], 2, "Visão geral do posto de trabalho (foto geral)"));
+      s5.appendChild(blocoFotos(st["Foto Geral"], Infinity, "Visão geral do posto de trabalho (fotos gerais)"));
       // 6. Ambiente
       const s6 = secao("amb", "6. Análise do ambiente (conforto)"); const g6 = grade(s6);
       AMBIENTE.forEach(([k, r]) => g6.appendChild(campoTexto(st, k, r, { linhas: 2, largo: true })));
@@ -310,6 +338,8 @@
       // 9. Diagnostico
       const s9 = secao("diag", "9. Diagnóstico global"); const g9 = grade(s9);
       const cDiag = campoTexto(st, "Diagnostico Global", "Diagnóstico global do posto", { linhas: 4, largo: true }); g9.appendChild(cDiag);
+      // V 1.38: destaca o que a importacao marcou como "ATUALIZAR INFORMAÇÕES"
+      setTimeout(() => area.querySelectorAll("input, select, textarea").forEach((x) => x.classList.toggle("campo-atualizar", x.value === "ATUALIZAR INFORMAÇÕES" || (x.tagName === "SELECT" && x.selectedOptions[0] && /ATUALIZAR INFORMAÇÕES/.test(x.selectedOptions[0].textContent)))), 0);
       if (editar) { const b = h("button", "btn-cad-secundario", "Sugerir texto a partir das atividades"); b.type = "button"; b.addEventListener("click", () => { st["Diagnostico Global"] = sugerirDiagnostico(st, mz); cDiag.querySelector("textarea").value = st["Diagnostico Global"]; marcar(); }); s9.appendChild(b); }
     }
 
@@ -320,7 +350,7 @@
       card.appendChild(cab);
       const gA = grade(card); gA.appendChild(campoTexto(at, "nome", "Nome da atividade *", { aoMudar: () => {} }));
       gA.appendChild(campoTexto(at, "descricao", "Descrição detalhada da atividade (processo, pesos, alturas, distâncias, tempos de exposição, duração)", { linhas: 5, largo: true }));
-      card.appendChild(blocoFotos(at.fotos, 4, "Registro fotográfico da atividade (até 4 fotos)"));
+      card.appendChild(blocoFotos(at.fotos, Infinity, "Registro fotográfico da atividade")); // V 1.38: sem limite de fotos
       card.appendChild(h("div", "aet-subtitulo", "Fatores de risco da atividade"));
       at.fatores.forEach((fa, fi) => card.appendChild(cartaoFator(at, fa, fi, mz)));
       if (editar) { const b = h("button", "btn-cad-secundario aet-add", "+ Fator de risco"); b.type = "button"; b.addEventListener("click", () => { at.fatores.push(novoFator()); marcar(); desenhar(); }); card.appendChild(b); }
@@ -336,17 +366,18 @@
       card.appendChild(cab);
       const detalhe = h("div", "aet-grau-detalhe");
       const pintar = () => {
-        const r = avaliarFator(fa, mz); fa._av = r;
+        const r = avaliarFator(fa, mz); fa._av = r; if (r.graduacao && fa.semGraduacaoImportada) delete fa.semGraduacaoImportada;
         pill.textContent = r.graduacao || "sem graduação"; const hx = r.graduacao ? C.corRiscoHex(r.graduacao) : null; pill.style.background = hx ? "#" + hx : ""; pill.style.color = hx ? "#" + C.textoSobreHex(hx) : "";
         detalhe.textContent = r.graduacao ? `Risco do fator: ${r.graduacao}${r.pontuacao != null ? " (pontuação " + r.pontuacao + ")" : ""} · ${r.detalhe}` : "Pendente: " + r.pendente;
         const ed = editores.get(fa.uid); if (ed) ed.atualizarNivel();
         tit.textContent = `Fator ${fi + 1}${fa.fator ? " · " + (fa.fator === "__outro" ? fa.outro || "outro" : fa.fator) : ""}`;
       };
       const g = grade(card);
+      // V 1.38: uma lista unica com todos os fatores (ISO/TS 20646); o grupo e preenchido automaticamente
       const grupos = C.GRUPOS_FATOR_RISCO || [];
-      g.appendChild(campoSelect(fa, "grupo", "Grupo de fatores (ISO/TS 20646) *", grupos, () => { fa.fator = ""; desenhar(); }));
-      const lista = fa.grupo ? C.fatoresDoGrupo(fa.grupo) : [];
-      g.appendChild(campoSelect(fa, "fator", "Fator de risco *", lista.map((x) => [x, x]).concat([["__outro", "Outro (digitar)"]]), () => desenhar()));
+      const grupoDe = (f) => grupos.find((g0) => (C.fatoresDoGrupo(g0) || []).includes(f)) || "";
+      const todos = [].concat(...grupos.map((g0) => C.fatoresDoGrupo(g0) || [])).sort((a, b) => a.localeCompare(b, "pt-BR"));
+      g.appendChild(campoSelect(fa, "fator", "Fator de risco (ISO/TS 20646) *", todos.map((x) => [x, x]).concat([["__outro", "Outro (digitar)"]]), (v0) => { fa.grupo = v0 === "__outro" ? "Outros" : grupoDe(v0); desenhar(); }, { largo: true }));
       if (fa.fator === "__outro") g.appendChild(campoTexto(fa, "outro", "Qual fator? *", { aoMudar: pintar }));
       const conseq = fa.fator && fa.fator !== "__outro" ? C.consequenciasDoFator(fa.fator) : [];
       const cC = campoTexto(fa, "consequencia", "Consequência (ex.: biomecânica – coluna lombar) *", { largo: true }); g.appendChild(cC);
@@ -359,7 +390,16 @@
       // V 1.37: ferramentas recomendadas para o fator (js/recomendacoes.js) - clique aplica a ferramenta.
       const recF = h("div", "aet-ferr-rec"); blocoF.insertBefore(recF, listaF);
       const nomeFatorAtual = () => (fa.fator === "__outro" ? fa.outro : fa.fator) || "";
-      const aplicarNova = (id) => { const it = { id, valores: {}, exposicao: null, nivelManual: "" }; fa.ferramentas.push(it); marcar(); desenharFerr(); pintar(); desenharExp(); abrirFerramenta(it, () => { marcar(); desenharFerr(); pintar(); desenharExp(); }); };
+      // V 1.38: uma ferramenta por fator (para outra ferramenta, adicione outro fator). Escolher outra troca a atual.
+      const aplicarNova = (id) => {
+        if (fa.ferramentas.length) {
+          const atual = fa.ferramentas.map((x) => (F().porId(x.id) || {}).sigla || x.id).join(", ");
+          if (!window.confirm(`Cada fator aceita uma ferramenta. Trocar ${atual} por ${(F().porId(id) || {}).sigla || id}? (Para usar as duas, adicione outro fator.)`)) return;
+          fa.ferramentas.splice(0, fa.ferramentas.length);
+        }
+        const it = { id, valores: {}, exposicao: null, nivelManual: "" }; fa.ferramentas.push(it); marcar(); desenharFerr(); pintar(); desenharExp();
+        abrirFerramenta(it, () => { marcar(); desenharFerr(); pintar(); desenharExp(); }, fa, mz);
+      };
       const desenharRecF = () => {
         recF.innerHTML = ""; const RC = BI.Recomendacoes; const nome = nomeFatorAtual();
         if (!RC || !nome) { recF.hidden = true; return; } recF.hidden = false;
@@ -367,9 +407,11 @@
         recF.appendChild(h("span", "aet-rot", "Ferramentas recomendadas para este fator: "));
         recs.forEach((r) => {
           const usada = fa.ferramentas.some((it) => it.id === r.id);
+          // V 1.38: uma ferramenta por fator - com ferramenta aplicada, o botao troca a ferramenta
           const b = h("button", "aet-ferr-chip" + (r.principal ? " aet-ferr-chip--principal" : "") + (usada ? " aet-ferr-chip--usada" : ""), (r.principal ? "★ " : "") + r.sigla + (usada ? " ✓" : ""));
           b.type = "button"; b.title = r.nome + (r.principal ? " (mais indicada)" : "") + (usada ? " – já aplicada" : editar ? " – clique para aplicar" : "");
           b.disabled = !editar || usada; b.addEventListener("click", () => aplicarNova(r.id)); recF.appendChild(b);
+          if (fa.ferramentas.length && !usada) b.title = `Trocar a ferramenta aplicada por ${r.sigla}`;
         });
         const obs = RC.observacaoDoFator(nome); if (obs) recF.appendChild(h("div", "aet-nota", obs));
       };
@@ -382,12 +424,13 @@
           linha.appendChild(h("strong", null, def ? def.sigla : it.id));
           const nv = r.ok && r.nivel != null ? r.nivel : (it.nivelManual !== "" && it.nivelManual != null ? Number(it.nivelManual) : null);
           linha.appendChild(h("span", "aet-ferr-res", r.ok ? `${r.pontuacao} · ${r.classe}${nv != null ? " → nível " + F().NIVEIS[nv].toLowerCase() : ""}` : r.classe));
-          linha.appendChild(h("span", "aet-ferr-exp", comExposicao(it) ? "define o risco (considera exposição)" : "cruza com a exposição"));
-          const bE = h("button", "btn-cad-secundario", editar ? "Preencher" : "Ver"); bE.type = "button"; bE.addEventListener("click", () => abrirFerramenta(it, () => { marcar(); desenharFerr(); pintar(); desenharExp(); })); linha.appendChild(bE);
+          linha.appendChild(h("span", "aet-ferr-exp", comExposicao(it) ? "risco pela ferramenta" : "probabilidade informada pelo ergonomista"));
+          const bE = h("button", "btn-cad-secundario", editar ? "Preencher" : "Ver"); bE.type = "button"; bE.addEventListener("click", () => abrirFerramenta(it, () => { marcar(); desenharFerr(); pintar(); desenharExp(); }, fa, mz)); linha.appendChild(bE);
           if (editar) { const x = h("button", "btn-excluir", "Remover"); x.type = "button"; x.addEventListener("click", () => { fa.ferramentas.splice(ii, 1); marcar(); desenharFerr(); pintar(); desenharExp(); }); linha.appendChild(x); }
           listaF.appendChild(linha);
         });
-        if (editar) {
+        if (fa.ferramentas.length > 1) listaF.appendChild(h("div", "aet-nota aet-aviso-ferr", "Este fator tem mais de uma ferramenta (registro anterior à V 1.38). A regra agora é uma ferramenta por fator: mantenha uma e crie outro fator para as demais."));
+        if (editar && !fa.ferramentas.length) {
           const add = h("div", "aet-ferr-add"); const s = h("select"); const o0 = h("option", null, "+ Aplicar ferramenta…"); o0.value = ""; s.appendChild(o0);
           const recIds = BI.Recomendacoes ? BI.Recomendacoes.ferramentasDoFator(nomeFatorAtual()).map((r) => r.id) : [];
           const grp = (rot, defs) => { if (!defs.length) return; const og = h("optgroup"); og.label = rot; defs.forEach((d) => { const o = h("option", null, d.nome); o.value = d.id; og.appendChild(o); }); s.appendChild(og); };
@@ -419,7 +462,7 @@
           contexto: () => ({ Cliente: st.Cliente, Unidade: st.Unidade, Setor: st.Setor, Cargo: st.Cargo, "Posto Trabalho": st["Posto Trabalho"], Atividade: at.nome }),
           nivelAtual: () => (fa._av && fa._av.graduacao) || "", matriz: () => matrizDe(st.Cliente),
           nomeFator: () => (fa.fator === "__outro" ? fa.outro : fa.fator) || "", segmento: () => fa.segmento,
-          aoMudar: marcar,
+          aoMudar: marcar, acoesIniciais: fa._acoesCopia || null, comImagens: true,
         });
         editores.set(fa.uid, ed);
       }
@@ -428,22 +471,50 @@
       return card;
     }
 
-    function abrirFerramenta(it, depois) {
+    // V 1.38: resultado no topo (atualiza a cada campo) e escolha de como o risco do fator e definido:
+    // seguir o risco da ferramenta ou informar a probabilidade (o resultado vira a severidade) - decisao do ergonomista.
+    function abrirFerramenta(it, depois, fa, mz) {
       const def = F().porId(it.id); if (!def) return;
+      const C = Calc(); mz = mz || matrizDe(st.Cliente);
       const fundo2 = h("div", "aet-modal-fundo"); const cx = h("div", "aet-modal");
       cx.appendChild(h("div", "aet-modal-titulo", def.nome)); cx.appendChild(h("div", "aet-nota", def.ref));
       let valores = clone(it.valores || {});
-      const resBox = h("div", "aet-ferr-resultado");
-      const mostrar = () => { const r = F().calcular(it.id, valores); resBox.innerHTML = ""; resBox.appendChild(h("strong", null, r.ok ? `${r.pontuacao} – ${r.classe}` : r.classe)); (r.memorial || []).forEach(([k, v]) => { const l = h("div"); l.appendChild(h("span", "aet-rot", k + ": ")); l.appendChild(document.createTextNode(v)); resBox.appendChild(l); }); manual.hidden = !(def.manual || (r.ok && r.nivel == null)); };
+      const resBox = h("div", "aet-ferr-resultado aet-ferr-resultado--topo"); cx.appendChild(resBox);
+      // modo do risco
+      const modoBox = h("div", "aet-modo-risco"); modoBox.appendChild(h("div", "aet-subtitulo", "Como definir o risco do fator"));
+      let modo = comExposicao(it) ? "ferramenta" : "prob";
+      const radio = (val, txt, nota) => { const l = h("label", "aet-radio"); const r = h("input"); r.type = "radio"; r.name = "modo-" + it.id + Math.random(); r.value = val; r.checked = modo === val; r.disabled = !editar; r.addEventListener("change", () => { modo = val; mostrar(); }); l.appendChild(r); const t = h("span"); t.appendChild(h("strong", null, txt)); t.appendChild(h("span", "aet-nota", " " + nota)); l.appendChild(t); return l; };
+      const r1 = radio("ferramenta", "Seguir o risco da ferramenta", "– o resultado da ferramenta define a graduação do fator (indicado quando a métrica já considera o tempo de exposição)."); const r2 = radio("prob", "Informar a probabilidade", "– o resultado da ferramenta vira a severidade, cruzada com a probabilidade (exposição na jornada) na matriz do cliente.");
+      modoBox.appendChild(r1); modoBox.appendChild(r2);
+      const probL = h("label", "aet-campo aet-campo--largo"); probL.appendChild(h("span", "aet-rot", "Probabilidade – exposição na jornada *"));
+      const probS = h("select"); [["", "-"]].concat(exposicaoDe(mz).map((t, i) => [String(i), t])).forEach(([v0, t]) => { const o = h("option", null, t); o.value = v0; probS.appendChild(o); });
+      probS.value = fa && fa.exposicao != null ? String(fa.exposicao) : ""; probS.disabled = !editar; probS.addEventListener("change", mostrar); probL.appendChild(probS); modoBox.appendChild(probL);
+      modoBox.appendChild(h("div", "aet-nota", def.exposicao ? "Padrão desta ferramenta: seguir o risco da ferramenta." : "Padrão desta ferramenta: informar a probabilidade."));
+      const manual = h("label", "aet-campo"); manual.appendChild(h("span", "aet-rot", "Nível atribuído pelo ergonomista (a ferramenta não classifica)")); const sm = h("select"); [["", "-"]].concat(F().NIVEIS.map((n, i) => [String(i), n])).forEach(([v0, t]) => { const o = h("option", null, t); o.value = v0; sm.appendChild(o); }); sm.value = it.nivelManual != null ? String(it.nivelManual) : ""; sm.disabled = !editar; sm.addEventListener("change", () => mostrar()); manual.appendChild(sm);
+      function mostrar() {
+        const r = F().calcular(it.id, valores); resBox.innerHTML = "";
+        const nv = r.ok && r.nivel != null ? r.nivel : (sm.value !== "" ? Number(sm.value) : null);
+        const cab = h("div", "aet-ferr-res-cab"); cab.appendChild(h("span", "aet-rot", "Resultado da ferramenta")); cab.appendChild(h("strong", null, r.ok ? `${r.pontuacao} – ${r.classe}` : r.classe)); resBox.appendChild(cab);
+        if (nv != null) resBox.appendChild(h("div", null, "Nível da ferramenta: " + F().NIVEIS[nv].toLowerCase()));
+        probL.hidden = modo !== "prob";
+        if (fa) { // previa do risco do fator com a escolha atual
+          const tmp = clone(fa); tmp.ferramentas = [Object.assign({}, it, { valores, exposicao: modo === "ferramenta", nivelManual: sm.value })]; tmp.exposicao = probS.value;
+          const av = avaliarFator(tmp, mz); const p = h("div", "aet-ferr-res-risco"); p.appendChild(document.createTextNode("Risco do fator: ")); const pil = h("span", "plano-pilula", av.graduacao || "pendente"); const hx = av.graduacao ? C.corRiscoHex(av.graduacao) : null; if (hx) { pil.style.background = "#" + hx; pil.style.color = "#" + C.textoSobreHex(hx); } p.appendChild(pil); p.appendChild(document.createTextNode(av.graduacao ? " · " + av.detalhe : " · " + av.pendente)); resBox.appendChild(p);
+        }
+        const det = h("details", "aet-ferr-memorial"); det.appendChild(h("summary", null, "Memorial de cálculo")); (r.memorial || []).forEach(([k, v0]) => { const l = h("div"); l.appendChild(h("span", "aet-rot", k + ": ")); l.appendChild(document.createTextNode(v0)); det.appendChild(l); }); if ((r.memorial || []).length) resBox.appendChild(det);
+        manual.hidden = !(def.manual || (r.ok && r.nivel == null));
+      }
       const form = F().formulario(it.id, valores, (v) => { valores = v; mostrar(); }, !editar);
       cx.appendChild(form);
-      const opc = h("div", "aet-grade");
-      const exp = h("label", "aet-check"); const cb = h("input"); cb.type = "checkbox"; cb.checked = comExposicao(it); cb.disabled = !editar; exp.appendChild(cb); exp.appendChild(document.createTextNode(" A métrica desta ferramenta já considera o tempo de exposição (o resultado define o risco)")); opc.appendChild(exp);
-      const manual = h("label", "aet-campo"); manual.appendChild(h("span", "aet-rot", "Nível atribuído pelo ergonomista (a ferramenta não classifica)")); const sm = h("select"); [["", "-"]].concat(F().NIVEIS.map((n, i) => [String(i), n])).forEach(([v, t]) => { const o = h("option", null, t); o.value = v; sm.appendChild(o); }); sm.value = it.nivelManual != null ? String(it.nivelManual) : ""; sm.disabled = !editar; manual.appendChild(sm); opc.appendChild(manual);
-      cx.appendChild(opc); cx.appendChild(resBox);
+      const opc = h("div", "aet-grade"); opc.appendChild(manual); cx.appendChild(opc); cx.appendChild(modoBox);
       const barra = h("div", "reav-barra"); const bC = h("button", "btn-cad-secundario", editar ? "Cancelar" : "Fechar"); bC.type = "button"; const bO = h("button", "btn-cad-primario", "Aplicar"); bO.type = "button"; bO.hidden = !editar; barra.appendChild(bC); barra.appendChild(bO); cx.appendChild(barra);
       bC.addEventListener("click", () => fundo2.remove());
-      bO.addEventListener("click", () => { it.valores = valores; it.exposicao = cb.checked === !!def.exposicao ? null : cb.checked; it.nivelManual = sm.value; fundo2.remove(); depois(); });
+      bO.addEventListener("click", () => {
+        if (modo === "prob" && probS.value === "" && !window.confirm("A probabilidade ainda não foi informada. Aplicar assim mesmo? (o fator fica pendente)")) return;
+        it.valores = valores; it.exposicao = modo === "ferramenta"; it.nivelManual = sm.value; if (fa && modo === "prob") fa.exposicao = probS.value;
+        fundo2.remove(); depois();
+        const r = F().calcular(it.id, valores); if (BI.avisar) BI.avisar(`${def.sigla}: ${r.ok ? r.pontuacao + " – " : ""}${r.classe}`);
+      });
       fundo2.appendChild(cx); document.body.appendChild(fundo2); mostrar();
     }
 
@@ -459,24 +530,41 @@
           if (!nome) return `Atividade “${at.nome}”: escolha o fator de risco.`;
           if (!fa.consequencia) return `Atividade “${at.nome}”, fator “${nome}”: informe a consequência.`;
           if (!fa.segmento) return `Atividade “${at.nome}”, fator “${nome}”: informe o segmento acometido.`;
-          const r = avaliarFator(fa, mz); if (!r.graduacao) return `Atividade “${at.nome}”, fator “${nome}”: ${r.pendente}.`;
+          const r = avaliarFator(fa, mz); if (!r.graduacao && !fa.semGraduacaoImportada) return `Atividade “${at.nome}”, fator “${nome}”: ${r.pendente}.`;
           const ed = editores.get(fa.uid); const e = ed && ed.validar(); if (e) return `Atividade “${at.nome}”, fator “${nome}”: ${e}`;
         }
       }
       return null;
     }
 
+    async function copiarFotosDuplicadas() {
+      const emp = (BI.dados.cliente || []).find((c) => c.Cliente === st.Cliente); const empresaId = emp ? (emp.id || emp._id) : null; if (!empresaId) return;
+      const listas = [st["Foto Geral"]].concat(st.Atividades.map((at) => at.fotos || []));
+      for (const lista of listas) for (const f of lista) {
+        if (!f || !f.copiada) continue;
+        try {
+          const r0 = await fetch(BI.DB.urlArquivo(f.chave), { credentials: "same-origin" }); if (!r0.ok) throw new Error("HTTP " + r0.status);
+          const b = await r0.blob(); const arq = new File([b], f.nomeArquivo || "foto.jpg", { type: b.type || "image/jpeg" });
+          const r = await BI.DB.enviarArquivo("aet", empresaId, arq); f.chave = r.chave; delete f.copiada;
+        } catch (e) { throw new Error(`não foi possível copiar a foto “${f.nomeArquivo || f.chave}”: ${e && e.message ? e.message : e}`); }
+      }
+    }
+
     async function salvar() {
       const erro = validar(); if (erro) { msg.hidden = false; msg.className = "aet-msg erro"; msg.textContent = erro; msg.scrollIntoView({ block: "nearest" }); return; }
       bSalvar.disabled = true; msg.hidden = false; msg.className = "aet-msg"; msg.textContent = "Salvando a AET…";
       try {
+        // V 1.38: unidade/setor/posto/cargo novos entram no Cadastro Empresa
+        if (BI.garantirHierarquia) await BI.garantirHierarquia({ Cliente: st.Cliente, Unidade: st.Unidade, Setor: st.Setor, "Posto Trabalho": st["Posto Trabalho"], Cargo: st.Cargo });
         const novo = !idAET; const id = idAET || (g.crypto && g.crypto.randomUUID ? g.crypto.randomUUID() : "aet" + uid());
+        // V 1.38: AET duplicada - as fotos sao copiadas para a empresa da nova AET (arquivos proprios)
+        await copiarFotosDuplicadas();
         if (!st["Nr AET"]) { const nrs = aetsNativas().filter((a) => a.Cliente === st.Cliente).map((a) => Number(a["Nr AET"]) || 0); st["Nr AET"] = (nrs.length ? Math.max(...nrs) : 0) + 1; }
         const emp = (BI.dados.cliente || []).find((c) => c.Cliente === st.Cliente);
         const doc = {}; Object.keys(st).forEach((k) => { if (k[0] !== "_" && k !== "id") doc[k] = st[k]; });
         doc.EmpresaId = emp ? (emp.id || emp._id) : doc.EmpresaId; doc["Tipo Registro"] = "AET";
         const mz = matrizDe(st.Cliente);
-        doc.Atividades = st.Atividades.map((at) => Object.assign({}, at, { fatores: at.fatores.map((fa) => { const o = Object.assign({}, fa); delete o._av; return o; }) }));
+        doc.Atividades = st.Atividades.map((at) => Object.assign({}, at, { fatores: at.fatores.map((fa) => { const o = Object.assign({}, fa); delete o._av; delete o._acoesCopia; return o; }) }));
         doc["Ultima Atualizacao Em"] = new Date().toISOString();
         await BI.DB.salvar("aet", id, doc, novo);
         // Inventario de riscos
@@ -486,7 +574,8 @@
             const rid = idFatorRow(id, fa); vistos.add(rid); const r = avaliarFator(fa, mz); const ex = existentes.find((f) => f._id === rid);
             const nome = fa.fator === "__outro" ? fa.outro : fa.fator; const sig = assinaturaFator(fa);
             const base = { Cliente: st.Cliente, EmpresaId: doc.EmpresaId, Unidade: st.Unidade, Setor: st.Setor, "Posto Trabalho": st["Posto Trabalho"], Cargo: st.Cargo, Atividade: at.nome, Origem: "AET", "AET Id": id, "AET Fator": fa.uid,
-              Grupo: fa.grupo || "Outros", Fator: nome, "Existe Fator Risco": "Sim", Consequencia: fa.consequencia, "Circunstancia Geradora": fa.fonte || at.nome, "Segmento Corporal": fa.segmento,
+              "Atualizar Informacoes": fa.semGraduacaoImportada && !r.graduacao ? "Sim" : null,
+              Grupo: fa.grupo || ((Calc().GRUPOS_FATOR_RISCO || []).find((g0) => (Calc().fatoresDoGrupo(g0) || []).includes(fa.fator))) || "Outros", Fator: nome, "Existe Fator Risco": "Sim", Consequencia: fa.consequencia, "Circunstancia Geradora": fa.fonte || at.nome, "Segmento Corporal": fa.segmento,
               "Metodologia AET": (fa.ferramentas || []).map((it) => (F().porId(it.id) || {}).sigla).filter(Boolean).join(", ") || "Matriz de risco", Matriz: mz, "Dt Identificacao": st["Data Analise"], "Assinatura AET": sig };
             let dados;
             if (ex) {

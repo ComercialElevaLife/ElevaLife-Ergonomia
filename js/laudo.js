@@ -82,7 +82,7 @@
     // aparecem em "Riscos eliminados" do posto e na evolucao dos riscos (secao 10).
     const doPosto = (av) => (dados.fatorRisco || []).filter((f) =>
       f.Cliente === av.Cliente && f.Unidade === av.Unidade && f.Setor === av.Setor && f.Cargo === av.Cargo &&
-      f["Posto Trabalho"] === av["Posto Trabalho"] && f["Existe Fator Risco"] === "Sim");
+      f["Posto Trabalho"] === av["Posto Trabalho"] && f["Existe Fator Risco"] === "Sim" && Calc.origemDe(f) === "AEP"); // V 1.38: o laudo da AEP traz so o que foi feito na AEP (a AET tem laudo proprio)
     const fatoresDoPosto = (av) => doPosto(av).filter((f) => f["Risco Eliminado"] !== "Sim");
     const eliminadosDoPosto = (av) => doPosto(av).filter((f) => f["Risco Eliminado"] === "Sim");
     const grau = (fr) => fr["Graduacao Risco"] || Calc.nivelDaMatriz(nomeMatriz, fr.Probabilidade, fr.Criticidade) || "";
@@ -156,7 +156,8 @@
     for (const e of assinantes) e._assinatura = await imagem(chaveDe(e.Assinatura));
     // V 1.35: certificados de calibracao escolhidos na emissao - saem no proprio arquivo (uma pagina cada, no final)
     const certificados = [];
-    for (const c of opcoes.certificados || []) { const imgs = await BI.LaudoPadrao.paginasDoArquivo(chaveDe(c["Arquivo Imagem"])); imgs.forEach((d) => { cacheImg["cert:" + d.length + ":" + d.slice(-40)] = d; }); certificados.push({ nome: c.Nome, validade: c.Validade, imgs }); }
+    // V 1.38: o laudo da AEP nao leva certificados de calibracao (ficam so no laudo da AET)
+    for (const c of [] /* opcoes.certificados */) { const imgs = await BI.LaudoPadrao.paginasDoArquivo(chaveDe(c["Arquivo Imagem"])); imgs.forEach((d) => { cacheImg["cert:" + d.length + ":" + d.slice(-40)] = d; }); certificados.push({ nome: c.Nome, validade: c.Validade, imgs }); }
 
     // ---- metricas gerais -------------------------------------------------------
     const todosFatores = [];

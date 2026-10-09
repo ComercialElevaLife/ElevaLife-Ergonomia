@@ -1996,9 +1996,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         { campo: "Caracteristicas Trabalhadores", rotulo: "Características dos Trabalhadores", tipo: "textarea" },
         { campo: "Historico Acidentes", rotulo: "Histórico de Acidentes", tipo: "textarea" },
         {
-          campo: "Fotos", rotulo: "Fotos (JPG/PNG, até 5MB cada)", tipo: "arquivo", multiplo: true,
+          campo: "Fotos", rotulo: "Fotos (JPG/PNG, quantas forem necessárias · rostos anonimizados no envio)", tipo: "arquivo", multiplo: true,
           colecaoArquivo: "avaliacaoErgonomica", aceitaTipos: "image/jpeg,image/png",
-          tamanhoMaximoBytes: 5 * 1024 * 1024,
+          tamanhoMaximoBytes: 5 * 1024 * 1024, anonimizarRostos: true,
         },
       ], "📝 Observações da Avaliação")
     );
@@ -2095,10 +2095,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       ], "✍️ Emissão"),
       comSecao([
         { campo: "Apenas Paginas Avaliacao", rotulo: "Somente as páginas de avaliação (sem capa e metodologia)", tipo: "select", opcoes: SIM_NAO },
-        // V 1.35: os certificados marcados saem no proprio arquivo do laudo (uma pagina por certificado, no final).
-        { campo: "Certificados Calibracao", rotulo: "Certificados de calibração dos instrumentos (saem no final do laudo)", tipo: "checklist",
-          opcoes: () => (window.BI.dados.certificadoCalibracao || []).map((c) => ({ valor: c.Nome, label: c.Nome, sub: c.Validade ? "validade " + window.BI.Datas.isoParaBR(c.Validade) : "sem validade" })),
-          vazio: "Nenhum certificado em Cadastro Interno › Certificado Calibração." },
+        // V 1.38: o laudo da AEP nao leva certificados de calibracao (so o laudo da AET)
       ], "⚙️ Opções do documento"),
       comSecao([
         { campo: "Codigo Verificacao", rotulo: "Código de verificação", tipo: "calculado" },
@@ -3125,6 +3122,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       el.appendChild(opt);
     });
     el.value = opcoes.includes(atual) ? atual : "";
+    // V 1.38: AEP - cadastrar unidade/setor/posto/cargo novo direto no formulario (criado ao salvar)
+    if (el.dataset.permiteNovo) { const o = document.createElement("option"); o.value = "__novo__"; o.textContent = "+ Cadastrar novo…"; el.appendChild(o); }
   }
 
   function valoresAtuaisHierarquia(form) {
@@ -3168,14 +3167,25 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     NIVEIS_HIERARQUIA.forEach((nivel) => {
       const el = form._campos[nivel];
       if (!el) return;
-      el.addEventListener("change", () => atualizarCascataDeNivel(form, nivel));
+      el.addEventListener("change", () => {
+        if (el.value === "__novo__") {
+          const rot = nivel === "Posto Trabalho" ? "posto de trabalho" : nivel === "Setor" ? "setor / GHE" : nivel.toLowerCase();
+          const nome = String(window.prompt(`Nome do novo ${rot}:`) || "").trim();
+          if (!nome) { el.value = ""; } else {
+            if (!Array.from(el.options).some((o) => o.value === nome)) { const o = document.createElement("option"); o.value = nome; o.textContent = nome + " (novo)"; el.insertBefore(o, el.lastChild); }
+            el.value = nome; form._hierarquiaNova = true;
+          }
+        }
+        atualizarCascataDeNivel(form, nivel);
+      });
     });
   }
 
   // Combina a ligacao da cascata de hierarquia (sempre) com a logica
   // especifica de cada cadastro operacional (ex.: calculo de Risco Global).
-  function comCascata(extra) {
+  function comCascata(extra, permiteNovo) {
     return function (form, valoresIniciais) {
+      if (permiteNovo) ["Unidade", "Setor", "Posto Trabalho", "Cargo"].forEach((n) => { if (form._campos[n]) form._campos[n].dataset.permiteNovo = "1"; });
       ligarCascataHierarquia(form, valoresIniciais);
       if (extra) extra(form, valoresIniciais);
     };
@@ -3734,9 +3744,14 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     btnCancelar.addEventListener("click", fecharPainelChecklist);
     const btnSalvar = document.createElement("button");
     btnSalvar.type = "button"; btnSalvar.className = "btn-cad-primario"; btnSalvar.textContent = "Salvar Inventário de Riscos";
+    // V 1.38: "Salvar e continuar" - grava sem fechar a edicao do inventario
+    const btnSalvarCont = document.createElement("button");
+    btnSalvarCont.type = "button"; btnSalvarCont.className = "btn-cad-secundario"; btnSalvarCont.textContent = "Salvar e continuar editando";
     rodape.appendChild(btnCancelar);
+    rodape.appendChild(btnSalvarCont);
     rodape.appendChild(btnSalvar);
     painel.rodapeBotaoSalvar = btnSalvar;
+    painel.rodapeBotaoSalvarCont = btnSalvarCont;
 
     painel.appendChild(cab);
     painel.appendChild(corpo);
@@ -4031,18 +4046,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           { const sv = reg["Segmento Corporal"] || (window.BI.Acoes.acoesDoFator(reg._id).map((a) => a["Segmento Corporal"]).filter(Boolean)[0]) || ""; if (sv && !Array.from(inst.selSegmento.options).some((o) => o.value === sv)) { const o = document.createElement("option"); o.value = o.textContent = sv; inst.selSegmento.appendChild(o); } inst.selSegmento.value = sv; }
           if (!podeEditar) inst.selSegmento.disabled = true;
           campoDetalhe("Segmento acometido *", caixa).appendChild(inst.selSegmento);
-          // V 1.37: ferramentas ergonomicas recomendadas para o fator (para a AET / avaliacao aprofundada)
-          if (window.BI.Recomendacoes) {
-            const recs = window.BI.Recomendacoes.ferramentasDoFator(fator);
-            if (recs.length) {
-              const dv = document.createElement("div"); dv.className = "campo-form-largo checklist-ferr-rec";
-              const tt = document.createElement("span"); tt.className = "checklist-ferr-rec-rot"; tt.textContent = "Ferramentas ergonômicas recomendadas para este fator (avaliação aprofundada / AET): "; dv.appendChild(tt);
-              recs.forEach((r) => { const c = document.createElement("span"); c.className = "aet-ferr-chip" + (r.principal ? " aet-ferr-chip--principal" : ""); c.textContent = (r.principal ? "★ " : "") + r.sigla; c.title = r.nome + (r.principal ? " (mais indicada)" : ""); dv.appendChild(c); });
-              const ob = window.BI.Recomendacoes.observacaoDoFator(fator); if (ob) { const n = document.createElement("div"); n.className = "checklist-ferr-rec-obs"; n.textContent = ob; dv.appendChild(n); }
-              caixa.appendChild(dv);
-            }
-          }
-
+          // V 1.38: as ferramentas ergonomicas ficam so na AET (sairam da AEP)
           titulinho("Classificação atual", caixa);
           const selecaoEscala = (valorAtual, eixo) => {
             const sel = document.createElement("select");
@@ -4097,6 +4101,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
     const btnSalvar = painel.rodapeBotaoSalvar;
     btnSalvar.disabled = !podeEditar;
+    let continuar = false;
+    if (painel.rodapeBotaoSalvarCont) { painel.rodapeBotaoSalvarCont.disabled = !podeEditar; painel.rodapeBotaoSalvarCont.onclick = () => { continuar = true; btnSalvar.onclick().finally(() => { continuar = false; }); }; }
     btnSalvar.onclick = async () => {
       erroEl.hidden = true;
       linhasChecklist.forEach((l) => l.linha.classList.remove("checklist-fator-com-erro"));
@@ -4138,7 +4144,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           if (!ativos.some((x) => x.registro && x.registro._id === r._id)) tarefas.push({ l, registroSair: r });
         });
       });
-      if (!tarefas.length) { fecharPainelChecklist(); return; }
+      if (!tarefas.length) { if (continuar) { erroEl.hidden = false; erroEl.textContent = "Nada a salvar."; return; } fecharPainelChecklist(); return; }
 
       btnSalvar.disabled = true;
       const textoOriginal = btnSalvar.textContent;
@@ -4186,6 +4192,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         }
         // V 1.28: a AEP registra a atualizacao (data e ergonomista entram no historico e no laudo)
         await registrarAtualizacaoAEP(linhaAval, `Inventário de riscos atualizado (${alterados} ${alterados === 1 ? "fator" : "fatores"})`);
+        if (continuar) { // reabre com o que foi gravado, na mesma posicao
+          const corpoEl = document.getElementById("checklist-corpo"); const topo = corpoEl ? corpoEl.scrollTop : 0;
+          const atual = (window.BI.dados.avaliacaoErgonomica || []).find((a) => a._id === linhaAval._id) || linhaAval;
+          abrirInventarioChecklist(atual);
+          setTimeout(() => { const c2 = document.getElementById("checklist-corpo"); if (c2) c2.scrollTop = topo; if (window.BI.avisar) window.BI.avisar("Inventário salvo. Continue editando."); }, 50);
+          return;
+        }
         fecharPainelChecklist();
       } catch (e) {
         erroEl.hidden = false;
@@ -4370,7 +4383,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         { campo: "Status Execucao", rotulo: "Situação da execução", tipo: "select", opcoes: STATUS_EXECUCAO_POOL },
         {
           campo: "Evidencias", rotulo: "Evidências da conclusão (foto ou PDF, até 15MB cada)", tipo: "arquivo", multiplo: true,
-          colecaoArquivo: "planoAcao", aceitaTipos: "image/jpeg,image/png,application/pdf",
+          colecaoArquivo: "planoAcao", aceitaTipos: "image/jpeg,image/png,application/pdf", anonimizarRostos: true,
           tamanhoMaximoBytes: 15 * 1024 * 1024,
         },
         { campo: "Justificativa Sem Evidencia", rotulo: "Justificativa para concluir sem evidência (só Administrador)", tipo: "textarea" },
@@ -4381,9 +4394,15 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // V 1.31: ao concluir uma acao da AEP/AET que reduz ou elimina o risco, o ergonomista reavalia o fator
       // (nova probabilidade e severidade, ou risco eliminado) - a evolucao fica no historico do risco.
       aoConfirmarAntes: async (form, dados) => {
-        form._reavaliacao = null;
+        form._reavaliacao = null; form._fotoEliminacao = null;
         const ini = estadoCadastro.planoAcao.valoresForm || {};
         const concluiAgora = !!(dados["Dt Conclusao"] || dados["Status Execucao"] === "Concluida") && !(ini["Dt Conclusao"] || ini["Status Execucao"] === "Concluida");
+        // V 1.38: acao de ELIMINACAO da AET - a foto da nova situacao e obrigatoria; ao concluir ela passa a ser a foto da atividade
+        if (concluiAgora && ini.Origem === "AET" && ini["Tipo Acao"] === "Eliminacao") {
+          const foto = (Array.isArray(dados.Evidencias) ? dados.Evidencias : []).find((e) => /^image\//.test(e.tipoConteudo || "") || /\.(jpe?g|png)$/i.test(e.nomeArquivo || e.chave || ""));
+          if (!foto) { form._erroEl.hidden = false; form._erroEl.textContent = "Ação de eliminação da AET: anexe nas evidências a foto da nova situação (após a eliminação do risco). Ela passa a ser a foto da atividade na AET."; return false; }
+          form._fotoEliminacao = foto;
+        }
         if (!concluiAgora || !window.BI.Acoes.reduzRisco(ini) || /psicoss/i.test(String(ini.Origem || "")) || !ini["Fator Risco Id"]) return true;
         const fator = (window.BI.dados.fatorRisco || []).find((f) => f._id === ini["Fator Risco Id"]);
         if (!fator) return true;
@@ -4393,8 +4412,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         return true;
       },
       aoSalvarDepois: async (form, idSalvo, dados) => {
-        if (!form._reavaliacao) return;
         const ini = estadoCadastro.planoAcao.valoresForm || {};
+        if (form._fotoEliminacao) { try { await atualizarFotoAtividadeAET(Object.assign({}, ini, dados, { _id: idSalvo }), form._fotoEliminacao); } catch (e) { console.error("foto da eliminacao", e); mostrarErro("A ação foi concluída, mas a foto da atividade na AET não pôde ser atualizada: " + (e && e.message ? e.message : e)); } }
+        if (!form._reavaliacao) return;
         await aplicarReavaliacaoRisco(Object.assign({}, ini, dados, { _id: idSalvo }), form._reavaliacao);
       },
       // Excecao do Administrador so vale na hora em que ele conclui: nos demais
@@ -4548,7 +4568,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       },
       colunasData: ["Data Avaliacao"], camposData: ["Data Avaliacao"],
       campos: camposAvaliacaoErgonomica(),
-      aoConstruir: comCascata(null),
+      aoConstruir: comCascata(null, true), // V 1.38: "+ Cadastrar novo…" em unidade, setor, posto e cargo
+      permiteNovoNaCascata: true,
       // Pedido do Leo (28/09/2026): "achei muito longa a tela, tem que
       // ficar rolando a tela... faz varias abas" - as 3 secoes do form (ver
       // camposAvaliacaoErgonomica) viram abas clicaveis em vez de ficarem
@@ -4923,6 +4944,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         throw new Error("So e permitido 1 arquivo aqui.");
       }
 
+      // V 1.38: fotos com rostos anonimizados (conferencia antes do envio); PDFs seguem direto
+      if (def.anonimizarRostos && window.BI.Fotos) {
+        const imgs = arquivos.filter((a) => /^image\/(jpeg|png)$/.test(a.type)), outros = arquivos.filter((a) => !/^image\/(jpeg|png)$/.test(a.type));
+        mostrarAviso("Conferindo os rostos nas fotos...");
+        arquivos = outros.concat(await window.BI.Fotos.prepararLista(imgs));
+        if (!arquivos.length) { mostrarAviso(null); return; }
+      }
       mostrarAviso("Enviando...");
       try {
         for (const arquivo of arquivos) {
@@ -4996,6 +5024,15 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       }
     });
 
+    // V 1.38: campo de varios arquivos - botao "+ Adicionar" / "+ Adicionar mais" (sem limite de quantidade)
+    if (def.multiplo) {
+      const lb = document.createElement("label"); lb.className = "btn-cad-secundario campo-arquivo-add";
+      const tx = document.createElement("span"); lb.appendChild(tx); input.className = "campo-arquivo-input-oculto"; lb.appendChild(input);
+      const rotular = () => { const n = itensAtuais().length; const foto = /image/.test(def.aceitaTipos || "") && !/pdf/.test(def.aceitaTipos || ""); tx.textContent = n ? (foto ? "+ Adicionar mais fotos" : "+ Adicionar mais arquivos") : (foto ? "+ Adicionar fotos" : "+ Adicionar arquivos"); };
+      const rl = renderizarLista; renderizarLista = function () { rl(); rotular(); }; rotular();
+      wrap.appendChild(lb);
+      return wrap;
+    }
     wrap.appendChild(input);
     return wrap;
   }
@@ -5861,6 +5898,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // Baixa em Excel a aba do Cadastro/Registro como esta na tela (busca e filtros aplicados).
   function exportarCadastroExcel(chave) {
     if (typeof XLSX === "undefined") { mostrarErro("A biblioteca de exportação Excel não carregou (script externo bloqueado ou indisponível)."); return; }
+    if (chave === "planoAcao") { // V 1.38: exporta o que a lista mostra (filtro geral, origem e filtros da lista), com colunas legiveis
+      const l = linhasPlanoExcel(linhasFiltradasParaExportar("planoAcao", "registro"));
+      const wb0 = XLSX.utils.book_new(); const ws0 = XLSX.utils.json_to_sheet(l.length ? l : [{ "Sem registros": "" }]);
+      ws0["!cols"] = Object.keys(l[0] || { a: 1 }).map((k) => ({ wch: ["Ação", "Fator de risco"].includes(k) ? 50 : 16 }));
+      XLSX.utils.book_append_sheet(wb0, ws0, "Plano de Ação"); XLSX.writeFile(wb0, `sige-plano-de-acao-${hojeMeiaNoite().toISOString().slice(0, 10)}.xlsx`); return;
+    }
     const cfg = CADASTROS_CONFIG[chave];
     const linhas = linhasFiltradasCadastro(chave).linhas;
     const defs = cfg.campos.filter((c) => !["personalizado", "arquivo"].includes(c.tipo));
@@ -6035,6 +6078,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       }
       if (cfg.aoPrepararDados) cfg.aoPrepararDados(form, dados);
       try {
+        // V 1.38: unidade/setor/posto/cargo novos escolhidos no formulario entram no Cadastro Empresa
+        if (cfg.permiteNovoNaCascata && form._hierarquiaNova) await window.BI.garantirHierarquia({ Cliente: dados.Cliente, Unidade: dados.Unidade, Setor: dados.Setor, "Posto Trabalho": dados["Posto Trabalho"], Cargo: dados.Cargo });
         const idAtual = estado.editandoId;
         let idSalvo = idAtual;
         // mapaRisco e as 6 tabelas do cadastro-mestre tem id derivado dos
@@ -6403,6 +6448,25 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     }
     bF.addEventListener("click", () => { if (algoApagado && window.BI.DB.recarregarTudo) window.BI.DB.recarregarTudo(); });
     await listar();
+  }
+
+  // V 1.38: concluida a acao de eliminacao da AET, a foto da evidencia vira a foto atual da atividade
+  // (copiada para os arquivos da AET); as fotos anteriores ficam marcadas como "antes".
+  async function atualizarFotoAtividadeAET(acao, foto) {
+    const fr = (window.BI.dados.fatorRisco || []).find((f) => f._id === acao["Fator Risco Id"]);
+    const aetId = fr && fr["AET Id"]; if (!aetId) return;
+    const aet = (window.BI.dados.aet || []).find((a) => (a._id || a.id) === aetId); if (!aet) return;
+    const ativs = (aet.Atividades || []).map((x) => Object.assign({}, x));
+    const at = ativs.find((x) => (x.fatores || []).some((f) => f.uid === fr["AET Fator"])) || ativs.find((x) => x.nome === acao.Atividade); if (!at) return;
+    const r0 = await fetch(window.BI.DB.urlArquivo(foto.chave), { credentials: "same-origin" }); if (!r0.ok) throw new Error("HTTP " + r0.status);
+    const b = await r0.blob(); const env = await window.BI.DB.enviarArquivo("aet", aet.EmpresaId, new File([b], foto.nomeArquivo || "eliminacao.jpg", { type: b.type || "image/jpeg" }));
+    const nr = acao["Nr Acao"] != null ? "A-" + String(acao["Nr Acao"]).padStart(2, "0") : "ação";
+    const dt = window.BI.Datas.isoParaBR(acao["Dt Conclusao"] || window.BI.Datas.hojeISO());
+    at.fotos = [{ chave: env.chave, nomeArquivo: env.nomeArquivo || foto.nomeArquivo, legenda: `Situação atual – após a eliminação do risco (${nr}, ${dt})`, eliminacao: true }]
+      .concat((at.fotos || []).map((f) => Object.assign({}, f, f.antes ? {} : { antes: true, legenda: "Antes: " + (f.legenda || at.nome) })));
+    const doc = {}; Object.keys(aet).forEach((k) => { if (k[0] !== "_" && k !== "id") doc[k] = aet[k]; });
+    doc.Atividades = ativs; doc["Ultima Atualizacao Em"] = new Date().toISOString();
+    await window.BI.DB.salvar("aet", aetId, doc);
   }
 
   function renderizarListaCadastro(chave) {
@@ -6888,8 +6952,23 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // da aba aberta; Excel = tabela(s) de dados brutos filtrados dessa aba.
   // So disponivel nas 3 abas de dashboard (Ergo / Med Ocup / Compativeis).
   // ------------------------------------------------------------------
-  const TITULOS_ABA = { ergo: "Dashboard Ergo", medocup: "Dashboard Med Ocup", compativeis: "Dashboard Compatíveis" };
-  const TABELAS_POR_ABA = { ergo: ["riscoPosto", "fatorRisco", "planoAcao"], medocup: ["absenteismo", "diasUteis"], compativeis: ["compativeis"] };
+  // V 1.38: Gestao do Plano de Acao (registro) tambem exporta (antes o botao ficava desabilitado nessa aba)
+  const TITULOS_ABA = { ergo: "Dashboard Ergo", registro: "Gestão do Plano de Ação", medocup: "Dashboard Med Ocup", compativeis: "Dashboard Compatíveis" };
+  const TABELAS_POR_ABA = { ergo: ["riscoPosto", "fatorRisco", "planoAcao"], registro: ["planoAcao"], medocup: ["absenteismo", "diasUteis"], compativeis: ["compativeis"] };
+  // V 1.38: planilha do Plano de Acao com colunas legiveis (rotulos e valores por extenso), igual em todos os botoes
+  function linhasPlanoExcel(lista) {
+    const C = window.BI.Calc, A = window.BI.Acoes, hoje = hojeMeiaNoite(); const br = (d) => (d ? window.BI.Datas.isoParaBR(String(d).slice(0, 10)) : "");
+    const COMP = { Baixa: "Baixa", Media: "Média", Alta: "Alta" };
+    return (lista || []).map((a) => ({
+      "Nº": a["Nr Acao"] != null && a["Nr Acao"] !== "" ? (C.origemDe(a) === "Psicossocial" ? String(a["Nr Acao"]) : "A-" + String(a["Nr Acao"]).padStart(2, "0")) : "",
+      Origem: C.origemDe(a), Cliente: a.Cliente || "", Unidade: a.Unidade || "", "Setor / GHE": a.Setor || "", "Posto de trabalho": a["Posto Trabalho"] || "", Cargo: a.Cargo || "", Atividade: a.Atividade || "",
+      "Fator de risco": a["Fator Risco Nome"] || "", "Segmento": a["Segmento Corporal"] || "", "Risco do posto": a["Risco Global"] ? C.rotuloNivel(a["Risco Global"]) : "", "Risco atual do fator": a["Risco Atual Segmento"] ? C.rotuloNivel(a["Risco Atual Segmento"]) : "",
+      "Tipo da ação": a["Tipo Acao"] && A ? A.rotuloTipo(a["Tipo Acao"]) : (a["Categoria Acao"] || ""), "Ação": a["Acao Recomendada"] || "", Complexidade: COMP[a.Complexidade] || a.Complexidade || "", "Gestão da ação": a["Gestao Acao"] || "",
+      "Efeito no risco": A && A.reduzRisco(a) ? (a["Risco Apos Acao"] === "Eliminado" ? "Elimina o risco" : a["Risco Apos Acao"] ? "Reduz para " + C.rotuloNivel(a["Risco Apos Acao"]) : "Reduz") : "Organizacional / de controle",
+      "Responsável": a["Responsavel Acao"] || "", "E-mail do responsável": a["E-mail Responsavel"] || "", "Prazo": br(a["Dt Programada"]), "Conclusão": br(a["Dt Conclusao"]),
+      Status: T(C.statusDaLinhaAcao(a, hoje)), "Evidências": Array.isArray(a.Evidencias) ? a.Evidencias.length : 0, "Revisão do laudo": a["Revisao Laudo"] != null && a["Revisao Laudo"] !== "" ? "Rev. " + a["Revisao Laudo"] : "A emitir",
+    }));
+  }
   const NOMES_PLANILHA = { riscoPosto: "Risco por Posto", fatorRisco: "Inventário", mapaRisco: "Mapa Risco", planoAcao: "Plano Ação", absenteismo: "Absenteísmo", compativeis: "Compatíveis", diasUteis: "HHT Dias Úteis" };
 
   function abaAtualChave() {
@@ -6925,8 +7004,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // globais (e, no caso de Compativeis, os filtros de pagina) usados pelos
   // graficos - garante que a exportacao reflita exatamente o que esta na
   // tela.
-  function linhasFiltradasParaExportar(chaveTabela) {
+  function linhasFiltradasParaExportar(chaveTabela, aba) {
     if (chaveTabela === "riscoPosto") return window.BI.Calc.filtrar(window.BI.riscoPostos || [], window.BI.filtros, ["Dt Avaliacao"]);
+    if (chaveTabela === "planoAcao") { carimbarOrigens(); const l = porOrigemAba(window.BI.Calc.filtrar(window.BI.dados.planoAcao || [], window.BI.filtros, ["Dt Programada", "Dt Conclusao"]), aba === "ergo" ? "ergo" : "registro"); return aba === "registro" ? filtroListaPlano(l) : l; }
     carimbarOrigens();
     const cfg = CADASTROS_CONFIG[chaveTabela];
     let linhas = window.BI.Calc.filtrar(window.BI.dados[chaveTabela] || [], window.BI.filtros, cfg.camposData);
@@ -6944,6 +7024,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     }
     const wb = XLSX.utils.book_new();
     chavesTabela.forEach((chaveTabela) => {
+      if (chaveTabela === "planoAcao") { const lp = linhasPlanoExcel(linhasFiltradasParaExportar("planoAcao", chave)); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lp.length ? lp : [{ "Sem registros": "" }]), NOMES_PLANILHA.planoAcao); return; }
       const linhas = linhasFiltradasParaExportar(chaveTabela).map((l) => {
         const copia = {};
         const ROT_AUDIT = { _criadoEm: "Criado em", _criadoPor: "Criado por", _editadoEm: "Última edição em", _editadoPor: "Última edição por" };
@@ -7354,32 +7435,38 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const antigo = !c.Servicos.some((x) => ["aep", "aet", "registro"].includes(x));
     return antigo && ["aep", "aet", "registro"].includes(servico) && c.Servicos.indexOf("ergo") >= 0;
   }
+  // V 1.38: aviso em todas as abas de servico (inclusive Psicossocial e Restritos) quando a empresa filtrada nao
+  // tem o servico contratado/ativo: "procure o gestor do contrato ElevaLife". Com varias empresas, as que tem o
+  // servico continuam aparecendo e uma faixa lista as que nao tem.
   function aplicarServicosContratados() {
     const clientes = (window.BI.dados && window.BI.dados.cliente) || [];
     const filtroCli = (window.BI.filtros && window.BI.filtros.Cliente) || [];
     const escopo = filtroCli.length ? clientes.filter((c) => filtroCli.indexOf(c.Cliente) >= 0) : clientes;
     SERVICOS_SIGE.forEach((sv) => {
-      if (sv.valor === "psicossocial") return; // o proprio modulo avisa, pela empresa escolhida nele
-      // V 1.35: cada servico tem a sua aba
-      [sv.valor].forEach((abaServico) => {
-      const sec = document.getElementById("aba-" + abaServico);
+      const sec = document.getElementById("aba-" + sv.valor);
       if (!sec) return;
-      const semServico = escopo.length > 0 && !escopo.some((c) => empresaTemServico(c, sv.valor));
+      const sem = escopo.filter((c) => !empresaTemServico(c, sv.valor));
+      const semServico = escopo.length > 0 && sem.length === escopo.length;
       sec.classList.toggle("sem-servico", semServico);
       let aviso = sec.querySelector(":scope > .aviso-servico");
+      let faixa = sec.querySelector(":scope > .aviso-servico-parcial");
+      const lista = (arr) => arr.map((c) => c.Cliente).slice(0, 4).join(", ") + (arr.length > 4 ? "…" : "");
+      // faixa: so quando ha filtro de empresa e parte delas nao tem o servico
+      if (!semServico && filtroCli.length && sem.length) {
+        if (!faixa) { faixa = document.createElement("div"); faixa.className = "aviso-servico-parcial"; sec.insertBefore(faixa, sec.firstChild); }
+        faixa.textContent = `${sem.length === 1 ? "A empresa" : "As empresas"} ${lista(sem)} não ${sem.length === 1 ? "tem" : "têm"} o serviço ${sv.label} contratado ou ativo. Para contratar ou ativar, procure o gestor do contrato ElevaLife.`;
+      } else if (faixa) faixa.remove();
       if (!semServico) { if (aviso) aviso.remove(); return; }
       if (!aviso) { aviso = document.createElement("div"); aviso.className = "aviso-servico"; sec.insertBefore(aviso, sec.firstChild); }
-      const nomes = escopo.map((c) => c.Cliente).slice(0, 4).join(", ") + (escopo.length > 4 ? "…" : "");
       aviso.innerHTML = "";
-      const h = document.createElement("h3"); h.textContent = sv.label;
+      const h = document.createElement("h3"); h.textContent = sv.label + " – serviço não contratado";
       const p1 = document.createElement("p");
-      const b = document.createElement("span"); b.className = "empresas"; b.textContent = nomes;
+      const b = document.createElement("span"); b.className = "empresas"; b.textContent = lista(escopo);
       p1.appendChild(document.createTextNode(escopo.length === 1 ? "A empresa " : "As empresas selecionadas ("));
       p1.appendChild(b);
-      p1.appendChild(document.createTextNode(escopo.length === 1 ? " não possui o serviço " + sv.label + "." : ") não possuem o serviço " + sv.label + "."));
-      const p2 = document.createElement("p"); p2.textContent = "Caso queira saber mais, procure o time de especialistas da ElevaLife.";
+      p1.appendChild(document.createTextNode(escopo.length === 1 ? " não possui o serviço " + sv.label + " contratado ou ativo." : ") não possuem o serviço " + sv.label + " contratado ou ativo."));
+      const p2 = document.createElement("p"); p2.textContent = "Procure o gestor do contrato ElevaLife.";
       aviso.appendChild(h); aviso.appendChild(p1); aviso.appendChild(p2);
-      });
     });
   }
 
@@ -7423,6 +7510,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (criados.length && window.BI.recarregar) await window.BI.recarregar();
     return criados;
   };
+  // V 1.38: aviso rapido (toast) no canto da tela
+  window.BI.avisar = (msg) => { let t = document.getElementById("sige-toast"); if (!t) { t = document.createElement("div"); t.id = "sige-toast"; t.className = "sige-toast"; t.setAttribute("role", "status"); document.body.appendChild(t); } t.textContent = msg; t.classList.add("visivel"); clearTimeout(window.BI.avisar._t); window.BI.avisar._t = setTimeout(() => t.classList.remove("visivel"), 5000); };
   window.BI.abrirAba = (aba, sub) => { ativarAba(aba); if (GRUPO_DA_ABA[aba]) selecionarSubAbaCadastro(GRUPO_DA_ABA[aba], sub || chavesDoGrupo(GRUPO_DA_ABA[aba], true)[0]); };
 
   // ------------------------------------------------------------------
@@ -7434,6 +7523,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // do risco) abre o formulario da acao.
   // ------------------------------------------------------------------
   const estadoPlanoLista = { u: "", g: "", o: "", st: "", q: "" };
+  function filtroListaPlano(lista) {
+    const f = estadoPlanoLista; const hoje = hojeMeiaNoite();
+    return (lista || []).filter((a) => (!f.u || a.Unidade === f.u) && (!f.g || a.Setor === f.g) && (!f.st || window.BI.Calc.statusDaLinhaAcao(a, hoje) === f.st)
+      && (!f.q || [a["Nr Acao"], a["Acao Recomendada"], a["Fator Risco Nome"], a["Responsavel Acao"], a["E-mail Responsavel"], a["Posto Trabalho"], a.Setor].join(" ").toLowerCase().includes(f.q.toLowerCase())));
+  }
   const EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
   function renderPlanoLista(forcar) {
     const bloco = document.getElementById("bloco-cadastro-planoAcao");
@@ -7472,7 +7566,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const s = document.createElement("select"); s.dataset.plf = chave;
       const o0 = document.createElement("option"); o0.value = ""; o0.textContent = todosTxt; s.appendChild(o0);
       opcoes.forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; s.appendChild(o); });
-      s.value = f[chave]; s.addEventListener("change", () => { f[chave] = s.value; if (chave === "u") f.g = ""; renderPlanoLista(); });
+      s.value = f[chave]; s.addEventListener("change", () => { f[chave] = s.value; if (chave === "u") f.g = ""; renderizarTudo(); renderPlanoLista(true); });
       l.appendChild(s); barra.appendChild(l);
     };
     sel("Unidade", "u", unidades.map((u) => [u, u]), "Todas");
@@ -7480,7 +7574,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     sel("Status", "st", Calc.STATUS_ACAO_ORDEM.map((x) => [x, T(x)]), "Todos");
     const lb = h("label", "plano-filtro plano-filtro--busca"); lb.appendChild(h("span", null, "Buscar"));
     const busca = document.createElement("input"); busca.type = "search"; busca.placeholder = "nº, ação, fator ou responsável"; busca.value = f.q; busca.dataset.plf = "q";
-    let tm = null; busca.addEventListener("input", () => { clearTimeout(tm); tm = setTimeout(() => { f.q = busca.value; const p = busca.selectionStart; renderPlanoLista(); const n = raiz.querySelector('input[data-plf="q"]'); if (n) { n.focus(); n.setSelectionRange(p, p); } }, 300); });
+    let tm = null; busca.addEventListener("input", () => { clearTimeout(tm); tm = setTimeout(() => { f.q = busca.value; const p = busca.selectionStart; renderizarTudo(); renderPlanoLista(true); const n = raiz.querySelector('input[data-plf="q"]'); if (n) { n.focus(); n.setSelectionRange(p, p); } }, 300); });
     lb.appendChild(busca); barra.appendChild(lb);
     raiz.appendChild(barra);
 
@@ -7491,7 +7585,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const k = h("button", "plano-kpi" + (f.st === st ? " ativo" : "")); k.type = "button";
       k.style.setProperty("--cor", hx ? "#" + hx : "var(--linha)");
       k.appendChild(h("span", "plano-kpi-rot", T(st))); k.appendChild(h("strong", null, String(n)));
-      k.addEventListener("click", () => { f.st = f.st === st ? "" : st; renderPlanoLista(); });
+      k.addEventListener("click", () => { f.st = f.st === st ? "" : st; renderizarTudo(); renderPlanoLista(true); });
       resumo.appendChild(k);
     });
     raiz.appendChild(resumo);
@@ -7615,9 +7709,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // V 1.35: primeiro o filtro geral, depois o filtro de origem de cada aba (Gestao de Riscos / Plano de Acao).
     montarBarrasOrigem();
     const mapaRiscoF = porOrigemAba(Calc.filtrar(riscoPostosTodos, filtros, ["Dt Avaliacao"]), "ergo");
-    const planoAcaoF = porOrigemAba(Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Programada", "Dt Conclusao"]), "registro");
-    const planoAcaoFPrevistas = porOrigemAba(Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Programada"]), "registro");
-    const planoAcaoFConcluidas = porOrigemAba(Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Conclusao"]).filter((a) => a["Dt Conclusao"]), "registro");
+    // V 1.38: os graficos do Plano respondem tambem aos filtros da lista (Unidade, Setor / GHE, Status, Buscar)
+    const planoAcaoF = filtroListaPlano(porOrigemAba(Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Programada", "Dt Conclusao"]), "registro"));
+    const planoAcaoFPrevistas = filtroListaPlano(porOrigemAba(Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Programada"]), "registro"));
+    const planoAcaoFConcluidas = filtroListaPlano(porOrigemAba(Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Conclusao"]).filter((a) => a["Dt Conclusao"]), "registro"));
 
     const chip = document.getElementById("chip-contagem-postos");
     if (chip) chip.innerHTML = `<strong>${mapaRiscoF.length}</strong> de ${riscoPostosTodos.length} postos`;

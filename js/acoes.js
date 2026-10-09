@@ -270,9 +270,12 @@
         const ja = usadas.has(RC.norm(a.texto));
         const b = el("button", "btn-cad-secundario acoes-rec-usar", ja ? "✓ Incluída" : "+ Usar"); b.type = "button";
         b.disabled = ja || !podeEditar || !nivel;
-        b.addEventListener("click", () => {
+        // V 1.38: o clique nao pode "vazar" (o botao some ao redesenhar e o painel do Inventario da AEP
+        // entendia como clique fora e fechava a edicao)
+        b.addEventListener("click", (ev) => {
+          ev.preventDefault(); ev.stopPropagation();
           adicionarCard(null, Object.assign({ "Tipo Acao": a.tipo, "Acao Recomendada": a.texto, Complexidade: a.complexidade }, a.tipo === "Eliminacao" ? { "Reduz Risco": "Sim", "Risco Apos Acao": ELIMINADO } : {}));
-          notificar(); desenharRecomendacoes(true);
+          notificar(); setTimeout(() => desenharRecomendacoes(true), 0);
         });
         li.appendChild(b); ul.appendChild(li);
       });
@@ -281,7 +284,7 @@
       const fora = todas.length - indicadas.length;
       if (nivel && fora > 0) {
         const t = el("button", "acoes-rec-todas", recMostrarTodas ? "Mostrar só as indicadas para este nível" : `Mostrar também as outras ${fora} recomendação(ões) do fator`); t.type = "button";
-        t.addEventListener("click", () => { recMostrarTodas = !recMostrarTodas; desenharRecomendacoes(true); });
+        t.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); recMostrarTodas = !recMostrarTodas; setTimeout(() => desenharRecomendacoes(true), 0); });
         det.appendChild(t);
       }
       recEl.appendChild(det);
@@ -388,6 +391,9 @@
       grade.appendChild(caixaReduz);
       c.caixaAlvo = campo("Reduz o risco para", c.f.alvo); grade.appendChild(c.caixaAlvo);
       c.raiz.appendChild(grade);
+      // V 1.38: imagens de exemplo da acao (opcional, AET)
+      c.imagens = Array.isArray(base["Imagens Exemplo"]) ? base["Imagens Exemplo"].slice() : [];
+      if (opts.comImagens) c.raiz.appendChild(blocoImagensExemplo(c));
       c.raiz.appendChild(el("div", "acao-card-nota", "Sem a marcação, a ação é organizacional / de controle. Responsável, e-mail, prazo e situação ficam no Plano de Ação; ao concluir uma ação que reduz ou elimina o risco, o ergonomista reavalia o fator."));
       const msg = el("div", "acao-card-erro"); msg.hidden = true; c.msg = msg; c.raiz.appendChild(msg);
 
@@ -411,6 +417,32 @@
       return c;
     }
 
+    function blocoImagensExemplo(c) {
+      const d = el("div", "acao-imagens"); d.appendChild(el("label", null, "Imagens de exemplo da ação (opcional)"));
+      const linha = el("div", "aet-fotos-linha"); d.appendChild(linha);
+      const desenhar = () => {
+        linha.innerHTML = "";
+        c.imagens.forEach((f, i) => { const fig = el("div", "aet-foto"); const im = document.createElement("img"); im.src = BI.DB.urlArquivo(f.chave); im.alt = f.nomeArquivo || "exemplo"; fig.appendChild(im); const leg = document.createElement("input"); leg.type = "text"; leg.placeholder = "Legenda (opcional)"; leg.value = f.legenda || ""; leg.disabled = !podeEditar || c.travada; leg.addEventListener("input", () => { f.legenda = leg.value; c.imagensMudaram = true; notificar(); }); fig.appendChild(leg);
+          if (podeEditar && !c.travada) { const x = el("button", "aet-foto-x", "×"); x.type = "button"; x.title = "Remover"; x.addEventListener("click", (ev) => { ev.stopPropagation(); c.imagens.splice(i, 1); c.imagensMudaram = true; desenhar(); notificar(); }); fig.appendChild(x); }
+          linha.appendChild(fig); });
+        if (podeEditar && !c.travada) {
+          const lb = el("label", "aet-foto-add"); lb.appendChild(el("span", null, c.imagens.length ? "+ Mais imagens" : "+ Imagem de exemplo")); const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/jpeg,image/png"; inp.multiple = true;
+          inp.addEventListener("change", async () => {
+            const ctx = opts.contexto(); const emp = ((BI.dados && BI.dados.cliente) || []).find((x) => x.Cliente === ctx.Cliente); const eid = emp ? (emp.id || emp._id) : null;
+            if (!eid) { global.alert("Escolha o cliente antes de anexar imagens."); return; }
+            const prontos = BI.Fotos ? await BI.Fotos.prepararLista(inp.files) : Array.from(inp.files || []); // V 1.38: rostos anonimizados
+            for (const f0 of prontos) {
+              try { const r = await BI.DB.enviarArquivo("planoAcao", eid, f0); c.imagens.push({ chave: r.chave, nomeArquivo: r.nomeArquivo || f0.name }); c.imagensMudaram = true; }
+              catch (e) { global.alert(`Não foi possível enviar ${f0.name}: ${e && e.message ? e.message : e}`); }
+            }
+            inp.value = ""; desenhar(); notificar();
+          });
+          lb.appendChild(inp); linha.appendChild(lb);
+        }
+      };
+      desenhar(); return d;
+    }
+
     function notificar() { desenharRecomendacoes(); if (opts.aoMudar) opts.aoMudar(); }
 
     // Lista de nomes ja usados como responsaveis (autocompletar).
@@ -427,6 +459,8 @@
 
     // Acoes que ja existem para este fator.
     acoesDoFator(opts.fatorId).forEach((a) => adicionarCard(a));
+    // V 1.38: AET duplicada - acoes copiadas da AET de origem (novas, sem responsavel e prazo)
+    if (!opts.fatorId && Array.isArray(opts.acoesIniciais)) opts.acoesIniciais.forEach((p) => adicionarCard(null, p));
     atualizarResumo();
 
     // Registro anterior a V 1.2: textos antigos viram acoes com um clique.
@@ -478,11 +512,12 @@
       return {
         "Tipo Acao": v.tipo, "Acao Recomendada": v.descricao, "Categoria Acao": categoriaDoTipo(v.tipo), "Gestao Acao": v.gestao || "ElevaLife",
         "Segmento Corporal": opts.segmento ? (opts.segmento() || null) : null, "Risco Atual Segmento": v.atual, "Reduz Risco": v.reduz ? "Sim" : "Nao", "Risco Apos Acao": v.reduz ? (v.alvo || null) : null, Complexidade: v.complexidade || null,
+        ...(opts.comImagens ? { "Imagens Exemplo": (c.imagens || []).map((f) => ({ chave: f.chave, nomeArquivo: f.nomeArquivo, legenda: f.legenda || "" })) } : {}),
       };
     }
     function mudou(c) {
       const novo = dadosDoCard(c);
-      return Object.keys(novo).some((k) => String(novo[k] == null ? "" : novo[k]) !== String((c.existente[k] == null ? "" : c.existente[k])));
+      return !!c.imagensMudaram || Object.keys(novo).some((k) => k !== "Imagens Exemplo" && String(novo[k] == null ? "" : novo[k]) !== String((c.existente[k] == null ? "" : c.existente[k])));
     }
     function proximoNr(cliente) {
       const nrs = ((BI.dados && BI.dados.planoAcao) || []).filter((a) => a.Cliente === cliente).map((a) => Number(a["Nr Acao"]) || 0);

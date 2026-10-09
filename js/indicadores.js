@@ -14,7 +14,7 @@
   "use strict";
 
   const BI = (global.BI = global.BI || {});
-  BI.VERSAO = "1.37"; // versao do sistema - exibida no rodape e em Ajuda > Versao (ver docs/CHANGELOG.md)
+  BI.VERSAO = "1.38"; // versao do sistema - exibida no rodape e em Ajuda > Versao (ver docs/CHANGELOG.md)
 
   const FILTROS_GLOBAIS = "Cliente, Unidade, Setor / GHE, Posto, Cargo, Atividade e Origem (AEP, AET ou Psicossocial, quando o registro tem origem)";
   // Ano/Mes filtra pela data lancada no proprio registro; registro sem essa
@@ -110,28 +110,20 @@
     // GESTAO DE ABSENTEISMO
     // ------------------------------------------------------------------
     {
-      id: "chart-plano-global", aba: "registro", grupo: "Plano de Ação (AEP, AET e Psicossocial)", titulo: "Plano de Ação - Global",
-      mostra: "Distribuição de todas as ações do Plano de Ação por status.",
+      id: "chart-plano-global", aba: "registro", grupo: "Plano de Ação (AEP, AET e Psicossocial)", titulo: "Plano de Ação - Todas as ações",
+      mostra: "Todas as ações existentes no Plano de Ação, por status.",
       fonte: "Plano de Ação.",
       calculo: STATUS_ACAO + " Com filtro de Ano/Mês, a ação é considerada se a Dt Programada ou a Dt Conclusão estiver no período.",
       filtros: COM_ANO_MES,
-      cuidado: "Inclui as ações de todas as origens (AEP, AET e Psicossocial); use o filtro de origem do topo da aba para separar. Cada ação conta como 1.",
+      cuidado: "Inclui as ações de todas as origens (AEP, AET e Psicossocial). Responde ao filtro geral, ao filtro de origem do topo da aba e aos filtros da lista (Unidade, Setor / GHE, Status e Buscar). Cada ação conta como 1.",
     },
     {
       id: "chart-plano-criticos", aba: "registro", grupo: "Plano de Ação (AEP, AET e Psicossocial)", titulo: "Plano de Ação - Postos Críticos",
-      mostra: "Status das ações, conforme o card Global, restrito aos postos de risco Alto ou Muito Alto.",
+      mostra: "Status das ações, conforme o card Todas as ações, restrito aos postos de risco Alto ou Muito Alto (mesmos filtros).",
       fonte: "Plano de Ação, cruzado com o risco atual do posto (maior graduação dos fatores).",
       calculo: "Seleciona as ações de postos com risco atual Alto ou Muito Alto e calcula o status pela mesma regra do card Global.",
       filtros: COM_ANO_MES,
       cuidado: "O risco considerado é o atual do posto: se o posto for reavaliado no Inventário, a ação entra ou sai deste card. Ações de posto sem fator graduado usam o risco gravado na própria ação.",
-    },
-    {
-      id: "chart-fatorrisco-status", aba: "registro", grupo: "Plano de Ação (AEP, AET e Psicossocial)", titulo: "Inventário de Riscos - Status",
-      mostra: "Etapa de tratativa dos fatores de risco (A validar, Em andamento, Concluído e Cancelado).",
-      fonte: "AEP › Inventário de Riscos (AEP), campo Status.",
-      calculo: "Contagem de fatores marcados como existentes (\"Sim\") por status; percentual sobre o total de fatores filtrados.",
-      filtros: POR_DATA("data da identificação do fator"),
-      cuidado: "Todo fator novo é criado com o status \"A validar\".",
     },
     {
       id: "chart-acoes-previstas", aba: "registro", grupo: "Plano de Ação (AEP, AET e Psicossocial)", titulo: "Ações previstas no período",

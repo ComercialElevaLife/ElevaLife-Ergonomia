@@ -293,6 +293,25 @@
     }));
   }
 
+  // V 1.38: campos obrigatorios que o documento nao trouxe sobem com "ATUALIZAR INFORMAÇÕES" (a AET salva
+  // mesmo assim e o ergonomista completa depois); fator sem graduacao possivel fica marcado como pendente.
+  const PENDENTE = "ATUALIZAR INFORMAÇÕES";
+  function marcarPendentes(d, mz) {
+    let n = 0; const marca = (o, k) => { if (!String(o[k] || "").trim()) { o[k] = PENDENTE; n++; } };
+    ["Unidade", "Setor", "Posto Trabalho", "Cargo"].forEach((k) => marca(d, k));
+    if (!d.Atividades.length) d.Atividades.push({ uid: uid(), nome: PENDENTE, descricao: "", fotos: [], fatores: [], recomendacoes: "" });
+    d.Atividades.forEach((at) => {
+      marca(at, "nome");
+      at.fatores.forEach((fa) => {
+        if (!fa.fator || (fa.fator === "__outro" && !String(fa.outro || "").trim())) { fa.fator = "__outro"; fa.outro = PENDENTE; fa.grupo = fa.grupo || "Outros"; n++; }
+        marca(fa, "consequencia"); marca(fa, "segmento");
+        if (BI.AET && !BI.AET.avaliarFator(fa, mz).graduacao) { fa.semGraduacaoImportada = true; n++; }
+      });
+    });
+    if (n) d["Atualizar Informacoes"] = true;
+    return n;
+  }
+
   // ------------------------------------------------------------------ tela
   const estado = { arquivo: null, lido: null, res: null, msg: "", erro: false, processando: false };
   function podeImportar() { const i = BI.DB && BI.DB.estado.identidade; return !(i && i.papel === "UsuarioCliente") && !(BI.DB && BI.DB.estado.somenteLeitura); }
@@ -353,20 +372,22 @@
       const msg = h("div", "aet-msg"); msg.hidden = true; box.appendChild(msg);
       const b = h("button", "btn-cad-primario", a._aberta ? "Abrir de novo no editor" : "Cadastrar o que faltar e abrir no editor"); b.type = "button"; box.appendChild(b);
       b.addEventListener("click", async () => {
-        const falta = [["Empresa", nomeCli], ["Unidade", a.unidade], ["Setor", a.setor], ["Posto", a.posto], ["Cargo", a.cargo]].filter(([, v]) => !v).map(([k]) => k);
-        if (falta.length) { msg.hidden = false; msg.className = "aet-msg erro"; msg.textContent = "Preencha: " + falta.join(", ") + "."; return; }
+        // V 1.38: so a empresa e indispensavel; o que faltar no documento sobe como "ATUALIZAR INFORMAÇÕES"
+        if (!nomeCli) { msg.hidden = false; msg.className = "aet-msg erro"; msg.textContent = "Escolha a empresa."; return; }
+        const AT = PENDENTE; ["unidade", "setor", "posto", "cargo"].forEach((k) => { if (!a[k]) a[k] = AT; });
         b.disabled = true; msg.hidden = false; msg.className = "aet-msg"; msg.textContent = "Cadastrando e enviando as fotos…";
         try {
           const valores = { Cliente: nomeCli, Unidade: a.unidade, Setor: a.setor, "Posto Trabalho": a.posto, Cargo: a.cargo };
           const criados = await BI.garantirHierarquia(valores, res.cnpj ? { CNPJ: res.cnpj } : {});
           const emp = (BI.dados.cliente || []).find((c) => c.Cliente === nomeCli); const empresaId = emp ? (emp.id || emp._id) : null;
           const mzCli = C.matrizDoCliente(BI.dados.cliente || [], nomeCli);
-          const enviar = async (ids, max) => { const out = []; for (const id of ids.slice(0, max)) { const im = (estado.lido.imagens || [])[id]; if (!im || !empresaId) continue; try { const r = await BI.DB.enviarArquivo("aet", empresaId, new File([im.bytes], im.nome, { type: im.tipo })); out.push({ chave: r.chave, nomeArquivo: r.nomeArquivo || im.nome }); } catch (e) { console.warn("foto", e); } } return out; };
+          const enviar = async (ids) => { const out = []; for (const id of ids) { /* V 1.38: sem limite de fotos */ const im = (estado.lido.imagens || [])[id]; if (!im || !empresaId) continue; try { const r = await BI.DB.enviarArquivo("aet", empresaId, new File([im.bytes], im.nome, { type: im.tipo })); out.push({ chave: r.chave, nomeArquivo: r.nomeArquivo || im.nome }); } catch (e) { console.warn("foto", e); } } return out; };
           const d = JSON.parse(JSON.stringify(a.d));
           Object.assign(d, valores);
-          d["Foto Geral"] = a._fotosGeralEnviadas || (a._fotosGeralEnviadas = await enviar(a.fotosGeral, 2));
-          for (let k = 0; k < d.Atividades.length; k++) { const orig = a.d.Atividades[k]; orig._enviadas = orig._enviadas || await enviar(orig._fotos, 4); d.Atividades[k].fotos = orig._enviadas; delete d.Atividades[k]._fotos; delete d.Atividades[k]._enviadas; }
+          d["Foto Geral"] = a._fotosGeralEnviadas || (a._fotosGeralEnviadas = await enviar(a.fotosGeral));
+          for (let k = 0; k < d.Atividades.length; k++) { const orig = a.d.Atividades[k]; orig._enviadas = orig._enviadas || await enviar(orig._fotos); d.Atividades[k].fotos = orig._enviadas; delete d.Atividades[k]._fotos; delete d.Atividades[k]._enviadas; }
           aplicarMatriz(d, mzCli);
+          marcarPendentes(d, mzCli);
           a._aberta = true;
           msg.textContent = (criados.length ? "Cadastrado: " + criados.join(", ") + ". " : "") + "AET aberta no editor – confira e clique em Salvar AET.";
           b.disabled = false; b.textContent = "Abrir de novo no editor";
