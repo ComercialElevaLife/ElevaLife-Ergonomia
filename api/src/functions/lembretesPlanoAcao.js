@@ -60,7 +60,7 @@
 
 const crypto = require("crypto");
 const { obterContainer } = require("../shared/cosmos");
-const { enviarEmail, modeloPlanoAcao, modeloConvite, modeloRedefinicao, ESTAGIOS_PLANO_ACAO } = require("../shared/email");
+const { enviarEmail, modeloPlanoAcao, modeloConvite, modeloRedefinicao, ESTAGIOS_PLANO_ACAO, logoEmailHtml, formatarDataBR } = require("../shared/email");
 
 const NOME_APP = "S.I.G.E";
 const EMAIL_VALIDO_JOB = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -276,7 +276,61 @@ async function executarLembretes(context) {
   } catch (erro) {
     context.error("Falha ao consultar evidencias pendentes", erro);
   }
+  // V 1.35: certificados de calibracao - aviso aos Administradores 30 dias antes de vencer (e no vencimento).
+  try {
+    Object.assign(resumo, await executarCertificados(hojeMs, emailsAdmin, context));
+  } catch (erro) {
+    context.error("Falha ao verificar certificados de calibracao", erro);
+  }
   return resumo;
+}
+
+// V 1.35: certificados de calibracao (colecao global). Cada certificado guarda em "_notifVenc" a validade
+// avisada e os estagios enviados ("antes30", "vencido"); trocando a validade (certificado renovado), os avisos
+// recomecam. Rodar 2x no dia nao duplica e-mail.
+async function executarCertificados(hojeMs, emailsAdmin, context, opcoes = {}) {
+  const container = obterContainer("certificadoCalibracao");
+  const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
+  const out = { certificados: resources.length, certificadosAvisados: 0 };
+  for (const cert of resources) {
+    const venceMs = paraDataUTC(cert.Validade); if (venceMs === null) continue;
+    const dias = Math.round((venceMs - hojeMs) / UM_DIA_MS);
+    const notif = cert._notifVenc && cert._notifVenc.validade === cert.Validade ? Object.assign({}, cert._notifVenc) : { validade: cert.Validade };
+    let estagio = null;
+    if (dias <= 0 && !notif.vencido) estagio = "vencido";
+    else if (dias > 0 && dias <= 30 && !notif.antes30) estagio = "antes30";
+    if (!estagio) continue;
+    if (emailsAdmin.length) {
+      const html = modeloCertificado({ nomeApp: NOME_APP, cert, dias, estagio });
+      const assunto = estagio === "vencido" ? `Certificado de calibração vencido – ${cert.Nome || "instrumento"}` : `Certificado de calibração vence em ${dias} dia(s) – ${cert.Nome || "instrumento"}`;
+      const enviar = opcoes.enviar || ((para) => enviarEmail({ para, assunto, htmlCorpo: html }));
+      await Promise.allSettled(emailsAdmin.map((para) => enviar(para, assunto, html)));
+    }
+    notif[estagio] = new Date().toISOString();
+    if (estagio === "vencido") notif.antes30 = notif.antes30 || notif.vencido;
+    out.certificadosAvisados += 1;
+    if (opcoes.gravar === false) continue;
+    try { await container.item(cert.id, cert.EmpresaId || "GLOBAL").replace(Object.assign({}, cert, { _notifVenc: notif })); }
+    catch (erro) { context.error(`Falha ao gravar _notifVenc do certificado ${cert.id}`, erro); }
+  }
+  return out;
+}
+
+function modeloCertificado({ nomeApp, cert, dias, estagio }) {
+  const vencido = estagio === "vencido";
+  return `
+    <div style="font-family:Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#2a1a1a">
+      <div style="background:${vencido ? "#a32020" : "#8a6d1a"};color:#fff;padding:20px 24px;border-radius:10px 10px 0 0">
+        ${logoEmailHtml()}
+        <div style="font-weight:700;font-size:18px">${nomeApp}</div>
+        <div style="font-size:12px;opacity:.85">ElevaLife · 15 anos elevando pessoas e resultados</div>
+      </div>
+      <div style="border:1px solid #e5d9d9;border-top:none;border-radius:0 0 10px 10px;padding:24px">
+        <p style="font-size:15.5px;font-weight:600;margin:0 0 8px">${vencido ? "Um certificado de calibração venceu" : "Um certificado de calibração está próximo de vencer"}</p>
+        <p style="font-size:14.5px;line-height:1.6">${vencido ? `O certificado de calibração do instrumento <strong>${cert.Nome || "-"}</strong> venceu em ${formatarDataBR(cert.Validade)}.` : `O certificado de calibração do instrumento <strong>${cert.Nome || "-"}</strong> vence em ${formatarDataBR(cert.Validade)} (daqui a ${dias} dia(s)).`} Providencie a nova calibração e atualize o certificado no ${nomeApp} (Cadastro Interno › Certificado Calibração) para que os próximos laudos saiam com o certificado válido.</p>
+        <p style="font-size:12.5px;color:#7a6a6a;line-height:1.6">Aviso enviado aos Administradores do ${nomeApp}.</p>
+      </div>
+    </div>`;
 }
 
 // Comparacao em tempo constante (hash dos dois lados -> mesmo tamanho).
@@ -465,4 +519,4 @@ async function tratar(request, context) {
 }
 
 module.exports = {
-  processarEvidencia, tratar, executarLembretes, executarSimulacao };
+  processarEvidencia, tratar, executarLembretes, executarSimulacao, executarCertificados };

@@ -70,8 +70,8 @@ const REGRAS_POR_COLECAO = {
   // Foto do Certificado de Calibracao (biblioteca global de instrumentos -
   // ver docs/bi-ergonomia-manual.md, secao Laudos).
   certificadoCalibracao: {
-    tiposAceitos: ["image/jpeg", "image/png"],
-    tamanhoMaximoBytes: 5 * 1024 * 1024,
+    tiposAceitos: ["image/jpeg", "image/png", "application/pdf"], // V 1.35: PDF tambem (sai paginado no laudo)
+    tamanhoMaximoBytes: 10 * 1024 * 1024,
   },
   // Logotipo do cadastro ampliado de empresa (ver js/app.js/camposCadastroCliente) -
   // gravado com o proprio EmpresaId do Cliente (nao e global), do mesmo jeito
