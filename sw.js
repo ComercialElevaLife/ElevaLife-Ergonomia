@@ -20,7 +20,7 @@
 
 "use strict";
 
-const VERSAO = "sige-v43";
+const VERSAO = "sige-v45";
 const CACHE_SITE = `${VERSAO}-site`;
 const CACHE_EXTERNO = `${VERSAO}-externo`;
 
@@ -48,6 +48,9 @@ const ARQUIVOS_BASE = [
   "/js/laudo-blocos.js",
   "/js/laudo-aet.js",
   "/js/aet.js",
+  "/js/aet-import.js",
+  "/js/aep-laudo-import.js",
+  "/js/ferramentas-imagens.js",
   "/js/importador.js",
   "/js/app.js",
   "/img/logo-icone-branco.png",

@@ -75,11 +75,58 @@
         <span class="badge-filtros" id="badge-filtros" hidden>0</span>
       </button>
       <div class="sidebar-nav-divisor" aria-hidden="true"></div>
-      <!-- V 1.28: cadastros e AEP no topo do menu (pedido do Alexandre) -->
+      <!-- V 1.35: ordem do menu (pedido do Alexandre): AEP, AET, Psicossocial, Gestão de Riscos, Gestão do Plano de Ação,
+           Gestão de Absenteísmo, Gestão de Restritos, Cadastro Empresa, Cadastro Interno (com Usuários) e Ajuda.
+           Configurações saiu do menu. -->
+      <div class="sidebar-nav-grupo" data-grupo-nav="aep">
+        <button type="button" data-aba="aep" class="sidebar-nav-pai" title="AEP">
+          <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="10" height="14" rx="1.6"/><path d="M8 3.2h4v2H8z"/><path d="M7.5 9.5l1.6 1.6 3.4-3.4"/><path d="M7.5 13.5h5"/></svg></span>
+          <span class="rotulo">AEP</span>
+          <span class="seta-sub" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 5-5 5"/></svg></span>
+        </button>
+        <div class="sidebar-subnav-lateral" id="sidebar-sub-aep" hidden></div>
+      </div>
+      <!-- V 1.35: AET logo abaixo da AEP, com sub-abas (AETs, Importar AET, Laudos, Editor de texto). -->
+      <div class="sidebar-nav-grupo" data-grupo-nav="aet">
+        <button type="button" data-aba="aet" class="sidebar-nav-pai" title="AET">
+          <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="12" height="14" rx="1.6"/><path d="M7 13v-2M10 13V8M13 13v-4"/></svg></span>
+          <span class="rotulo">AET</span>
+          <span class="seta-sub" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 5-5 5"/></svg></span>
+        </button>
+        <div class="sidebar-subnav-lateral" id="sidebar-sub-aet" hidden></div>
+      </div>
+      <!-- V 1.25: Riscos Psicossociais com sub-abas no menu lateral (montadas pelo proprio modulo,
+           conforme o perfil do usuario - ver script junto de #aba-psicossocial). -->
+      <div class="sidebar-nav-grupo" data-grupo-nav="psicossocial">
+        <button type="button" data-aba="psicossocial" class="sidebar-nav-pai" title="Psicossocial">
+          <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17s-6-3.6-6-8.2A3.3 3.3 0 0 1 10 7a3.3 3.3 0 0 1 6 1.8C16 13.4 10 17 10 17Z"/></svg></span>
+          <span class="rotulo">Psicossocial</span>
+          <span class="seta-sub" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 5-5 5"/></svg></span>
+        </button>
+        <div class="sidebar-subnav-lateral" id="sidebar-sub-psicossocial" hidden></div>
+      </div>
+      <button type="button" data-aba="ergo" class="ativa" title="Gestão de Riscos">
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17V10"/><path d="M9.5 17V6"/><path d="M16 17V13"/><path d="M2.5 17h15"/></svg></span>
+        <span class="rotulo">Gestão de Riscos</span>
+      </button>
+      <!-- V 1.33: logo depois da Gestao de Risco. V 1.29: o antigo "Registro" virou o Plano de Acao unico (AEP, AET e Psicossocial);
+           Absenteismo, HHT e Restritos foram para o Cadastro Cliente. data-aba continua "registro". -->
+      <button type="button" data-aba="registro" title="Gestão do Plano de Ação">
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h9M8 10h9M8 15h9"/><path d="M3 5l1 1 2-2M3 10l1 1 2-2M3 15l1 1 2-2"/></svg></span>
+        <span class="rotulo">Gestão do Plano de Ação</span>
+      </button>
+      <button type="button" data-aba="medocup" title="Gestão de Absenteísmo">
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 11h3l2-4 3 7 2-5.5 1.5 2.5h3.5"/></svg></span>
+        <span class="rotulo">Gestão de Absenteísmo</span>
+      </button>
+      <button type="button" data-aba="compativeis" title="Gestão de Restritos">
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h11"/><path d="M12 4l3 3-3 3"/><path d="M16 13H5"/><path d="M8 16l-3-3 3-3"/></svg></span>
+        <span class="rotulo">Gestão de Restritos</span>
+      </button>
       <div class="sidebar-nav-grupo" data-grupo-nav="cadastro">
-        <button type="button" data-aba="cadastro" class="sidebar-nav-pai" title="Cadastro Cliente">
+        <button type="button" data-aba="cadastro" class="sidebar-nav-pai" title="Cadastro Empresa">
           <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M10 6.5v7M6.5 10h7"/></svg></span>
-          <span class="rotulo">Cadastro Cliente</span>
+          <span class="rotulo">Cadastro Empresa</span>
           <span class="seta-sub" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 5-5 5"/></svg></span>
         </button>
         <div class="sidebar-subnav-lateral" id="sidebar-sub-cadastro" hidden></div>
@@ -92,58 +139,6 @@
         </button>
         <div class="sidebar-subnav-lateral" id="sidebar-sub-interno" hidden></div>
       </div>
-      <div class="sidebar-nav-grupo" data-grupo-nav="aep">
-        <button type="button" data-aba="aep" class="sidebar-nav-pai" title="AEP">
-          <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="10" height="14" rx="1.6"/><path d="M8 3.2h4v2H8z"/><path d="M7.5 9.5l1.6 1.6 3.4-3.4"/><path d="M7.5 13.5h5"/></svg></span>
-          <span class="rotulo">AEP</span>
-          <span class="seta-sub" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 5-5 5"/></svg></span>
-        </button>
-        <div class="sidebar-subnav-lateral" id="sidebar-sub-aep" hidden></div>
-      </div>
-      <button type="button" data-aba="ergo" class="ativa" title="Gestão de Risco">
-        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17V10"/><path d="M9.5 17V6"/><path d="M16 17V13"/><path d="M2.5 17h15"/></svg></span>
-        <span class="rotulo">Gestão de Risco</span>
-      </button>
-      <!-- V 1.33: logo depois da Gestao de Risco. V 1.29: o antigo "Registro" virou o Plano de Acao unico (AEP, AET e Psicossocial);
-           Absenteismo, HHT e Restritos foram para o Cadastro Cliente. data-aba continua "registro". -->
-      <button type="button" data-aba="registro" title="Plano de Ação">
-        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h9M8 10h9M8 15h9"/><path d="M3 5l1 1 2-2M3 10l1 1 2-2M3 15l1 1 2-2"/></svg></span>
-        <span class="rotulo">Plano de Ação</span>
-      </button>
-      <button type="button" data-aba="medocup" title="Gestão de Absenteísmo">
-        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 11h3l2-4 3 7 2-5.5 1.5 2.5h3.5"/></svg></span>
-        <span class="rotulo">Gestão de Absenteísmo</span>
-      </button>
-      <button type="button" data-aba="compativeis" title="Gestão de Restritos">
-        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h11"/><path d="M12 4l3 3-3 3"/><path d="M16 13H5"/><path d="M8 16l-3-3 3-3"/></svg></span>
-        <span class="rotulo">Gestão de Restritos</span>
-      </button>
-      <!-- V 1.25: Riscos Psicossociais com sub-abas no menu lateral (montadas pelo proprio modulo,
-           conforme o perfil do usuario - ver script junto de #aba-psicossocial). -->
-      <div class="sidebar-nav-grupo" data-grupo-nav="psicossocial">
-        <button type="button" data-aba="psicossocial" class="sidebar-nav-pai" title="Riscos Psicossociais">
-          <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17s-6-3.6-6-8.2A3.3 3.3 0 0 1 10 7a3.3 3.3 0 0 1 6 1.8C16 13.4 10 17 10 17Z"/></svg></span>
-          <span class="rotulo">Riscos Psicossociais</span>
-          <span class="seta-sub" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l5 5-5 5"/></svg></span>
-        </button>
-        <div class="sidebar-subnav-lateral" id="sidebar-sub-psicossocial" hidden></div>
-      </div>
-      <!-- V 1.29: AET como modulo proprio; V 1.34: modulo completo (js/aet.js). -->
-      <button type="button" data-aba="aet" title="AET">
-        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="12" height="14" rx="1.6"/><path d="M7 13v-2M10 13V8M13 13v-4"/></svg></span>
-        <span class="rotulo">AET</span>
-      </button>
-      <!-- So Administrador ve este item (ver configurarUsuarios() em app.js -
-           fica "hidden" ate confirmar o papel do usuario logado). -->
-      <button type="button" data-aba="usuarios" id="nav-btn-usuarios" title="Usuários" hidden>
-        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="6.5" r="3"/><path d="M3.5 17c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/></svg></span>
-        <span class="rotulo">Usuários</span>
-      </button>
-      <!-- V 1.2: so Administrador (ver configurarConfiguracoes() em app.js). -->
-      <button type="button" data-aba="configuracoes" id="nav-btn-configuracoes" title="Configurações" hidden>
-        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.8v2M10 15.2v2M2.8 10h2M15.2 10h2M4.9 4.9l1.4 1.4M13.7 13.7l1.4 1.4M4.9 15.1l1.4-1.4M13.7 6.3l1.4-1.4"/></svg></span>
-        <span class="rotulo">Configurações</span>
-      </button>
       <button type="button" data-aba="ajuda" title="Ajuda">
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M7.9 7.8a2.2 2.2 0 1 1 3.2 2c-.7.4-1.1.9-1.1 1.7"/><path d="M10 14h.01"/></svg></span>
         <span class="rotulo">Ajuda</span>
@@ -222,18 +217,18 @@
 
     <main>
   <section id="aba-ergo">
+    <!-- V 1.35: filtro de origem da aba (depois do filtro geral): Todas, AEP, AET ou Psicossocial -->
+    <div class="barra-origem-aba" id="origem-ergo" data-aba-origem="ergo"></div>
     <div class="grade">
 
-      <!-- 1. Mapa Risco Global - largura total: com so 4 tiles, ganha muito
-           mais espaco/respiro que dividido em col-4 (ficava achatado) -->
-      <div class="cartao col-12">
+      <div class="cartao col-4">
         <div class="cartao-titulo">Risco Global dos Postos</div>
         <div class="cartao-sub">Postos por nível de risco · o risco do posto é a maior graduação entre os seus fatores (AEP, Psicossocial e AET)</div>
-        <div class="grade-status grade-status--destaque" id="tiles-risco-global"></div>
+        <p class="cartao-explica">O número no centro é a quantidade de postos de trabalho avaliados. O risco global de cada posto é a maior graduação entre os fatores de risco encontrados nele.</p>
+        <div class="altura-chart"><canvas id="chart-risco-global"></canvas></div>
+        <div class="legenda" id="legenda-risco-global"></div>
       </div>
 
-      <!-- V 1.33: Gestao de Risco e o cenario de TODOS os riscos (AEP, AET e Psicossocial). Os graficos de
-           acoes foram para a aba Plano de Acao. -->
       <div class="cartao col-8">
         <div class="cartao-titulo">Risco dos Postos por Setor / GHE</div>
         <div class="cartao-sub">Contagem de postos por nível de risco (maior graduação dos fatores da AEP, AET e Psicossocial)</div>
@@ -241,32 +236,36 @@
         <div class="legenda" id="legenda-risco-por-setor"></div>
       </div>
 
-      <div class="cartao col-4">
-        <div class="cartao-titulo">Top 3 Setores críticos</div>
-        <div class="cartao-sub">% de postos em risco Alto/Muito Alto</div>
-        <div class="altura-chart"><canvas id="chart-top-setores"></canvas></div>
-      </div>
-
-      <div class="col-12 titulo-secao-grade titulo-secao-grade--aep">Inventário de Riscos · AEP, AET e Psicossocial</div>
-
-      <div class="cartao col-12">
-        <div class="cartao-titulo">Inventário de Riscos - Graduação do Risco</div>
-        <div class="cartao-sub">Fatores de risco vigentes, por nível (AEP, AET e Psicossocial)</div>
-        <div class="grade-status grade-status--destaque" id="tiles-fatorrisco-graduacao"></div>
-      </div>
-
-      <!-- V 1.31: evolucao mes a mes dos riscos (mitigados e eliminados) -->
-      <div class="cartao col-12">
+      <!-- V 1.31: evolucao mes a mes dos riscos. V 1.35: logo abaixo do risco por setor, total em cima de cada mes
+           e, ao clicar, a composicao do mes (por nivel, reduzidos de/para e eliminados). -->
+      <div class="cartao col-8">
         <div class="cartao-titulo">Evolução mensal dos riscos</div>
-        <div class="cartao-sub">Fatores de risco por nível no fim de cada mês, com os reduzidos e os eliminados após as ações (AEP, AET e Psicossocial)</div>
+        <div class="cartao-sub">Fatores de risco por nível no fim de cada mês, com o total em cima da barra e as linhas dos reduzidos e eliminados após as ações. Clique num mês para ver o que compõe cada parte.</div>
         <div class="altura-chart alta"><canvas id="chart-evolucao-riscos"></canvas></div>
         <div class="legenda" id="legenda-evolucao-riscos"></div>
       </div>
 
-      <div class="cartao col-12">
-        <div class="cartao-titulo">Inventário de Riscos - Prazos</div>
-        <div class="cartao-sub">Campo "Válido Até" de cada fator de risco em tratativa</div>
-        <div class="grade-status" id="tiles-fatorrisco-prazos"></div>
+      <div class="cartao col-4">
+        <div class="cartao-titulo">Top 3 Setores críticos</div>
+        <div class="cartao-sub">% de postos em risco Alto/Muito Alto</div>
+        <div class="altura-chart alta"><canvas id="chart-top-setores"></canvas></div>
+      </div>
+
+      <div class="col-12 titulo-secao-grade titulo-secao-grade--aep">Inventário de Riscos · AEP, AET e Psicossocial</div>
+
+      <div class="cartao col-4">
+        <div class="cartao-titulo">Inventário de Riscos - Graduação</div>
+        <div class="cartao-sub">Fatores de risco vigentes, por nível (AEP, AET e Psicossocial)</div>
+        <p class="cartao-explica">Aqui estão os fatores de risco encontrados nas avaliações (AEP, AET e Psicossocial), pela graduação atual. O número no centro é o total de fatores; riscos eliminados não entram.</p>
+        <div class="altura-chart"><canvas id="chart-fatorrisco-graduacao"></canvas></div>
+        <div class="legenda" id="legenda-fatorrisco-graduacao"></div>
+      </div>
+
+      <div class="cartao col-8">
+        <div class="cartao-titulo">Inventário de Riscos<span class="contagem-tabela" id="contagem-inventario"></span></div>
+        <div class="cartao-sub">Todos os fatores de risco vigentes, com a origem, o risco atual e a evolução. Clique numa linha para ver os detalhes.</div>
+        <div class="inventario-controles"><input type="search" id="busca-inventario" placeholder="Buscar fator, setor, posto, cargo..."></div>
+        <div class="tabela-scroll inventario-scroll"><table class="tabela-dados" id="tabela-inventario"><thead></thead><tbody></tbody></table></div>
       </div>
 
       <div class="col-12 titulo-secao-grade titulo-secao-grade--aet">Avaliações realizadas · AEP e AET</div>
@@ -287,12 +286,6 @@
         <div class="cartao-titulo">AETs realizadas mês a mês</div>
         <div class="cartao-sub">Análises Ergonômicas do Trabalho por mês da análise</div>
         <div class="altura-chart"><canvas id="chart-aet-mensal"></canvas></div>
-      </div>
-
-      <div class="cartao col-12">
-        <div class="cartao-titulo">AET - Arquivos Anexados por Classificação</div>
-        <div class="cartao-sub cartao-sub--dados" id="tiles-aet-resumo"></div>
-        <div class="grade-status" id="tiles-aet-classificacao"></div>
       </div>
 
     </div>
@@ -447,6 +440,8 @@
       dados fictícios de exemplo, mas novos lançamentos não podem ser salvos por aqui agora.
     </div>
     <nav class="subnav-cadastro" id="subnav-registro" hidden></nav>
+    <!-- V 1.35: filtro de origem da aba (vale para os graficos e a lista) -->
+    <div class="barra-origem-aba" id="origem-registro" data-aba-origem="registro"></div>
     <!-- V 1.33: indicadores das acoes (vieram da Gestao de Risco) - AEP, AET e Psicossocial -->
     <div class="grade" id="painel-plano">
       <div class="cartao col-4">
@@ -493,21 +488,15 @@
     <div class="grade" id="grade-registro"></div>
   </section>
 
-  <!-- V 1.29: AET com aba propria. V 1.34: AET feita no sistema (riscos no Inventario, acoes no Plano,
-       laudo proprio); abaixo, as AETs anexadas (arquivos de analises feitas fora do sistema). -->
+  <!-- V 1.29: AET com aba propria. V 1.34: AET feita no sistema. V 1.35: sub-abas AETs, Laudos, Importar AET
+       e Editor de texto (ver SUBABAS_EXTRAS em js/app.js). -->
   <section id="aba-aet" hidden>
-    <!-- V 1.34: modulo AET (modelo AET ElevaLife 2026) - analises por posto, atividades, ferramentas e laudo -->
-    <div class="grade" id="aet-modulo"></div>
-    <nav class="subnav-cadastro" id="subnav-aet" hidden></nav>
+    <nav class="subnav-cadastro" id="subnav-aet"></nav>
     <div class="grade" id="grade-aet"></div>
   </section>
 
-  <!-- V 1.2: Configuracoes do sistema (so Administrador). -->
-  <section id="aba-configuracoes" hidden>
-    <div id="conteudo-configuracoes"></div>
-  </section>
-
-  <!-- So Administrador ve/abre esta aba (ver configurarUsuarios() em
+  <!-- V 1.35: o cartao abaixo e levado para a sub-aba Usuarios do Cadastro Interno (SUBABAS_EXTRAS.usuarios).
+       So Administrador ve/abre esta aba (ver configurarUsuarios() em
        app.js) - gerencia quem tem acesso ao BI e a quais empresas-cliente
        cada pessoa esta vinculada (ver api/src/functions/usuarios.js). -->
   <section id="aba-usuarios" hidden>
@@ -645,10 +634,13 @@
 <script src="js/laudo-docx.js"></script>
 <script src="js/laudo.js"></script>
 <script src="js/ferramentas-dados.js"></script>
+<script src="js/ferramentas-imagens.js"></script>
 <script src="js/ferramentas.js"></script>
 <script src="js/laudo-blocos.js"></script>
 <script src="js/laudo-aet.js"></script>
 <script src="js/aet.js"></script>
+<script src="js/aet-import.js"></script>
+<script src="js/aep-laudo-import.js"></script>
 <script src="js/importador.js"></script>
 <script src="js/app.js"></script>
 <script>

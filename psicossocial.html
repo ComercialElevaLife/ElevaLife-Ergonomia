@@ -905,8 +905,8 @@ function tabDados(){ const e=emp(); const opt=id=>`<option value="">Selecione…
     <p class="note">Nome, formação e conselho de classe aparecem na metodologia e nas assinaturas do relatório.</p></div>
    <div class="panel stack"><h3>Logo do cliente</h3>${e.logo?`<div style="background:#fff;border:1px solid var(--ln);border-radius:10px;padding:12px;align-self:flex-start"><img src="${e.logo}" alt="Logo do cliente" style="max-height:90px;max-width:260px"></div>`:`<p class="muted" style="margin:0">Opcional. Aparece na capa do relatório.</p>`}
     <div class="row"><input type="file" id="logoCli" accept="image/png,image/jpeg" aria-label="Logo do cliente">${e.logo?`<button class="btn sm danger" id="logoRm">Remover</button>`:""}</div></div></div>
-  <div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Cópia de segurança</h3><button class="btn sm" id="backup">Baixar cópia de segurança (JSON)</button></div>
-    <p class="muted" style="margin:0;font-size:.88rem">Arquivo com todos os dados desta empresa: cadastro, unidades, GHEs e colaboradores, respostas do HSE-IT (anônimas), participação, checklist ISO 45003, análise e plano de ação. Recomendado ao encerrar cada coleta e antes de excluir a empresa.</p><span class="muted" id="bkSt" style="font-size:.85rem"></span></div>
+  <div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Cópia de segurança</h3><div class="row"><button class="btn sm primary" id="backupXls">Baixar respostas em Excel</button><button class="btn sm" id="backup">Cópia técnica completa (JSON)</button></div></div>
+    <p class="muted" style="margin:0;font-size:.88rem">Excel: as respostas do HSE-IT de todas as aplicações, anônimas (sem matrícula nem nome), com unidade, setor/GHE, data e as 35 respostas, mais a legenda das perguntas e o resumo por setor/GHE. JSON: arquivo técnico com todos os dados desta empresa (cadastro, unidades, GHEs e colaboradores, participação, checklist ISO 45003, análise e plano de ação). Recomendado ao encerrar cada coleta e antes de excluir a empresa.</p><span class="muted" id="bkSt" style="font-size:.85rem"></span></div>
   <div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Referências bibliográficas do laudo</h3><span class="tag">vale para todos os laudos</span></div>
     <p class="muted" style="margin:0;font-size:.88rem">Uma referência por linha, no formato ABNT. Aparecem no capítulo “Referências bibliográficas”, em ordem alfabética.</p>
     <textarea id="refTxt" rows="9" aria-label="Referências bibliográficas">${esc(referencias().join("\n"))}</textarea>
@@ -918,6 +918,7 @@ function bindDados(){ bindCnpj();
   $("#logoCli").onchange=async ev=>{const f=ev.target.files[0]; if(!f) return; const r=await redimLogo(f); await saveEmp({logo:r.url}); toast("Logo do cliente salvo")};
   if($("#logoRm")) $("#logoRm").onclick=async()=>{await saveEmp({logo:""});};
   $("#backup").onclick=()=>baixarBackup($("#backup"));
+  $("#backupXls").onclick=()=>baixarBackupExcel($("#backupXls"));
   const salvaRef=async t=>{ await db.doc("config/laudo").set({referencias:t,atualizadoEm:hoje()}); REFERENCIAS=t; render(); };
   $("#refSalvar").onclick=async()=>{ const t=linhas($("#refTxt").value).sort((a,b)=>a.localeCompare(b,"pt-BR")).join("\n"); await salvaRef(t); toast("Referências salvas"); };
   $("#refPadrao").onclick=async()=>{ await salvaRef(""); toast("Referências padrão restauradas"); };
@@ -1726,8 +1727,9 @@ function tabEmpresa(){
   </div>
   <div class="grid g2">
    <div class="panel stack"><h3>Planilha de solicitação ao cliente</h3><p class="muted" style="margin:0;font-size:.88rem">Planilha com os dados da empresa, unidades, colaboradores e GHEs, taxa de frequência por GHE e ações já realizadas, para o cliente preencher e devolver.</p><div><button class="btn sm" id="planCli">Baixar planilha</button></div></div>
-   <div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Cópia de segurança</h3><button class="btn sm" id="backup">Baixar cópia (JSON)</button></div>
-    <p class="muted" style="margin:0;font-size:.88rem">Todos os dados desta empresa em um arquivo: cadastro, colaboradores, respostas (anônimas), ISO 45003, análise e plano de ação.</p><span class="muted" id="bkSt" style="font-size:.85rem"></span></div>
+   <div class="panel stack"><h3>Cópia de segurança</h3>
+    <p class="muted" style="margin:0;font-size:.88rem">Excel: respostas do HSE-IT anônimas (unidade, setor/GHE, data e as 35 respostas). JSON: cópia técnica com todos os dados desta empresa.</p>
+    <div class="row"><button class="btn sm primary" id="backupXls">Baixar respostas em Excel</button><button class="btn sm" id="backup">Cópia técnica (JSON)</button></div><span class="muted" id="bkSt" style="font-size:.85rem"></span></div>
   </div>
   ${EH_ADMIN()?`<div class="panel stack" style="border-color:#F0C9B8"><h3 style="color:var(--bad)">Excluir empresa</h3><p class="muted" style="margin:0;font-size:.88rem">Apaga a empresa e todos os dados dela. Não é possível desfazer. Baixe a cópia de segurança antes.</p><div><button class="btn danger" id="delEmp">Excluir empresa</button></div></div>`:""}
   </div>`;
@@ -1740,6 +1742,7 @@ function bindEmpresa(){
   if($("#logoRm")) $("#logoRm").onclick=async()=>{await saveEmp({logo:""});};
   $("#planCli").onclick=()=>exportarSolicitacao($("#planCli"));
   $("#backup").onclick=()=>baixarBackup($("#backup"));
+  $("#backupXls").onclick=()=>baixarBackupExcel($("#backupXls"));
   const de=$("#delEmp"); if(de) de.onclick=()=>excluirEmpresaModal();
   const sel=$("#f_cliente");
   if(sel&&window.ELEVA_EQUIPE) ELEVA_EQUIPE.clientesSige().then(lista=>{ if(!document.body.contains(sel)) return;
@@ -1791,8 +1794,9 @@ function tabDiag(){
     <div class="row"><button class="btn sm primary" id="salvaReal">Salvar ações</button></div></div>
    <div class="stack">
     <div class="panel stack"><h3>Planilha de solicitação ao cliente</h3><p class="muted" style="margin:0;font-size:.88rem">Planilha com unidades, setores/GHE e colaboradores cadastrados, taxa de frequência e ações já realizadas, para o cliente conferir e devolver (a taxa de frequência e as ações voltam pela importação acima; colaboradores, pela importação do SIGE em Cadastro Cliente › Colaboradores).</p><div><button class="btn sm" id="planCli">Baixar planilha</button></div></div>
-    ${EH_ADMIN()?`<div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Cópia de segurança</h3><button class="btn sm" id="backup">Baixar cópia (JSON)</button></div>
-     <p class="muted" style="margin:0;font-size:.88rem">Dados do módulo desta empresa: coleta, respostas (anônimas), ISO 45003 e análise.</p><span class="muted" id="bkSt" style="font-size:.85rem"></span></div>`:""}
+    ${EH_ADMIN()?`<div class="panel stack"><h3>Cópia de segurança</h3>
+     <p class="muted" style="margin:0;font-size:.88rem">Excel: as respostas do HSE-IT de todas as aplicações, anônimas (sem matrícula nem nome), com unidade, setor/GHE, data e as 35 respostas, mais as perguntas, a escala e o resumo por setor/GHE. JSON: cópia técnica com todos os dados do módulo (coleta, ISO 45003 e análise).</p>
+     <div class="row"><button class="btn sm primary" id="backupXls">Baixar respostas em Excel</button><button class="btn sm" id="backup">Cópia técnica (JSON)</button></div><span class="muted" id="bkSt" style="font-size:.85rem"></span></div>`:""}
    </div></div>
   </div>`;
 }
@@ -1807,6 +1811,7 @@ function bindDiag(){
   $("#salvaReal").onclick=async()=>{ await saveEmp({realizadas:$("#realEmp").value.trim()}); toast("Ações já realizadas salvas"); };
   $("#planCli").onclick=()=>exportarSolicitacao($("#planCli"));
   const bk=$("#backup"); if(bk) bk.onclick=()=>baixarBackup(bk);
+  const bx=$("#backupXls"); if(bx) bx.onclick=()=>baixarBackupExcel(bx);
 }
 
 // ---------- Aba HSE-IT (QR code, adesão e resultados) ----------
@@ -2825,10 +2830,60 @@ async function baixarBackup(btn){
   }catch(err){ if(err&&err.code!=="declined"){ if(st){st.className="err";st.textContent="Não foi possível gerar a cópia. Tente de novo."} } }
   finally{ btn.disabled=false; btn.textContent=lbl; }
 }
+// V 1.36: copia das respostas do HSE-IT em Excel - anonima (sem matricula nem nome): aplicacao, unidade, setor/GHE,
+// data e as 35 respostas (1 = Nunca ... 5 = Sempre), legenda das perguntas e resumo por setor/GHE.
+async function baixarBackupExcel(btn){
+  if(!dl) return toast("Download indisponível nesta visualização");
+  if(typeof ExcelJS==="undefined") return toast("Gerador de Excel não carregou. Recarregue a página.");
+  const e=emp(), st=$("#bkSt"), lbl=btn.textContent; btn.disabled=true; btn.textContent="Reunindo as respostas…";
+  try{
+    // unidades e setores/GHE: os carregados na tela (no SIGE vem do Cadastro Empresa); fora do SIGE, do proprio modulo
+    const ref=E(e.k); const unidades=(S.data&&S.data.unidades&&S.data.unidades.length)?S.data.unidades:await listAll(ref.collection("unidades")); const ghes=(S.data&&S.data.ghes&&S.data.ghes.length)?S.data.ghes:await listAll(ref.collection("ghes"));
+    const nU=id=>(unidades.find(u=>u.k===id)||{}).nome||"", gDe=id=>ghes.find(g=>g.k===id)||{};
+    const aplic=[]; for(let k=1;k<=cicloN(e);k++){ const rs=await listAll(baseCicloRef(e.k,k).collection("respostas")); aplic.push([k,rs]); if(st) st.textContent=`Aplicação ${k}: ${rs.length} respostas`; }
+    const C={wine:"FF8B3A42",deep:"FF5E2A30",mut:"FF8A7A78",ink:"FF3A2A2E",ln:"FFEADDE0",tint:"FFF5EFEA"};
+    const F=(o={})=>({name:"Montserrat",size:10,color:{argb:C.ink},...o}), fill=c=>({type:"pattern",pattern:"solid",fgColor:{argb:c}});
+    const wb=new ExcelJS.Workbook(); wb.creator="ElevaLife"; wb.created=new Date();
+    const sub=`${e.razao}${e.cnpj?" · CNPJ "+e.cnpj:""} · ${aplic.length} aplicação(ões) · gerado em ${new Date().toLocaleDateString("pt-BR")} · dados anônimos (sem matrícula nem nome)`;
+    const titulo=(ws,t,n)=>{ ws.mergeCells(1,1,1,n); const c=ws.getCell(1,1); c.value=t; c.font=F({size:13,bold:true,color:{argb:"FFFFFFFF"}}); c.fill=fill(C.deep); c.alignment={vertical:"middle",indent:1}; ws.getRow(1).height=26;
+      ws.mergeCells(2,1,2,n); const s2=ws.getCell(2,1); s2.value=sub; s2.font=F({italic:true,color:{argb:C.mut}}); s2.alignment={indent:1}; };
+    const cabecalho=(ws,row,labels)=>{ const r=ws.getRow(row); labels.forEach((l,i)=>{const c=r.getCell(i+1); c.value=l; c.font=F({bold:true,color:{argb:"FFFFFFFF"}}); c.fill=fill(C.wine); c.alignment={vertical:"middle",horizontal:i>=6?"center":"left",wrapText:true};}); r.height=30; };
+    // 1. respostas (uma linha por questionario)
+    const ws=wb.addWorksheet("Respostas HSE-IT",{views:[{state:"frozen",xSplit:6,ySplit:3}]});
+    const base=[["Aplicação",10],["Unidade",24],["Setor / GHE",28],["Tipo",8],["Data",11],["Situação",16]];
+    ws.columns=base.map(c=>({width:c[1]})).concat(ITENS.map(()=>({width:5.5})));
+    titulo(ws,"Respostas do questionário HSE-IT (anônimas)",base.length+ITENS.length); cabecalho(ws,3,base.map(c=>c[0]).concat(ITENS.map((_,i)=>"P"+(i+1))));
+    let lin=4, total=0; const resumo=new Map();
+    for(const [k,rs] of aplic){
+      rs.slice().sort((a,b)=>(nU(a.unidadeId)+(gDe(a.gheId).nome||"")).localeCompare(nU(b.unidadeId)+(gDe(b.gheId).nome||""),"pt-BR")||String(a.data||"").localeCompare(String(b.data||""))).forEach(r=>{
+        const g=gDe(r.gheId); const vals=Array.isArray(r.r)?r.r:[];
+        const row=ws.getRow(lin++); [k,nU(r.unidadeId),g.nome||"",tipoG(g),r.data?String(r.data).slice(0,10).split("-").reverse().join("/"):"",r.recusa?"Recusou o termo":"Respondeu"].concat(ITENS.map((_,i)=>vals[i]!=null?Number(vals[i]):null)).forEach((v,j)=>{ const c=row.getCell(j+1); c.value=v; c.font=F({size:9.5}); if(j>=6) c.alignment={horizontal:"center"}; });
+        total++; const ch=k+"|"+nU(r.unidadeId)+"|"+(g.nome||""); const o=resumo.get(ch)||{k,u:nU(r.unidadeId),g:g.nome||"",t:tipoG(g),n:0,rec:0}; if(r.recusa) o.rec++; else o.n++; resumo.set(ch,o);
+      });
+    }
+    ws.autoFilter={from:{row:3,column:1},to:{row:3,column:base.length+ITENS.length}};
+    // 2. legenda
+    const wl=wb.addWorksheet("Perguntas e escala",{views:[{state:"frozen",ySplit:3}]});
+    wl.columns=[{width:8},{width:26},{width:90},{width:22}];
+    titulo(wl,"Perguntas do HSE-IT e escala das respostas",4); cabecalho(wl,3,["Nº","Dimensão","Pergunta","Sentido"]);
+    ITENS.forEach(([dim,txt],i)=>{ const d=DIMS.find(x=>x.id===dim)||{}; const r=wl.getRow(4+i); [ "P"+(i+1), d.nome||dim, txt, d.neg?"Negativa (5 = pior)":"Positiva (5 = melhor)"].forEach((v,j)=>{const c=r.getCell(j+1); c.value=v; c.font=F({size:9.5}); c.alignment={wrapText:j===2,vertical:"top"};}); });
+    const le=4+ITENS.length+1; wl.getCell(le,1).value="Escala das respostas"; wl.getCell(le,1).font=F({bold:true});
+    ESCALA.forEach((t,i)=>{ wl.getCell(le+1+i,1).value=i+1; wl.getCell(le+1+i,2).value=t; wl.getCell(le+1+i,1).font=F(); wl.getCell(le+1+i,2).font=F(); });
+    // 3. resumo
+    const wr=wb.addWorksheet("Resumo por setor-GHE",{views:[{state:"frozen",ySplit:3}]});
+    wr.columns=[{width:10},{width:26},{width:30},{width:8},{width:14},{width:16}];
+    titulo(wr,"Questionários por setor / GHE",6); cabecalho(wr,3,["Aplicação","Unidade","Setor / GHE","Tipo","Respondidos","Recusaram o termo"]);
+    [...resumo.values()].sort((a,b)=>a.k-b.k||a.u.localeCompare(b.u,"pt-BR")||a.g.localeCompare(b.g,"pt-BR")).forEach((o,i)=>{ const r=wr.getRow(4+i); [o.k,o.u,o.g,o.t,o.n,o.rec].forEach((v,j)=>{const c=r.getCell(j+1); c.value=v; c.font=F({size:9.5});}); });
+    const buf=await wb.xlsx.writeBuffer();
+    await dl.save({filename:`Backup respostas HSE-IT - ${e.razao.replace(/[\\/:*?"<>|]/g,"").slice(0,50)} - ${hoje()}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})});
+    if(st){ st.className="muted"; st.textContent=`Planilha gerada com ${total} questionário(s).`; } toast("Respostas baixadas em Excel");
+  }catch(err){ console.error(err); if(err&&err.code!=="declined"){ if(st){st.className="err";st.textContent="Não foi possível gerar a planilha. Tente de novo."} } }
+  finally{ btn.disabled=false; btn.textContent=lbl; }
+}
 function excluirEmpresaModal(){
   const e=emp(); const m=document.createElement("div"); m.className="modal";
   m.innerHTML=`<div class="panel stack" role="dialog" aria-label="Excluir empresa"><h2>Excluir empresa</h2>
-   <p class="aviso" style="margin:0">Antes de excluir, baixe a cópia de segurança em Cadastro › Cópia de segurança.</p>
+   <p class="aviso" style="margin:0">Antes de excluir, baixe a cópia de segurança (Diagnóstico organizacional › Cópia de segurança).</p>
    <p style="margin:0">Isto apaga <b>${esc(e.razao)}</b> e todos os dados dela: unidades, GHEs, colaboradores, respostas do HSE-IT, checklist ISO 45003, análise de risco e plano de ação. Não é possível desfazer.</p>
    <label class="f">Para confirmar, digite o código da empresa: <b style="color:var(--deep)">${esc(e.codigo||e.k)}</b><input type="text" id="delConf" autocomplete="off"></label>
    <div class="row"><button class="btn danger" id="delOk" disabled>Excluir definitivamente</button><button class="btn" id="delNo">Cancelar</button><span class="muted" id="delSt" style="font-size:.85rem"></span></div></div>`;
