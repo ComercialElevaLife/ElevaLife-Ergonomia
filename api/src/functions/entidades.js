@@ -35,6 +35,8 @@ const { aplicarAuditoria } = require("../shared/auditoria");
 const { enviarEmail, modeloPlanoAcao, ESTAGIOS_PLANO_ACAO } = require("../shared/email");
 const { avaliarPlanoAcao, precisaNotificarAtribuicao, evidenciasValidas } = require("../shared/planoAcaoRegras");
 const { obterContainerCliente } = require("../shared/blob");
+const { excluirDadosEmpresa, empresasOrfas, empresasCadastradas } = require("../shared/empresaExclusao");
+const { fotosDaAcaoAET } = require("../shared/fotosAET");
 
 const NOME_APP = "S.I.G.E";
 
@@ -114,7 +116,34 @@ const ROTAS_ESPECIAIS = {
   // api/src/functions/psicossocial.js.
   psico: rotaPsicossocial.tratarEquipe,
   psicopub: rotaPsicossocial.tratarPublico,
+  // V 1.37: GET/POST /api/manutencao/orfaos - dados de empresas ja excluidas (so Administrador).
+  manutencao: tratarManutencao,
 };
+
+// V 1.37: colecoes com dados por empresa (tudo o que sai junto quando a empresa-cliente e excluida).
+function colecoesDaEmpresa() { return COLECOES.filter((c) => c !== "cliente" && !COLECOES_GLOBAIS.includes(c)); }
+
+async function tratarManutencao(request, context) {
+  let identidade;
+  try { identidade = await resolverIdentidade(request); } catch (e) { return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissões." } }; }
+  if (!identidade) return { status: 401, jsonBody: { erro: "Não autenticado." } };
+  if (identidade.papel !== "Administrador") return { status: 403, jsonBody: { erro: "Só Administrador." } };
+  if (request.params.id !== "orfaos") return { status: 404, jsonBody: { erro: "Rota desconhecida." } };
+  try {
+    if (request.method === "GET") return { jsonBody: { empresas: await empresasOrfas(colecoesDaEmpresa()) } };
+    if (request.method === "POST") {
+      const corpo = await request.json().catch(() => ({}));
+      const eid = String((corpo && corpo.EmpresaId) || "");
+      if (!eid || eid === EMPRESA_GLOBAL) return { status: 400, jsonBody: { erro: "Empresa inválida." } };
+      if ((await empresasCadastradas()).has(eid)) return { status: 409, jsonBody: { erro: "Esta empresa ainda está cadastrada. Exclua pelo Cadastro Cliente." } };
+      return { jsonBody: await excluirDadosEmpresa(eid, colecoesDaEmpresa(), context) };
+    }
+    return { status: 405, jsonBody: { erro: "Método não suportado." } };
+  } catch (erro) {
+    context.error("Erro em /api/manutencao", erro);
+    return { status: 500, jsonBody: { erro: "Erro interno." } };
+  }
+}
 
 async function lerPorId(container, id) {
   const consulta = {
@@ -148,6 +177,19 @@ async function proximoNrAvaliacao(container, empresaId) {
   return (Number(resources && resources[0]) || 0) + 1;
 }
 
+// V 1.37: dados de empresa ja excluida (sobra de exclusoes anteriores a esta versao) nao aparecem
+// nas listas. Cache curto dos ids cadastrados (renovado ao gravar/excluir uma empresa).
+let cacheEmpresas = null;
+async function idsEmpresasCadastradas() {
+  if (!cacheEmpresas || Date.now() - cacheEmpresas.em > 15000) cacheEmpresas = { em: Date.now(), ids: await empresasCadastradas() };
+  return cacheEmpresas.ids;
+}
+async function semEmpresaExcluida(colecao, docs) {
+  if (colecao === "cliente" || COLECOES_GLOBAIS.includes(colecao)) return docs;
+  const ids = await idsEmpresasCadastradas();
+  return (docs || []).filter((d) => !d.EmpresaId || ids.has(d.EmpresaId));
+}
+
 async function listarComFiltro(container, colecao, identidade) {
   if (COLECOES_GLOBAIS.includes(colecao)) {
     const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
@@ -156,7 +198,7 @@ async function listarComFiltro(container, colecao, identidade) {
   const empresas = empresasVisiveis(identidade);
   if (empresas === null) {
     const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
-    return resources;
+    return semEmpresaExcluida(colecao, resources);
   }
   if (empresas.length === 0) return [];
   const campo = colecao === "cliente" ? "c.id" : "c.EmpresaId";
@@ -165,7 +207,7 @@ async function listarComFiltro(container, colecao, identidade) {
     parameters: [{ name: "@empresas", value: empresas }],
   };
   const { resources } = await container.items.query(consulta).fetchAll();
-  return resources;
+  return semEmpresaExcluida(colecao, resources);
 }
 
 // V 1.2 - Plano de Acao: aplica as regras de status/evidencia (ver
@@ -224,10 +266,12 @@ async function notificarAcaoPsico(context, container, resource, reenviar) {
 async function notificarPlanoAcao(context, existente, resource, container, reenviar) {
   try {
     if (resource.Origem !== "Riscos Psicossociais" && (precisaNotificarAtribuicao(existente, resource) || (reenviar && precisaNotificarAtribuicao(null, resource)))) {
+      const fx = await fotosDaAcaoAET(resource, context);
       await enviarEmail({
         para: resource["E-mail Responsavel"],
         assunto: ESTAGIOS_PLANO_ACAO.atribuida.assunto(resource),
-        htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio: "atribuida", acao: resource }),
+        htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio: "atribuida", acao: resource, fotos: fx ? fx.fotos : null, semFoto: fx ? fx.semFoto : "" }),
+        anexos: fx ? fx.anexos : undefined,
       });
       // V 1.33: registra o envio (a tela mostra "e-mail enviado em ...")
       if (container) {
@@ -296,6 +340,7 @@ async function tratar(request, context) {
     return { status: 403, jsonBody: { erro: "Seu perfil permite apenas consultar e baixar os dados. Alterações são feitas pela equipe ElevaLife." } };
   }
 
+  if (colecao === "cliente" && request.method !== "GET") cacheEmpresas = null;
   try {
     switch (request.method) {
       case "GET": {
@@ -362,6 +407,7 @@ async function tratar(request, context) {
           resource = await notificarPlanoAcao(context, jaExistia, resource, container, reenviarPsico);
           if (resource.Origem === "Riscos Psicossociais") resource = await notificarAcaoPsico(context, container, resource, reenviarPsico);
         }
+        if (colecao === "cliente") cacheEmpresas = null;
         return { status: 201, jsonBody: resource };
       }
 
@@ -412,9 +458,18 @@ async function tratar(request, context) {
         if (colecao === "cliente" && identidade.papel !== "Administrador") {
           return { status: 403, jsonBody: { erro: "Só Administrador pode excluir uma empresa-cliente." } };
         }
+        // V 1.37: excluir a empresa-cliente apaga TODOS os dados dela (em lotes; enquanto faltar,
+        // responde 202 { restante: true } e o navegador repete; o cadastro sai por ultimo).
+        if (colecao === "cliente") {
+          for (const eid of Array.from(new Set([empresaIdDoDocumento(colecao, existente), existente.id].filter(Boolean)))) {
+            const r = await excluirDadosEmpresa(eid, colecoesDaEmpresa(), context);
+            if (r.restante) return { status: 202, jsonBody: r };
+          }
+        }
         await container.item(id, empresaIdDoDocumento(colecao, existente)).delete();
         // Excluiu o registro: apaga as fotos/arquivos dele do Storage tambem.
         await excluirArquivosRemovidos(existente, null, COLECOES_GLOBAIS.includes(colecao) ? EMPRESA_GLOBAL : empresaIdDoDocumento(colecao, existente), context);
+        if (colecao === "cliente") cacheEmpresas = null;
         return { status: 204 };
       }
 

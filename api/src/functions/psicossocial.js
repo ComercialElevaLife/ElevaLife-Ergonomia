@@ -688,4 +688,10 @@ function emailAcaoPsico(r) {
   return modeloAcaoPsico({ empresa: { razao: r.Cliente }, unidade: r.Unidade, ghe: r.Setor,
     acao: { resp: r["Responsavel Acao"], titulo: p.risco || r["Nr Acao"] || "Ação do plano", recomendacao: r["Acao Recomendada"] || "", fator: p.fator || "", indicador: p.indicador || "", prazo: r["Dt Programada"] } });
 }
-module.exports = { tratarEquipe, tratarPublico, emailAcaoPsico };
+// V 1.37: exclusao da empresa-cliente no SIGE apaga tambem o documento raiz da empresa no modulo.
+async function excluirRaizEmpresa(eid) {
+  indices.delete(eid);
+  try { await comRetentativa(async () => (await container()).item(idDoc(`empresas/${eid}`), GLOBAL).delete()); } catch (e) { if (e.code !== 404) throw e; }
+}
+
+module.exports = { tratarEquipe, tratarPublico, emailAcaoPsico, excluirEmpresaLote, excluirRaizEmpresa };

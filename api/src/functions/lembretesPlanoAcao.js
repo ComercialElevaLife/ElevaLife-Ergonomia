@@ -62,6 +62,7 @@ const crypto = require("crypto");
 const { obterContainer } = require("../shared/cosmos");
 const { enviarEmail, modeloPlanoAcao, modeloConvite, modeloRedefinicao, ESTAGIOS_PLANO_ACAO, logoEmailHtml, formatarDataBR } = require("../shared/email");
 
+const { fotosDaAcaoAET } = require("../shared/fotosAET");
 const NOME_APP = "S.I.G.E";
 const EMAIL_VALIDO_JOB = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
@@ -98,11 +99,14 @@ async function buscarEmailsAdmin() {
 async function enviarEstagio({ estagio, acao, paraResponsavel, emailsAdmin, ehEstagioDeAtraso }) {
   const envios = [];
   if (paraResponsavel) {
+    // V 1.37: acao da AET leva a foto da atividade
+    const fx = await fotosDaAcaoAET(acao, null);
     envios.push(
       enviarEmail({
         para: paraResponsavel,
         assunto: ESTAGIOS_PLANO_ACAO[estagio].assunto(acao),
-        htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio, acao, paraAdmin: false }),
+        htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio, acao, paraAdmin: false, fotos: fx ? fx.fotos : null, semFoto: fx ? fx.semFoto : "" }),
+        anexos: fx ? fx.anexos : undefined,
       })
     );
   }
