@@ -205,9 +205,10 @@
       H("Certificados de calibração dos instrumentos", 0, { pb: true });
       for (let i = 0; i < op.instrumentos.length; i++) {
         const c = op.instrumentos[i]; H(`${c.Nome}${c.Validade ? " (validade " + dataBR(c.Validade) + ")" : ""}`, 1);
-        const arq = Array.isArray(c["Arquivo Imagem"]) ? c["Arquivo Imagem"][0] : c["Arquivo Imagem"]; const d = arq && arq.chave ? await imagem(arq.chave) : null;
-        if (d) { const im = await new Promise((ok) => { const i2 = new Image(); i2.onload = () => ok([i2.naturalWidth, i2.naturalHeight]); i2.onerror = () => ok([1000, 1414]); i2.src = d; }); const w = 480, hh = Math.min(640, w * im[1] / im[0]); blocos.push({ t: "img", d, w: hh < 640 ? w : 640 * im[0] / im[1], h: hh }); }
-        else P("Certificado cadastrado sem imagem (JPG/PNG) no Cadastro Interno › Certificado de calibração.");
+        const arq = Array.isArray(c["Arquivo Imagem"]) ? c["Arquivo Imagem"][0] : c["Arquivo Imagem"];
+        const pags = arq && arq.chave ? await BI.LaudoPadrao.paginasDoArquivo(arq.chave) : []; // V 1.35: imagem ou PDF (uma pagina cada)
+        for (let k = 0; k < pags.length; k++) { const d = pags[k]; if (k > 0) blocos.push({ t: "pb" }); const im = await new Promise((ok) => { const i2 = new Image(); i2.onload = () => ok([i2.naturalWidth, i2.naturalHeight]); i2.onerror = () => ok([1000, 1414]); i2.src = d; }); const w = 480, hh = Math.min(640, w * im[1] / im[0]); blocos.push({ t: "img", d, w: hh < 640 ? w : 640 * im[0] / im[1], h: hh }); }
+        if (!pags.length) P("Certificado cadastrado sem arquivo (imagem ou PDF) no Cadastro Interno › Certificado de calibração.");
       }
     }
     // metodos aplicados
@@ -218,46 +219,122 @@
     return { blocos, TOC };
   }
 
-  // ------------------------------------------------------------------ emissao
-  function abrirEmissao(cliente) {
-    const aets = BI.AET.aetsNativas().filter((a) => a.Cliente === cliente);
-    if (!aets.length) { window.alert("Este cliente ainda não tem AET."); return; }
-    const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
-    const fundo = h("div", "aet-modal-fundo"); const cx = h("div", "aet-modal"); fundo.appendChild(cx);
-    cx.appendChild(h("div", "aet-modal-titulo", "Emitir laudo da AET – " + cliente));
-    cx.appendChild(h("p", "aet-nota", "O laudo reúne as AETs do recorte escolhido (uma seção por setor – posto – cargo), sempre com o risco atual do Inventário de Riscos."));
-    const gr = h("div", "aet-grade"); cx.appendChild(gr);
-    const sel = (rot, opcs, valor) => { const l = h("label", "aet-campo"); l.appendChild(h("span", "aet-rot", rot)); const s = h("select"); opcs.forEach(([v, t]) => { const o = h("option", null, t); o.value = v; s.appendChild(o); }); if (valor != null) s.value = valor; l.appendChild(s); gr.appendChild(l); return s; };
-    const f = BI.filtros || {}; const um = (d) => (f[d] && f[d].length === 1 ? f[d][0] : "");
-    const padraoAbr = um("Posto Trabalho") ? "Posto Trabalho" : um("Cargo") ? "Cargo" : um("Setor") ? "Setor" : um("Unidade") ? "Unidade" : "";
-    const sAbr = sel("Abrangência", [["", "Empresa toda"], ["Unidade", "Unidade"], ["Setor", "Setor / GHE"], ["Cargo", "Cargo"], ["Posto Trabalho", "Posto de trabalho"]], padraoAbr);
-    const sVal = sel("Recorte", [["", "-"]]);
-    const preencher = () => { const d = sAbr.value; sVal.innerHTML = ""; if (!d) { const o = h("option", null, "Todas as AETs do cliente"); o.value = ""; sVal.appendChild(o); sVal.disabled = true; return; } sVal.disabled = false; Array.from(new Set(aets.map((a) => a[d]).filter(Boolean))).sort().forEach((v) => { const o = h("option", null, v); o.value = v; sVal.appendChild(o); }); if (um(d)) sVal.value = um(d); };
-    sAbr.addEventListener("change", preencher); preencher();
-    const ergs = (BI.dados.ergonomista || []).map((e) => [e._id, e.Nome]);
-    const sExe = sel("Ergonomista executor", [["", "-"]].concat(ergs)); const sRt = sel("Responsável técnico", [["", "-"]].concat(ergs));
-    const nomeAet = aets.map((a) => a.Ergonomista).find(Boolean); const eE = (BI.dados.ergonomista || []).find((e) => e.Nome === nomeAet); if (eE) sExe.value = eE._id;
-    const certs = BI.dados.certificadoCalibracao || [];
-    cx.appendChild(h("div", "aet-subtitulo", "Instrumentos de medição utilizados (certificados de calibração)"));
-    const lista = h("div", "ferr-multi"); cx.appendChild(lista);
-    if (!certs.length) lista.appendChild(h("span", "aet-nota", "Nenhum certificado no Cadastro Interno › Certificado de calibração."));
-    const marcados = new Set();
-    certs.forEach((c) => { const l = h("label"); const cb = h("input"); cb.type = "checkbox"; cb.addEventListener("change", () => { if (cb.checked) marcados.add(c._id); else marcados.delete(c._id); }); l.appendChild(cb); l.appendChild(document.createTextNode(` ${c.Nome}${c.Validade ? " (validade " + dataBR(c.Validade) + ")" : ""}`)); lista.appendChild(l); });
-    const msg = h("div", "aet-msg"); msg.hidden = true; cx.appendChild(msg);
-    const barra = h("div", "reav-barra"); const bC = h("button", "btn-cad-secundario", "Cancelar"); bC.type = "button"; const bO = h("button", "btn-cad-primario", "Gerar laudo (PDF e Word)"); bO.type = "button"; barra.appendChild(bC); barra.appendChild(bO); cx.appendChild(barra);
-    bC.addEventListener("click", () => fundo.remove());
-    bO.addEventListener("click", async () => {
-      const d = sAbr.value, v = sVal.value; const sel_ = aets.filter((a) => !d || a[d] === v);
-      if (!sel_.length) { msg.hidden = false; msg.className = "aet-msg erro"; msg.textContent = "Nenhuma AET no recorte escolhido."; return; }
-      if (!sExe.value && !sRt.value) { msg.hidden = false; msg.className = "aet-msg erro"; msg.textContent = "Escolha o ergonomista executor ou o responsável técnico."; return; }
-      bO.disabled = true; msg.hidden = false; msg.className = "aet-msg"; msg.textContent = "Gerando o laudo… (fotos e certificados podem levar alguns segundos)";
-      try {
-        const r = await gerar({ cliente, aets: sel_, abrangencia: d ? { campo: d, valor: v } : null, executor: (BI.dados.ergonomista || []).find((e) => e._id === sExe.value), responsavel: (BI.dados.ergonomista || []).find((e) => e._id === sRt.value), instrumentos: certs.filter((c) => marcados.has(c._id)) });
-        msg.textContent = r.registrado ? `Laudo ${r.codigo} (Rev. ${r.revisao}) gerado e registrado no histórico de laudos do cliente (AEP › Laudos).` : `Laudo ${r.codigo} gerado. ${r.aviso || ""}`;
-        bO.hidden = true; bC.textContent = "Fechar";
-      } catch (e) { console.error("laudo AET", e); msg.className = "aet-msg erro"; msg.textContent = "Não foi possível gerar o laudo: " + (e && e.message ? e.message : e); bO.disabled = false; }
+  // ------------------------------------------------------------------ V 1.35: sub-aba AET › Laudos
+  // Emissao pelo recorte em cascata (sem unidade = empresa toda; unidade; unidade + setor; ... posto) e historico
+  // dos laudos da AET ja emitidos (filtro geral de Cliente).
+  const hEl = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+  const NIVEIS_RECORTE = [["Unidade", "Unidade", "Todas as unidades (empresa toda)"], ["Setor", "Setor / GHE", "Todos os setores / GHE"], ["Cargo", "Cargo", "Todos os cargos"], ["Posto Trabalho", "Posto de trabalho", "Todos os postos"]];
+  const estadoAba = { cliente: "", recorte: {}, executor: "", rt: "", certs: new Set(), msg: "", erro: false, gerando: false };
+  function descreverRecorte(r) {
+    const partes = NIVEIS_RECORTE.filter(([k]) => r[k]).map(([k, rot]) => `${rot}: ${r[k]}`);
+    return partes.length ? partes.join(" › ") : "Empresa toda";
+  }
+  function podeEmitir() { const i = BI.DB && BI.DB.estado.identidade; return !(i && i.papel === "UsuarioCliente") && !(BI.DB && BI.DB.estado.somenteLeitura); }
+  function arqDe(v) { return Array.isArray(v) ? v[0] : v; }
+  function renderAba(el) {
+    if (!el) return;
+    el.innerHTML = "";
+    const clientesFiltro = (BI.filtros && BI.filtros.Cliente) || [];
+    const todas = BI.AET.aetsNativas();
+    const clientes = Array.from(new Set(todas.map((a) => a.Cliente).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    if (clientesFiltro.length === 1) estadoAba.cliente = clientesFiltro[0];
+    if (!clientes.includes(estadoAba.cliente)) estadoAba.cliente = clientes.length === 1 ? clientes[0] : (clientes.includes(estadoAba.cliente) ? estadoAba.cliente : "");
+    // ---- emissao
+    if (podeEmitir()) {
+      const card = hEl("div", "cartao bloco-cadastro aet-laudo-emissao"); el.appendChild(card);
+      const cab = hEl("div", "cadastro-cabecalho"); cab.appendChild(hEl("div", "cartao-titulo", "Emitir laudo da AET")); card.appendChild(cab);
+      card.appendChild(hEl("p", "aet-ajuda", "Escolha o recorte: sem unidade, sai o laudo da empresa toda; só a unidade, a unidade toda; unidade e setor, todas as análises daquele setor; e assim por diante (cargo e posto). O laudo usa sempre o risco atual do Inventário de Riscos."));
+      const gr = hEl("div", "aet-grade"); card.appendChild(gr);
+      const sel = (rot, opcs, valor, aoMudar, larga) => { const l = hEl("label", "aet-campo" + (larga ? " aet-campo--largo" : "")); l.appendChild(hEl("span", "aet-rot", rot)); const s = hEl("select"); opcs.forEach(([v, t]) => { const o = hEl("option", null, t); o.value = v; s.appendChild(o); }); s.value = valor || ""; s.addEventListener("change", () => aoMudar(s.value)); l.appendChild(s); gr.appendChild(l); return s; };
+      sel("Cliente *", [["", clientes.length ? "Escolha o cliente…" : "Nenhum cliente com AET"]].concat(clientes.map((c) => [c, c])), estadoAba.cliente, (v) => { estadoAba.cliente = v; estadoAba.recorte = {}; renderAba(el); });
+      const daEmpresa = todas.filter((a) => a.Cliente === estadoAba.cliente);
+      NIVEIS_RECORTE.forEach(([k, rot, todosTxt], idx) => {
+        const anteriores = NIVEIS_RECORTE.slice(0, idx).map(([x]) => x);
+        const base = daEmpresa.filter((a) => anteriores.every((x) => !estadoAba.recorte[x] || a[x] === estadoAba.recorte[x]));
+        const valores = Array.from(new Set(base.map((a) => a[k]).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+        if (estadoAba.recorte[k] && !valores.includes(estadoAba.recorte[k])) delete estadoAba.recorte[k];
+        const s = sel(rot, [["", todosTxt]].concat(valores.map((v) => [v, v])), estadoAba.recorte[k] || "", (v) => { if (v) estadoAba.recorte[k] = v; else delete estadoAba.recorte[k]; NIVEIS_RECORTE.slice(idx + 1).forEach(([x]) => delete estadoAba.recorte[x]); renderAba(el); });
+        s.disabled = !estadoAba.cliente;
+      });
+      const ergs = (BI.dados.ergonomista || []).map((e) => [e._id, e.Nome]);
+      const selecionadas = daEmpresa.filter((a) => NIVEIS_RECORTE.every(([k]) => !estadoAba.recorte[k] || a[k] === estadoAba.recorte[k]));
+      if (!estadoAba.executor) { const n = selecionadas.map((a) => a.Ergonomista).find(Boolean); const e = (BI.dados.ergonomista || []).find((x) => x.Nome === n); if (e) estadoAba.executor = e._id; }
+      sel("Ergonomista executor", [["", "-"]].concat(ergs), estadoAba.executor, (v) => { estadoAba.executor = v; });
+      sel("Responsável técnico", [["", "-"]].concat(ergs), estadoAba.rt, (v) => { estadoAba.rt = v; });
+      card.appendChild(hEl("div", "aet-subtitulo", "Certificados de calibração dos instrumentos (saem no final do laudo)"));
+      const certs = BI.dados.certificadoCalibracao || []; const lista = hEl("div", "ferr-multi"); card.appendChild(lista);
+      if (!certs.length) lista.appendChild(hEl("span", "aet-nota", "Nenhum certificado em Cadastro Interno › Certificado Calibração."));
+      certs.forEach((c) => { const l = hEl("label"); const cb = hEl("input"); cb.type = "checkbox"; cb.checked = estadoAba.certs.has(c._id); cb.addEventListener("change", () => { if (cb.checked) estadoAba.certs.add(c._id); else estadoAba.certs.delete(c._id); }); l.appendChild(cb); l.appendChild(document.createTextNode(` ${c.Nome}${c.Validade ? " (validade " + dataBR(c.Validade) + ")" : ""}`)); lista.appendChild(l); });
+      const resumo = hEl("p", "aet-nota", estadoAba.cliente ? `Recorte: ${descreverRecorte(estadoAba.recorte)} · ${selecionadas.length} AET(s) · ${selecionadas.reduce((s, a) => s + (a.Atividades || []).length, 0)} atividade(s).` : "Escolha o cliente."); card.appendChild(resumo);
+      const msg = hEl("div", "aet-msg" + (estadoAba.erro ? " erro" : ""), estadoAba.msg); msg.hidden = !estadoAba.msg; card.appendChild(msg);
+      const barra = hEl("div", "reav-barra"); const bO = hEl("button", "btn-cad-primario", estadoAba.gerando ? "Gerando…" : "📄 Gerar laudo (PDF e Word)"); bO.type = "button"; bO.disabled = estadoAba.gerando || !selecionadas.length; barra.appendChild(bO); card.appendChild(barra);
+      bO.addEventListener("click", async () => {
+        if (!estadoAba.executor && !estadoAba.rt) { estadoAba.msg = "Escolha o ergonomista executor ou o responsável técnico."; estadoAba.erro = true; renderAba(el); return; }
+        estadoAba.gerando = true; estadoAba.erro = false; estadoAba.msg = "Gerando o laudo… (fotos e certificados podem levar alguns segundos)"; renderAba(el);
+        try {
+          const r = await gerar({ cliente: estadoAba.cliente, aets: selecionadas, recorte: Object.assign({}, estadoAba.recorte), executor: (BI.dados.ergonomista || []).find((e) => e._id === estadoAba.executor), responsavel: (BI.dados.ergonomista || []).find((e) => e._id === estadoAba.rt), instrumentos: certs.filter((c) => estadoAba.certs.has(c._id)) });
+          estadoAba.msg = r.registrado ? `Laudo ${r.codigo} (Rev. ${r.revisao}) gerado e registrado no histórico abaixo.${r.aviso ? " " + r.aviso : ""}` : `Laudo ${r.codigo} gerado. ${r.aviso || ""}`; estadoAba.erro = false;
+        } catch (e) { console.error("laudo AET", e); estadoAba.msg = "Não foi possível gerar o laudo: " + (e && e.message ? e.message : e); estadoAba.erro = true; }
+        estadoAba.gerando = false; renderAba(el);
+      });
+    }
+    // ---- historico
+    const card2 = hEl("div", "cartao bloco-cadastro"); el.appendChild(card2);
+    const laudos = Calc().filtrar((BI.dados.laudo || []).filter((l) => /AET/i.test(String(l.Tipo || "") + " " + String(l.Origem || ""))), BI.filtros, ["Emitido Em"]).sort((a, b) => String(b["Emitido Em"] || "").localeCompare(String(a["Emitido Em"] || "")));
+    const cab2 = hEl("div", "cadastro-cabecalho"); const t2 = hEl("div", "cartao-titulo", "Laudos da AET emitidos"); t2.appendChild(hEl("span", "contagem-tabela", ` (${laudos.length})`)); cab2.appendChild(t2); card2.appendChild(cab2);
+    if (!laudos.length) { card2.appendChild(hEl("div", "plano-vazio", "Nenhum laudo da AET emitido para o filtro atual.")); return; }
+    const wrap = hEl("div", "tabela-scroll"); const tb = hEl("table", "tabela-dados"); const tr0 = hEl("tr");
+    ["Emitido em", "Cliente", "Abrangência", "Revisão", "Código", "Emitido por", ""].forEach((c) => tr0.appendChild(hEl("th", null, c)));
+    const th = hEl("thead"); th.appendChild(tr0); tb.appendChild(th); const tbody = hEl("tbody");
+    laudos.forEach((l) => {
+      const tr = hEl("tr");
+      [dataBR(l["Emitido Em"]), l.Cliente, l["Abrangencia Descricao"] || "Empresa toda", l.Revisao, l["Codigo Verificacao"], l["Emitido Por"]].forEach((x) => tr.appendChild(hEl("td", null, x || "-")));
+      const td = hEl("td", "aet-acoes-linha");
+      [["Arquivo Url", "⬇ PDF"], ["Arquivo Word", "⬇ Word"]].forEach(([campo, rot]) => { const a = arqDe(l[campo]); if (!a || !a.chave) return; const b = hEl("button", "btn-cad-secundario", rot); b.type = "button"; b.addEventListener("click", () => { const x = document.createElement("a"); x.href = BI.DB.urlArquivo(a.chave); x.download = a.nomeArquivo || ""; document.body.appendChild(x); x.click(); x.remove(); }); td.appendChild(b); });
+      if (podeEmitir()) { const bx = hEl("button", "btn-excluir", "Excluir"); bx.type = "button"; bx.addEventListener("click", async () => { if (!window.confirm(`Excluir do histórico o laudo ${l["Codigo Verificacao"] || ""}? O código de validação deixa de ser reconhecido.`)) return; try { await BI.DB.excluir("laudo", l._id); if (BI.recarregar) await BI.recarregar(); renderAba(el); } catch (e) { window.alert("Não foi possível excluir: " + (e && e.message ? e.message : e)); } }); td.appendChild(bx); }
+      tr.appendChild(td); tbody.appendChild(tr);
     });
-    document.body.appendChild(fundo);
+    tb.appendChild(tbody); wrap.appendChild(tb); card2.appendChild(wrap);
+  }
+
+  // ------------------------------------------------------------------ V 1.35: sub-aba AET › Editor de texto
+  // Mostra exatamente o texto que sai no laudo da AET (o gravado ou o padrao), com "alterado" e "Restaurar padrão".
+  function renderEditorTexto(el) {
+    if (!el) return;
+    const LT = BI.LaudoTextos; el.innerHTML = "";
+    const card = hEl("div", "cartao bloco-cadastro"); el.appendChild(card);
+    const cab = hEl("div", "cadastro-cabecalho"); cab.appendChild(hEl("div", "cartao-titulo", "Editor de Texto do Laudo da AET")); card.appendChild(cab);
+    card.appendChild(hEl("p", "aet-ajuda", "Cada campo mostra o texto que sai no laudo da AET. Marcadores entre chaves ({cliente}, {unidade}, {escopo}, {executor}, {matriz}...) são trocados na emissão. O texto igual ao padrão acompanha as atualizações do padrão ElevaLife."));
+    const modelo = (BI.dados.modeloLaudo || [])[0] || null;
+    const editar = podeEmitir();
+    const campos = CAMPOS.map(([c, r]) => [c, r]);
+    const els = {};
+    campos.forEach(([campo, rot]) => {
+      const box = hEl("div", "campo-form campo-form-largo aet-editor-campo");
+      const lb = hEl("label", null, rot); const tag = hEl("span", "editor-texto-alterado", "alterado"); const bt = hEl("button", "btn-cad-secundario editor-texto-restaurar", "Restaurar padrão"); bt.type = "button";
+      lb.appendChild(tag); lb.appendChild(bt); box.appendChild(lb);
+      const ta = hEl("textarea"); ta.value = LT ? LT.textoEfetivo(modelo || {}, campo) : (PADRAO[campo] || ""); ta.rows = Math.min(16, Math.max(3, Math.ceil(ta.value.length / 110) + ta.value.split("\n").length)); ta.disabled = !editar;
+      const pintar = () => { const alt = ta.value.trim() !== String(PADRAO[campo] || "").trim(); tag.hidden = !alt; bt.hidden = !alt || !editar; };
+      bt.addEventListener("click", () => { ta.value = PADRAO[campo] || ""; pintar(); }); ta.addEventListener("input", pintar); pintar();
+      box.appendChild(ta); card.appendChild(box); els[campo] = ta;
+    });
+    if (!editar) return;
+    const msg = hEl("div", "aet-msg"); msg.hidden = true; card.appendChild(msg);
+    const barra = hEl("div", "reav-barra"); const bS = hEl("button", "btn-cad-primario", "Salvar textos da AET"); bS.type = "button"; barra.appendChild(bS); card.appendChild(barra);
+    bS.addEventListener("click", async () => {
+      bS.disabled = true; msg.hidden = false; msg.className = "aet-msg"; msg.textContent = "Salvando…";
+      try {
+        const atual = (BI.dados.modeloLaudo || [])[0] || null;
+        const dados = {}; if (atual) Object.keys(atual).forEach((k) => { if (k[0] !== "_" && k !== "id") dados[k] = atual[k]; });
+        if (!dados.Nome) dados.Nome = "Modelo ElevaLife";
+        campos.forEach(([campo]) => { const v = els[campo].value; dados[campo] = v.trim() === String(PADRAO[campo] || "").trim() ? "" : v; });
+        dados.EmpresaId = dados.EmpresaId || "GLOBAL";
+        await BI.DB.salvar("modeloLaudo", atual ? atual._id : null, dados, !atual);
+        if (BI.recarregar) await BI.recarregar();
+        msg.textContent = "Textos da AET salvos. Valem para os próximos laudos.";
+      } catch (e) { msg.className = "aet-msg erro"; msg.textContent = "Não foi possível salvar: " + (e && e.message ? e.message : e); }
+      bS.disabled = false;
+    });
   }
 
   async function gerar(o) {
@@ -273,7 +350,10 @@
     const usados = new Map(); o.aets.forEach((a) => (a.Atividades || []).forEach((at) => (at.fatores || []).forEach((fa) => (fa.ferramentas || []).forEach((it) => { const d = BI.Ferramentas.porId(it.id); if (d) usados.set(d.id, d); }))));
     const assinantes = []; for (const e of [o.executor, o.responsavel].filter(Boolean)) { if (assinantes.some((x) => x.nome === e.Nome)) continue; const arq = Array.isArray(e.Assinatura) ? e.Assinatura[0] : e.Assinatura; assinantes.push({ nome: e.Nome, cargo: [e.Titulo, e.Registro].filter(Boolean).join(" · "), assinatura: arq && arq.chave ? await imagem(arq.chave) : null }); }
     const unidades = Array.from(new Set(o.aets.map((a) => a.Unidade).filter(Boolean)));
-    const abrTxt = o.abrangencia ? `${{ Unidade: "Unidade", Setor: "Setor / GHE", Cargo: "Cargo", "Posto Trabalho": "Posto de trabalho" }[o.abrangencia.campo]}: ${o.abrangencia.valor}` : "Empresa toda";
+    // V 1.35: recorte em cascata (Unidade > Setor > Cargo > Posto); sem recorte, a empresa toda
+    const recorte = o.recorte || (o.abrangencia ? { [o.abrangencia.campo]: o.abrangencia.valor } : {});
+    const abrTxt = descreverRecorte(recorte);
+    const nivelAbr = ["Posto Trabalho", "Cargo", "Setor", "Unidade"].find((k) => recorte[k]);
     const ex = o.executor, rt = o.responsavel;
     const vars = {
       cliente, unidade: unidades.length === 1 ? (/^unidade\b/i.test(unidades[0]) ? unidades[0] : "Unidade " + unidades[0]) : "unidades " + unidades.join(", "),
@@ -306,9 +386,8 @@
       try { arqPdf = await BI.DB.enviarArquivo("laudo", emp, new File([blob], nomeBase.replace(/[^\w .-]+/g, "_") + ".pdf", { type: "application/pdf" })); } catch (e) { aviso = "O PDF não foi anexado (" + (e && e.message ? e.message : e) + ")."; }
       if (blobWord) { try { arqDoc = await BI.DB.enviarArquivo("laudo", emp, new File([blobWord], nomeBase.replace(/[^\w .-]+/g, "_") + ".docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" })); } catch (e) { /* Word opcional */ } }
       const pr = (e) => (e ? e.Registro || "" : "");
-      await BI.DB.salvar("laudo", null, { EmpresaId: emp, Cliente: cliente, Tipo: "Laudo AET", Origem: "AET", Abrangencia: o.abrangencia ? o.abrangencia.campo : "Empresa toda", "Abrangencia Descricao": abrTxt,
-        Unidade: o.abrangencia && o.abrangencia.campo === "Unidade" ? o.abrangencia.valor : undefined, Setor: o.abrangencia && o.abrangencia.campo === "Setor" ? o.abrangencia.valor : undefined,
-        Cargo: o.abrangencia && o.abrangencia.campo === "Cargo" ? o.abrangencia.valor : undefined, "Posto Trabalho": o.abrangencia && o.abrangencia.campo === "Posto Trabalho" ? o.abrangencia.valor : undefined,
+      await BI.DB.salvar("laudo", null, { EmpresaId: emp, Cliente: cliente, Tipo: "Laudo AET", Origem: "AET", Abrangencia: nivelAbr ? { "Posto Trabalho": "Posto de trabalho" }[nivelAbr] || nivelAbr : "Empresa toda", "Abrangencia Descricao": abrTxt,
+        Unidade: recorte.Unidade || undefined, Setor: recorte.Setor || undefined, Cargo: recorte.Cargo || undefined, "Posto Trabalho": recorte["Posto Trabalho"] || undefined,
         "Emitido Em": emissao, "Emitido Por": ex ? ex.Nome : rt ? rt.Nome : "", "Responsavel Tecnico": rt ? rt.Nome : "", "Ergonomista Executor": ex ? ex.Nome : "", "Registro Responsavel": pr(rt), "Registro Executor": pr(ex),
         Revisao: revisao, "Codigo Verificacao": codigo, "Hash Documento": hash, "Arquivo Url": arqPdf ? { chave: arqPdf.chave, nomeArquivo: arqPdf.nomeArquivo, tamanho: arqPdf.tamanho, tipoConteudo: "application/pdf" } : null,
         "Arquivo Word": arqDoc ? { chave: arqDoc.chave, nomeArquivo: arqDoc.nomeArquivo, tamanho: arqDoc.tamanho, tipoConteudo: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" } : null,
@@ -321,5 +400,5 @@
     return { codigo, revisao, registrado, aviso, blob, blobWord };
   }
 
-  BI.LaudoAET = { abrirEmissao, gerar, montar, PADRAO, CAMPOS };
+  BI.LaudoAET = { renderAba, renderEditorTexto, gerar, montar, PADRAO, CAMPOS };
 })(window);

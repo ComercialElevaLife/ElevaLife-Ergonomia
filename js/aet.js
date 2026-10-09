@@ -96,11 +96,14 @@
       crit = semExp.length ? severidadeDeNivel(mz, Math.max(...semExp.map((x) => x.nivel))) : (fa.severidade || null);
       if (crit && prob) { const gr = C.nivelDaMatriz(mz, prob, crit); pont = C.pontuacaoDaMatriz(mz, prob, crit); cand.push(gr); partes.push(semExp.length ? `${semExp.map((x) => F().porId(x.it.id).sigla).join(", ")} (severidade ${C.rotuloEscala(mz, crit, "severidade")}) × exposição ${C.rotuloEscala(mz, prob)}: ${gr}` : `severidade ${C.rotuloEscala(mz, crit, "severidade")} × probabilidade ${C.rotuloEscala(mz, prob)}: ${gr}`); }
     }
+    // V 1.35: AET importada (Word/PDF) - sem ferramenta preenchida nem severidade x probabilidade, vale o grau
+    // de risco informado no documento (levado a graduacao equivalente da matriz do cliente) ate o ergonomista revisar.
+    if (!cand.length && fa.grauImportado) { const gr = nivelNaMatriz(mz, C.ordemNivel(fa.grauImportado)); if (gr) { cand.push(gr); partes.push(`grau de risco informado na AET importada (${fa.grauImportado}): ${gr}`); } }
     const graduacao = cand.sort((a, b) => C.ordemNivel(b) - C.ordemNivel(a))[0] || "";
     const pendente = !graduacao ? (itens.length ? (semExp.length || !comExp.length ? "informe a probabilidade (exposição)" : "") : "informe a severidade e a probabilidade (exposição) ou aplique uma ferramenta") : "";
     return { graduacao, criticidade: crit, probabilidade: prob, pontuacao: pont, metodo: comExp.length && !semExp.length ? "ferramenta" : itens.length ? "ferramenta x exposicao" : "matriz", detalhe: partes.join(" · "), pendente };
   }
-  const assinaturaFator = (fa) => JSON.stringify([fa.ferramentas || [], fa.exposicao == null ? "" : fa.exposicao, fa.severidade || ""]);
+  const assinaturaFator = (fa) => JSON.stringify([fa.ferramentas || [], fa.exposicao == null ? "" : fa.exposicao, fa.severidade || "", fa.grauImportado || ""]);
   const idFatorRow = (aetId, fa) => "aet-" + aetId + "-" + fa.uid;
 
   // ------------------------------------------------------------------ painel da aba AET
@@ -119,11 +122,7 @@
     tit.appendChild(h("span", "contagem-tabela", ` (${lista.length})`));
     const barra = h("div", "aet-botoes");
     if (podeEditar()) { const bn = h("button", "btn-novo-registro", "+ Nova AET"); bn.type = "button"; bn.addEventListener("click", () => abrirEditor(null)); barra.appendChild(bn); }
-    const bl = h("button", "btn-cad-secundario", "📄 Emitir laudo da AET"); bl.type = "button";
-    const cli = (BI.filtros && BI.filtros.Cliente) || [];
-    bl.disabled = cli.length !== 1 || !lista.length || !podeEditar(); bl.title = cli.length !== 1 ? "Escolha um único cliente no filtro geral" : "Laudo da AET conforme o filtro (empresa toda, setor/GHE, cargo ou posto)";
-    bl.addEventListener("click", () => BI.LaudoAET && BI.LaudoAET.abrirEmissao(cli[0]));
-    barra.appendChild(bl); cab.appendChild(barra); cartao.appendChild(cab);
+    cab.appendChild(barra); cartao.appendChild(cab); // V 1.35: o laudo tem sub-aba propria (AET › Laudos)
     cartao.appendChild(h("p", "aet-ajuda", "A AET é feita por posto de trabalho e cargo. Em cada atividade, descreva a tarefa, anexe as fotos, identifique os fatores de risco, aplique as ferramentas ergonômicas e proponha as ações. Os riscos vão para o Inventário de Riscos e as ações para o Plano de Ação, com a origem AET."));
     if (!lista.length) { cartao.appendChild(h("div", "plano-vazio", "Nenhuma AET para o filtro atual." + (podeEditar() ? " Clique em “+ Nova AET”." : ""))); raiz.appendChild(cartao); return; }
     const wrap = h("div", "tabela-scroll"); const tb = h("table", "tabela-dados");
@@ -167,13 +166,14 @@
   function novaAtividade(n) { return { uid: uid(), nome: "Atividade " + String(n).padStart(2, "0"), descricao: "", fotos: [], fatores: [], recomendacoes: "" }; }
   function novoFator() { return { uid: uid(), grupo: "", fator: "", outro: "", consequencia: "", segmento: "", fonte: "", ferramentas: [], exposicao: "", severidade: "" }; }
 
-  function abrirEditor(aet) {
+  // V 1.35: "rascunho" = AET montada pela importacao (Word/PDF), aberta como nova para conferir e salvar.
+  function abrirEditor(aet, rascunho) {
     const editar = podeEditar();
-    const st = aet ? clone(Object.assign({}, aet)) : novaAET();
+    const st = aet ? clone(Object.assign({}, aet)) : rascunho ? Object.assign(novaAET(), clone(rascunho)) : novaAET();
     const idAET = aet ? (aet._id || aet.id) : null;
     ["Demandas"].forEach((k) => { st[k] = st[k] || {}; }); ["Medicoes", "Ciclos", "Cargas", "Atividades", "Foto Geral"].forEach((k) => { st[k] = Array.isArray(st[k]) ? st[k] : []; });
     const editores = new Map(); // uid do fator -> editor de acoes
-    let sujo = false; const marcar = () => { sujo = true; };
+    let sujo = !!rascunho; const marcar = () => { sujo = true; };
 
     const fundo = h("div", "aet-overlay"); const caixa = h("div", "aet-editor"); fundo.appendChild(caixa);
     const topo = h("div", "aet-topo"); const titulo = h("div", "aet-topo-titulo"); topo.appendChild(titulo);
@@ -182,6 +182,7 @@
     const bSalvar = h("button", "btn-cad-primario", "Salvar AET"); bSalvar.type = "button"; bSalvar.hidden = !editar;
     acoesTopo.appendChild(bFechar); acoesTopo.appendChild(bSalvar); topo.appendChild(acoesTopo);
     caixa.appendChild(topo); caixa.appendChild(msg);
+    if (rascunho) { const av = h("div", "aet-msg"); av.textContent = `AET importada de “${rascunho["Arquivo Importado"] || "arquivo"}”. Confira os dados, complete o que faltar (ferramentas, severidade e probabilidade, ações) e clique em Salvar AET.`; caixa.appendChild(av); }
     const corpo = h("div", "aet-corpo"); const nav = h("nav", "aet-nav"); const area = h("div", "aet-area"); corpo.appendChild(nav); corpo.appendChild(area); caixa.appendChild(corpo);
     document.body.appendChild(fundo); document.body.classList.add("aet-aberta");
     const fechar = () => { if (sujo && editar && !window.confirm("Há alterações não salvas na AET. Fechar mesmo assim?")) return; fundo.remove(); document.body.classList.remove("aet-aberta"); };

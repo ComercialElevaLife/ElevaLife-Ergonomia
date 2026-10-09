@@ -616,6 +616,13 @@
         if (c.tipo === "nota") { const n = document.createElement("div"); n.className = "ferr-nota"; n.textContent = c.rot; raiz.appendChild(n); return; }
         const linha = document.createElement("div"); linha.className = "ferr-campo" + (c.tipo === "multi" ? " ferr-campo--multi" : "");
         const rot = document.createElement("div"); rot.className = "ferr-rot"; rot.textContent = c.rot + (c.nota ? ` (${c.nota})` : ""); linha.appendChild(rot);
+        // V 1.35: imagens de referencia da planilha de ferramentas, junto do campo
+        const imgs = BI.FerramentasImagens && BI.FerramentasImagens[f.id] && BI.FerramentasImagens[f.id][c.id];
+        if (imgs && imgs.length) {
+          const tira = document.createElement("div"); tira.className = "ferr-imgs";
+          imgs.forEach(([arq, leg]) => { const fig = document.createElement("figure"); const im = document.createElement("img"); im.src = "img/ferramentas/" + arq; im.alt = leg; im.loading = "lazy"; im.title = leg; fig.appendChild(im); const cap = document.createElement("figcaption"); cap.textContent = leg; fig.appendChild(cap); fig.addEventListener("click", () => fig.classList.toggle("ampliada")); tira.appendChild(fig); });
+          linha.classList.add("ferr-campo--com-imgs"); linha.appendChild(tira);
+        }
         const caixa = document.createElement("div"); caixa.className = "ferr-entradas";
         const sufixos = c.lados ? [["_e", "Esq."], ["_d", "Dir."]] : [["", ""]];
         sufixos.forEach(([s, r]) => {

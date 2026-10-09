@@ -54,11 +54,16 @@
   // V 1.27 - servicos que a empresa contrata (cada um e uma aba do menu). Aba de
 // servico nao contratado continua visivel, mas mostra o aviso para procurar o
 // time de especialistas da ElevaLife (ver aplicarServicosContratados).
+// V 1.35: um servico por aba do menu. Clientes antigos com "ergo" (Gestao de Risco) contam como tendo
+// AEP, AET e Plano de Acao (ver empresaTemServico).
 const SERVICOS_SIGE = [
-  { valor: "ergo", label: "Gestão de Risco" },
+  { valor: "aep", label: "AEP" },
+  { valor: "aet", label: "AET" },
+  { valor: "psicossocial", label: "Psicossocial" },
+  { valor: "ergo", label: "Gestão de Riscos" },
+  { valor: "registro", label: "Gestão do Plano de Ação" },
   { valor: "medocup", label: "Gestão de Absenteísmo" },
   { valor: "compativeis", label: "Gestão de Restritos" },
-  { valor: "psicossocial", label: "Riscos Psicossociais" },
 ];
 const TIPOS_SETOR = ["Setor", "GHE"];
 const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
@@ -286,6 +291,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   function criarOuAtualizarGrafico(id, config) {
     if (registroGraficos[id]) registroGraficos[id].destroy();
     const canvas = document.getElementById(id);
+    // V 1.34: sem o <canvas> (index.html de outra versao em cache, ou grafico retirado) o grafico e ignorado,
+    // em vez de derrubar o carregamento do S.I.G.E.
+    if (!canvas || !canvas.getContext) { delete registroGraficos[id]; console.warn("SIGE: grafico sem canvas no index.html:", id); return; }
     registroGraficos[id] = new Chart(canvas.getContext("2d"), config);
   }
 
@@ -538,6 +546,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         if (!el) return;
         const res = resolver(el, chart);
         if (!res) return;
+        if (res.abrir) { res.abrir(); return; } // V 1.35: drill-down com secoes proprias
         abrirDrillDown(res.titulo, res.subtitulo, res.chave, res.linhas, evt.native || evt);
       },
     });
@@ -914,43 +923,111 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // Renderizadores - Dashboard "Ergo"
   // ------------------------------------------------------------------
 
-  function renderTilesRiscoGlobal(niveis, mapaRiscoF) {
-    const cont = document.getElementById("tiles-risco-global");
-    cont.innerHTML = "";
-    niveis.forEach((n) => {
-      const cor = window.BI.Calc.corStatus(n.nivel);
-      const tile = document.createElement("div");
-      tile.className = "tile-status tile-clicavel";
-      tile.style.borderLeftColor = cor;
-      tile.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        abrirDrillDown(
-          `Risco Global dos Postos - ${window.BI.Calc.rotuloNivel(n.nivel)}`,
-          `${n.qtd} posto(s) de trabalho`, "riscoPosto",
-          mapaRiscoF.filter((l) => l["Risco Global"] === n.nivel), ev
-        );
+  // ------------------------------------------------------------------
+  // V 1.35: filtro de origem por aba (Gestao de Riscos e Plano de Acao), aplicado DEPOIS do filtro geral.
+  // ------------------------------------------------------------------
+  const estadoOrigemAba = { ergo: "", registro: "" };
+  const ORIGENS_ABA = [["", "Todas"], ["AEP", "Riscos AEP"], ["AET", "Riscos AET"], ["Psicossocial", "Psicossocial"]];
+  function montarBarrasOrigem() {
+    document.querySelectorAll(".barra-origem-aba").forEach((barra) => {
+      const aba = barra.dataset.abaOrigem; barra.innerHTML = "";
+      const rot = document.createElement("span"); rot.className = "barra-origem-rotulo"; rot.textContent = "Origem:"; barra.appendChild(rot);
+      ORIGENS_ABA.forEach(([v, t]) => {
+        const b = document.createElement("button"); b.type = "button"; b.className = "chip-origem" + (estadoOrigemAba[aba] === v ? " ativa" : ""); b.textContent = aba === "registro" && v ? t.replace("Riscos ", "Ações ") : t;
+        b.addEventListener("click", () => { estadoOrigemAba[aba] = v; montarBarrasOrigem(); renderizarTudo(); });
+        barra.appendChild(b);
       });
+      const nota = document.createElement("span"); nota.className = "barra-origem-nota"; nota.textContent = "vale depois do filtro geral"; barra.appendChild(nota);
+    });
+  }
+  function porOrigemAba(lista, aba) {
+    const sel = estadoOrigemAba[aba]; if (!sel) return lista;
+    return (lista || []).filter((l) => window.BI.Calc.origemDe(l) === sel);
+  }
 
-      const rotulo = document.createElement("div");
-      rotulo.className = "rotulo";
-      const ponto = document.createElement("span");
-      ponto.className = "ponto";
-      ponto.style.background = cor;
-      rotulo.appendChild(ponto);
-      rotulo.appendChild(document.createTextNode(window.BI.Calc.rotuloNivel(n.nivel)));
+  // Rosca por nivel de risco com o total no centro (V 1.35: Risco Global e Inventario).
+  const pluginTotalCentro = {
+    id: "totalCentro",
+    afterDraw(chart, _a, opts) {
+      const meta = chart.getDatasetMeta(0); if (!meta || !meta.data || !meta.data.length) return;
+      const { x, y } = meta.data[0]; const ctx = chart.ctx; const total = (chart.data.datasets[0].data || []).reduce((a, b) => a + (Number(b) || 0), 0);
+      ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = window.BI.Calc.resolverCorCSS("var(--texto)") || "#3a2b2b"; ctx.font = "700 26px Montserrat, sans-serif"; ctx.fillText(String(total), x, y - 7);
+      ctx.fillStyle = window.BI.Calc.resolverCorCSS("var(--texto-secundario)") || "#8a7a78"; ctx.font = "600 10.5px Montserrat, sans-serif"; ctx.fillText((opts && opts.rotulo) || "total", x, y + 14);
+      ctx.restore();
+    },
+  };
+  function renderDonutNiveis(canvasId, legendaId, niveis, rotuloCentro, unidade, aoClicar) {
+    const C = window.BI.Calc;
+    const itens = niveis.filter((n) => n.qtd > 0);
+    const labels = itens.map((n) => C.rotuloNivel(n.nivel)); const valores = itens.map((n) => n.qtd); const cores = itens.map((n) => C.corStatus(n.nivel));
+    criarOuAtualizarGrafico(canvasId, {
+      type: "doughnut",
+      data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
+      plugins: [pluginTotalCentro],
+      options: comCliqueDrillDown({ cutout: "64%", interaction: { mode: "nearest", intersect: true }, plugins: { totalCentro: { rotulo: rotuloCentro }, tooltip: { enabled: false, external: tooltipExterno } } },
+        (el) => aoClicar(itens[el.index])),
+    });
+    const total = valores.reduce((a, b) => a + b, 0);
+    renderizarLegenda(legendaId, niveis.map((n) => ({ label: `${C.rotuloNivel(n.nivel)}: ${n.qtd} ${unidade}${total ? " (" + ((n.qtd / total) * 100).toFixed(0) + "%)" : ""}`, cor: C.corStatus(n.nivel) })));
+  }
 
-      const valor = document.createElement("div");
-      valor.className = "valor";
-      valor.textContent = String(n.qtd);
+  // Drill-down em secoes (V 1.35: composicao de um mes da evolucao dos riscos).
+  function abrirDrillDownSecoes(titulo, subtitulo, secoes) {
+    const painel = obterPainelDrillDown();
+    document.getElementById("drilldown-titulo").textContent = titulo;
+    document.getElementById("drilldown-sub").textContent = subtitulo;
+    const corpo = document.getElementById("drilldown-corpo"); corpo.innerHTML = "";
+    const vazias = secoes.every((s) => !s.linhas.length);
+    if (vazias) { const v = document.createElement("div"); v.className = "drilldown-vazio"; v.textContent = "Nenhum registro para esta seleção."; corpo.appendChild(v); }
+    secoes.filter((s) => s.linhas.length).forEach((sec) => {
+      const h = document.createElement("div"); h.className = "drilldown-secao"; if (sec.cor) h.style.borderLeftColor = sec.cor; h.textContent = `${sec.titulo} (${sec.linhas.length})`; corpo.appendChild(h);
+      const scroll = document.createElement("div"); scroll.className = "tabela-scroll"; const tb = document.createElement("table"); tb.className = "tabela-dados tabela-secao";
+      const th = document.createElement("thead"); const tr0 = document.createElement("tr"); sec.colunas.forEach(([r]) => { const c = document.createElement("th"); c.textContent = r; tr0.appendChild(c); }); th.appendChild(tr0); tb.appendChild(th);
+      const tbody = document.createElement("tbody");
+      sec.linhas.slice(0, LIMITE_LINHAS_DRILLDOWN).forEach((l) => { const tr = document.createElement("tr"); sec.colunas.forEach(([, fn]) => { const td = document.createElement("td"); const v = fn(l); if (v instanceof Node) td.appendChild(v); else td.textContent = v == null || v === "" ? "-" : String(v); tr.appendChild(td); }); tbody.appendChild(tr); });
+      tb.appendChild(tbody); scroll.appendChild(tb); corpo.appendChild(scroll);
+    });
+    painel.classList.add("aberto"); painel.setAttribute("aria-hidden", "false");
+    if (elOverlayDrillDown) elOverlayDrillDown.hidden = false; corpo.scrollTop = 0;
+  }
+  function pilulaNivelGestao(g) {
+    const C = window.BI.Calc; const sp = document.createElement("span"); sp.className = "plano-pilula"; sp.textContent = g === "Eliminado" ? "Eliminado" : C.rotuloNivel(g);
+    const hx = g && g !== "Eliminado" ? C.corRiscoHex(g) : "3E7B7E"; if (hx) { sp.style.background = "#" + hx; sp.style.color = "#" + C.textoSobreHex(hx); } return sp;
+  }
+  const localFator = (l) => [l.Setor, l["Posto Trabalho"], l.Cargo].filter(Boolean).join(" › ");
+  function abrirComposicaoMes(s) {
+    const C = window.BI.Calc;
+    const [aa, mm] = s.mes.split("-").map(Number); const dia = `${s.mes}-${String(new Date(aa, mm, 0).getDate()).padStart(2, "0")}`;
+    const base = [["Origem", (l) => C.origemDe(l)], ["Setor › posto › cargo", localFator], ["Fator de risco", (l) => l.Fator || "-"]];
+    const secoes = C.NIVEIS_RISCO.slice().reverse().map((n) => ({ titulo: "Risco " + C.rotuloNivel(n), cor: C.corStatus(n), linhas: s.linhas[n] || [], colunas: base.concat([["Graduação no mês", (l) => pilulaNivelGestao(C.graduacaoNaData(l, dia))]]) }));
+    secoes.push({ titulo: "Reduzidos (de → para)", cor: "#2F6F9F", linhas: s.linhas.Reduzidos || [], colunas: base.concat([["De", (l) => pilulaNivelGestao(C.graduacaoInicial(l))], ["Para", (l) => pilulaNivelGestao(C.graduacaoNaData(l, dia))]]) });
+    secoes.push({ titulo: "Eliminados (acumulado)", cor: "#3E7B7E", linhas: s.linhas.Eliminado || [], colunas: base.concat([["Era", (l) => pilulaNivelGestao(C.graduacaoInicial(l))], ["Eliminado em", (l) => formatarDataBR(l["Eliminado Em"]) || "-"]]) });
+    const total = C.NIVEIS_RISCO.reduce((a, n) => a + (s.porNivel[n] || 0), 0);
+    abrirDrillDownSecoes(`Evolução dos riscos - ${C.formatarMesLabel(s.mes)}`, `${total} fator(es) vigente(s) no fim do mês · ${s.reduzidos} reduzido(s) · ${s.eliminados} eliminado(s)`, secoes);
+  }
 
-      const pct = document.createElement("div");
-      pct.className = "pct";
-      pct.textContent = n.pct.toFixed(1) + "% dos postos";
-
-      tile.appendChild(rotulo);
-      tile.appendChild(valor);
-      tile.appendChild(pct);
-      cont.appendChild(tile);
+  // Tabela do Inventario de Riscos na Gestao de Riscos (V 1.35 - a sub-aba da AEP saiu).
+  let inventarioLinhasAtuais = [];
+  function renderTabelaInventario(fatores) {
+    inventarioLinhasAtuais = fatores || [];
+    const tb = document.getElementById("tabela-inventario"); if (!tb) return;
+    const busca = document.getElementById("busca-inventario");
+    if (busca && !busca._ligado) { busca._ligado = true; busca.addEventListener("input", () => renderTabelaInventario(inventarioLinhasAtuais)); }
+    const C = window.BI.Calc; const termo = busca ? busca.value.trim().toLowerCase() : "";
+    const ordem = (l) => C.ordemNivel(l["Graduacao Risco"]);
+    let linhas = inventarioLinhasAtuais.slice().sort((a, b) => ordem(b) - ordem(a) || String(a.Setor || "").localeCompare(String(b.Setor || ""), "pt-BR"));
+    if (termo) linhas = linhas.filter((l) => [C.origemDe(l), l.Cliente, l.Unidade, l.Setor, l["Posto Trabalho"], l.Cargo, l.Atividade, l.Fator, l["Segmento Corporal"], l["Graduacao Risco"]].join(" ").toLowerCase().includes(termo));
+    const cont = document.getElementById("contagem-inventario"); if (cont) cont.textContent = ` (${linhas.length})`;
+    const thead = tb.querySelector("thead"); const tbody = tb.querySelector("tbody"); thead.innerHTML = ""; tbody.innerHTML = "";
+    const cols = [["Origem", (l) => C.origemDe(l)], ["Setor › posto › cargo", localFator], ["Fator de risco", (l) => l.Fator || "-"], ["Segmento", (l) => l["Segmento Corporal"] || "-"], ["Risco atual", (l) => pilulaNivelGestao(l["Graduacao Risco"])], ["Evolução", (l) => C.textoEvolucaoRisco(l) || "-"]];
+    const tr0 = document.createElement("tr"); cols.forEach(([r]) => { const th = document.createElement("th"); th.textContent = r; tr0.appendChild(th); }); thead.appendChild(tr0);
+    if (!linhas.length) { const tr = document.createElement("tr"); const td = document.createElement("td"); td.colSpan = cols.length; td.className = "plano-vazio"; td.textContent = "Nenhum fator de risco para os filtros atuais."; tr.appendChild(td); tbody.appendChild(tr); return; }
+    linhas.slice(0, 500).forEach((l) => {
+      const tr = document.createElement("tr"); tr.className = "linha-clicavel";
+      cols.forEach(([, fn]) => { const td = document.createElement("td"); const v = fn(l); if (v instanceof Node) td.appendChild(v); else td.textContent = v; tr.appendChild(td); });
+      tr.addEventListener("click", (ev) => abrirDrillDown(`${l.Fator || "Fator de risco"}`, `${C.origemDe(l)} · ${localFator(l)}`, "fatorRisco", [l], ev));
+      tbody.appendChild(tr);
     });
   }
 
@@ -1118,16 +1195,28 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       { type: "line", label: "Eliminados (acumulado)", data: serie.map((s) => s.eliminados), borderColor: corElim, backgroundColor: corElim, borderWidth: 2.5, tension: 0.25, pointRadius: 3, order: 1 },
       { type: "line", label: "Reduzidos (abaixo do nível inicial)", data: serie.map((s) => s.reduzidos), borderColor: corRed, backgroundColor: corRed, borderDash: [6, 4], borderWidth: 2, tension: 0.25, pointRadius: 3, order: 1 },
     ]);
+    // V 1.35: total do mes em cima da barra; o clique abre a composicao do mes (niveis, reduzidos de/para, eliminados)
+    const nBarras = C.NIVEIS_RISCO.length;
+    const pluginTotalMes = {
+      id: "totalMes",
+      afterDatasetsDraw(chart) {
+        const ctx = chart.ctx; const y = chart.scales.y; ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+        ctx.font = "700 11px Montserrat, sans-serif"; ctx.fillStyle = C.resolverCorCSS("var(--texto)") || "#3a2b2b";
+        serie.forEach((s, i) => {
+          let total = 0; let x = null;
+          for (let d = 0; d < nBarras; d++) { if (!chart.isDatasetVisible(d)) continue; total += Number(chart.data.datasets[d].data[i]) || 0; const el = chart.getDatasetMeta(d).data[i]; if (el) x = el.x; }
+          if (x == null || !total) return; ctx.fillText(String(total), x, y.getPixelForValue(total) - 4);
+        });
+        ctx.restore();
+      },
+    };
+    const maxTotal = Math.max(1, ...serie.map((s) => C.NIVEIS_RISCO.reduce((a, n) => a + (s.porNivel[n] || 0), 0)));
     criarOuAtualizarGrafico("chart-evolucao-riscos", {
-      type: "bar", data: { labels, datasets },
+      type: "bar", data: { labels, datasets }, plugins: [pluginTotalMes],
       options: comCliqueDrillDown({
-        scales: { x: { stacked: true, grid: { display: false }, border: { display: false } }, y: { stacked: true, beginAtZero: true, grid: { color: corGrid() }, border: { display: false }, ticks: { precision: 0 } } },
-      }, (el) => {
-        const s = serie[el.index]; const ds = el.datasetIndex; const n = C.NIVEIS_RISCO.length;
-        const chaveL = ds < n ? C.NIVEIS_RISCO[ds] : ds === n ? "Eliminado" : "Reduzidos";
-        const rot = ds < n ? "Risco " + C.rotuloNivel(chaveL) : ds === n ? "Riscos eliminados" : "Riscos reduzidos";
-        return { titulo: `${rot} - ${C.formatarMesLabel(s.mes)}`, subtitulo: "Fatores de risco no fim do mês", chave: "fatorRisco", linhas: (s.linhas[chaveL] || []) };
-      }),
+        layout: { padding: { top: 16 } },
+        scales: { x: { stacked: true, grid: { display: false }, border: { display: false } }, y: { stacked: true, beginAtZero: true, suggestedMax: Math.ceil(maxTotal * 1.12), grid: { color: corGrid() }, border: { display: false }, ticks: { precision: 0 } } },
+      }, (el) => ({ abrir: () => abrirComposicaoMes(serie[el.index]) })),
     });
     renderizarLegenda("legenda-evolucao-riscos", C.NIVEIS_RISCO.map((n) => ({ label: C.rotuloNivel(n), cor: C.corStatus(n) })).concat([{ label: "Eliminados (acumulado)", cor: corElim, tipo: "linha" }, { label: "Reduzidos", cor: corRed, tipo: "linha" }]));
   }
@@ -1137,43 +1226,6 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // (pacote "Sistema de Gestao Integrada") - mesmos filtros globais e mesmo
   // padrao visual/de drill-down do Mapa de Risco acima.
   // ------------------------------------------------------------------
-
-  function renderTilesFatorRiscoGraduacao(niveis, fatorRiscoF) {
-    const cont = document.getElementById("tiles-fatorrisco-graduacao");
-    if (!cont) return;
-    cont.innerHTML = "";
-    niveis.forEach((n) => {
-      const cor = window.BI.Calc.corStatus(n.nivel);
-      const tile = document.createElement("div");
-      tile.className = "tile-status tile-clicavel";
-      tile.style.borderLeftColor = cor;
-      tile.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        abrirDrillDown(
-          `Inventário de Riscos - ${window.BI.Calc.rotuloNivel(n.nivel)}`,
-          `${n.qtd} fator(es) de risco`, "fatorRisco",
-          fatorRiscoF.filter((l) => window.BI.Calc.nivelCanonico(l["Graduacao Risco"]) === n.nivel), ev
-        );
-      });
-      const rotulo = document.createElement("div");
-      rotulo.className = "rotulo";
-      const ponto = document.createElement("span");
-      ponto.className = "ponto";
-      ponto.style.background = cor;
-      rotulo.appendChild(ponto);
-      rotulo.appendChild(document.createTextNode(window.BI.Calc.rotuloNivel(n.nivel)));
-      const valor = document.createElement("div");
-      valor.className = "valor";
-      valor.textContent = String(n.qtd);
-      const pct = document.createElement("div");
-      pct.className = "pct";
-      pct.textContent = n.pct.toFixed(1) + "% dos fatores";
-      tile.appendChild(rotulo);
-      tile.appendChild(valor);
-      tile.appendChild(pct);
-      cont.appendChild(tile);
-    });
-  }
 
   function renderDonutFatorRiscoStatus(dadosStatus, fatorRiscoF) {
     const labels = dadosStatus.map((d) => d.status);
@@ -1196,43 +1248,6 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     });
     const total = valores.reduce((a, b) => a + b, 0);
     renderizarLegenda("legenda-fatorrisco-status", labels.map((l, i) => ({ label: `${l} (${valores[i]}${total ? ", " + ((valores[i] / total) * 100).toFixed(0) + "%" : ""})`, cor: cores[i] })));
-  }
-
-  function renderTilesFatorRiscoPrazos(dist, fatorRiscoF, hoje, diasAlerta) {
-    const cont = document.getElementById("tiles-fatorrisco-prazos");
-    if (!cont) return;
-    cont.innerHTML = "";
-    const grupos = [
-      { chave: "vencido", rotulo: "Vencidos", cor: "var(--acao-atrasada)" },
-      { chave: "vencendo", rotulo: `Vencendo em ${diasAlerta} dias`, cor: "var(--acao-atraso)" },
-      { chave: "em-dia", rotulo: "Em dia", cor: "var(--acao-concluida)" },
-    ];
-    grupos.forEach((g) => {
-      const cor = window.BI.Calc.resolverCorCSS(g.cor);
-      const tile = document.createElement("div");
-      tile.className = "tile-status tile-clicavel";
-      tile.style.borderLeftColor = cor;
-      tile.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        abrirDrillDown(
-          `Inventário de Riscos - ${g.rotulo}`, `${dist[g.chave]} fator(es) de risco`, "fatorRisco",
-          fatorRiscoF.filter((l) => window.BI.Calc.statusVencimento(l["Valido Ate"], hoje, diasAlerta) === g.chave), ev
-        );
-      });
-      const rotulo = document.createElement("div");
-      rotulo.className = "rotulo";
-      const ponto = document.createElement("span");
-      ponto.className = "ponto";
-      ponto.style.background = cor;
-      rotulo.appendChild(ponto);
-      rotulo.appendChild(document.createTextNode(g.rotulo));
-      const valor = document.createElement("div");
-      valor.className = "valor";
-      valor.textContent = String(dist[g.chave] || 0);
-      tile.appendChild(rotulo);
-      tile.appendChild(valor);
-      cont.appendChild(tile);
-    });
   }
 
   function renderTopSetoresFatorRisco(lista, fatorRiscoF) {
@@ -1321,48 +1336,6 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // nao tinha NENHUM indicador, so a tela de cadastro). Mostra o total de
   // arquivos anexados (um registro AET pode ter varios) e a distribuicao por
   // classificacao de conteudo (ver js/calc.js/distribuicaoClassificacaoAET).
-  function renderTilesAET(dist, aetF) {
-    const cont = document.getElementById("tiles-aet-classificacao");
-    if (!cont) return;
-    cont.innerHTML = "";
-    const mapaCores = window.BI.Calc.construirMapaCores(dist.labels);
-    dist.labels.forEach((rotulo, i) => {
-      const valor = dist.valores[i];
-      if (!valor) return; // esconde classificacoes sem nenhum arquivo, pra nao poluir com zeros
-      const cor = mapaCores[rotulo];
-      const tile = document.createElement("div");
-      tile.className = "tile-status tile-clicavel";
-      tile.style.borderLeftColor = cor;
-      tile.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        abrirDrillDown(
-          `AET - ${rotulo}`, `${valor} arquivo(s)`, "aet",
-          aetF.filter((l) => (l["Arquivos AET"] || []).some((it) => (it.classificacaoConfirmada || it.classificacao || "Não identificado") === rotulo)),
-          ev
-        );
-      });
-      const rotuloEl = document.createElement("div");
-      rotuloEl.className = "rotulo";
-      const ponto = document.createElement("span");
-      ponto.className = "ponto";
-      ponto.style.background = cor;
-      rotuloEl.appendChild(ponto);
-      rotuloEl.appendChild(document.createTextNode(rotulo));
-      const valorEl = document.createElement("div");
-      valorEl.className = "valor";
-      valorEl.textContent = String(valor);
-      tile.appendChild(rotuloEl);
-      tile.appendChild(valorEl);
-      cont.appendChild(tile);
-    });
-    const resumoEl = document.getElementById("tiles-aet-resumo");
-    if (resumoEl) {
-      resumoEl.textContent = dist.totalRegistros
-        ? `${dist.totalRegistros} registro(s) de AET · ${dist.totalArquivos} arquivo(s) anexado(s)`
-        : "Nenhuma AET anexada ainda para este filtro.";
-    }
-  }
-
   // ------------------------------------------------------------------
   // Renderizadores - Dashboard "Med Ocup"
   // ------------------------------------------------------------------
@@ -2106,10 +2079,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // unidade / setor / cargo / posto. Os campos do recorte aparecem
       // conforme a abrangencia escolhida (ver ligarGeracaoLaudo).
       { campo: "Abrangencia", rotulo: "Abrangência do laudo", tipo: "select", obrigatorio: true, opcoes: ABRANGENCIAS_LAUDO },
+      // V 1.35: o recorte e escolhido em cascata - sem unidade, a empresa toda; so a unidade, a unidade toda;
+      // unidade e setor, o setor todo; e assim por diante (cargo, posto).
       { campo: "Unidade", rotulo: "Unidade", tipo: "cascata" },
-      { campo: "Setor", rotulo: "Setor", tipo: "cascata" },
-      { campo: "Posto Trabalho", rotulo: "Posto de Trabalho", tipo: "cascata" },
+      { campo: "Setor", rotulo: "Setor / GHE", tipo: "cascata" },
       { campo: "Cargo", rotulo: "Cargo", tipo: "cascata" },
+      { campo: "Posto Trabalho", rotulo: "Posto de Trabalho", tipo: "cascata" },
       { campo: "Abrangencia Descricao", rotulo: "Recorte", tipo: "texto" },
     ], "🏢 Identificação").concat(
       comSecao([
@@ -2120,8 +2095,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       ], "✍️ Emissão"),
       comSecao([
         { campo: "Apenas Paginas Avaliacao", rotulo: "Somente as páginas de avaliação (sem capa e metodologia)", tipo: "select", opcoes: SIM_NAO },
-        { campo: "Incluir Certificado Calibracao", rotulo: "Incluir certificado de calibração?", tipo: "select", opcoes: SIM_NAO },
-        { campo: "Certificado Calibracao", rotulo: "Certificado de calibração", tipo: "select", opcoes: () => (window.BI.dados.certificadoCalibracao || []).map((c) => c.Nome) },
+        // V 1.35: os certificados marcados saem no proprio arquivo do laudo (uma pagina por certificado, no final).
+        { campo: "Certificados Calibracao", rotulo: "Certificados de calibração dos instrumentos (saem no final do laudo)", tipo: "checklist",
+          opcoes: () => (window.BI.dados.certificadoCalibracao || []).map((c) => ({ valor: c.Nome, label: c.Nome, sub: c.Validade ? "validade " + window.BI.Datas.isoParaBR(c.Validade) : "sem validade" })),
+          vazio: "Nenhum certificado em Cadastro Interno › Certificado Calibração." },
       ], "⚙️ Opções do documento"),
       comSecao([
         { campo: "Codigo Verificacao", rotulo: "Código de verificação", tipo: "calculado" },
@@ -2154,11 +2131,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   function camposCertificadoCalibracao() {
     return [
       { campo: "Nome", rotulo: "Nome do Instrumento", tipo: "texto", obrigatorio: true },
-      { campo: "Validade", rotulo: "Validade da Calibração", tipo: "data" },
+      // V 1.35: validade obrigatoria - 30 dias antes de vencer, os Administradores recebem um e-mail (job diario).
+      { campo: "Validade", rotulo: "Validade da Calibração (os Administradores recebem um e-mail 30 dias antes de vencer)", tipo: "data", obrigatorio: true },
       {
-        campo: "Arquivo Imagem", rotulo: "Imagem do Certificado (JPG/PNG, até 5MB)", tipo: "arquivo", multiplo: false,
-        colecaoArquivo: "certificadoCalibracao", aceitaTipos: "image/jpeg,image/png",
-        tamanhoMaximoBytes: 5 * 1024 * 1024,
+        campo: "Arquivo Imagem", rotulo: "Certificado (PDF, JPG ou PNG, até 10MB) · sai no final dos laudos que o usarem", tipo: "arquivo", multiplo: false,
+        colecaoArquivo: "certificadoCalibracao", aceitaTipos: "application/pdf,image/jpeg,image/png",
+        tamanhoMaximoBytes: 10 * 1024 * 1024,
       },
     ];
   }
@@ -2176,7 +2154,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   function camposModeloLaudo() {
     const T = window.BI.LaudoTextos;
     return [{ campo: "Nome", rotulo: "Nome do Modelo", tipo: "texto", obrigatorio: true }].concat(
-      (T ? T.CAMPOS_EDITAVEIS : []).map(([campo, rotulo]) => ({ campo, rotulo, tipo: "textarea" }))
+      // V 1.35: este e o Editor de Texto da AEP; os textos da AET tem editor proprio (aba AET).
+      (T ? T.CAMPOS_EDITAVEIS : []).filter(([campo]) => !/^AET /.test(campo)).map(([campo, rotulo]) => ({ campo, rotulo, tipo: "textarea" }))
     );
   }
 
@@ -2204,7 +2183,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   function prepararTextoModelo(form, dados) {
     const T = window.BI.LaudoTextos;
     if (!T) return;
-    T.CAMPOS_EDITAVEIS.forEach(([campo]) => { if (String(dados[campo] || "").trim() === String(T.PADRAO[campo] || "").trim()) dados[campo] = ""; });
+    T.CAMPOS_EDITAVEIS.forEach(([campo]) => { if (campo in dados && String(dados[campo] || "").trim() === String(T.PADRAO[campo] || "").trim()) dados[campo] = ""; });
+    // V 1.35: os textos da AET (editados na aba AET) nao fazem parte deste formulario - mantem os gravados.
+    const atual = (window.BI.dados.modeloLaudo || [])[0] || {};
+    T.CAMPOS_EDITAVEIS.forEach(([campo]) => { if (/^AET /.test(campo) && !(campo in dados) && atual[campo] != null) dados[campo] = atual[campo]; });
   }
 
   // V 1.3: cadastro GLOBAL de ergonomistas (responsavel tecnico e executor do laudo).
@@ -2901,31 +2883,22 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       elCli.value = filtroCli[0];
       elCli.dispatchEvent(new Event("change"));
     }
-    // Abrangencia: mostra so os campos do recorte escolhido.
+    // V 1.35: a abrangencia sai da cascata (Unidade > Setor > Cargo > Posto). Tipo e Abrangencia ficam ocultos.
     const selAbr = form._campos["Abrangencia"];
-    if (selAbr && !selAbr.value) {
-      const vi = valoresIniciais || {};
-      selAbr.value = vi["Posto Trabalho"] ? "Posto de trabalho" : (vi.Setor ? "Setor" : "Empresa toda");
-    }
-    const CAMPOS_RECORTE = ["Unidade", "Setor", "Posto Trabalho", "Cargo"];
+    ["Tipo", "Abrangencia"].forEach((c) => { const el = form._campos[c]; const cx = el && el.closest ? el.closest(".campo-form") : null; if (cx) cx.hidden = true; if (el) el.required = false; });
+    if (form._campos.Tipo) form._campos.Tipo.value = "Laudo";
+    const VAZIO_RECORTE = { Unidade: "Todas as unidades (empresa toda)", Setor: "Todos os setores / GHE", Cargo: "Todos os cargos", "Posto Trabalho": "Todos os postos" };
     function atualizarAbrangencia() {
-      const regra = CAMPOS_ABRANGENCIA[selAbr ? selAbr.value : ""] || CAMPOS_ABRANGENCIA["Empresa toda"];
-      CAMPOS_RECORTE.forEach((c) => {
-        const el = form._campos[c];
-        if (!el) return;
-        const caixa = el.closest ? el.closest(".campo-form") : null;
-        const visivel = regra.visiveis.includes(c);
-        if (caixa) caixa.hidden = !visivel;
-        el.required = regra.obrigatorios.includes(c);
-        if (!visivel && el.value) { el.value = ""; el.dispatchEvent(new Event("change")); }
+      Object.keys(VAZIO_RECORTE).forEach((c) => {
+        const el = form._campos[c]; if (!el) return; el.required = false;
+        const cx = el.closest ? el.closest(".campo-form") : null; if (cx) cx.hidden = false;
+        const o0 = el.options && Array.from(el.options).find((o) => o.value === ""); if (o0) o0.textContent = VAZIO_RECORTE[c];
       });
+      const v = (c) => (form._campos[c] ? form._campos[c].value : "");
+      if (selAbr) selAbr.value = v("Posto Trabalho") ? "Posto de trabalho" : v("Cargo") ? "Cargo" : v("Setor") ? "Setor" : v("Unidade") ? "Unidade" : "Empresa toda";
     }
-    if (selAbr) { selAbr.addEventListener("change", atualizarAbrangencia); atualizarAbrangencia(); }
-    // Certificado de calibracao so aparece quando "Incluir" = Sim.
-    const selIncluir = form._campos["Incluir Certificado Calibracao"];
-    const caixaCert = form._campos["Certificado Calibracao"] && form._campos["Certificado Calibracao"].closest(".campo-form");
-    const atualizarCert = () => { if (caixaCert && selIncluir) caixaCert.hidden = selIncluir.value !== "Sim"; };
-    if (selIncluir) { selIncluir.addEventListener("change", atualizarCert); atualizarCert(); }
+    ["Cliente"].concat(Object.keys(VAZIO_RECORTE)).forEach((c) => { if (form._campos[c] && form._campos[c].addEventListener) form._campos[c].addEventListener("change", () => setTimeout(atualizarAbrangencia, 0)); });
+    atualizarAbrangencia();
 
     // Rodape: Cancelar | Salvar sem gerar | Gerar Laudo (acao principal: gera, anexa e registra).
     const acoes = form.querySelector(".form-cadastro-acoes");
@@ -2969,8 +2942,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         cargo: form._campos["Cargo"] ? form._campos["Cargo"].value : "",
         postoTrabalho: form._campos["Posto Trabalho"] ? form._campos["Posto Trabalho"].value : "",
         apenasPaginasAvaliacao: form._campos["Apenas Paginas Avaliacao"] ? form._campos["Apenas Paginas Avaliacao"].value : "",
-        incluirCertificado: form._campos["Incluir Certificado Calibracao"] ? form._campos["Incluir Certificado Calibracao"].value === "Sim" : false,
-        nomeCertificado: form._campos["Certificado Calibracao"] ? form._campos["Certificado Calibracao"].value : "",
+        // V 1.35: certificados marcados (paginas no final do laudo)
+        certificados: ((form._campos["Certificados Calibracao"] && form._campos["Certificados Calibracao"].value) || []).map((n) => (window.BI.dados.certificadoCalibracao || []).find((c) => c.Nome === n)).filter(Boolean),
         emitidoPor: form._campos["Emitido Por"] ? form._campos["Emitido Por"].value : "",
         emitidoEm: form._campos["Emitido Em"] ? form._campos["Emitido Em"].value : "",
         responsavelTecnico: form._campos["Responsavel Tecnico"] ? form._campos["Responsavel Tecnico"].value : "",
@@ -4630,6 +4603,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       },
     },
     fatorRisco: {
+      // V 1.35: sem sub-aba (o inventario e consultado na Gestao de Riscos; os fatores da AEP sao lancados
+      // pelo botao "Inventario de Riscos" de cada AEP). O bloco continua existindo (formularios e importacao).
+      semMenu: true,
       grupo: "aep", icone: "🧩", tituloMenu: "Inventário de Riscos (AEP)",
       titulo: "Inventário de Riscos (AEP)",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Fator", "Segmento Corporal", "Graduacao Risco", "Evolucao Risco", "Dt Identificacao", "Status"],
@@ -4713,7 +4689,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     },
     laudo: {
       grupo: "aep", icone: "📄", tituloMenu: "Laudos",
-      titulo: "Laudos e Certificados",
+      titulo: "Laudos da AEP",
+      // V 1.35: so os laudos da AEP (os da AET ficam na aba AET; os do Psicossocial, no modulo).
+      filtrarLinhas: (l) => !/AET|psicoss/i.test(String(l.Tipo || "") + " " + String(l.Origem || "")),
       // V 1.28: a lista e o historico de laudos emitidos (do cliente filtrado).
       colunasTabela: ["Emitido Em", "Cliente", "Abrangencia Descricao", "Tipo", "Revisao", "Emitido Por", "Codigo Verificacao"],
       rotulosColunas: { "Abrangencia Descricao": "Abrangência", "Revisao": "Revisão", "Codigo Verificacao": "Código" },
@@ -4742,6 +4720,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // de cada arquivo automaticamente (ver camposAET/extrairTextoParaClassificacaoAET
     // acima e docs/bi-ergonomia-manual.md, secao AET).
     aet: {
+      semMenu: true, // V 1.35: AETs anexadas saem da tela (os registros antigos continuam guardados)
       grupo: "aet", icone: "📊", tituloMenu: "AET",
       titulo: "AETs anexadas (arquivos de análises feitas fora do sistema)",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Data Analise"],
@@ -4762,8 +4741,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       campos: camposCertificadoCalibracao(),
     },
     modeloLaudo: {
-      grupo: "interno", icone: "📝", tituloMenu: "Editor de Texto",
-      titulo: "Editor de Texto do Laudo",
+      // V 1.35: o Editor de Texto do laudo da AEP passa a ser sub-aba da AEP (so a equipe ElevaLife).
+      grupo: "aep", icone: "📝", tituloMenu: "Editor de texto", soEquipe: true,
+      titulo: "Editor de Texto do Laudo da AEP",
       colunasTabela: ["Nome"],
       colunasData: [], camposData: [],
       campos: camposModeloLaudo(),
@@ -5480,10 +5460,28 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   };
   const estadoSubAbaCadastro = {};
 
-  // V 1.33: ordem das sub-abas do Cadastro Interno (Editor de Texto primeiro)
-  const ORDEM_SUBABAS = { interno: ["modeloLaudo", "ergonomista", "certificadoCalibracao"] };
-  function chavesDoGrupo(grupo) {
-    const lista = Object.keys(CADASTROS_CONFIG).filter((c) => CADASTROS_CONFIG[c].grupo === grupo);
+  // V 1.35: ordem das sub-abas. Alem dos cadastros, ha sub-abas com tela propria (SUBABAS_EXTRAS).
+  const ORDEM_SUBABAS = {
+    interno: ["ergonomista", "certificadoCalibracao", "usuarios"],
+    aep: ["avaliacaoErgonomica", "laudo", "aepImportar", "modeloLaudo"],
+    aet: ["aetLista", "aetLaudos", "aetImportar", "aetEditor"],
+  };
+  const souEquipe = () => !ehUsuarioCliente();
+  const SUBABAS_EXTRAS = {
+    aepImportar: { grupo: "aep", icone: "⬆", tituloMenu: "Importar Excel", visivel: souEquipe, montar: montarImportarAEP },
+    aetLista: { grupo: "aet", icone: "📊", tituloMenu: "AETs", montar: (el) => { el.id = "aet-modulo"; el.classList.add("grade"); }, aoAbrir: () => { if (window.BI.AET) window.BI.AET.renderPainel(); } },
+    aetLaudos: { grupo: "aet", icone: "📄", tituloMenu: "Laudos", montar: (el) => { el.id = "aet-laudos"; }, aoAbrir: () => { if (window.BI.LaudoAET) window.BI.LaudoAET.renderAba(document.getElementById("aet-laudos")); } },
+    aetImportar: { grupo: "aet", icone: "⬆", tituloMenu: "Importar AET", visivel: souEquipe, montar: (el) => { el.id = "aet-importar"; }, aoAbrir: () => { if (window.BI.AETImport) window.BI.AETImport.renderAba(document.getElementById("aet-importar")); } },
+    aetEditor: { grupo: "aet", icone: "📝", tituloMenu: "Editor de texto", visivel: souEquipe, montar: (el) => { el.id = "aet-editor-texto"; }, aoAbrir: () => { if (window.BI.LaudoAET) window.BI.LaudoAET.renderEditorTexto(document.getElementById("aet-editor-texto")); } },
+    usuarios: { grupo: "interno", icone: "👥", tituloMenu: "Usuários", visivel: () => { const i = window.BI.DB && window.BI.DB.estado.identidade; return !!(i && (i.papel === "Administrador" || i.papel === "Consultor")); },
+      montar: (el) => { const card = document.querySelector("#aba-usuarios > .bloco-cadastro"); if (card) el.appendChild(card); }, aoAbrir: () => { try { configurarUsuarios(); } catch (_) { /* sem sessao */ } } },
+  };
+  const cfgSubAba = (chave) => CADASTROS_CONFIG[chave] || SUBABAS_EXTRAS[chave];
+  // paraMenu: so as sub-abas que aparecem no menu (sem as ocultas e as que o perfil nao ve).
+  function chavesDoGrupo(grupo, paraMenu) {
+    let lista = Object.keys(CADASTROS_CONFIG).filter((c) => CADASTROS_CONFIG[c].grupo === grupo)
+      .concat(Object.keys(SUBABAS_EXTRAS).filter((c) => SUBABAS_EXTRAS[c].grupo === grupo));
+    if (paraMenu) lista = lista.filter((c) => { const cfg = cfgSubAba(c); return !cfg.semMenu && !(cfg.soEquipe && !souEquipe()) && !(cfg.visivel && !cfg.visivel()); });
     const ordem = ORDEM_SUBABAS[grupo];
     return ordem ? lista.sort((a, b) => (ordem.indexOf(a) + 1 || 99) - (ordem.indexOf(b) + 1 || 99)) : lista;
   }
@@ -5506,13 +5504,15 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       if (bloco) bloco.hidden = c !== chave;
     });
     if (chave === "modeloLaudo") abrirEditorTextoDireto();
+    const extra = SUBABAS_EXTRAS[chave];
+    if (extra && extra.aoAbrir) { try { extra.aoAbrir(); } catch (e) { console.error("sub-aba " + chave, e); } }
   }
 
   // V 1.33: o Editor de Texto abre direto no texto do laudo (o modelo unico da ElevaLife). Sem modelo
   // gravado, abre um novo ja preenchido com o texto padrao - nunca uma lista vazia.
   function abrirEditorTextoDireto() {
     if (ehUsuarioCliente() || !Array.isArray(window.BI.dados.modeloLaudo)) return;
-    const aba = document.getElementById("aba-interno");
+    const aba = document.getElementById("aba-aep");
     if (!aba || aba.hidden) return;
     const estado = estadoCadastro.modeloLaudo;
     if (!estado || estado.formAberto) return;
@@ -5541,8 +5541,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const nav = document.getElementById("sidebar-sub-" + aba);
       if (!nav) return;
       nav.innerHTML = "";
-      chavesDoGrupo(grupo).forEach((chave) => {
-        const cfg = CADASTROS_CONFIG[chave];
+      chavesDoGrupo(grupo, true).forEach((chave) => {
+        const cfg = cfgSubAba(chave);
         const btn = document.createElement("button");
         btn.type = "button";
         btn.dataset.chave = chave;
@@ -5587,12 +5587,40 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     });
   }
 
+  function remontarSubAbas() {
+    Object.keys(GRUPOS_CADASTRO).forEach((grupo) => {
+      montarSubNavCadastro(grupo);
+      const doMenu = chavesDoGrupo(grupo, true);
+      const atual = doMenu.includes(estadoSubAbaCadastro[grupo]) ? estadoSubAbaCadastro[grupo] : doMenu[0];
+      if (atual) selecionarSubAbaCadastro(grupo, atual);
+    });
+    montarSidebarSubnav();
+  }
+
+  // V 1.35: sub-aba "Importar Excel" da AEP (avaliacoes e inventario do sistema anterior).
+  function montarImportarAEP(el) {
+    el.className = "cartao bloco-cadastro";
+    const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+    const cab = h("div", "cadastro-cabecalho"); cab.appendChild(h("div", "cartao-titulo", "Importar Excel")); el.appendChild(cab);
+    el.appendChild(h("p", "aet-ajuda", "Traga para o SIGE as avaliações e os inventários feitos em planilha ou exportados do sistema anterior. Antes de gravar, você confere tudo na prévia."));
+    const grade = h("div", "importar-opcoes"); el.appendChild(grade);
+    [["avaliacaoErgonomica", "📋 Avaliações (AEP)"], ["fatorRisco", "🧩 Inventário de riscos do sistema anterior"]].forEach(([chave, rot]) => {
+      const cfg = CADASTROS_CONFIG[chave]; if (!cfg || !cfg.importacao) return;
+      const c = h("div", "importar-opcao"); c.appendChild(h("div", "importar-opcao-titulo", rot));
+      c.appendChild(h("p", null, cfg.importacao.descricao || ""));
+      const b = h("button", "btn-cad-primario", "⬆ Escolher planilha"); b.type = "button"; b.addEventListener("click", () => abrirImportacao(chave)); c.appendChild(b);
+      grade.appendChild(c);
+    });
+    // V 1.36: laudo da AEP do sistema anterior (PDF) - completa as AEPs da planilha com fotos, textos e fatores
+    if (window.BI.AEPLaudoImport) { const c = h("div", "importar-opcao importar-opcao--laudo"); grade.appendChild(c); window.BI.AEPLaudoImport.montar(c); }
+  }
+
   function montarSubNavCadastro(grupo) {
     const nav = document.getElementById(GRUPOS_CADASTRO[grupo].subnav);
     if (!nav) return;
     nav.innerHTML = "";
-    chavesDoGrupo(grupo).forEach((chave) => {
-      const cfg = CADASTROS_CONFIG[chave];
+    chavesDoGrupo(grupo, true).forEach((chave) => {
+      const cfg = cfgSubAba(chave);
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "subnav-cadastro-item";
@@ -5653,7 +5681,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         btnExcel.addEventListener("click", () => exportarCadastroExcel(chave));
         cab.appendChild(btnExcel);
       }
-      if (cfg.importacao) {
+      if (cfg.importacao && cfg.grupo !== "aep") { // V 1.35: a importacao da AEP tem sub-aba propria
         const btnImportar = document.createElement("button");
         btnImportar.type = "button"; btnImportar.className = "btn-cad-secundario btn-importar-excel"; btnImportar.id = "btn-importar-" + chave;
         btnImportar.textContent = "⬆ Importar Excel";
@@ -5748,9 +5776,17 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       grade.appendChild(cartao);
     });
 
+    // V 1.35: blocos das sub-abas de tela propria
+    Object.keys(SUBABAS_EXTRAS).forEach((chave) => {
+      const ex = SUBABAS_EXTRAS[chave]; const grade = document.getElementById(GRUPOS_CADASTRO[ex.grupo].grade); if (!grade) return;
+      const bloco = document.createElement("div"); bloco.className = "col-12 bloco-subaba"; bloco.id = "bloco-cadastro-" + chave; bloco.hidden = true;
+      const miolo = document.createElement("div"); bloco.appendChild(miolo); grade.appendChild(bloco);
+      try { ex.montar(miolo); } catch (e) { console.error("sub-aba " + chave, e); }
+    });
     Object.keys(GRUPOS_CADASTRO).forEach((grupo) => {
       montarSubNavCadastro(grupo);
-      const primeira = estadoSubAbaCadastro[grupo] || chavesDoGrupo(grupo)[0];
+      const doMenu = chavesDoGrupo(grupo, true);
+      const primeira = doMenu.includes(estadoSubAbaCadastro[grupo]) ? estadoSubAbaCadastro[grupo] : doMenu[0];
       if (primeira) selecionarSubAbaCadastro(grupo, primeira);
     });
 
@@ -5924,6 +5960,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     estado.editandoId = id;
     estado.formAberto = true;
     estado.valoresForm = linha;
+    // V 1.35: cliente antigo com "Gestao de Risco" ja abre com AEP, AET e Plano de Acao marcados.
+    if (chave === "cliente" && Array.isArray(linha.Servicos)) {
+      const sv = linha.Servicos.slice(); ["aep", "aet", "registro"].forEach((x) => { if (empresaTemServico(linha, x) && !sv.includes(x)) sv.push(x); });
+      estado.valoresForm = Object.assign({}, linha, { Servicos: sv });
+    }
     renderizarFormCadastro(chave);
   }
 
@@ -6241,6 +6282,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     let linhas = window.BI.Calc.filtrar(linhasBrutas, window.BI.filtros, cfg.camposData);
     // V 1.34: a tabela de AETs anexadas nao lista as AETs feitas no modulo (essas ficam no painel acima)
     if (chave === "aet") linhas = linhas.filter((l) => l["Tipo Registro"] !== "AET");
+    if (cfg.filtrarLinhas) linhas = linhas.filter(cfg.filtrarLinhas);
     const totalFiltrado = linhas.length;
     if (estado.busca) {
       const termo = estado.busca.toLowerCase();
@@ -6714,7 +6756,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     expandirGrupoSidebar(GRUPO_DA_ABA[aba] ? aba : null);
     try { aplicarServicosContratados(); } catch (_) { /* dados ainda nao carregados */ }
     if (aba === "psicossocial") sincronizarFiltroPsico(true);
-    if (aba === "interno" && estadoSubAbaCadastro.interno === "modeloLaudo") abrirEditorTextoDireto();
+    if (aba === "aep" && estadoSubAbaCadastro.aep === "modeloLaudo") abrirEditorTextoDireto();
+    // V 1.35: a sub-aba atual de tela propria (AET, laudos, importacao) se atualiza ao abrir a aba
+    const grupoAba = GRUPO_DA_ABA[aba]; const subAtual = grupoAba && estadoSubAbaCadastro[grupoAba];
+    if (subAtual && SUBABAS_EXTRAS[subAtual] && SUBABAS_EXTRAS[subAtual].aoAbrir) { try { SUBABAS_EXTRAS[subAtual].aoAbrir(); } catch (e) { console.error(e); } }
   }
 
   function configurarAbas() {
@@ -6886,7 +6931,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           : { width: svgEl.clientWidth || 300, height: svgEl.clientHeight || 400 };
         const clone = svgEl.cloneNode(true);
         clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-        clone.style.color = window.BI.Calc.resolverCorCSS("var(--texto-principal)") || "#222222";
+        clone.style.color = window.BI.Calc.resolverCorCSS("var(--texto)") || "#222222";
         const svgStr = new XMLSerializer().serializeToString(clone);
         const svgDataUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgStr);
         const img = new Image();
@@ -7230,7 +7275,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // usuario) tem o servico, o conteudo da aba da lugar a um aviso. Cliente
   // antigo, sem o campo, conta como tendo todos os servicos.
   function empresaTemServico(c, servico) {
-    return !Array.isArray(c.Servicos) || c.Servicos.indexOf(servico) >= 0;
+    if (!Array.isArray(c.Servicos)) return true;
+    if (c.Servicos.indexOf(servico) >= 0) return true;
+    // cadastro anterior a V 1.35: "Gestao de Risco" (ergo) incluia AEP, AET e Plano de Acao
+    const antigo = !c.Servicos.some((x) => ["aep", "aet", "registro"].includes(x));
+    return antigo && ["aep", "aet", "registro"].includes(servico) && c.Servicos.indexOf("ergo") >= 0;
   }
   function aplicarServicosContratados() {
     const clientes = (window.BI.dados && window.BI.dados.cliente) || [];
@@ -7238,8 +7287,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const escopo = filtroCli.length ? clientes.filter((c) => filtroCli.indexOf(c.Cliente) >= 0) : clientes;
     SERVICOS_SIGE.forEach((sv) => {
       if (sv.valor === "psicossocial") return; // o proprio modulo avisa, pela empresa escolhida nele
-      // V 1.28: a aba AEP faz parte do servico Gestao de Risco (ergo)
-      (sv.valor === "ergo" ? ["ergo", "aep", "aet"] : [sv.valor]).forEach((abaServico) => {
+      // V 1.35: cada servico tem a sua aba
+      [sv.valor].forEach((abaServico) => {
       const sec = document.getElementById("aba-" + abaServico);
       if (!sec) return;
       const semServico = escopo.length > 0 && !escopo.some((c) => empresaTemServico(c, sv.valor));
@@ -7279,7 +7328,29 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     try { frame.contentWindow.postMessage({ tipo: "psico-cliente", clienteId: id }, location.origin); } catch (e) { /* modulo ainda carregando */ }
   }
   window.BI.sincronizarFiltroPsico = sincronizarFiltroPsico;
-  window.BI.abrirAba = (aba) => { ativarAba(aba); if (GRUPO_DA_ABA[aba]) selecionarSubAbaCadastro(GRUPO_DA_ABA[aba], chavesDoGrupo(GRUPO_DA_ABA[aba])[0]); };
+  // V 1.35: cria no Cadastro Empresa o que ainda nao existe (empresa, unidade, setor, posto, cargo) - usado pela
+  // importacao de AET (Word/PDF). Empresa nova so o Administrador cria (mesma regra do importador de planilhas).
+  window.BI.garantirHierarquia = async (v, extrasCliente) => {
+    const niveis = ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"]; const criados = [];
+    for (let i = 0; i < niveis.length; i++) {
+      const n = niveis[i]; if (!v[n]) break;
+      const col = COLECAO_DO_NIVEL[n]; const chaves = niveis.slice(0, i + 1);
+      if ((window.BI.dados[col] || []).some((l) => chaves.every((x) => l[x] === v[x]))) continue;
+      const dados = {}; chaves.forEach((x) => { dados[x] = v[x]; });
+      if (n === "Cliente") {
+        const ident = window.BI.DB.estado.identidade;
+        if (ident && ident.papel !== "Administrador") throw new Error("A empresa “" + v.Cliente + "” não está cadastrada. Peça ao Administrador para cadastrá-la (ou escolha uma empresa existente).");
+        Object.assign(dados, { "Matriz Risco": window.BI.Calc.MATRIZ_PADRAO || "Matriz 5x5" }, extrasCliente || {});
+      }
+      const id = window.BI.DB.idCadastroMestre[col](dados);
+      if (n === "Cliente") dados.EmpresaId = id;
+      await window.BI.DB.salvar(col, id, dados, true);
+      criados.push(`${n === "Posto Trabalho" ? "Posto" : n}: ${v[n]}`);
+    }
+    if (criados.length && window.BI.recarregar) await window.BI.recarregar();
+    return criados;
+  };
+  window.BI.abrirAba = (aba, sub) => { ativarAba(aba); if (GRUPO_DA_ABA[aba]) selecionarSubAbaCadastro(GRUPO_DA_ABA[aba], sub || chavesDoGrupo(GRUPO_DA_ABA[aba], true)[0]); };
 
   // ------------------------------------------------------------------
   // V 1.33 - Plano de Acao no formato do antigo plano do Psicossocial: filtros (Unidade, Setor / GHE,
@@ -7308,12 +7379,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     carimbarOrigens();
     const hoje = hojeMeiaNoite();
     const cfg = CADASTROS_CONFIG.planoAcao;
-    const todas = Calc.filtrar(window.BI.dados.planoAcao || [], window.BI.filtros, cfg.camposData || []);
+    // V 1.35: filtro geral, depois o filtro de origem do topo da aba (o mesmo dos graficos)
+    const todas = porOrigemAba(Calc.filtrar(window.BI.dados.planoAcao || [], window.BI.filtros, cfg.camposData || []), "registro");
     const f = estadoPlanoLista;
     const stDe = (a) => Calc.statusDaLinhaAcao(a, hoje);
     const unidades = Array.from(new Set(todas.map((a) => a.Unidade).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
     const setores = Array.from(new Set(todas.filter((a) => !f.u || a.Unidade === f.u).map((a) => a.Setor).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
-    const vis = todas.filter((a) => (!f.u || a.Unidade === f.u) && (!f.g || a.Setor === f.g) && (!f.o || Calc.origemDe(a) === f.o) && (!f.st || stDe(a) === f.st)
+    const vis = todas.filter((a) => (!f.u || a.Unidade === f.u) && (!f.g || a.Setor === f.g) && (!f.st || stDe(a) === f.st)
       && (!f.q || [a["Nr Acao"], a["Acao Recomendada"], a["Fator Risco Nome"], a["Responsavel Acao"], a["E-mail Responsavel"], a["Posto Trabalho"], a.Setor].join(" ").toLowerCase().includes(f.q.toLowerCase())))
       .sort((a, b) => (a.Cliente || "").localeCompare(b.Cliente || "", "pt-BR") || (a.Unidade || "").localeCompare(b.Unidade || "", "pt-BR") || (a.Setor || "").localeCompare(b.Setor || "", "pt-BR") || (a["Posto Trabalho"] || "").localeCompare(b["Posto Trabalho"] || "", "pt-BR") || String(a["Dt Programada"] || "9").localeCompare(String(b["Dt Programada"] || "9")));
     const somenteLeitura = ehUsuarioCliente() || !!window.BI.DB.estado.somenteLeitura;
@@ -7332,7 +7404,6 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     };
     sel("Unidade", "u", unidades.map((u) => [u, u]), "Todas");
     sel("Setor / GHE", "g", setores.map((x) => [x, x]), "Todos");
-    sel("Origem", "o", Calc.ORIGENS.map((o) => [o, o]), "Todas");
     sel("Status", "st", Calc.STATUS_ACAO_ORDEM.map((x) => [x, T(x)]), "Todos");
     const lb = h("label", "plano-filtro plano-filtro--busca"); lb.appendChild(h("span", null, "Buscar"));
     const busca = document.createElement("input"); busca.type = "search"; busca.placeholder = "nº, ação, fator ou responsável"; busca.value = f.q; busca.dataset.plf = "q";
@@ -7366,9 +7437,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const st = stDe(a); const concluida = st === "Concluida" || st === "Concluida com atraso";
       const td1 = h("td"); td1.appendChild(h("span", "plano-origem plano-origem--" + Calc.origemDe(a).toLowerCase(), Calc.origemDe(a))); tr.appendChild(td1);
       const td2 = h("td", "plano-onde");
+      td2.appendChild(h("strong", "plano-onde-setor", a.Setor || "-"));
+      if (a["Posto Trabalho"]) td2.appendChild(h("div", "plano-onde-posto", a["Posto Trabalho"] + (a.Cargo ? " (" + a.Cargo + ")" : "")));
       td2.appendChild(h("div", "plano-onde-un", [a.Cliente, a.Unidade].filter(Boolean).join(" · ")));
-      td2.appendChild(h("strong", null, a.Setor || "-"));
-      if (a["Posto Trabalho"]) td2.appendChild(h("div", null, a["Posto Trabalho"] + (a.Cargo ? " (" + a.Cargo + ")" : "")));
       if (a["Risco Global"]) { const hx = Calc.corRiscoHex(a["Risco Global"]); const p = h("span", "plano-pilula", Calc.rotuloNivel(a["Risco Global"])); if (hx) { p.style.background = "#" + hx; p.style.color = "#" + Calc.textoSobreHex(hx); } td2.appendChild(p); }
       tr.appendChild(td2);
       const td3 = h("td", "plano-acao");
@@ -7456,10 +7527,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     carimbarOrigens();
     const riscoPostosTodos = Calc.riscoDosPostos(window.BI.dados.fatorRisco || [], window.BI.dados.avaliacaoErgonomica || []);
     window.BI.riscoPostos = riscoPostosTodos;
-    const mapaRiscoF = Calc.filtrar(riscoPostosTodos, filtros, ["Dt Avaliacao"]);
-    const planoAcaoF = Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Programada", "Dt Conclusao"]);
-    const planoAcaoFPrevistas = Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Programada"]);
-    const planoAcaoFConcluidas = Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Conclusao"]).filter((a) => a["Dt Conclusao"]);
+    // V 1.35: primeiro o filtro geral, depois o filtro de origem de cada aba (Gestao de Riscos / Plano de Acao).
+    montarBarrasOrigem();
+    const mapaRiscoF = porOrigemAba(Calc.filtrar(riscoPostosTodos, filtros, ["Dt Avaliacao"]), "ergo");
+    const planoAcaoF = porOrigemAba(Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Programada", "Dt Conclusao"]), "registro");
+    const planoAcaoFPrevistas = porOrigemAba(Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Programada"]), "registro");
+    const planoAcaoFConcluidas = porOrigemAba(Calc.filtrar(window.BI.dados.planoAcao, filtros, ["Dt Conclusao"]).filter((a) => a["Dt Conclusao"]), "registro");
 
     const chip = document.getElementById("chip-contagem-postos");
     if (chip) chip.innerHTML = `<strong>${mapaRiscoF.length}</strong> de ${riscoPostosTodos.length} postos`;
@@ -7474,7 +7547,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const planoAcaoFComRisco = comRiscoAtual(planoAcaoF);
     const planoAcaoFCriticos = planoAcaoFComRisco.filter((a) => a["Risco Global"] === "Alto" || a["Risco Global"] === "Muito Alto");
 
-    renderTilesRiscoGlobal(Calc.mapaRiscoGlobal(mapaRiscoF), mapaRiscoF);
+    renderDonutNiveis("chart-risco-global", "legenda-risco-global", Calc.mapaRiscoGlobal(mapaRiscoF), "postos", "posto(s)", (n) => ({
+      titulo: `Risco Global dos Postos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} posto(s) de trabalho`, chave: "riscoPosto", linhas: mapaRiscoF.filter((l) => l["Risco Global"] === n.nivel) }));
     renderTopSetores(Calc.topSetores(mapaRiscoF, 3), mapaRiscoF);
     renderDonutStatus("chart-plano-global", "legenda-plano-global", Calc.statusPlanoAcao(planoAcaoF, hoje), planoAcaoF, hoje);
     renderDonutStatus("chart-plano-criticos", "legenda-plano-criticos", Calc.planoAcaoPostosCriticos(planoAcaoFComRisco, hoje), planoAcaoFCriticos, hoje);
@@ -7489,31 +7563,29 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const avaliacaoF = Calc.filtrar(window.BI.dados.avaliacaoErgonomica || [], filtros, ["Data Avaliacao"]);
     // Fator marcado "Nao" no checklist nao e' risco: fica fora de todas as contagens.
     // V 1.31: risco eliminado sai das contagens (fica so na evolucao)
-    const fatorRiscoTodosF = Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, []).filter((l) => l["Existe Fator Risco"] !== "Nao");
-    const fatorRiscoF = Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, ["Dt Identificacao"]).filter((l) => Calc.riscoAtivo(l));
-    const fatorRiscoAbertoF = fatorRiscoF.filter((l) => ["A validar", "Em andamento"].includes(l.Status));
-    const laudoF = Calc.filtrar(window.BI.dados.laudo || [], filtros, ["Emitido Em"]);
-    const aetF = Calc.filtrar(window.BI.dados.aet || [], filtros, ["Data Analise"]);
-    const DIAS_ALERTA_PRAZO = 30;
+    const fatorRiscoGeralTodosF = Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, []).filter((l) => l["Existe Fator Risco"] !== "Nao");
+    const fatorRiscoGeralF = Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, ["Dt Identificacao"]).filter((l) => Calc.riscoAtivo(l));
+    const fatorRiscoTodosF = porOrigemAba(fatorRiscoGeralTodosF, "ergo");
+    const fatorRiscoF = porOrigemAba(fatorRiscoGeralF, "ergo");
+    const origemErgo = estadoOrigemAba.ergo;
+    const aetF = origemErgo && origemErgo !== "AET" ? [] : Calc.filtrar(window.BI.dados.aet || [], filtros, ["Data Analise"]);
+    const avaliacaoMesF = origemErgo && origemErgo !== "AEP" ? [] : avaliacaoF;
 
-    // Trilha AEP (nativa) - ver titulo-secao-grade "AEP" no index.html.
-    renderTilesFatorRiscoGraduacao(Calc.distribuicaoPorNivelRisco(fatorRiscoF, "Graduacao Risco"), fatorRiscoF);
+    // V 1.35: Inventario em rosca (total no centro) e em tabela; sairam os Prazos e as AETs anexadas.
+    renderDonutNiveis("chart-fatorrisco-graduacao", "legenda-fatorrisco-graduacao", Calc.distribuicaoPorNivelRisco(fatorRiscoF, "Graduacao Risco"), "fatores", "fator(es)", (n) => ({
+      titulo: `Inventário de Riscos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} fator(es) de risco`, chave: "fatorRisco", linhas: fatorRiscoF.filter((l) => Calc.nivelCanonico(l["Graduacao Risco"]) === n.nivel) }));
+    renderTabelaInventario(fatorRiscoF);
     renderEvolucaoRiscos(Calc.evolucaoMensalRiscos(fatorRiscoTodosF, hoje, 24));
-    renderDonutFatorRiscoStatus(Calc.distribuicaoPorStatus(fatorRiscoF, "Status", STATUS_FATOR_RISCO_POOL), fatorRiscoF);
-    renderTilesAvaliacaoCobertura(Calc.coberturaAvaliacao(avaliacaoF, Calc.filtrar(window.BI.dados.cargo || [], filtros, [])));
-    renderTilesFatorRiscoPrazos(Calc.distribuicaoVencimento(fatorRiscoAbertoF, "Valido Ate", hoje, DIAS_ALERTA_PRAZO), fatorRiscoAbertoF, hoje, DIAS_ALERTA_PRAZO);
-    // V 1.33: "Top Setores - Riscos em Aberto" e "Laudos e Certificados - Por Tipo" sairam da Gestao de Risco;
-    // o Status do Inventario foi para a aba Plano de Acao. Novos: AEPs e AETs realizadas mes a mes.
-    void laudoF;
-    renderLinhaMensal("chart-aep-mensal", Calc.serieMensal(avaliacaoF, "Data Avaliacao"), "AEPs realizadas", Calc.resolverCorCSS("var(--teal)"), avaliacaoF, "Data Avaliacao", "avaliacaoErgonomica");
+    // Status do Inventario fica no Plano de Acao (com o filtro de origem daquela aba)
+    const fatorRiscoPlanoF = porOrigemAba(fatorRiscoGeralF, "registro");
+    renderDonutFatorRiscoStatus(Calc.distribuicaoPorStatus(fatorRiscoPlanoF, "Status", STATUS_FATOR_RISCO_POOL), fatorRiscoPlanoF);
+    renderTilesAvaliacaoCobertura(Calc.coberturaAvaliacao(avaliacaoMesF, Calc.filtrar(window.BI.dados.cargo || [], filtros, [])));
+    renderLinhaMensal("chart-aep-mensal", Calc.serieMensal(avaliacaoMesF, "Data Avaliacao"), "AEPs realizadas", Calc.resolverCorCSS("var(--teal)"), avaliacaoMesF, "Data Avaliacao", "avaliacaoErgonomica");
     renderLinhaMensal("chart-aet-mensal", Calc.serieMensal(aetF, "Data Analise"), "AETs realizadas", Calc.resolverCorCSS("var(--vinho-medio)"), aetF, "Data Analise", "aet");
 
-    // Trilha AET (upload externo) - ver titulo-secao-grade "AET" no index.html.
-    const aetAnexosF = aetF.filter((a) => a["Tipo Registro"] !== "AET");
-    renderTilesAET(Calc.distribuicaoClassificacaoAET(aetAnexosF), aetAnexosF);
     try { if (window.BI.AET) window.BI.AET.renderPainel(); } catch (e) { console.error("AET", e); }
     renderPlanoLista();
-    if (estadoSubAbaCadastro.interno === "modeloLaudo") abrirEditorTextoDireto();
+    if (estadoSubAbaCadastro.aep === "modeloLaudo") abrirEditorTextoDireto();
 
     const diasUteisF = Calc.filtrar(window.BI.dados.diasUteis, filtros, ["Ano/Mes Uteis"]);
     const absenteismoF = Calc.filtrar(window.BI.dados.absenteismo, filtros, ["Dt Afastamento"]);
@@ -8090,23 +8162,6 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     carregarUsuarios();
   }
 
-  // V 1.2 - Configuracoes do sistema (so Administrador): nomes dos tipos de
-  // acao do Plano de Acao. Ver js/acoes.js/montarTelaConfiguracoes.
-  function configurarConfiguracoes() {
-    const identidade = window.BI.DB.estado.identidade;
-    const ehAdmin = !!(identidade && identidade.papel === "Administrador");
-    const btnNav = document.getElementById("nav-btn-configuracoes");
-    if (btnNav) btnNav.hidden = !ehAdmin;
-    const raiz = document.getElementById("conteudo-configuracoes");
-    if (!ehAdmin || !raiz || !window.BI.Acoes) return;
-    const montar = () => window.BI.Acoes.montarTelaConfiguracoes(raiz, { aoSalvar: () => { try { renderizarTudo(); } catch (_) { /* tela ainda nao pronta */ } } });
-    montar();
-    if (btnNav && !btnNav._ligadoConfig) {
-      btnNav._ligadoConfig = true;
-      btnNav.addEventListener("click", montar); // sempre mostra os nomes atuais
-    }
-  }
-
   // Botao "Sair" do menu lateral - so aparece em producao (modoApi), depois
   // de confirmado que ha sessao de verdade (login por e-mail/senha, ver
   // js/db.js/sairDaConta). Antes disso o sistema so tinha "Trocar de
@@ -8202,7 +8257,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       configurarTelaAcesso();
       configurarUsuarios();
       configurarPerfilCliente();
-      configurarConfiguracoes();
+      // V 1.35: as sub-abas dependem do perfil (Usuarios, Importar, Editor de texto) - remonta depois do login.
+      remontarSubAbas();
       configurarBotaoSair();
       esconderCarregamento();
     } catch (erro) {

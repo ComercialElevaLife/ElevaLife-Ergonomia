@@ -183,7 +183,7 @@
   // ---------------------------------------------------------------- documento
   async function construir(ctx, opcoes) {
     const { Calc, Acoes, PAL, corNivel, dataBR, hojeISO, ROTULO_ESCALA, URL_VERIFICACAO, dadosAcao, avaliacoes, fatoresDoPosto, eliminadosDoPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, niveisMz, ordemNivel, contaNivelMz, maiorGrau, grau, pontos, rotCanon, acoesDe,
-      nomeMatriz, escala, docCliente, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4,
+      nomeMatriz, escala, docCliente, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4,
       setoresAv, unidadesAv, periodo, emissao, codigo, revisao, texto, linhasDe, celulas, mapaDe, titDe } = ctx;
 
     // imagens: logotipo, fotos, assinaturas e QR Code
@@ -415,6 +415,15 @@
       tituloCliente: titDe("cliente-assinatura", `Cliente – ${opcoes.nomeCliente}`), urlQr,
       tituloValidacao: titDe("validacao", "Validação do documento"), textoValidacao: texto("Validacao Texto"),
     }, imgs));
+    // V 1.35: certificados de calibracao no proprio arquivo (uma pagina cada)
+    (certificados || []).forEach((c, i) => {
+      if (i === 0) B.push(H1("s13", "13. Certificados de calibração dos instrumentos", true));
+      B.push(par(run(c.nome || "Instrumento", { b: true, cor: C.vinho, tam: 10.5 }), { depois: 20, quebraAntes: i > 0 }));
+      B.push(par(run(c.validade ? `Validade da calibração: ${dataBR(c.validade)}` : "Validade da calibração não informada", { cor: C.cinza, tam: 8.5 }), { depois: 100 }));
+      const pags = (c.imgs || []).filter((d) => imgs[d]);
+      if (!pags.length) B.push(par(run("(certificado não anexado)", { cor: C.cinza, tam: 9 })));
+      pags.forEach((d, k) => B.push(imagemParDe(imgs, d, 480, 640, { jc: "center", depois: 0, nome: "Certificado de calibração – " + (c.nome || "") }).replace("<w:pPr>", k > 0 ? "<w:pPr><w:pageBreakBefore/>" : "<w:pPr>")));
+    });
 
     const capa = capaXml({
       logoEleva, logoCliente, nomeCliente: opcoes.nomeCliente, lema: texto("Capa Lema"), titulo: linhasDe("Capa Titulo"), subtitulo: texto("Capa Subtitulo"),

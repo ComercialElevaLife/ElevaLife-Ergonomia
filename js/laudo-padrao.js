@@ -243,5 +243,31 @@
 
   const TEXTO_VALIDACAO = "Documento emitido eletronicamente no S.I.G.E por {nomes} em {emissao}. Código de verificação: **{codigo}** · Revisão {revisao}. Aponte a câmera para o QR Code ou acesse **sige-ergo.elevalife.com.br/verificar** e informe o código para confirmar a autoria, a data e a integridade do arquivo.";
 
-  BI.LaudoPadrao = { PAL, M, TOPO, BASE, URL_VERIFICACAO, TEXTO_VALIDACAO, corNivel, corStatus, textoSobre, novoCodigo, fontes, capa, cabecalhoRodape, h1, h2, h3, sumario, fechamento };
+  // V 1.35: paginas de um arquivo anexado (certificado de calibracao) como imagens para o laudo:
+  // JPG/PNG -> [imagem]; PDF -> uma imagem por pagina (ate 6), desenhada com o pdf.js.
+  async function paginasDoArquivo(chave, maxPaginas) {
+    if (!chave || !BI.DB) return [];
+    try {
+      const r = await fetch(BI.DB.urlArquivo(chave), { credentials: "same-origin" }); if (!r.ok) return [];
+      const blob = await r.blob();
+      const ehPdf = /pdf/i.test(blob.type) || /\.pdf$/i.test(chave);
+      if (!ehPdf) {
+        if (!/^image\/(png|jpe?g)/i.test(blob.type) && !/\.(png|jpe?g)$/i.test(chave)) return [];
+        return [await new Promise((ok) => { const f = new FileReader(); f.onload = () => ok(String(f.result || "") || null); f.onerror = () => ok(null); f.readAsDataURL(blob); })].filter(Boolean);
+      }
+      if (!global.pdfjsLib) return [];
+      const pdf = await global.pdfjsLib.getDocument({ data: await blob.arrayBuffer(), isEvalSupported: false }).promise;
+      const out = [];
+      for (let p = 1; p <= Math.min(pdf.numPages, maxPaginas || 6); p++) {
+        const pg = await pdf.getPage(p); const vp = pg.getViewport({ scale: 1.6 });
+        const c = document.createElement("canvas"); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+        const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+        await pg.render({ canvasContext: ctx, viewport: vp }).promise;
+        out.push(c.toDataURL("image/jpeg", 0.85));
+      }
+      return out;
+    } catch (e) { console.warn("certificado", e); return []; }
+  }
+
+  BI.LaudoPadrao = { PAL, M, TOPO, BASE, URL_VERIFICACAO, TEXTO_VALIDACAO, corNivel, corStatus, textoSobre, novoCodigo, fontes, capa, cabecalhoRodape, h1, h2, h3, sumario, fechamento, paginasDoArquivo };
 })(window);

@@ -154,6 +154,9 @@
     const logoEleva = await imagemUrl("img/logo-elevalife-branco.png"), logoElevaCor = await imagemUrl("img/logo-elevalife.png");
     for (const av of avaliacoes) for (const f of av.Fotos || []) await imagem(f && f.chave);
     for (const e of assinantes) e._assinatura = await imagem(chaveDe(e.Assinatura));
+    // V 1.35: certificados de calibracao escolhidos na emissao - saem no proprio arquivo (uma pagina cada, no final)
+    const certificados = [];
+    for (const c of opcoes.certificados || []) { const imgs = await BI.LaudoPadrao.paginasDoArquivo(chaveDe(c["Arquivo Imagem"])); imgs.forEach((d) => { cacheImg["cert:" + d.length + ":" + d.slice(-40)] = d; }); certificados.push({ nome: c.Nome, validade: c.Validade, imgs }); }
 
     // ---- metricas gerais -------------------------------------------------------
     const todosFatores = [];
@@ -247,14 +250,14 @@
     };
     return {
       statusAcaoInfo, dadosAcao, corNivel, dataBR, hojeISO, PAL, ROTULO_ESCALA, URL_VERIFICACAO,
-      Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, eliminadosDoPosto, doPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4, niveisMz, ordemNivel, contaNivelMz, maiorGrau, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe,
+      Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, eliminadosDoPosto, doPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4, niveisMz, ordemNivel, contaNivelMz, maiorGrau, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe,
     };
   }
 
   async function gerar(opcoes) {
     const jsPDFCtor = global.jspdf && global.jspdf.jsPDF;
     if (!jsPDFCtor) throw new Error("A biblioteca de geração de PDF não carregou (script externo bloqueado ou indisponível).");
-    const { statusAcaoInfo, dadosAcao, Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, eliminadosDoPosto, doPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, contaNivel, NIVEIS4, niveisMz, ordemNivel, contaNivelMz, maiorGrau, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe } = await preparar(opcoes);
+    const { statusAcaoInfo, dadosAcao, Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, eliminadosDoPosto, doPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4, niveisMz, ordemNivel, contaNivelMz, maiorGrau, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe } = await preparar(opcoes);
 
     // ========================================================================
     function construir(doc, mapa, final) {
@@ -840,6 +843,22 @@
         cliente: opcoes.nomeCliente, tituloCliente: titDe("cliente-assinatura", `Cliente – ${opcoes.nomeCliente}`),
         codigo, tituloValidacao: titDe("validacao", "Validação do documento"), textoValidacao: texto("Validacao Texto"),
       }, (yy, h) => { y = yy; garantir(h); return y; });
+      // ============================ 13 (V 1.35) - certificados de calibracao, no proprio arquivo =====================
+      if (certificados && certificados.length) {
+        h1("s13", "13. Certificados de calibração dos instrumentos", true);
+        certificados.forEach((c, i) => {
+          if (i > 0) novaPagina();
+          fonte("bold", 10.5); cor(PAL.vinho); doc.text(c.nome || "Instrumento", M, y); y += 13;
+          fonte("normal", 8.5); cor(PAL.cinza); doc.text(c.validade ? `Validade da calibração: ${dataBR(c.validade)}` : "Validade da calibração não informada", M, y); y += 14;
+          if (c.imgs && c.imgs.length) {
+            c.imgs.forEach((img, k) => {
+              if (k > 0) novaPagina();
+              try { const pr = doc.getImageProperties(img); const hMax = H - BASE - y - 6; let iw = L; let ih = iw * pr.height / pr.width; if (ih > hMax) { ih = hMax; iw = ih * pr.width / pr.height; } doc.addImage(img, pr.fileType, M + (L - iw) / 2, y, iw, ih); y += ih + 8; }
+              catch (e) { fonte("normal", 9); cor(PAL.cinza); doc.text("(imagem do certificado indisponível)", M, y + 12); y += 24; }
+            });
+          } else { fonte("normal", 9); cor(PAL.cinza); doc.text("(certificado não anexado no Cadastro Interno › Certificado Calibração)", M, y + 12); y += 24; }
+        });
+      }
       // ---------- sumario (agora que se conhece a estrutura) ----------------------------------------
       if (final || true) {
         const salvoY = y; const salvoP = pagina;

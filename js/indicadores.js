@@ -14,17 +14,17 @@
   "use strict";
 
   const BI = (global.BI = global.BI || {});
-  BI.VERSAO = "1.34"; // versao do sistema - exibida no rodape e em Ajuda > Versao (ver docs/CHANGELOG.md)
+  BI.VERSAO = "1.36"; // versao do sistema - exibida no rodape e em Ajuda > Versao (ver docs/CHANGELOG.md)
 
   const FILTROS_GLOBAIS = "Cliente, Unidade, Setor / GHE, Posto, Cargo, Atividade e Origem (AEP, AET ou Psicossocial, quando o registro tem origem)";
   // Ano/Mes filtra pela data lancada no proprio registro; registro sem essa
   // data fica de fora quando Ano/Mes esta selecionado (V 1.1).
   const POR_DATA = (campo) => FILTROS_GLOBAIS + ". Ano/Mês filtra pela " + campo + " (registro sem essa data fica de fora quando Ano/Mês está selecionado).";
-  const COM_ANO_MES = FILTROS_GLOBAIS + ". Ano/Mês também filtra (ver Cálculo).";
+  const COM_ANO_MES = FILTROS_GLOBAIS + ". Ano/Mês também filtra (ver Cálculo). Na Gestão do Plano de Ação, depois do filtro geral vale o filtro de origem do topo da aba.";
 
   const ABAS = {
-    ergo: "Gestão de Risco",
-    registro: "Plano de Ação",
+    ergo: "Gestão de Riscos",
+    registro: "Gestão do Plano de Ação",
     medocup: "Gestão de Absenteísmo",
     compativeis: "Gestão de Restritos",
   };
@@ -38,12 +38,12 @@
     // GESTAO DE RISCO - risco dos postos (Inventario) + Plano de Acao
     // ------------------------------------------------------------------
     {
-      id: "tiles-risco-global", aba: "ergo", grupo: "Risco dos postos (AEP, AET e Psicossocial)", titulo: "Risco Global dos Postos",
-      mostra: "Distribuição dos postos de trabalho por nível de risco global (Baixo, Moderado, Alto e Muito Alto).",
+      id: "chart-risco-global", aba: "ergo", grupo: "Risco dos postos (AEP, AET e Psicossocial)", titulo: "Risco Global dos Postos",
+      mostra: "Rosca com a distribuição dos postos de trabalho por nível de risco global (Baixo, Moderado, Alto e Muito Alto); no centro, o total de postos.",
       fonte: "AEP › Inventário de Riscos (fatores da AEP, da AET e do Psicossocial). 1 posto = Cliente + Unidade + Setor + Posto + Cargo + Origem; no Psicossocial, o setor/GHE.",
-      calculo: "O risco de cada posto é a MAIOR graduação entre os seus fatores de risco existentes (ex.: um fator Baixo e outro Alto = posto Alto). Os níveis das matrizes são agrupados nos quatro do painel (Muito Baixo = Baixo; Moderado; Alto; Altíssimo = Muito Alto). Clique em um nível para ver os postos.",
-      filtros: POR_DATA("data da AEP do posto (ou da identificação do fator)"),
-      cuidado: "Fatores marcados \"Não\" ou sem graduação não entram. O antigo Mapa de Risco (12 notas por posto) não é mais usado nos indicadores. Com o filtro Origem, o painel mostra só os postos daquela origem.",
+      calculo: "O risco de cada posto é a MAIOR graduação entre os seus fatores de risco existentes (ex.: um fator Baixo e outro Alto = posto Alto). Os níveis das matrizes são agrupados nos quatro do painel (Muito Baixo = Baixo; Moderado; Alto; Altíssimo = Muito Alto). Clique em uma fatia para ver os postos.",
+      filtros: POR_DATA("data da AEP do posto (ou da identificação do fator)") + " Depois do filtro geral, vale o filtro de origem do topo da aba (Todas, AEP, AET ou Psicossocial).",
+      cuidado: "Fatores marcados \"Não\" ou sem graduação não entram. O antigo Mapa de Risco (12 notas por posto) não é mais usado nos indicadores.",
     },
     {
       id: "chart-top-setores", aba: "ergo", grupo: "Risco dos postos (AEP, AET e Psicossocial)", titulo: "Top 3 Setores críticos",
@@ -66,8 +66,8 @@
     // GESTAO DE RISCO - trilha AEP
     // ------------------------------------------------------------------
     {
-      id: "tiles-fatorrisco-graduacao", aba: "ergo", grupo: "Inventário de Riscos (AEP, AET e Psicossocial)", titulo: "Inventário de Riscos - Graduação do Risco",
-      mostra: "Distribuição dos fatores de risco (ISO/TS 20646) por nível de graduação.",
+      id: "chart-fatorrisco-graduacao", aba: "ergo", grupo: "Inventário de Riscos (AEP, AET e Psicossocial)", titulo: "Inventário de Riscos - Graduação",
+      mostra: "Rosca com os fatores de risco encontrados nas avaliações (ISO/TS 20646, AET e HSE-IT) por graduação atual; no centro, o total de fatores. Ao lado, a tabela com todos os fatores (origem, local, fator, segmento, risco atual e evolução), com busca.",
       fonte: "AEP › Inventário de Riscos (AEP): 1 linha = 1 fator marcado \"Existe fator de risco: Sim\" em um posto. Os Riscos Psicossociais entram com 1 linha por fator do HSE-IT em cada setor/GHE (grupo \"Fatores psicossociais (HSE-IT)\"), cada uma contando 1.",
       calculo: "A graduação decorre da matriz de risco configurada no cliente (Probabilidade × Severidade; 3x3, 4x4 ou 5x5). Vale a graduação mais atual (após as reavaliações); fatores com risco eliminado não entram. Para adequação aos quatro níveis do painel: Muito Baixo e Baixo = Baixo; Moderado = Moderado; Alto = Alto; Altíssimo = Muito Alto. Fatores marcados \"Não\" não entram.",
       filtros: POR_DATA("data da identificação do fator"),
@@ -77,22 +77,14 @@
       id: "chart-evolucao-riscos", aba: "ergo", grupo: "Inventário de Riscos (AEP, AET e Psicossocial)", titulo: "Evolução mensal dos riscos",
       mostra: "Mês a mês, quantos fatores de risco existiam em cada graduação, quantos foram eliminados (acumulado) e quantos foram reduzidos no mês.",
       fonte: "AEP › Inventário de Riscos (AEP, Psicossocial e AET): graduação inicial, data de identificação e histórico do risco de cada fator (reavaliações ao concluir ações redutoras no Plano de Ação, alterações no checklist e reaplicações do psicossocial).",
-      calculo: "Para cada mês dos últimos 24, a graduação de cada fator é a vigente no último dia do mês (graduação inicial + eventos do histórico até a data). Barras empilhadas: fatores ativos por graduação. Linha Eliminados: total acumulado de fatores com risco eliminado. Linha Reduzidos: fatores que baixaram de graduação no mês. Clique numa barra para ver os fatores.",
-      filtros: "Filtros globais (Cliente, Unidade, Setor / GHE, Cargo, Posto e Origem). O período é sempre os últimos 24 meses.",
+      calculo: "Para cada mês dos últimos 24, a graduação de cada fator é a vigente no último dia do mês (graduação inicial + eventos do histórico até a data). Barras empilhadas: fatores ativos por graduação, com o total do mês em cima da barra. Linha Eliminados: total acumulado de fatores com risco eliminado. Linha Reduzidos: fatores abaixo da graduação inicial. Clique num mês para ver o que compõe cada parte: os fatores de cada graduação, os reduzidos (de qual graduação para qual) e os eliminados.",
+      filtros: "Filtros globais (Cliente, Unidade, Setor / GHE, Cargo, Posto e Origem) e, depois deles, o filtro de origem do topo da aba. O período é sempre os últimos 24 meses.",
       cuidado: "Fatores cadastrados antes da V 1.31 não têm histórico: aparecem com a graduação atual desde a data de identificação.",
-    },
-    {
-      id: "tiles-fatorrisco-prazos", aba: "ergo", grupo: "Inventário de Riscos (AEP, AET e Psicossocial)", titulo: "Inventário de Riscos - Prazos",
-      mostra: "Situação do prazo de validade (\"Válido Até\") dos fatores de risco em aberto.",
-      fonte: "AEP › Inventário de Riscos (AEP), campo Válido Até.",
-      calculo: "Consideram-se apenas fatores em aberto (A validar ou Em andamento). Vencido: Válido Até anterior à data atual; Vencendo: vencimento em até 30 dias; Em dia: vencimento em mais de 30 dias.",
-      filtros: POR_DATA("data da identificação do fator"),
-      cuidado: "Fatores sem Válido Até, Concluídos ou Cancelados não compõem estes três valores.",
     },
     {
       id: "tiles-avaliacao-cobertura", aba: "ergo", grupo: "Avaliações realizadas (AEP e AET)", titulo: "Avaliação Ergonômica - Cobertura",
       mostra: "Proporção dos postos/cargos cadastrados que já possuem Avaliação Ergonômica (AEP).",
-      fonte: "AEP › Avaliações (AEP) comparada com Cadastro Cliente › Cargo (cada cargo de cada posto).",
+      fonte: "AEP › Avaliações (AEP) comparada com Cadastro Empresa › Cargo (cada cargo de cada posto).",
       calculo: "Avaliações registradas: total de AEPs filtradas. Postos cobertos: combinações Cliente + Unidade + Setor + Posto + Cargo cadastradas que têm AEP. Cobertura: postos cobertos ÷ postos/cargos cadastrados.",
       filtros: POR_DATA("data da avaliação"),
       cuidado: "A AEP é por posto e cargo (sem atividade). Uma AEP de posto/cargo que não está no cadastro conta em \"registradas\", mas não em \"cobertos\".",
@@ -113,14 +105,6 @@
       filtros: POR_DATA("data da análise"),
       cuidado: "Conta as AETs feitas no sistema (aba AET) e as anexadas (arquivos de análises feitas fora do sistema), pela data da análise.",
     },
-    {
-      id: "tiles-aet-classificacao", aba: "ergo", grupo: "Avaliações realizadas (AEP e AET)", titulo: "AET - Arquivos Anexados por Classificação",
-      mostra: "Quantidade de arquivos de AET (Excel/PDF) anexados, por tipo de conteúdo.",
-      fonte: "AET (campo Arquivos AET).",
-      calculo: "Contabiliza arquivos (um registro pode conter vários). Prevalece a classificação confirmada pelo ergonomista; na ausência de confirmação, utiliza-se a classificação automática, obtida da leitura do arquivo. Classificações sem arquivos não são exibidas.",
-      filtros: POR_DATA("data da análise"),
-      cuidado: "O valor corresponde a arquivos, e não a postos ou a análises.",
-    },
 
     // ------------------------------------------------------------------
     // GESTAO DE ABSENTEISMO
@@ -131,7 +115,7 @@
       fonte: "Plano de Ação.",
       calculo: STATUS_ACAO + " Com filtro de Ano/Mês, a ação é considerada se a Dt Programada ou a Dt Conclusão estiver no período.",
       filtros: COM_ANO_MES,
-      cuidado: "Inclui as ações de todas as origens (AEP, Psicossocial e, no futuro, AET); use o filtro Origem para separar. Cada ação conta como 1.",
+      cuidado: "Inclui as ações de todas as origens (AEP, AET e Psicossocial); use o filtro de origem do topo da aba para separar. Cada ação conta como 1.",
     },
     {
       id: "chart-plano-criticos", aba: "registro", grupo: "Plano de Ação (AEP, AET e Psicossocial)", titulo: "Plano de Ação - Postos Críticos",
