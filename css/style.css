@@ -2426,3 +2426,34 @@ span.aet-ferr-chip { cursor: default; margin: 2px 4px 2px 0; }
 :root[data-theme="dark"] .aviso-servico-parcial { background: #3a2a10; color: #ffd89a; border-color: #8a6420; }
 .campo-atualizar { border: 2px solid #d97706 !important; background: #fff7e6 !important; color: #8a4b00 !important; font-weight: 700; }
 :root[data-theme="dark"] .campo-atualizar { background: #3a2a10 !important; color: #ffd89a !important; }
+
+/* V 1.39: cobertura no topo da Gestão de Riscos */
+.cartao-cobertura .cobertura-conteudo { display: grid; grid-template-columns: minmax(220px, 1fr) 2fr; gap: 18px; align-items: center; }
+.cobertura-numeros { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.cobertura-numeros .tile-total { padding: 10px 12px; }
+.cobertura-chart { position: relative; height: 120px; }
+@media (max-width: 720px) { .cartao-cobertura .cobertura-conteudo { grid-template-columns: 1fr; } .cobertura-chart { height: 150px; } }
+
+/* V 1.40: modal "Gerar AET a partir da AEP" (selecao de fatores) */
+.aet-gerar-lista { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; max-height: 44vh; overflow: auto; }
+.aet-gerar-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 1px solid var(--linha, #e5d8d8); border-radius: 8px; cursor: pointer; }
+.aet-gerar-item:hover { background: var(--fundo, #f6f1ed); }
+.aet-gerar-item input { margin-top: 3px; }
+.aet-gerar-info { display: flex; flex-direction: column; gap: 2px; }
+.aet-gerar-meta { font-size: 12px; color: var(--texto-suave, #7a6a6c); }
+
+/* V 1.40: aba Coordenacao (so Administrador) */
+.sidebar-nav button.nav-so-admin { display: none; }
+body.perfil-admin .sidebar-nav button.nav-so-admin { display: flex; }
+.coord-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.coord-kpi { background: var(--card, #fff); border: 1px solid var(--linha, #e5d8d8); border-radius: 12px; padding: 14px 16px; }
+.coord-kpi .coord-kpi-valor { font-size: 24px; font-weight: 800; color: var(--vinho-escuro, #5a2a33); }
+.coord-kpi .coord-kpi-rot { font-size: 12.5px; color: var(--texto-suave, #7a6a6c); margin-top: 2px; }
+.coord-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+.coord-tabela th, .coord-tabela td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--linha, #e5d8d8); vertical-align: top; }
+.coord-tabela th { font-weight: 700; color: var(--texto-suave, #7a6a6c); background: var(--fundo, #f6f1ed); position: sticky; top: 0; }
+.coord-tabela td.num, .coord-tabela th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.coord-tabela tbody tr:hover { background: var(--fundo, #f6f1ed); }
+.coord-sub { font-size: 13px; color: var(--texto-suave, #7a6a6c); margin: 2px 0 10px; }
+.coord-tabela-wrap { overflow: auto; max-height: 60vh; }
+.coord-vazio { padding: 16px; color: var(--texto-suave, #7a6a6c); font-size: 13.5px; }
