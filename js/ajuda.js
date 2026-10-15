@@ -378,6 +378,21 @@
 
   const HISTORICO = [
     {
+      versao: "1.40", data: "14/10/2026",
+      itens: [
+        "Nova aba Coordenação (só Administrador): contabilidade de tempo por login — quanto cada ergonomista levou para cadastrar cada entidade (empresa, colaboradores, etc.) e para fazer as AEP/AET. Mede o tempo ativo de edição e o ciclo de vida (do início à finalização).",
+        "Gestão de Riscos: gráfico de cobertura no topo (abaixo dos filtros) com quantos postos estão cadastrados e quantos já foram avaliados; na origem Psicossocial, mostra GHEs cadastrados × avaliados.",
+        "AEP → “Gerar AET”: botão na lista de Avaliações que cria uma AET a partir da AEP; o ergonomista escolhe quais fatores de risco vão para a AET. A AEP continua como está; a AET nasce preenchida com o que dá para aproveitar (posto, fator, consequência, segmento, fonte, severidade, probabilidade e graduação).",
+      ],
+    },
+    {
+      versao: "1.39", data: "13/10/2026",
+      itens: [
+        "Revisão de segurança (pen test): limite de requisições nos endpoints públicos, link de redefinição de senha só pelo domínio oficial, API pública de escrita passando pelas regras de negócio, escape de HTML nos e-mails e endurecimento de configuração (CSP, política de senha).",
+        "Teste de estresse: correção do ponto que travava empresas muito grandes (índice do Plano de Ação por fator) e limite de tamanho do corpo das requisições.",
+      ],
+    },
+    {
       versao: "1.38", data: "09/10/2026",
       itens: [
         "AET: o ergonomista escolhe, na janela da ferramenta, seguir o risco da ferramenta ou informar a probabilidade; resultado no topo da janela, atualizado a cada campo, com prévia do risco do fator.",

@@ -1280,6 +1280,56 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     });
   }
 
+  // V 1.39: cobertura no topo da Gestao de Riscos - postos (ou GHEs, no Psicossocial) cadastrados x avaliados.
+  function renderCoberturaPostos(origem, filtros) {
+    const Calc = window.BI.Calc;
+    const dados = {
+      setor: Calc.filtrar(window.BI.dados.setor || [], filtros, []),
+      cargo: Calc.filtrar(window.BI.dados.cargo || [], filtros, []),
+      avaliacaoErgonomica: Calc.filtrar(window.BI.dados.avaliacaoErgonomica || [], filtros, []),
+      aet: Calc.filtrar(window.BI.dados.aet || [], filtros, []),
+      fatorRisco: Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, []),
+    };
+    const cob = Calc.coberturaPorOrigem(origem || "", dados);
+    const pendentes = Math.max(0, cob.cadastrados - cob.avaliados);
+    const tit = document.getElementById("cobertura-titulo");
+    const sub = document.getElementById("cobertura-sub");
+    if (tit) tit.textContent = `Cobertura das avaliações${origem ? " · " + origem : ""}`;
+    if (sub) sub.textContent = origem === "Psicossocial"
+      ? "GHEs cadastrados e quantos já têm avaliação psicossocial"
+      : "Postos de trabalho cadastrados e quantos já foram avaliados";
+    const cont = document.getElementById("cobertura-numeros");
+    if (cont) {
+      cont.innerHTML = "";
+      const tiles = [
+        { rotulo: cob.rotulo + " cadastrados", valor: cob.cadastrados },
+        { rotulo: "Já avaliados", valor: cob.avaliados },
+        { rotulo: "Pendentes", valor: pendentes },
+        { rotulo: "Cobertura", valor: cob.pct.toFixed(1) + "%" },
+      ];
+      tiles.forEach((it) => {
+        const tile = document.createElement("div"); tile.className = "tile-total";
+        const r = document.createElement("div"); r.className = "rotulo"; r.textContent = it.rotulo;
+        const v = document.createElement("div"); v.className = "valor"; v.textContent = String(it.valor);
+        tile.appendChild(r); tile.appendChild(v); cont.appendChild(tile);
+      });
+    }
+    const corAval = Calc.resolverCorCSS("var(--teal)");
+    const corPend = Calc.resolverCorCSS("var(--vinho-suave-2)");
+    criarOuAtualizarGrafico("chart-cobertura", {
+      type: "bar",
+      data: { labels: [cob.rotulo], datasets: [
+        { label: "Avaliados", data: [cob.avaliados], backgroundColor: corAval, borderRadius: 6, barThickness: 34 },
+        { label: "Pendentes", data: [pendentes], backgroundColor: corPend, borderRadius: 6, barThickness: 34 },
+      ] },
+      options: {
+        indexAxis: "y", responsive: true, maintainAspectRatio: false,
+        scales: { x: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: Calc.resolverCorCSS("var(--grid)") } }, y: { stacked: true, grid: { display: false } } },
+        plugins: { legend: { display: true, position: "bottom" }, tooltip: { enabled: true, external: null } },
+      },
+    });
+  }
+
   function renderTilesAvaliacaoCobertura(cob) {
     const cont = document.getElementById("tiles-avaliacao-cobertura");
     if (!cont) return;
@@ -3764,6 +3814,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function fecharPainelChecklist() {
+    if (window.BI.Tempo) window.BI.Tempo.descartar("aep:inv");
     if (elChecklistPainel) { elChecklistPainel.classList.remove("aberto"); elChecklistPainel.setAttribute("aria-hidden", "true"); }
     if (elOverlayChecklist) elOverlayChecklist.hidden = true;
   }
@@ -3887,6 +3938,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const Calc = window.BI.Calc;
     const painel = obterPainelChecklist();
     const podeEditar = window.BI.DB.estado.disponivel;
+    // V 1.40: contabilidade de tempo (aba Coordenacao) - sessao do Inventario (AEP).
+    if (podeEditar && window.BI.Tempo) window.BI.Tempo.iniciar("aep:inv", { Categoria: "AEP", Tipo: "avaliacaoErgonomica", Acao: "editar", RefId: linhaAval._id || "", Cliente: linhaAval.Cliente, Unidade: linhaAval.Unidade, Setor: linhaAval.Setor, "Posto Trabalho": linhaAval["Posto Trabalho"], Cargo: linhaAval.Cargo });
 
     document.getElementById("checklist-titulo").textContent = "Inventário de Riscos - " + (linhaAval["Posto Trabalho"] || "");
     document.getElementById("checklist-sub").textContent =
@@ -4192,6 +4245,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         }
         // V 1.28: a AEP registra a atualizacao (data e ergonomista entram no historico e no laudo)
         await registrarAtualizacaoAEP(linhaAval, `Inventário de riscos atualizado (${alterados} ${alterados === 1 ? "fator" : "fatores"})`);
+        if (window.BI.Tempo) window.BI.Tempo.salvar("aep:inv", { RefId: linhaAval._id || "", RefNome: [linhaAval.Setor, linhaAval["Posto Trabalho"], linhaAval.Cargo].filter(Boolean).join(" › "), Cliente: linhaAval.Cliente, Unidade: linhaAval.Unidade, Setor: linhaAval.Setor, "Posto Trabalho": linhaAval["Posto Trabalho"], Cargo: linhaAval.Cargo, EmpresaId: linhaAval.EmpresaId || "" });
         if (continuar) { // reabre com o que foi gravado, na mesma posicao
           const corpoEl = document.getElementById("checklist-corpo"); const topo = corpoEl ? corpoEl.scrollTop : 0;
           const atual = (window.BI.dados.avaliacaoErgonomica || []).find((a) => a._id === linhaAval._id) || linhaAval;
@@ -5894,6 +5948,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
   function configurarPerfilCliente() {
     document.body.classList.toggle("perfil-cliente", ehUsuarioCliente());
+    // V 1.40: aba Coordenacao (contabilidade de tempo) so aparece para o Administrador.
+    document.body.classList.toggle("perfil-admin", ehAdministradorAtual());
   }
   // Baixa em Excel a aba do Cadastro/Registro como esta na tela (busca e filtros aplicados).
   function exportarCadastroExcel(chave) {
@@ -6013,6 +6069,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const prefill = {};
     window.BI.Calc.DIMENSOES.forEach((d) => { if (filtros[d] && filtros[d].length === 1) prefill[d] = filtros[d][0]; });
     estado.valoresForm = prefill;
+    if (window.BI.Tempo) window.BI.Tempo.iniciar("cad:" + chave, { Categoria: "Cadastro", Tipo: chave, Acao: "criar" });
     renderizarFormCadastro(chave);
   }
 
@@ -6029,10 +6086,18 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const sv = linha.Servicos.slice(); ["aep", "aet", "registro"].forEach((x) => { if (empresaTemServico(linha, x) && !sv.includes(x)) sv.push(x); });
       estado.valoresForm = Object.assign({}, linha, { Servicos: sv });
     }
+    if (window.BI.Tempo) window.BI.Tempo.iniciar("cad:" + chave, { Categoria: "Cadastro", Tipo: chave, Acao: "editar", RefId: id });
     renderizarFormCadastro(chave);
   }
 
+  // Rotulo amigavel de um registro para a contabilidade de tempo (aba Coordenacao).
+  function rotuloRegistroTempo(chave, dados) {
+    return dados.Nome || dados.Cliente || dados["Posto Trabalho"] || dados.Cargo || dados.Setor || dados.Unidade ||
+      dados.Titulo || dados.Descricao || dados["Acao Recomendada"] || "";
+  }
+
   function fecharFormCadastro(chave) {
+    if (window.BI.Tempo) window.BI.Tempo.descartar("cad:" + chave);
     estadoCadastro[chave].formAberto = false;
     estadoCadastro[chave].editandoId = null;
     renderizarFormCadastro(chave);
@@ -6110,6 +6175,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           await window.BI.DB.salvar(chave, idAtual, dados);
         }
         if (cfg.aoSalvarDepois) await cfg.aoSalvarDepois(form, idSalvo, dados);
+        if (window.BI.Tempo) window.BI.Tempo.salvar("cad:" + chave, {
+          RefId: idSalvo, RefNome: rotuloRegistroTempo(chave, dados), Acao: estado.editandoId ? "editar" : "criar",
+          Cliente: dados.Cliente || "", Unidade: dados.Unidade || "", Setor: dados.Setor || "", "Posto Trabalho": dados["Posto Trabalho"] || "", Cargo: dados.Cargo || "",
+          EmpresaId: chave === "cliente" ? idSalvo : (dados.EmpresaId || ""),
+        });
         fecharFormCadastro(chave);
       } catch (e) {
         form._erroEl.hidden = false;
@@ -6667,6 +6737,19 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           btnChecklist.addEventListener("click", () => abrirInventarioChecklist(linha));
           tdAcoes.appendChild(btnChecklist);
         }
+        // "Gerar AET" na linha de Avaliacao Ergonomica (pedido do Alexandre,
+        // V 1.40) - cria uma AET nova a partir desta AEP: o ergonomista escolhe
+        // quais fatores do Inventario (AEP) vao para a AET. A AEP nao e alterada.
+        if (chave === "avaliacaoErgonomica" && souEquipe() && window.BI.AET && window.BI.AET.gerarDaAEP) {
+          const btnGerarAET = document.createElement("button");
+          btnGerarAET.type = "button";
+          btnGerarAET.className = "btn-acao-linha btn-acao-editar";
+          btnGerarAET.textContent = "🛠 Gerar AET";
+          btnGerarAET.title = "Cria uma AET a partir desta AEP (você escolhe os fatores de risco que vão para a AET); a AEP não é alterada";
+          btnGerarAET.disabled = !podeEditar;
+          btnGerarAET.addEventListener("click", () => window.BI.AET.gerarDaAEP(linha));
+          tdAcoes.appendChild(btnGerarAET);
+        }
         const btnEditar = document.createElement("button");
         btnEditar.type = "button"; btnEditar.className = "btn-acao-linha btn-acao-editar"; btnEditar.textContent = "Editar";
         btnEditar.disabled = !podeEditar;
@@ -6877,6 +6960,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // Ocup/Compativeis recolhe as duas.
   function ativarAba(aba) {
     if ((aba === "cadastro" || aba === "interno") && ehUsuarioCliente()) aba = "ergo";
+    if (aba === "coordenacao" && !ehAdministradorAtual()) aba = "ergo";
     const nav = document.getElementById("nav-abas");
     const botoes = Array.from(nav.querySelectorAll("button[data-aba]"));
     const btn = botoes.find((b) => b.dataset.aba === aba);
@@ -6894,6 +6978,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     try { aplicarServicosContratados(); } catch (_) { /* dados ainda nao carregados */ }
     if (aba === "psicossocial") sincronizarFiltroPsico(true);
     if (aba === "aep" && estadoSubAbaCadastro.aep === "modeloLaudo") abrirEditorTextoDireto();
+    if (aba === "coordenacao" && window.BI.Coordenacao) { try { window.BI.Coordenacao.render(); } catch (e) { console.error(e); } }
     // V 1.35: a sub-aba atual de tela propria (AET, laudos, importacao) se atualiza ao abrir a aba
     const grupoAba = GRUPO_DA_ABA[aba]; const subAtual = grupoAba && estadoSubAbaCadastro[grupoAba];
     if (subAtual && SUBABAS_EXTRAS[subAtual] && SUBABAS_EXTRAS[subAtual].aoAbrir) { try { SUBABAS_EXTRAS[subAtual].aoAbrir(); } catch (e) { console.error(e); } }
@@ -7727,6 +7812,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const planoAcaoFComRisco = comRiscoAtual(planoAcaoF);
     const planoAcaoFCriticos = planoAcaoFComRisco.filter((a) => a["Risco Global"] === "Alto" || a["Risco Global"] === "Muito Alto");
 
+    renderCoberturaPostos(estadoOrigemAba.ergo, filtros);
     renderDonutNiveis("chart-risco-global", "legenda-risco-global", Calc.mapaRiscoGlobal(mapaRiscoF), "postos", "posto(s)", (n) => ({
       titulo: `Risco Global dos Postos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} posto(s) de trabalho`, chave: "riscoPosto", linhas: mapaRiscoF.filter((l) => l["Risco Global"] === n.nivel) }));
     renderTopSetores(Calc.topSetores(mapaRiscoF, 3), mapaRiscoF);
@@ -8210,7 +8296,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       ev.preventDefault();
       erro.hidden = true;
       if (campoSenha.input.value.length < 8) {
-        mostrarErroAcesso(erro, "A senha precisa ter pelo menos 8 caracteres.");
+        mostrarErroAcesso(erro, "A senha precisa ter de 8 a 72 caracteres.");
         return;
       }
       if (campoSenha.input.value !== campoConfirma.input.value) {

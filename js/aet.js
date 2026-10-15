@@ -200,10 +200,13 @@
     acoesTopo.appendChild(bFechar); acoesTopo.appendChild(bSalvar); topo.appendChild(acoesTopo);
     caixa.appendChild(topo); caixa.appendChild(msg);
     if (rascunho && opcAbrir && opcAbrir.duplicada) { const av = h("div", "aet-msg"); av.textContent = `Cópia da ${rascunho["Duplicada De"] || "AET"}. Escolha a empresa, a unidade, o setor, o posto e o cargo da nova AET, revise e clique em Salvar AET. As ações propostas foram copiadas (sem responsável e prazo).`; caixa.appendChild(av); }
+    else if (rascunho && opcAbrir && opcAbrir.daAEP) { const av = h("div", "aet-msg"); av.textContent = "AET gerada a partir da AEP deste posto. Os fatores selecionados foram trazidos com a consequência, o segmento, a fonte e a graduação da AEP. Revise, descreva a atividade, anexe as fotos, aplique as ferramentas e complete o que faltar; depois clique em Salvar AET. A AEP de origem não é alterada."; caixa.appendChild(av); }
     else if (rascunho) { const av = h("div", "aet-msg"); av.textContent = `AET importada de “${rascunho["Arquivo Importado"] || "arquivo"}”. Confira os dados, complete o que faltar (ferramentas, severidade e probabilidade, ações) e clique em Salvar AET.`; caixa.appendChild(av); }
     const corpo = h("div", "aet-corpo"); const nav = h("nav", "aet-nav"); const area = h("div", "aet-area"); corpo.appendChild(nav); corpo.appendChild(area); caixa.appendChild(corpo);
     document.body.appendChild(fundo); document.body.classList.add("aet-aberta");
-    const fechar = () => { if (sujo && editar && !window.confirm("Há alterações não salvas na AET. Fechar mesmo assim?")) return; fundo.remove(); document.body.classList.remove("aet-aberta"); };
+    // V 1.40: contabilidade de tempo (aba Coordenacao) - sessao de edicao da AET.
+    if (editar && BI.Tempo) BI.Tempo.iniciar("aet:editor", { Categoria: "AET", Tipo: "aet", Acao: idAET ? "editar" : "criar", RefId: idAET || "", Cliente: st.Cliente, Unidade: st.Unidade, Setor: st.Setor, "Posto Trabalho": st["Posto Trabalho"], Cargo: st.Cargo });
+    const fechar = () => { if (sujo && editar && !window.confirm("Há alterações não salvas na AET. Fechar mesmo assim?")) return; if (BI.Tempo) BI.Tempo.descartar("aet:editor"); fundo.remove(); document.body.classList.remove("aet-aberta"); };
     bFechar.addEventListener("click", fechar);
     const atualizarTitulo = () => { titulo.textContent = `AET${st["Nr AET"] ? " " + String(st["Nr AET"]).padStart(3, "0") : " (nova)"} · ${[st.Setor, st["Posto Trabalho"], st.Cargo].filter(Boolean).join(" › ") || "posto não definido"}`; };
 
@@ -597,6 +600,7 @@
           await BI.DB.excluir("fatorRisco", f._id);
         }
         sujo = false;
+        if (BI.Tempo) BI.Tempo.salvar("aet:editor", { RefId: id, RefNome: [st.Setor, st["Posto Trabalho"], st.Cargo].filter(Boolean).join(" › "), Acao: novo ? "criar" : "editar", Cliente: st.Cliente, Unidade: st.Unidade, Setor: st.Setor, "Posto Trabalho": st["Posto Trabalho"], Cargo: st.Cargo, EmpresaId: doc.EmpresaId });
         if (BI.recarregar) await BI.recarregar();
         fundo.remove(); document.body.classList.remove("aet-aberta"); renderPainel();
         if (BI.avisar) BI.avisar("AET salva. Riscos no Inventário e ações no Plano de Ação (origem AET).");
@@ -620,5 +624,96 @@
     return linhas.join(" ");
   }
 
-  BI.AET = { renderPainel, abrirEditor, avaliarFator, EXPOSICAO, exposicaoDe, aetsNativas, matrizDe, nivelNaMatriz, comExposicao, nivelDaFerramenta, DEMANDAS, ORGANIZACAO, AMBIENTE, dataBR };
+  // ------------------------------------------------------------------ Gerar AET a partir da AEP
+  // Pedido do Alexandre (V 1.40): na aba Avaliacoes, um botao gera uma AET a
+  // partir da AEP do posto. O ergonomista escolhe quais fatores do Inventario
+  // (Origem AEP) vao para a AET; a AEP NAO e alterada - cria-se uma AET nova
+  // (rascunho) com a identificacao do posto e uma atividade com os fatores
+  // mapeados (consequencia, segmento, fonte, severidade, probabilidade e grau
+  // da AEP). O que faltar (atividade, fotos, ferramentas) e completado no editor.
+  function fatoresAEPdoPosto(aep) {
+    const C = Calc();
+    return (BI.dados.fatorRisco || []).filter((f) =>
+      C.origemDe(f) === "AEP" &&
+      f.Cliente === aep.Cliente && f.Unidade === aep.Unidade && f.Setor === aep.Setor &&
+      f.Cargo === aep.Cargo && f["Posto Trabalho"] === aep["Posto Trabalho"] &&
+      f["Existe Fator Risco"] === "Sim" && C.riscoAtivo(f));
+  }
+  function mapearFatorAEP(fr, mz) {
+    const C = Calc();
+    const grupos = C.GRUPOS_FATOR_RISCO || [];
+    const todos = [].concat(...grupos.map((g0) => C.fatoresDoGrupo(g0) || []));
+    const esc = C.escalaDaMatriz(mz) || [];
+    const idxExp = fr.Probabilidade != null && fr.Probabilidade !== "" ? esc.indexOf(fr.Probabilidade) : -1;
+    const conhecido = todos.includes(fr.Fator);
+    return {
+      uid: uid(),
+      grupo: fr.Grupo || (conhecido ? grupos.find((g0) => (C.fatoresDoGrupo(g0) || []).includes(fr.Fator)) : "Outros") || "Outros",
+      fator: conhecido ? fr.Fator : "__outro",
+      outro: conhecido ? "" : (fr.Fator || ""),
+      consequencia: fr.Consequencia || "",
+      segmento: fr["Segmento Corporal"] || "",
+      fonte: fr["Circunstancia Geradora"] || "",
+      ferramentas: [],
+      exposicao: idxExp >= 0 ? String(idxExp) : "",
+      severidade: fr.Criticidade || "",
+      grauImportado: fr["Graduacao Risco"] || "",
+    };
+  }
+  function gerarDaAEP(aep) {
+    if (!podeEditar()) { if (BI.avisar) BI.avisar("Sem permissão para criar AET."); return; }
+    const C = Calc();
+    const fatores = fatoresAEPdoPosto(aep);
+    if (!fatores.length) { window.alert("Esta AEP não tem fatores de risco registrados no Inventário (Origem AEP) para gerar a AET. Preencha o Inventário de Riscos deste posto primeiro."); return; }
+    const mz = matrizDe(aep.Cliente);
+    const posto = [aep.Setor, aep["Posto Trabalho"], aep.Cargo].filter(Boolean).join(" › ") || "posto não definido";
+
+    const fundo = h("div", "reav-fundo"); const caixa = h("div", "reav-caixa"); caixa.setAttribute("role", "dialog"); caixa.setAttribute("aria-label", "Gerar AET a partir da AEP"); fundo.appendChild(caixa);
+    caixa.appendChild(h("div", "reav-titulo", "Gerar AET a partir da AEP"));
+    caixa.appendChild(h("p", "reav-texto", `Selecione os fatores de risco do Inventário (AEP) de ${posto} que devem ir para a nova AET. A AEP continua como está; os fatores serão copiados para a AET para você aplicar as ferramentas e descrever a atividade.`));
+    const lista = h("div", "aet-gerar-lista");
+    const marcados = new Set(fatores.map((f) => f._id || f.id));
+    fatores.forEach((fr) => {
+      const id = fr._id || fr.id;
+      const lab = h("label", "aet-gerar-item");
+      const cb = h("input"); cb.type = "checkbox"; cb.checked = true;
+      cb.addEventListener("change", () => { if (cb.checked) marcados.add(id); else marcados.delete(id); atualizar(); });
+      lab.appendChild(cb);
+      const info = h("div", "aet-gerar-info");
+      info.appendChild(h("strong", null, fr.Fator || "(fator)"));
+      const meta = [fr["Segmento Corporal"] ? "Segmento: " + fr["Segmento Corporal"] : "", fr["Graduacao Risco"] ? "Risco: " + fr["Graduacao Risco"] : ""].filter(Boolean).join(" · ");
+      if (meta) info.appendChild(h("span", "aet-gerar-meta", meta));
+      lab.appendChild(info);
+      lista.appendChild(lab);
+    });
+    caixa.appendChild(lista);
+
+    const acoes = h("div", "reav-acoes");
+    const bCancelar = h("button", "btn-cad-secundario", "Cancelar"); bCancelar.type = "button";
+    const bGerar = h("button", "btn-cad-primario", "Gerar AET"); bGerar.type = "button";
+    const atualizar = () => { bGerar.disabled = marcados.size === 0; bGerar.textContent = marcados.size ? `Gerar AET (${marcados.size} fator${marcados.size > 1 ? "es" : ""})` : "Gerar AET"; };
+    acoes.appendChild(bCancelar); acoes.appendChild(bGerar); caixa.appendChild(acoes);
+    atualizar();
+    const fechar = () => fundo.remove();
+    bCancelar.addEventListener("click", fechar);
+    fundo.addEventListener("click", (ev) => { if (ev.target === fundo) fechar(); });
+    bGerar.addEventListener("click", () => {
+      const escolhidos = fatores.filter((f) => marcados.has(f._id || f.id));
+      if (!escolhidos.length) return;
+      const atividade = Object.assign(novaAtividade(1), { descricao: "", fatores: escolhidos.map((fr) => mapearFatorAEP(fr, mz)) });
+      const rascunho = {
+        "Tipo Registro": "AET",
+        Cliente: aep.Cliente, Unidade: aep.Unidade, Setor: aep.Setor,
+        "Posto Trabalho": aep["Posto Trabalho"], Cargo: aep.Cargo,
+        "Data Analise": hojeISO(),
+        "Gerada De AEP": aep._id || aep.id || "",
+        Atividades: [atividade],
+      };
+      fechar();
+      abrirEditor(null, rascunho, { daAEP: true });
+    });
+    document.body.appendChild(fundo);
+  }
+
+  BI.AET = { renderPainel, abrirEditor, avaliarFator, gerarDaAEP, EXPOSICAO, exposicaoDe, aetsNativas, matrizDe, nivelNaMatriz, comExposicao, nivelDaFerramenta, DEMANDAS, ORGANIZACAO, AMBIENTE, dataBR };
 })(window);

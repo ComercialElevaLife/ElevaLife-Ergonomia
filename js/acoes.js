@@ -106,9 +106,23 @@
   const rotuloNivel = (n) => (n ? Calc().rotuloNivel(n) : "-");
 
   function estaConcluida(a) { return !!(a && (a["Dt Conclusao"] || a["Status Execucao"] === "Concluida")); }
+  // V 1.39 (desempenho sob carga): índice do Plano de Ação por "Fator Risco Id", construído uma vez
+  // por coleção. Antes, cada chamada varria TODO o Plano de Ação; com muitos fatores, as telas que
+  // chamam isso por fator (tabela do Inventário, laudos) ficavam O(fatores × ações) e travavam em
+  // empresas grandes. O índice é reconstruído quando o array do Plano de Ação é trocado (recarga) ou
+  // muda de tamanho. As listas retornadas são somente leitura (não mutar).
+  let _idxAcoes = null, _idxRef = null, _idxLen = -1;
+  function indiceAcoesPorFator() {
+    const lista = (BI.dados && BI.dados.planoAcao) || [];
+    if (_idxAcoes && _idxRef === lista && _idxLen === lista.length) return _idxAcoes;
+    const m = new Map();
+    for (const a of lista) { const k = a["Fator Risco Id"]; if (!k) continue; let arr = m.get(k); if (!arr) m.set(k, (arr = [])); arr.push(a); }
+    _idxAcoes = m; _idxRef = lista; _idxLen = lista.length;
+    return m;
+  }
   function acoesDoFator(fatorId) {
     if (!fatorId) return [];
-    return ((BI.dados && BI.dados.planoAcao) || []).filter((a) => a["Fator Risco Id"] === fatorId);
+    return indiceAcoesPorFator().get(fatorId) || [];
   }
 
   // Resumo de risco de um fator a partir das suas acoes.

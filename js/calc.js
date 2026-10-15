@@ -887,6 +887,31 @@
     };
   }
 
+  // V 1.39: cobertura "postos cadastrados x avaliados" para o topo da Gestao de Riscos, conforme a origem
+  // selecionada. Todas/AEP/AET: universo = postos cadastrados (cargo), avaliados = postos com AEP e/ou AET.
+  // Psicossocial: universo = GHEs cadastrados (setor com Tipo Setor = GHE), avaliados = GHEs com risco
+  // psicossocial no Inventario. Devolve { rotulo, unidadeRotulo, cadastrados, avaliados, pct }.
+  function coberturaPorOrigem(origem, dados) {
+    const chavePosto = (l) => ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].map((d) => l[d] || "").join("||");
+    const chaveGHE = (l) => ["Cliente", "Unidade", "Setor"].map((d) => l[d] || "").join("||");
+    if (origem === "Psicossocial") {
+      const ghes = (dados.setor || []).filter((s) => s["Tipo Setor"] === "GHE");
+      const universo = new Set(ghes.map(chaveGHE));
+      const avaliados = new Set((dados.fatorRisco || []).filter((f) => origemDe(f) === "Psicossocial" && riscoAtivo(f)).map(chaveGHE));
+      const cobertos = Array.from(universo).filter((k) => avaliados.has(k)).length;
+      return { rotulo: "GHEs", unidadeRotulo: "GHE(s)", cadastrados: universo.size, avaliados: cobertos, pct: universo.size ? (cobertos / universo.size) * 100 : 0 };
+    }
+    const universo = new Set((dados.cargo || []).map(chavePosto));
+    const comAEP = new Set((dados.avaliacaoErgonomica || []).map(chavePosto));
+    const comAET = new Set((dados.aet || []).filter((a) => a["Tipo Registro"] === "AET").map(chavePosto));
+    let avaliadosSet;
+    if (origem === "AEP") avaliadosSet = comAEP;
+    else if (origem === "AET") avaliadosSet = comAET;
+    else { avaliadosSet = new Set(comAEP); comAET.forEach((k) => avaliadosSet.add(k)); }
+    const cobertos = Array.from(universo).filter((k) => avaliadosSet.has(k)).length;
+    return { rotulo: "Postos", unidadeRotulo: "posto(s)", cadastrados: universo.size, avaliados: cobertos, pct: universo.size ? (cobertos / universo.size) * 100 : 0 };
+  }
+
   // Indicador da trilha AET (Analise Ergonomica do Trabalho - upload externo,
   // ver docs/bi-ergonomia-manual.md secao AET) para o dashboard "Ergo": ate
   // este pedido do Leo (28/09/2026, "gestao visual" AEP x AET) a AET nao
@@ -1117,6 +1142,7 @@
     distribuicaoVencimento,
     topSetoresPorCampo,
     coberturaAvaliacao,
+    coberturaPorOrigem,
     distribuicaoClassificacaoAET,
     statusPlanoAcao,
     planoAcaoPostosCriticos,

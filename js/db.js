@@ -52,6 +52,10 @@
     // V 1.27: colaboradores (matricula/nome por setor ou GHE) - questionario
     // HSE-IT dos Riscos Psicossociais.
     "colaborador",
+    // V 1.40: contabilidade de tempo (aba Coordenacao, so Administrador) - um
+    // registro por sessao de trabalho salva (cadastro, AEP, AET): tempo ativo
+    // de edicao + marco de abertura/salvamento, por login. Por EmpresaId.
+    "tempoTrabalho",
   ];
 
   const estado = {
@@ -80,7 +84,7 @@
       mapaRisco: [], planoAcao: [], absenteismo: [], compativeis: [],
       cliente: [], unidade: [], setor: [], cargo: [], posto: [], atividade: [],
       avaliacaoErgonomica: [], fatorRisco: [], laudo: [], aet: [], diasUteis: [],
-      certificadoCalibracao: [], modeloLaudo: [], configuracao: [], ergonomista: [], colaborador: [],
+      certificadoCalibracao: [], modeloLaudo: [], configuracao: [], ergonomista: [], colaborador: [], tempoTrabalho: [],
     },
     inscricoes: [],
   };
