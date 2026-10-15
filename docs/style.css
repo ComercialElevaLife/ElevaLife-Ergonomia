@@ -1,0 +1,2500 @@
+/* ==========================================================================
+   BI Ergonomia - ElevaLife
+   Identidade visual "15 anos" (mesmo padrao do Cockpit Comercial):
+   vinho + creme + Montserrat, com paleta de dados validada (categorica e
+   de status) por cima, seguindo o metodo do skill de dataviz.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ---- Marca ElevaLife (chrome: cabecalho, cartoes, tipografia) ---- */
+  --vinho-escuro: #5E2A30;
+  --vinho: #8B3A42;
+  --vinho-medio: #A34E56;
+  --vinho-suave: #D8B7BB;
+  --vinho-suave-2: #C99AA0;
+  --creme: #F5EFEA;
+  --card: #FFFFFF;
+  /* V 1.38: mais contraste nos textos (pedido: "tudo cinza, dificil de visualizar") */
+  --texto: #2a1f21;
+  --texto-secundario: #4a3c3d;
+  --cinza-quente: #6a5c5a;
+  --teal: #3E7B7E;
+  --teal-escuro: #2E5F62;
+  --teal-claro: #6FA8AA;
+  --linha: #E7DED9;
+
+  /* ---- Paleta de dados (validada - skill dataviz) ----
+     Status (fixo, nunca tematizado): severidade de risco / status de acao.
+     No claro, "warning" usa um passo mais escuro que o documentado (#c98500
+     em vez de #fab219) porque o passo padrao fica abaixo de 3:1 no fundo claro;
+     no escuro volta ao passo original (ja valida >=3:1 la). */
+  --status-good: #0ca30c;      /* (legado, mantido por compat.) */
+  --status-warning: #c98500;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+  --status-neutral: #8A7A78;
+
+  /* V 1.30 - PADRAO ElevaLife de cores de risco (igual em todo o sistema, nos
+     laudos e no modulo Psicossocial; igual no tema claro e no escuro):
+     Trivial/Muito Baixo=azul-claro #8CCBEB, Baixo=verde #2E8B57,
+     Moderado=amarelo #F2C230, Alto=vermelho #C62828, Muito Alto/Altissimo=roxo #6A3D9A. */
+  --risco-baixo: #2E8B57;
+  --risco-muitobaixo: #8CCBEB;
+  --risco-moderado: #F2C230;
+  --risco-alto: #C62828;
+  --risco-muitoalto: #6A3D9A;
+
+  /* V 1.30 - PADRAO ElevaLife de status do Plano de Acao: Nao iniciada=laranja
+     #E8833A, Em andamento=amarelo #F2C230, Atrasada=vermelho #C62828,
+     Concluida=verde #2E8B57 (Concluida com atraso = verde escuro #1E6B44). */
+  --acao-nao-iniciado: #E8833A;
+  --acao-andamento: #F2C230;
+  --acao-concluida: #2E8B57;
+  --acao-atraso: #1E6B44;
+  --acao-atrasada: #C62828;
+
+  /* Categorica (identidade: Setor, Responsavel, Categoria Acao) - tons
+     derivados exclusivamente da marca ElevaLife (vinho + teal), alternando
+     as duas familias para maximizar distincao entre categorias vizinhas;
+     sem cores fora da marca (nunca rosa/magenta, azul ou amarelo genericos). */
+  --cat-1: #2E5F62; /* teal escuro */
+  --cat-2: #8B3A42; /* vinho */
+  --cat-3: #3E7B7E; /* teal */
+  --cat-4: #A34E56; /* vinho medio */
+  --cat-5: #6FA8AA; /* teal claro */
+  --cat-6: #5E2A30; /* vinho escuro */
+
+  --surface: #fcfcfb;
+  --grid: #e7e2dc;
+}
+
+/* Tema escuro - segue o "system" (prefers-color-scheme) quando o viewer nao
+   fez escolha explicita, e o toggle explicito via [data-theme] nos dois
+   sentidos. Todos os tokens acima sao redefinidos aqui, nunca apenas criados
+   aqui pela primeira vez. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --vinho-escuro: #6b323a;
+    --vinho: #a3505a;
+    --vinho-medio: #c97a82;
+    --vinho-suave: #6b3a40;
+    --vinho-suave-2: #7a4048;
+    --creme: #201a19;
+    --card: #2b2322;
+    --texto: #fbf6f4;
+    --texto-secundario: #e8dedb;
+    --cinza-quente: #c9bab7;
+    --teal: #4f9497;
+    --teal-escuro: #3a7376;
+    --teal-claro: #7dbdbf;
+    --linha: #3c3230;
+
+    --status-good: #0ca30c;
+    --status-warning: #fab219;
+    --status-serious: #ec835a;
+    --status-critical: #e66767;
+    --status-neutral: #a08f8c;
+
+    --risco-baixo: #2E8B57;
+    --risco-muitobaixo: #8CCBEB;
+    --risco-moderado: #F2C230;
+    --risco-alto: #C62828;
+    --risco-muitoalto: #6A3D9A;
+
+    --acao-nao-iniciado: #E8833A;
+    --acao-andamento: #F2C230;
+    --acao-concluida: #2E8B57;
+    --acao-atraso: #1E6B44;
+    --acao-atrasada: #C62828;
+
+    --cat-1: #3a7376;
+    --cat-2: #a3505a;
+    --cat-3: #4f9497;
+    --cat-4: #c97a82;
+    --cat-5: #7dbdbf;
+    --cat-6: #6b323a;
+
+    --surface: #1a1a19;
+    --grid: #3c3230;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --vinho-escuro: #6b323a;
+  --vinho: #a3505a;
+  --vinho-medio: #c97a82;
+  --vinho-suave: #6b3a40;
+  --vinho-suave-2: #7a4048;
+  --creme: #201a19;
+  --card: #2b2322;
+  --texto: #fbf6f4;
+  --texto-secundario: #e8dedb;
+  --cinza-quente: #c9bab7;
+  --teal: #4f9497;
+  --teal-escuro: #3a7376;
+  --teal-claro: #7dbdbf;
+  --linha: #3c3230;
+
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #e66767;
+  --status-neutral: #a08f8c;
+
+  --risco-baixo: #2E8B57;
+  --risco-muitobaixo: #8CCBEB;
+  --risco-moderado: #F2C230;
+  --risco-alto: #C62828;
+  --risco-muitoalto: #6A3D9A;
+
+  --acao-nao-iniciado: #E8833A;
+  --acao-andamento: #F2C230;
+  --acao-concluida: #2E8B57;
+  --acao-atraso: #1E6B44;
+  --acao-atrasada: #C62828;
+
+  --cat-1: #3a7376;
+  --cat-2: #a3505a;
+  --cat-3: #4f9497;
+  --cat-4: #c97a82;
+  --cat-5: #7dbdbf;
+  --cat-6: #6b323a;
+
+  --surface: #1a1a19;
+  --grid: #3c3230;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--creme);
+  color: var(--texto);
+  font-family: 'Montserrat', system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+h1, h2, h3, .titulo-marca {
+  font-family: 'Montserrat Alternates', 'Montserrat', system-ui, sans-serif;
+}
+
+/* ---------------------------- Tela de carregamento (splash inicial) ---------------------------- */
+/* Cobre a tela do primeiro instante (sem JS) ate iniciar() em js/app.js
+   decidir entre tela de acesso (login) ou app com dados reais - evita o
+   "flash" de dados ficticios/estado antigo. Ver index.html. */
+.carregando-app {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: linear-gradient(165deg, var(--vinho-escuro), var(--vinho));
+}
+.carregando-app .logo-mark {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.14);
+  object-fit: contain;
+  padding: 11px;
+  box-sizing: border-box;
+}
+.carregando-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  animation: girar-carregando 0.8s linear infinite;
+}
+@keyframes girar-carregando {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------------------------- Tela de acesso (login/bloqueado) ---------------------------- */
+
+.tela-acesso {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(165deg, var(--vinho-escuro), var(--vinho));
+  padding: 24px;
+}
+.tela-acesso-cartao {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 40px 32px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+  text-align: center;
+}
+.tela-acesso-marca { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 28px; }
+/* V 1.27: logotipo completo da ElevaLife (bordô no fundo claro, branco no fundo vinho) */
+.carregando-app .logo-marca-completa { height: 46px; width: auto; }
+.tela-acesso-marca .logo-marca-completa { height: 46px; width: auto; margin-bottom: 8px; }
+.tela-acesso-marca .logo-mark {
+  height: 56px;
+  width: auto;
+  object-fit: contain;
+  margin-bottom: 4px;
+}
+.tela-acesso-marca .produto { font-weight: 700; font-size: 19px; color: var(--texto); }
+.tela-acesso-marca .tagline { font-size: 12px; color: var(--texto-secundario); text-align: center; }
+#tela-acesso-conteudo h2 { font-size: 17px; margin: 0 0 10px; color: var(--texto); }
+#tela-acesso-conteudo p { font-size: 14px; color: var(--texto-secundario); line-height: 1.55; margin: 0 0 22px; }
+.tela-acesso-email { font-weight: 600; color: var(--texto); }
+.btn-entrar-microsoft, .btn-trocar-conta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: none;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14.5px;
+  cursor: pointer;
+  background: var(--vinho);
+  color: #fff;
+  transition: background .15s ease;
+}
+.btn-entrar-microsoft:hover { background: var(--vinho-escuro); }
+.btn-entrar-microsoft:disabled { opacity: 0.7; cursor: default; }
+.btn-entrar-microsoft + .btn-trocar-conta,
+.btn-entrar-microsoft + .btn-entrar-microsoft { margin-top: 10px; }
+.btn-trocar-conta {
+  background: transparent;
+  border: 1px solid var(--linha);
+  color: var(--texto);
+  margin-top: 10px;
+}
+.btn-trocar-conta:hover { background: var(--creme); }
+
+/* Formulario de login/primeiro-acesso/redefinicao de senha (substitui o
+   antigo "Entrar com Microsoft" - pedido do Leo, 28-29/09/2026). */
+.form-acesso { text-align: left; }
+.campo-acesso { margin-bottom: 14px; }
+.campo-acesso label { display: block; font-size: 12.5px; font-weight: 600; color: var(--texto-secundario); margin-bottom: 5px; }
+.campo-acesso input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--linha);
+  background: var(--creme);
+  color: var(--texto);
+  font-family: inherit;
+  font-size: 14px;
+}
+.campo-acesso input:focus { outline: none; border-color: var(--vinho); background: var(--card); }
+.erro-acesso { color: var(--status-critical); font-size: 13px; line-height: 1.5; margin: -4px 0 14px; }
+.link-esqueci-senha {
+  display: block;
+  width: 100%;
+  text-align: center;
+  background: none;
+  border: none;
+  color: var(--vinho);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 14px;
+  padding: 4px;
+}
+.link-esqueci-senha:hover { text-decoration: underline; }
+
+/* ---------------------------- Layout geral (shell + menu lateral) ---------------------------- */
+
+.app-shell {
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 254px;
+  height: 100vh;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(165deg, var(--vinho-escuro), var(--vinho));
+  color: #fff;
+  transition: width .18s ease;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.sidebar.recolhido { width: 68px; }
+
+.sidebar-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 18px 16px;
+}
+
+.sidebar .marca { display: flex; align-items: center; gap: 12px; overflow: hidden; min-width: 0; }
+
+.sidebar .logo-mark {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.14);
+  border: 1px solid rgba(255,255,255,0.35);
+  object-fit: contain;
+  padding: 7px;
+  box-sizing: border-box;
+}
+
+.sidebar .titulos { line-height: 1.25; overflow: hidden; white-space: nowrap; }
+.sidebar .titulos .produto { font-weight: 700; font-size: 17px; }
+.sidebar .titulos .tagline { font-size: 12.5px; opacity: 0.85; font-weight: 400; white-space: normal; }
+
+.btn-fechar-sidebar {
+  display: none;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #fff;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.btn-fechar-sidebar svg { width: 18px; height: 18px; display: block; }
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sidebar-nav button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.78);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sidebar-nav button .icone { flex-shrink: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
+.sidebar-nav button .icone svg { width: 20px; height: 20px; display: block; }
+.sidebar-nav button .rotulo { overflow: hidden; text-overflow: ellipsis; }
+.sidebar-nav button:hover { color: #fff; background: rgba(255,255,255,0.10); }
+.sidebar-nav button.ativa { background: #fff; color: var(--vinho-escuro); }
+.sidebar-nav button[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+/* Botao "Filtros" no topo do menu - mesma pinta dos outros itens, so com
+   um badge de contagem de filtros ativos e uma linha separando ele das
+   abas (Gestao de Risco/Absenteismo/Restritos etc.). */
+#btn-abrir-filtros { position: relative; }
+#btn-abrir-filtros .badge-filtros {
+  margin-left: auto;
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--vinho);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sidebar.recolhido #btn-abrir-filtros .badge-filtros {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  margin-left: 0;
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  font-size: 0;
+}
+.sidebar-nav-divisor { height: 1px; background: rgba(255,255,255,0.14); margin: 6px 10px 8px; flex-shrink: 0; }
+
+.btn-recolher {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin: 8px auto;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: transparent;
+  color: rgba(255,255,255,0.75);
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.btn-recolher .icone svg { width: 14px; height: 14px; transition: transform .18s ease; display: block; }
+.btn-recolher:hover { background: rgba(255,255,255,0.10); color: #fff; border-color: rgba(255,255,255,0.4); }
+.sidebar.recolhido .btn-recolher .icone svg { transform: rotate(180deg); }
+.sidebar.recolhido .sidebar-topo,
+.sidebar.recolhido .sidebar-nav button { justify-content: center; }
+.sidebar.recolhido .titulos,
+.sidebar.recolhido .sidebar-nav .rotulo { display: none; }
+
+/* Menu lateral reclinavel: "Cadastro" e "Registro" abrem, dentro do
+   proprio menu, a lista das entidades/tabelas que tem por baixo -
+   mesmo padrao de arvore em cascata do menu do Cockpit Comercial
+   (ex.: "Comercial" abre e revela "Cadastro", que abre e revela
+   "Empresa/Contato/Oportunidade"). So um bloco por vez fica visivel
+   dentro de Cadastro/Registro (accordion), sem caixas de selecao aqui -
+   isso ja existe nos filtros. */
+.sidebar-nav-grupo { display: flex; flex-direction: column; }
+.sidebar-nav-pai { position: relative; width: 100%; }
+.sidebar-nav-pai .seta-sub { flex-shrink: 0; margin-left: auto; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; opacity: 0.75; }
+.sidebar-nav-pai .seta-sub svg { width: 14px; height: 14px; display: block; transition: transform .15s ease; }
+.sidebar-nav-grupo.expandido .sidebar-nav-pai .seta-sub svg { transform: rotate(90deg); }
+
+.sidebar-subnav-lateral {
+  display: none;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 14px;
+}
+.sidebar-nav-grupo.expandido .sidebar-subnav-lateral { display: flex; }
+.sidebar-subnav-lateral button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.65);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  border-left: 2px solid rgba(255,255,255,0.18);
+  margin: 1px 0 1px 4px;
+}
+.sidebar-subnav-lateral button .icone { flex-shrink: 0; font-size: 12px; }
+.sidebar-subnav-lateral button .rotulo { overflow: hidden; text-overflow: ellipsis; }
+.sidebar-subnav-lateral button:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.sidebar-subnav-lateral button.ativa { color: #fff; background: rgba(255,255,255,0.16); border-left-color: #fff; }
+.sidebar.recolhido .sidebar-subnav-lateral,
+.sidebar.recolhido .sidebar-nav-pai .seta-sub { display: none; }
+
+.sidebar-overlay { display: none; }
+
+.area-principal {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.barra-superior {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px clamp(14px, 3vw, 32px);
+  background: var(--card);
+  border-bottom: 1px solid var(--linha);
+}
+
+.btn-hamburguer {
+  display: none;
+  appearance: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--linha);
+  background: var(--card);
+  color: var(--texto);
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.btn-hamburguer svg { width: 20px; height: 20px; display: block; }
+
+.btn-icone-topo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  appearance: none;
+  border: 1px solid var(--linha);
+  background: var(--card);
+  color: var(--texto-secundario);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+  white-space: nowrap;
+}
+.btn-icone-topo .icone { width: 15px; height: 15px; display: flex; flex-shrink: 0; }
+.btn-icone-topo .icone svg { width: 15px; height: 15px; display: block; }
+.btn-icone-topo:hover { border-color: var(--teal-escuro); color: var(--teal-escuro); background: var(--creme); }
+.btn-icone-topo[aria-expanded="false"] { background: var(--creme); border-color: var(--cinza-quente); }
+
+/* Logo do cliente filtrado (barra superior) - ver atualizarTemaCliente em
+   js/app.js. A borda usa a mesma variavel --cor-cliente-ativa aplicada aos
+   cartoes, pra reforcar visualmente que o tema do cliente esta ativo. */
+.logo-cliente-ativo {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--cor-cliente-ativa, var(--linha));
+  background: var(--card);
+  transition: border-color .2s ease;
+}
+.logo-cliente-ativo img {
+  height: 100%;
+  width: auto;
+  max-width: 130px;
+  object-fit: contain;
+  display: block;
+}
+
+/* Sino de notificacoes do Plano de Acao (ver atualizarSinoNotificacoes em
+   js/app.js) - mesmo visual de .btn-icone-topo, com um badge vermelho
+   quando ha pelo menos 1 acao vencendo/atrasada. */
+.sino-notificacoes { position: relative; }
+.sino-notificacoes .badge-sino {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--status-critical);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.painel-sino {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  max-height: 420px;
+  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--linha);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.16);
+  z-index: 200;
+}
+.painel-sino-titulo {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  padding: 12px 14px;
+  font-weight: 700;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--linha);
+}
+.painel-sino-lista { padding: 4px; }
+.painel-sino-vazio { padding: 18px 14px; color: var(--texto-secundario); font-size: 13px; text-align: center; }
+.painel-sino-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 7px;
+  border-left: 3px solid var(--status-warning);
+  margin-bottom: 3px;
+}
+.painel-sino-item--atraso { border-left-color: var(--status-critical); }
+.painel-sino-item-acao { font-size: 13px; font-weight: 600; color: var(--texto); }
+.painel-sino-item-meta { font-size: 11.5px; color: var(--texto-secundario); margin-top: 2px; }
+.painel-sino-item-prazo { font-size: 11.5px; font-weight: 600; margin-top: 3px; }
+.painel-sino-item--atraso .painel-sino-item-prazo { color: var(--status-critical); }
+.painel-sino-item:not(.painel-sino-item--atraso) .painel-sino-item-prazo { color: var(--status-warning); }
+
+.barra-export {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.btn-exportar {
+  appearance: none;
+  border: 1px solid var(--linha);
+  background: var(--card);
+  color: var(--texto);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 13px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background .15s, opacity .15s, border-color .15s, color .15s;
+  white-space: nowrap;
+}
+.btn-exportar:hover:not(:disabled) { background: var(--creme); border-color: var(--teal-escuro); color: var(--teal-escuro); }
+.btn-exportar:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 250px;
+    transform: translateX(-100%);
+    transition: transform .2s ease;
+  }
+  .sidebar.aberto-mobile { transform: translateX(0); box-shadow: 2px 0 24px rgba(0,0,0,0.25); }
+  .sidebar.recolhido { width: 250px; }
+  .sidebar.recolhido .titulos { display: block; }
+  .sidebar.recolhido .sidebar-nav .rotulo { display: inline; }
+  .sidebar.recolhido .sidebar-topo,
+  .sidebar.recolhido .sidebar-nav button { justify-content: flex-start; }
+  .btn-recolher { display: none; }
+  .btn-fechar-sidebar { display: flex; }
+  .sidebar-overlay:not([hidden]) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(20,10,10,0.45);
+    z-index: 90;
+  }
+  .btn-hamburguer { display: inline-flex; }
+  .btn-icone-topo .rotulo-topo { display: none; }
+  .btn-icone-topo { padding: 8px; }
+}
+
+/* ---------------------------- Filtros ---------------------------- */
+
+/* Painel de Filtros: aberto pelo botao "Filtros" do menu lateral, com um
+   overlay escurecendo o resto da tela pra focar (pedido do Leo, mesmo
+   padrao mais novo do menu do Cockpit Comercial). Antes disso era uma
+   barra fixa no topo que so recolhia/expandia no lugar. */
+.overlay-filtros {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(20,10,10,0.45);
+  z-index: 190;
+}
+.overlay-filtros:not([hidden]) { display: block; }
+
+.painel-filtros {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 360px;
+  max-width: 88vw;
+  background: var(--card);
+  box-shadow: 6px 0 28px rgba(0,0,0,0.22);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform .22s ease;
+  overflow-y: auto;
+}
+.painel-filtros.aberto { transform: translateX(0); }
+
+.painel-filtros-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px clamp(14px, 3vw, 24px);
+  border-bottom: 1px solid var(--linha);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: var(--card);
+}
+.painel-filtros-titulo { font-weight: 700; font-size: 16px; color: var(--texto); }
+.btn-fechar-painel {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--texto-secundario);
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+}
+.btn-fechar-painel svg { width: 18px; height: 18px; display: block; }
+.btn-fechar-painel:hover { background: var(--creme); color: var(--texto); }
+
+.barra-filtros {
+  padding: 16px clamp(14px, 3vw, 24px) 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.painel-filtros .campo-filtro { min-width: 0; flex: none; max-width: none; width: 100%; }
+
+@media (max-width: 480px) {
+  .painel-filtros { width: 100vw; max-width: 100vw; }
+}
+
+.campo-filtro {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 132px;
+  flex: 1 1 132px;
+  max-width: 220px;
+}
+
+.campo-filtro label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--cinza-quente);
+  font-weight: 700;
+}
+
+.campo-filtro select {
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--linha);
+  background: var(--creme);
+  color: var(--texto);
+  cursor: pointer;
+}
+.campo-filtro select:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+
+/* ---- Multi-select (dropdown com caixas de selecao embutidas) ---- */
+
+.multi-select { position: relative; }
+
+.multi-select-botao {
+  width: 100%;
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--linha);
+  background: var(--creme);
+  color: var(--texto);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  text-align: left;
+}
+.multi-select-botao:hover { border-color: var(--teal); }
+.multi-select-botao:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+.multi-select-botao .multi-select-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.multi-select-botao .multi-select-seta { flex: none; font-size: 10px; color: var(--cinza-quente); transition: transform .12s; }
+.multi-select-botao[aria-expanded="true"] .multi-select-seta { transform: rotate(180deg); }
+
+.multi-select-painel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  width: max-content;
+  max-width: 260px;
+  background: var(--card);
+  border: 1px solid var(--linha);
+  border-radius: 9px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.16);
+  z-index: 40;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.multi-select-topo {
+  display: flex;
+  gap: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed var(--linha);
+}
+.multi-select-topo button {
+  flex: 1;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--teal-escuro);
+  background: var(--creme);
+  border: none;
+  border-radius: 6px;
+  padding: 5px 6px;
+  cursor: pointer;
+}
+.multi-select-topo button:hover { background: var(--vinho-suave); color: #fff; }
+
+.multi-select-lista {
+  max-height: 230px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.multi-select-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--texto);
+  padding: 5px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.multi-select-item:hover { background: var(--creme); }
+.multi-select-item input[type="checkbox"] { flex: none; accent-color: var(--teal-escuro); cursor: pointer; width: 14px; height: 14px; }
+
+.btn-limpar-filtros {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--vinho);
+  background: transparent;
+  border: 1px solid var(--vinho-suave);
+  border-radius: 7px;
+  padding: 7px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-limpar-filtros:hover { background: var(--vinho-suave-2); color: #fff; }
+.painel-filtros .btn-limpar-filtros { width: 100%; text-align: center; margin-top: 6px; }
+.painel-filtros .chip-contagem { padding-bottom: 0; text-align: center; }
+
+/* Filtros de pagina (so na aba Compativeis - Status Restricao, Turno) -
+   mesmo visual dos filtros globais, mas nao fixos (nao sticky) e dentro
+   do fluxo do conteudo, para deixar claro que valem so para esta aba. */
+.barra-filtros-pagina {
+  background: var(--creme);
+  border: 1px solid var(--linha);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: flex-end;
+}
+.barra-filtros-pagina .campo-filtro select,
+.barra-filtros-pagina .multi-select-botao { background: var(--card); }
+
+.chip-contagem {
+  font-size: 12px;
+  color: var(--cinza-quente);
+  padding-bottom: 8px;
+  white-space: nowrap;
+}
+.chip-contagem strong { color: var(--vinho); }
+
+/* ---------------------------- Layout de conteudo ---------------------------- */
+
+/* 1600px (era 1400px) - pedido do Leo pra dar mais largura pras tabelas
+   de Registro/Cadastro, que tem bastante coluna. */
+main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1600px; margin: 0 auto; }
+
+.grade {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 14px;
+}
+
+.cartao {
+  background: var(--card);
+  border-radius: 12px;
+  /* --cor-cliente-ativa: definida via JS (atualizarTemaCliente, js/app.js)
+     quando exatamente 1 Cliente com Logotipo esta filtrado - lida a cor
+     dominante do logotipo e tematiza a borda dos cartoes com ela. Sem
+     cliente filtrado (ou mais de 1), cai no --linha padrao de sempre. */
+  border: 1px solid var(--cor-cliente-ativa, var(--linha));
+  padding: 14px 16px 10px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  transition: border-color .2s ease;
+}
+
+.cartao .cartao-titulo {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--texto);
+  margin-bottom: 2px;
+}
+/* Visual clean (V 1.0): a descricao fixa de cada card saiu da tela - o
+   texto continua no HTML (usado no PDF) e a explicacao completa fica no
+   botao "i" do titulo (js/indicadores.js). So sobra visivel o resumo que e'
+   DADO calculado (ex.: "3 registros de AET"). */
+.cartao .cartao-sub { display: none; }
+.cartao .cartao-sub.cartao-sub--dados {
+  display: block;
+  font-size: 11.5px;
+  color: var(--cinza-quente);
+  margin-bottom: 8px;
+}
+.cartao .cartao-sub.cartao-sub--dados:empty { display: none; }
+.figura-diagrama figcaption { display: none; }
+.sidebar .titulos .tagline { display: none; }
+
+.col-3 { grid-column: span 3; }
+.col-4 { grid-column: span 4; }
+.col-5 { grid-column: span 5; }
+.col-6 { grid-column: span 6; }
+.col-7 { grid-column: span 7; }
+.col-8 { grid-column: span 8; }
+.col-9 { grid-column: span 9; }
+.col-12 { grid-column: span 12; }
+
+@media (max-width: 900px) {
+  .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-9 { grid-column: span 12; }
+}
+
+@media (max-width: 480px) {
+  .sidebar-topo { padding: 14px clamp(12px, 4vw, 20px); gap: 8px; }
+  .barra-superior { padding: 8px clamp(12px, 4vw, 20px); }
+  .btn-exportar { padding: 6px 10px; font-size: 11px; }
+}
+
+/* Titulo separando um grupo de cartoes dentro da mesma grade (ex.: os novos
+   indicadores do pacote "Sistema de Gestao Integrada" dentro da aba Gestao
+   de Risco) - so texto, sem cartao/fundo proprio, pra marcar o inicio de um
+   bloco sem pesar visualmente. */
+.titulo-secao-grade {
+  margin: 6px 2px -2px;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--texto);
+  padding-top: 14px;
+  border-top: 1px dashed var(--linha);
+}
+.titulo-secao-grade span { font-weight: 500; text-transform: none; color: var(--cinza-quente); letter-spacing: 0; }
+
+/* Separacao visual AEP x AET (pedido do Leo, 28/09/2026) - mesma tipografia
+   de .titulo-secao-grade, so troca a cor/borda de cima pra marcar de qual
+   trilha os cartoes daquele bloco sao, sem precisar reler o rotulo. */
+.titulo-secao-grade--aep { border-top-color: var(--vinho-medio); color: var(--vinho-escuro); }
+.titulo-secao-grade--aet { border-top-color: var(--teal-escuro); color: var(--teal-escuro); margin-top: 22px; }
+
+.altura-chart { position: relative; height: 230px; }
+.altura-chart.alta { height: 300px; }
+.altura-chart.baixa { height: 150px; }
+
+/* ---------------------------- Stat tiles (meter de risco) ---------------------------- */
+
+.grade-status {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+@media (max-width: 700px) { .grade-status { grid-template-columns: repeat(2, 1fr); } }
+
+.tile-status {
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--creme);
+  border-left: 5px solid var(--status-neutral);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tile-status.tile-clicavel { cursor: pointer; transition: transform .1s, box-shadow .1s; }
+.tile-status.tile-clicavel:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.10); transform: translateY(-1px); }
+.tile-status .rotulo { font-size: 12px; font-weight: 700; color: var(--texto-secundario); display: flex; align-items: center; gap: 6px; }
+.tile-status .rotulo .ponto { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.tile-status .valor { font-size: 24px; font-weight: 700; color: var(--texto); }
+.tile-status .pct { font-size: 12px; color: var(--cinza-quente); }
+
+/* Versao "destaque" - usada quando o card ocupa a largura toda (ex.: Mapa
+   de Risco Global), pra tile parar de ficar achatado/apertado. */
+.grade-status--destaque { gap: 16px; }
+.grade-status--destaque .tile-status { padding: 18px 20px; border-radius: 12px; gap: 6px; }
+.grade-status--destaque .tile-status .rotulo { font-size: 13.5px; }
+.grade-status--destaque .tile-status .rotulo .ponto { width: 11px; height: 11px; }
+.grade-status--destaque .tile-status .valor { font-size: 34px; }
+.grade-status--destaque .tile-status .pct { font-size: 13px; }
+@media (max-width: 700px) { .grade-status--destaque { grid-template-columns: repeat(2, 1fr); } }
+
+/* ---------------------------- Stat tiles (totais Med Ocup) ---------------------------- */
+
+.grade-totais {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+@media (max-width: 700px) { .grade-totais { grid-template-columns: 1fr; } }
+
+.tile-total {
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--creme);
+  border-left: 5px solid var(--teal);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tile-total .rotulo { font-size: 12px; font-weight: 700; color: var(--texto-secundario); }
+.tile-total .valor { font-size: 26px; font-weight: 700; color: var(--texto); }
+.tile-total .sub { font-size: 12px; color: var(--cinza-quente); }
+
+/* ---------------------------- Diagramas corporais (SVG) ---------------------------- */
+
+.figura-diagrama {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.figura-diagrama > div { width: 100%; max-width: 500px; }
+.figura-diagrama figcaption {
+  font-size: 11.5px;
+  color: var(--cinza-quente);
+  text-align: center;
+}
+.figura-diagrama .bi-diagrama-regiao { cursor: pointer; }
+.figura-diagrama .bi-diagrama-regiao:hover rect,
+.figura-diagrama .bi-diagrama-regiao:focus-visible rect { stroke-width: 2; opacity: 1; }
+.figura-diagrama .bi-diagrama-regiao:focus-visible { outline: none; }
+
+/* ---------------------------- Legendas customizadas ---------------------------- */
+
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--texto);
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--linha);
+}
+.legenda .item { display: flex; align-items: center; gap: 5px; }
+.legenda .marca-cor { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.legenda .marca-linha { width: 14px; height: 2px; border-radius: 2px; flex: none; }
+
+/* ---------------------------- Tooltip customizado (Chart.js externa) ---------------------------- */
+
+.tooltip-chart {
+  position: absolute;
+  pointer-events: none;
+  background: var(--vinho-escuro);
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+  transform: translate(-50%, calc(-100% - 10px));
+  z-index: 50;
+  transition: opacity .08s;
+  max-width: 240px;
+}
+.tooltip-chart .tt-titulo { font-weight: 700; margin-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.25); padding-bottom: 3px; }
+.tooltip-chart .tt-linha { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tooltip-chart .tt-chave { width: 9px; height: 3px; border-radius: 2px; flex: none; }
+.tooltip-chart .tt-valor { font-weight: 700; margin-left: auto; padding-left: 10px; }
+.tooltip-chart .tt-linha-total { margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.25); font-weight: 700; }
+
+/* ---------------------------- Estados vazios / carregando ---------------------------- */
+
+.carregando, .sem-dados {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--cinza-quente);
+  font-size: 13px;
+  text-align: center;
+  padding: 20px;
+}
+
+/* ---------------------------- Aba "Dados" (tabelas de input) ---------------------------- */
+
+.dados-intro {
+  font-size: 13px;
+  color: var(--texto-secundario);
+  max-width: 900px;
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.bloco-tabela { display: flex; flex-direction: column; }
+
+.tabela-controles {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.tabela-controles input[type="search"] {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--linha);
+  background: var(--creme);
+  color: var(--texto);
+  min-width: 180px;
+}
+.tabela-controles input[type="search"]:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+
+.contagem-tabela { font-weight: 400; color: var(--cinza-quente); font-size: 12px; }
+
+.tabela-scroll { overflow-x: auto; border: 1px solid var(--linha); border-radius: 8px; }
+
+table.tabela-dados {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+table.tabela-dados th, table.tabela-dados td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--linha);
+}
+table.tabela-dados thead th {
+  background: var(--creme);
+  color: var(--texto-secundario);
+  font-weight: 700;
+  cursor: pointer;
+  position: sticky;
+  top: 0;
+  user-select: none;
+}
+table.tabela-dados thead th .seta { opacity: 0.5; margin-left: 3px; }
+table.tabela-dados thead th.ordenada-por { color: var(--teal-escuro); }
+table.tabela-dados thead th.ordenada-por .seta { opacity: 1; }
+table.tabela-dados tbody tr:hover { background: var(--creme); }
+table.tabela-dados tbody td { color: var(--texto); font-variant-numeric: tabular-nums; }
+
+/* "Pill" de classificacao/status nas tabelas (Cadastro/Registro e
+   detalhamento) - mesma cor ja usada nos graficos do dashboard para aquele
+   valor (Calc.corStatus), pra classificacao ficar visualmente conectada em
+   qualquer tela onde aparece (pedido do Leo). */
+.celula-status { display: inline-flex; align-items: center; gap: 6px; }
+.celula-status .ponto { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+/* Coluna Acoes (Editar/Excluir) fixa na borda direita da area com scroll -
+   antes ficava "escondida" la no fim de uma tabela larga, so aparecendo
+   depois de rolar horizontalmente ate o fim. Pedido do Leo pra dar mais
+   visibilidade/espaco pros botoes. */
+table.tabela-dados th.col-acoes, table.tabela-dados td.col-acoes {
+  position: sticky;
+  right: 0;
+  background: var(--card);
+  box-shadow: -8px 0 8px -8px rgba(0,0,0,0.25);
+  white-space: nowrap;
+}
+table.tabela-dados thead th.col-acoes { background: var(--creme); z-index: 2; cursor: default; }
+table.tabela-dados tbody tr:hover td.col-acoes { background: var(--creme); }
+
+/* Coluna de checkbox (selecao em bloco) - mesma ideia da col-acoes, so que
+   fixa na borda ESQUERDA (pedido do Leo 02/10/2026: "Inclua caixas de
+   selecao e a opcao de excluir dados em bloco... estou levando muito tempo
+   para excluir informacoes do sistema"). */
+table.tabela-dados th.col-selecao, table.tabela-dados td.col-selecao {
+  position: sticky;
+  left: 0;
+  background: var(--card);
+  box-shadow: 8px 0 8px -8px rgba(0,0,0,0.25);
+  width: 1%;
+  white-space: nowrap;
+  cursor: default;
+  text-align: center;
+}
+table.tabela-dados thead th.col-selecao { background: var(--creme); z-index: 2; }
+table.tabela-dados tbody tr:hover td.col-selecao { background: var(--creme); }
+table.tabela-dados td.col-selecao input[type="checkbox"],
+table.tabela-dados th.col-selecao input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+table.tabela-dados td.col-selecao input[type="checkbox"]:disabled { cursor: not-allowed; opacity: 0.4; }
+
+/* Barra de selecao em bloco - some quando nada esta marcado
+   (barraSelecao.hidden, ver renderizarListaCadastro/atualizarBarraSelecao). */
+.barra-selecao {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: var(--creme);
+  border: 1px solid var(--linha);
+}
+.barra-selecao-contagem { font-size: 12.5px; font-weight: 700; color: var(--texto); margin-right: 2px; }
+.btn-excluir-selecionados { background: var(--status-critical) !important; }
+.btn-excluir-selecionados:hover { filter: brightness(0.92); }
+
+/* ---------------------------- Drill-down (clique nos graficos) ---------------------------- */
+
+/* Painel de detalhamento (drill-down) - pedido do Leo: em vez do popover
+   pequeno colado no ponto do clique, um painel bem maior deslizando da
+   DIREITA pra esquerda, mesmo padrao visual/interacao do painel de
+   Filtros (overlay escurecido atras, ESC ou clique fora fecha). */
+.overlay-drilldown {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(20,10,10,0.45);
+  z-index: 190;
+}
+.overlay-drilldown:not([hidden]) { display: block; }
+
+.drilldown-painel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(640px, 92vw);
+  background: var(--card);
+  box-shadow: -6px 0 28px rgba(0,0,0,0.22);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .22s ease;
+  overflow: hidden;
+}
+.drilldown-painel.aberto { transform: translateX(0); }
+/* Tela cheia (pedido do Leo 28/09/2026: "a area de visualizacao esta
+   ruim... aparecer em tela cheia para minimizar o uso da barra ou do
+   scroll do mouse") - alterna so a largura (mesma animacao/lado direito),
+   pra tabelas/graficos largos precisarem de bem menos scroll horizontal. */
+.drilldown-painel.tela-cheia { width: 100vw; }
+.drilldown-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px clamp(14px, 3vw, 24px);
+  border-bottom: 1px solid var(--linha);
+  background: var(--creme);
+  flex-shrink: 0;
+}
+.drilldown-cabecalho .drilldown-titulos { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.drilldown-cabecalho .titulo { font-size: 16px; font-weight: 700; color: var(--texto); }
+.drilldown-cabecalho .sub { font-size: 12.5px; color: var(--cinza-quente); }
+.drilldown-cabecalho .drilldown-acoes { flex: none; display: flex; align-items: center; gap: 2px; }
+.drilldown-expandir,
+.drilldown-fechar {
+  flex: none;
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--cinza-quente);
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.drilldown-fechar { font-size: 20px; }
+.drilldown-expandir:hover,
+.drilldown-fechar:hover { background: var(--vinho-suave); color: #fff; }
+.drilldown-corpo { overflow: auto; padding: 12px clamp(14px, 3vw, 24px) 20px; flex: 1; }
+.drilldown-corpo table.tabela-dados { font-size: 13px; }
+.drilldown-corpo table.tabela-dados th, .drilldown-corpo table.tabela-dados td { padding: 7px 10px; }
+.drilldown-nota { font-size: 12px; color: var(--cinza-quente); padding: 10px 2px 2px; text-align: center; }
+.drilldown-vazio { font-size: 13px; color: var(--cinza-quente); padding: 20px 4px; text-align: center; }
+/* Em tela cheia, a tabela ganha mais respiro (menos "espremida") -
+   aproveita a largura extra em vez de so esticar as colunas. */
+.drilldown-painel.tela-cheia .drilldown-corpo table.tabela-dados { font-size: 14px; }
+.drilldown-painel.tela-cheia .drilldown-corpo table.tabela-dados th,
+.drilldown-painel.tela-cheia .drilldown-corpo table.tabela-dados td { padding: 9px 14px; }
+@media (max-width: 480px) {
+  .drilldown-painel { width: 100vw; }
+  .drilldown-expandir { display: none; }
+}
+
+/* ------------------ Checklist de Inventario de Riscos ------------------ */
+/* Painel de checklist (pedido do Leo 28/09: "abre uma tela com caixas de
+   selecao... nao queria uma copia do outro sistema") - mesmo padrao visual
+   de slide-in do painel de drill-down (.drilldown-painel), so que mais
+   largo (tem selects inline por linha) e com um rodape fixo de acoes
+   (Cancelar/Salvar), que o drill-down (so leitura) nao precisa. */
+.checklist-painel { width: min(760px, 94vw); }
+.checklist-corpo { padding-bottom: 8px; }
+.checklist-aviso-matriz {
+  font-size: 12px;
+  color: var(--cinza-quente);
+  background: var(--creme);
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+}
+.checklist-grupo-titulo {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--teal-escuro);
+  margin: 18px 0 8px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--linha);
+}
+.checklist-grupo-titulo:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+.checklist-fator-linha {
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: var(--card);
+  transition: border-color 0.15s, background 0.15s;
+}
+.checklist-fator-linha.checklist-fator-com-erro {
+  border-color: var(--status-critical);
+  background: color-mix(in srgb, var(--status-critical) 8%, var(--card));
+}
+.checklist-fator-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.checklist-fator-cabecalho input[type="checkbox"] { margin-top: 2px; flex: none; }
+.checklist-fator-detalhes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px 12px;
+  margin: 10px 0 2px 24px;
+}
+.checklist-fator-detalhes .campo-form label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--cinza-quente);
+  font-weight: 700;
+}
+.checklist-fator-detalhes select {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 7px;
+  border-radius: 7px;
+  border: 1px solid var(--linha);
+  background: var(--card);
+}
+.checklist-badge-graduacao { font-weight: 700; font-size: 13.5px; }
+.checklist-fator-detalhes .campo-form-largo { grid-column: 1 / -1; }
+.checklist-fator-detalhes textarea {
+  font-family: inherit; font-size: 13px; padding: 6px 8px; border-radius: 7px;
+  border: 1px solid var(--linha); background: var(--card); color: var(--texto);
+  width: 100%; resize: vertical; min-height: 44px;
+}
+.checklist-sub-titulo {
+  grid-column: 1 / -1; margin-top: 4px; padding-top: 6px; border-top: 1px dashed var(--linha);
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--teal);
+}
+.checklist-sub-titulo:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+.checklist-erro {
+  padding: 0 clamp(14px, 3vw, 24px);
+  flex-shrink: 0;
+}
+.checklist-rodape {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 12px clamp(14px, 3vw, 24px);
+  border-top: 1px solid var(--linha);
+  background: var(--creme);
+  flex-shrink: 0;
+}
+.btn-acao-linha-checklist { background: var(--teal); border-color: var(--teal); color: #fff; }
+.btn-acao-linha-checklist:hover { background: var(--teal-escuro); border-color: var(--teal-escuro); }
+@media (max-width: 480px) {
+  .checklist-painel { width: 100vw; }
+}
+
+/* Canvas de grafico clicavel - cursor muda via JS (onHover), mas o estado
+   base ja sinaliza interatividade para quem passa o mouse rapido. */
+canvas.grafico-interativo { cursor: default; }
+
+.tabela-paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--cinza-quente);
+}
+.tabela-paginacao button {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--vinho);
+  background: transparent;
+  border: 1px solid var(--vinho-suave);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.tabela-paginacao button:disabled { opacity: 0.35; cursor: not-allowed; }
+.tabela-paginacao button:not(:disabled):hover { background: var(--vinho-suave-2); color: #fff; }
+
+/* ---------------------------- Sub-menu Cadastro/Registro (pills) ---------------------------- */
+/* Uma aba por entidade dentro de "Cadastro" (Cliente/Unidade/Setor/Cargo/
+   Posto de Trabalho/Atividade) e dentro de "Registro" (Mapa Risco/Plano
+   Acao/Absenteismo/Compativeis) - so um bloco fica visivel por vez, no
+   mesmo padrao da aba Cadastro do Cockpit Comercial. */
+.subnav-cadastro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.subnav-cadastro-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  appearance: none;
+  border: 1px solid var(--linha);
+  background: var(--card);
+  color: var(--texto-secundario);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+  white-space: nowrap;
+}
+.subnav-cadastro-item .icone { font-size: 13px; line-height: 1; }
+.subnav-cadastro-item:hover { border-color: var(--teal-escuro); color: var(--teal-escuro); }
+.subnav-cadastro-item.ativa { background: var(--vinho); border-color: var(--vinho); color: #fff; }
+
+/* ---------------------------- Cadastros (CRUD real) ---------------------------- */
+
+.aviso-somente-leitura {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--status-warning);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.bloco-cadastro { display: flex; flex-direction: column; }
+
+.cadastro-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-novo-registro, .btn-cad-primario, .btn-cad-secundario {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 7px;
+  padding: 7px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.btn-novo-registro, .btn-cad-primario {
+  background: var(--teal);
+  color: #fff;
+}
+.btn-novo-registro:hover, .btn-cad-primario:hover { background: var(--teal-escuro); }
+.btn-cad-secundario {
+  background: transparent;
+  color: var(--texto-secundario);
+  border-color: var(--linha);
+}
+.btn-cad-secundario:hover { background: var(--creme); }
+.btn-novo-registro:disabled, .btn-cad-primario:disabled {
+  opacity: 0.45; cursor: not-allowed; background: var(--cinza-quente);
+}
+
+/* Botoes maiores e com contorno visivel (pedido do Leo - antes eram so
+   texto sem fundo/borda, quase invisiveis, principalmente numa tabela
+   larga com muita coluna). */
+.btn-acao-linha {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  border: 1px solid var(--linha);
+  border-radius: 6px;
+  padding: 5px 12px;
+  margin-right: 6px;
+  cursor: pointer;
+  background: var(--card);
+  color: var(--teal-escuro);
+}
+.btn-acao-linha:hover { background: var(--teal); border-color: var(--teal); color: #fff; }
+.btn-acao-linha.excluir { color: var(--status-critical); border-color: var(--status-critical); }
+.btn-acao-linha.excluir:hover { background: var(--status-critical); color: #fff; }
+.btn-acao-linha:disabled { opacity: 0.35; cursor: not-allowed; background: var(--card); color: var(--texto-secundario); border-color: var(--linha); }
+/* "Baixar/Imprimir" (Laudos ja gerados - ver campoArquivoPrincipal em
+   CADASTROS_CONFIG) - preenchido, pra se destacar como a acao mais comum
+   nessa tela (nao e so mais um botao igual Editar/Excluir). */
+.btn-acao-linha-baixar { background: var(--teal-escuro); border-color: var(--teal-escuro); color: #fff; }
+.btn-acao-linha-baixar:hover { background: var(--teal); border-color: var(--teal); }
+.btn-acao-linha-baixar:disabled { background: var(--card); border-color: var(--linha); color: var(--texto-secundario); }
+
+.form-cadastro {
+  border: 1px solid var(--teal);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+  background: var(--surface);
+}
+.form-cadastro .form-titulo { font-size: 13.5px; font-weight: 700; margin-bottom: 10px; color: var(--teal-escuro); }
+
+.form-cadastro-corpo { display: flex; flex-direction: column; }
+
+.form-cadastro-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px 12px;
+}
+
+/* Titulo de secao dentro do formulario (pedido do Leo: telas do pacote
+   "Sistema de Gestao Integrada" organizadas em blocos, em vez de uma unica
+   grade longa de campos) - so aparece quando o cadastro usa "secao" nos
+   campos (ver montarFormulario). Sem borda/fundo proprios: so um titulo +
+   um traco separando do bloco anterior, pra nao pesar visualmente. */
+.form-cadastro-secao-titulo {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--teal-escuro);
+  margin: 0 0 10px;
+}
+.form-cadastro-grade + .form-cadastro-secao-titulo {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--linha);
+}
+
+/* Modo "abas" do formulario (pedido do Leo 28/09: "achei muito longa a
+   tela, tem que ficar rolando a tela... faz varias abas") - mesmas secoes
+   de sempre (comSecao), so que em vez de ficarem empilhadas viram um menu
+   de abas clicaveis (ver montarFormulario/cfg.emAbas). Só entra quando o
+   cadastro tem cfg.emAbas: true. */
+.form-cadastro-abas-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--linha);
+  order: -1;
+}
+.form-cadastro-aba-botao {
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--linha);
+  background: var(--card);
+  color: var(--cinza-quente);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.form-cadastro-aba-botao:hover { border-color: var(--teal); color: var(--teal-escuro); }
+.form-cadastro-aba-botao.ativa {
+  background: var(--teal-escuro);
+  border-color: var(--teal-escuro);
+  color: #fff;
+}
+
+.campo-form { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.campo-form label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--cinza-quente);
+  font-weight: 700;
+}
+.campo-form input, .campo-form select, .campo-form textarea {
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--linha);
+  background: var(--card);
+  color: var(--texto);
+  width: 100%;
+}
+.campo-form textarea { resize: vertical; min-height: 60px; }
+/* V 1.1 - campo de data DD/MM/AAAA com calendario (js/datas.js) */
+.campo-data { position: relative; display: flex; align-items: center; }
+.campo-data .campo-data-texto { padding-right: 34px; }
+.campo-data-calendario {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 28px; height: 28px; padding: 4px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--cinza-quente); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.campo-data-calendario:hover { background: var(--creme); color: var(--teal); }
+.campo-data-calendario svg { width: 18px; height: 18px; }
+.campo-data-nativo {
+  position: absolute; right: 0; bottom: 0; width: 1px; height: 1px;
+  opacity: 0; pointer-events: none; border: 0; padding: 0;
+}
+
+.campo-form input:focus, .campo-form select:focus, .campo-form textarea:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+.campo-form input:disabled, .campo-form select:disabled, .campo-form textarea:disabled { opacity: 0.6; background: var(--creme); }
+
+/* Campos de texto longo (Jornada de Trabalho, Circunstancia Geradora etc.,
+   ver docs/bi-ergonomia-manual.md) ocupam a grade inteira em vez de uma
+   celula estreita - senao um textarea de 3 linhas fica ilegivel espremido
+   em ~160px. */
+.campo-form-largo { grid-column: 1 / -1; }
+
+/* V 1.27 - lista de caixas de marcar (tipo "checklist": Servicos do Cliente,
+   Empresas vinculadas do Usuario) */
+.checklist-form { display: flex; flex-direction: column; gap: 6px; }
+.checklist-busca { width: 100%; box-sizing: border-box; }
+.checklist-lista { max-height: 220px; overflow: auto; border: 1px solid var(--linha); border-radius: 8px; padding: 4px 0; background: var(--card); }
+.checklist-lista.checklist-colunas { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); max-height: none; }
+.checklist-item { display: flex; gap: 8px; align-items: flex-start; padding: 6px 10px; cursor: pointer; font-size: 0.9rem; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--texto); }
+.checklist-item:hover { background: var(--creme); }
+.checklist-item input { width: auto; margin-top: 2px; accent-color: var(--vinho); }
+.checklist-item small { display: block; color: var(--cinza-quente); font-size: 0.75rem; }
+.campo-form label.checklist-item { text-transform: none !important; letter-spacing: 0 !important; font-size: 0.9rem !important; font-weight: 500 !important; color: var(--texto) !important; margin: 0; }
+.campo-form label.checklist-item small { font-weight: 400; text-transform: none; letter-spacing: 0; }
+.checklist-vazio { padding: 8px 10px; font-size: 0.85rem; color: var(--cinza-quente); }
+.checklist-nota { margin: 0; font-size: 0.78rem; color: var(--cinza-quente); }
+
+/* V 1.27 - aba de um servico que a empresa nao contratou */
+section.sem-servico > :not(.aviso-servico) { display: none !important; }
+.aviso-servico { min-width: min(880px, 100%); box-sizing: border-box; margin: 18px 0; padding: 28px 30px; border-radius: 14px; background: var(--card); border: 1px solid var(--linha); border-left: 5px solid var(--vinho); }
+.aviso-servico h3 { margin: 0 0 8px; color: var(--vinho-escuro); font-size: 1.15rem; }
+.aviso-servico p { margin: 0 0 6px; color: var(--texto-secundario); line-height: 1.55; }
+.aviso-servico .empresas { font-weight: 600; color: var(--texto); }
+
+/* Upload de arquivo (Fotos da Avaliacao Ergonomica, Arquivo do Laudo - ver
+   docs/bi-ergonomia-manual.md e construirCampoArquivo em js/app.js). Ocupa
+   a grade inteira igual um textarea longo - uma lista de miniaturas/chips
+   fica apertada demais numa celula estreita de ~160px. */
+.campo-arquivo { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
+.campo-arquivo-lista { display: flex; flex-wrap: wrap; gap: 8px; }
+.campo-arquivo-chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  background: var(--creme);
+  font-size: 12px;
+  max-width: 220px;
+}
+.campo-arquivo-chip img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; }
+.campo-arquivo-chip a { color: var(--teal-escuro); text-decoration: none; word-break: break-all; }
+.campo-arquivo-chip a:hover { text-decoration: underline; }
+.campo-arquivo-remover {
+  border: none;
+  background: transparent;
+  color: var(--cinza-quente);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.campo-arquivo-remover:hover { color: var(--vinho); }
+.campo-arquivo-aviso { font-size: 12px; color: var(--cinza-quente); font-style: italic; }
+.campo-arquivo input[type="file"] { font-size: 12.5px; }
+/* Select de classificacao por conteudo (AET - ver js/app.js/construirCampoArquivo
+   e docs/bi-ergonomia-manual.md, secao AET): o chip do arquivo cresce e quebra
+   linha pra caber o select detectado/confirmado abaixo do nome do arquivo. */
+.campo-arquivo-chip:has(.campo-arquivo-classificacao) { max-width: 260px; flex-wrap: wrap; }
+.campo-arquivo-classificacao {
+  flex: 1 1 100%;
+  font-size: 11.5px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--linha);
+  background: #fff;
+}
+
+/* Seletor hierarquico de CID (Capitulo > Grupo > Categoria) - pedido do
+   Leo pra achar o codigo certo sem rolar uma lista unica desordenada de
+   CIDs. As 3 selects empilhadas herdam o estilo padrao de .campo-form
+   select acima; so precisam do espacamento vertical entre elas. */
+.campo-cid-cascata { display: flex; flex-direction: column; gap: 5px; }
+.campo-form .valor-calculado {
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: var(--creme);
+  border: 1px dashed var(--linha);
+}
+
+.form-cadastro-acoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+
+.form-cadastro-erro {
+  font-size: 12.5px;
+  color: var(--status-critical);
+  margin-top: 8px;
+}
+
+/* ---------------------------- Aviso de erro ---------------------------- */
+
+.aviso-erro {
+  margin: 16px clamp(14px, 3vw, 32px);
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--status-critical);
+  color: #fff;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.aviso-erro strong { display: block; margin-bottom: 4px; }
+
+/* Aviso de convite (tela de Usuarios) - aparece depois de criar um usuario
+   ou reenviar um convite, com o link de primeiro acesso pra repassar na mao
+   se o e-mail automatico (Microsoft Graph) nao chegar - ver
+   mostrarAvisoConvite em js/app.js. */
+.aviso-convite {
+  position: relative;
+  margin: 0 0 16px;
+  padding: 14px 44px 14px 16px;
+  border-radius: 10px;
+  background: var(--creme);
+  border: 1px solid var(--linha);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--texto);
+}
+.aviso-convite strong { display: block; margin-bottom: 6px; }
+.aviso-convite a { color: var(--teal-escuro); word-break: break-all; }
+.aviso-convite-erro { color: var(--status-critical); margin: 0 0 6px; }
+.btn-fechar-aviso-convite {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--texto-secundario);
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.btn-fechar-aviso-convite:hover { color: var(--texto); }
+
+/* Badge de Status da Conta (tela de Usuarios) - "Ativo" (ja concluiu o
+   primeiro acesso) vs "Convite pendente" (ainda nao definiu senha). */
+.badge-status-conta {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge-status-ativo { background: var(--status-good); color: #fff; }
+.badge-status-convidado { background: var(--status-warning); color: #fff; }
+
+footer.rodape {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--cinza-quente);
+  padding: 18px 16px 30px;
+}
+
+.link-referencia {
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--teal-escuro);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+
+/* ---------------------------- V 1.0: botao "i", Ajuda, Em construcao ---------------------------- */
+
+.btn-info {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 17px; height: 17px; margin-left: 8px; vertical-align: 1px;
+  border: 1px solid var(--cinza-quente); border-radius: 50%;
+  background: transparent; color: var(--cinza-quente);
+  font: italic 700 11px/1 Georgia, serif; cursor: pointer; padding: 0;
+}
+.btn-info:hover, .btn-info:focus-visible { color: var(--vinho-medio); border-color: var(--vinho-medio); outline: none; }
+
+.info-popover {
+  position: absolute; z-index: 1000; max-width: calc(100vw - 24px);
+  background: var(--card); color: var(--texto);
+  border: 1px solid var(--linha); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  padding: 12px 14px; font-size: 12.5px; line-height: 1.5;
+}
+.info-popover p { margin: 6px 0 0; }
+.info-popover-titulo { font-weight: 700; font-size: 13px; color: var(--vinho-escuro); }
+
+footer.rodape { padding: 10px 16px 18px; opacity: 0.75; }
+
+.em-construcao {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; min-height: 55vh; text-align: center; color: var(--texto);
+}
+.em-construcao h2 { margin: 0; font-size: 22px; font-weight: 700; }
+.em-construcao-icone { width: 54px; height: 54px; color: var(--vinho-medio); }
+.selo-construcao {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  padding: 5px 14px; border-radius: 999px;
+  border: 1px dashed var(--vinho-medio); color: var(--vinho-medio);
+}
+
+.ajuda-abas { margin-bottom: 14px; }
+.ajuda-painel { display: flex; flex-direction: column; gap: 10px; max-width: 980px; }
+.ajuda-secao {
+  border: 1px solid var(--linha); border-radius: 10px; background: var(--card);
+  padding: 0 14px;
+}
+.ajuda-secao > summary { cursor: pointer; font-weight: 600; font-size: 13.5px; padding: 12px 0; }
+.ajuda-objetivo { margin: 0 0 10px; font-size: 12.5px; line-height: 1.55; color: var(--texto-secundario, var(--texto)); }
+.ajuda-passos { margin: 0 0 14px; padding-left: 20px; font-size: 13px; line-height: 1.55; color: var(--texto); }
+.ajuda-passos li { margin-bottom: 6px; }
+ul.ajuda-passos { list-style: disc; }
+.ajuda-indicador { padding-bottom: 12px; font-size: 13px; line-height: 1.55; }
+.ajuda-indicador p { margin: 0 0 7px; }
+.ajuda-h3 { margin: 14px 0 0; font-size: 15px; color: var(--vinho-escuro); }
+.ajuda-grupo { margin-top: 6px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--cinza-quente); }
+.ajuda-fluxo-resumo { margin: 2px 0 10px; font-size: 12.5px; color: var(--cinza-quente); }
+.bpmn-rolagem { overflow-x: auto; border: 1px solid var(--linha); border-radius: 8px; }
+.bpmn-svg { display: block; font-family: inherit; }
+.bpmn-raia { fill: none; stroke: var(--linha); }
+.bpmn-raia-rotulo { fill: var(--vinho-escuro, #5E2A30); }
+.bpmn-raia-texto { fill: #fff; font-size: 10.5px; font-weight: 700; }
+.bpmn-aresta { fill: none; stroke: var(--cinza-quente); stroke-width: 1.5; }
+.bpmn-seta { fill: var(--cinza-quente); }
+.bpmn-rotulo-aresta { font-size: 10.5px; font-weight: 700; fill: var(--vinho-medio); paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
+.bpmn-tarefa rect { fill: var(--card); stroke: var(--vinho-medio); stroke-width: 1.5; }
+.bpmn-decisao polygon { fill: var(--card); stroke: var(--teal-escuro, #1d6f6f); stroke-width: 1.5; }
+.bpmn-inicio circle { fill: var(--card); stroke: var(--status-good, #2e8b57); stroke-width: 2; }
+.bpmn-fim circle { fill: var(--card); stroke: var(--vinho-escuro, #5E2A30); stroke-width: 3.5; }
+.bpmn-texto { font-size: 11px; fill: var(--texto); }
+.bpmn-legenda { font-size: 10.5px; font-weight: 600; paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
+.bpmn-x { font-size: 15px; font-weight: 700; fill: var(--teal-escuro, #1d6f6f); }
+
+/* V 1.1 - Mais detalhes (historico do registro) */
+.hist-overlay { position: fixed; inset: 0; background: rgba(40, 20, 30, 0.45); z-index: 1200; }
+.hist-dialogo {
+  position: fixed; z-index: 1201; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(720px, calc(100vw - 24px)); max-height: calc(100vh - 32px);
+  display: flex; flex-direction: column;
+  background: var(--card); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.28);
+}
+.hist-dialogo[hidden], .hist-overlay[hidden] { display: none; }
+.hist-cab { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--linha); }
+.hist-titulo { font-weight: 700; font-size: 15px; color: var(--texto); }
+.hist-fechar { border: 0; background: transparent; font-size: 22px; line-height: 1; cursor: pointer; color: var(--cinza-quente); padding: 2px 8px; border-radius: 6px; }
+.hist-fechar:hover { background: var(--creme); }
+.hist-corpo { padding: 14px 18px 18px; overflow-y: auto; }
+.hist-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.hist-resumo-item { background: var(--creme); border-radius: 8px; padding: 9px 12px; display: flex; flex-direction: column; gap: 2px; }
+.hist-rot { font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--cinza-quente); }
+.hist-val { font-size: 13px; color: var(--texto); word-break: break-word; }
+.hist-secao { margin: 18px 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--teal); }
+.hist-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.hist-campo { border: 1px solid var(--linha); border-radius: 8px; padding: 8px 10px; }
+.hist-campo-nome { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--cinza-quente); }
+.hist-campo-valor { font-size: 13.5px; margin: 2px 0 4px; word-break: break-word; white-space: pre-wrap; }
+.hist-campo-meta { font-size: 11px; color: var(--cinza-quente); }
+.hist-tempo-item { border-left: 3px solid var(--teal); padding: 2px 0 2px 10px; margin-bottom: 10px; }
+.hist-tempo-cab { font-size: 12.5px; font-weight: 700; }
+.hist-tempo-alt { font-size: 12.5px; color: var(--texto); margin-top: 2px; word-break: break-word; }
+.hist-aviso { font-size: 13px; color: var(--cinza-quente); margin: 0; }
+body.hist-aberto { overflow: hidden; }
+
+/* ==========================================================================
+   V 1.2 - Acoes do risco (Inventario de Riscos), evidencias e Configuracoes
+   ========================================================================== */
+.acoes-editor { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.acoes-lista { display: flex; flex-direction: column; gap: 12px; }
+.acoes-barra { display: flex; gap: 8px; }
+.acoes-aviso { font-size: 12.5px; color: var(--cinza-quente); font-style: italic; }
+.acoes-resumo { border: 1px solid var(--linha); border-radius: 10px; padding: 10px 12px; background: var(--creme); }
+.acoes-resumo-vazio { font-size: 13px; color: var(--texto-secundario); }
+.acoes-resumo-linha { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.acoes-resumo-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--texto-secundario); }
+.acoes-resumo-segs { margin-top: 8px; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
+.acoes-resumo-segnome { font-weight: 700; margin-right: 6px; color: var(--texto); }
+.acoes-resumo-segtxt { color: var(--texto-secundario); }
+.acao-pilula { display: inline-block; padding: 2px 10px; border: 1.5px solid var(--cinza-quente); border-radius: 999px; font-weight: 700; font-size: 12px; background: var(--card); }
+.acao-card { border: 1px solid var(--linha); border-left: 4px solid var(--vinho); border-radius: 10px; padding: 12px; background: var(--card); }
+.acao-card-concluida { border-left-color: var(--teal); background: #f4f9f9; }
+.acao-card-com-erro { border-left-color: var(--status-critical); box-shadow: 0 0 0 1px var(--status-critical); }
+.acao-card-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.acao-card-titulo { font-weight: 700; color: var(--vinho-escuro); }
+.acao-card-botoes { display: flex; gap: 6px; flex-wrap: wrap; }
+.acao-card-status { font-size: 12px; color: var(--texto-secundario); margin-bottom: 8px; }
+.acao-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 12px; }
+.acao-campo { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.acao-campo-largo { grid-column: 1 / -1; }
+.acao-campo label { font-size: 11.5px; font-weight: 600; color: var(--texto-secundario); }
+.acao-campo input, .acao-campo select { width: 100%; box-sizing: border-box; }
+.acao-card-erro { margin-top: 8px; color: var(--status-critical); font-size: 12.5px; font-weight: 600; }
+.acoes-legado { border: 1px dashed var(--vinho-suave-2); border-radius: 10px; padding: 8px 12px; }
+.acoes-legado:empty { display: none; }
+.acoes-legado-titulo { font-size: 12px; font-weight: 700; color: var(--vinho); margin-bottom: 4px; }
+.acoes-legado-item { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; font-size: 13px; padding: 4px 0; }
+.acoes-legado-txt { flex: 1; white-space: pre-wrap; }
+.aviso-evidencia { margin-top: 6px; font-size: 12.5px; color: #8a5a00; background: #fff6e0; border: 1px solid #f0d9a0; border-radius: 8px; padding: 6px 10px; }
+.config-ajuda { font-size: 13px; color: var(--texto-secundario); margin: 4px 0 12px; max-width: 760px; }
+.config-form { display: flex; flex-direction: column; gap: 12px; max-width: 520px; }
+.config-form .acao-campo input { padding: 8px 10px; }
+
+/* ==========================================================================
+   V 1.6 - Importador de planilhas Excel (js/importador.js)
+   ========================================================================== */
+.btn-importar-excel { margin-left: auto; margin-right: 8px; }
+.btn-importar-excel + .btn-novo-registro { margin-left: 0; }
+.imp-overlay {
+  position: fixed; inset: 0; z-index: 1000; background: rgba(40, 28, 30, 0.55);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.imp-modal {
+  background: var(--card); color: var(--texto); border: 1px solid var(--linha); border-radius: 10px;
+  width: min(1040px, 100%); max-height: 92vh; display: flex; flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+.imp-cabecalho { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--linha); }
+.imp-titulo { font-size: 1.05rem; font-weight: 700; color: var(--vinho); }
+.imp-fechar { background: none; border: none; font-size: 1.6rem; line-height: 1; cursor: pointer; color: var(--texto-secundario); padding: 0 6px; }
+.imp-fechar:hover { color: var(--texto); }
+.imp-corpo { padding: 16px 18px; overflow: auto; flex: 1; }
+.imp-rodape { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--linha); }
+.imp-espaco { flex: 1; }
+.imp-aviso-rodape { flex-basis: 100%; text-align: right; font-size: 0.82rem; color: var(--texto-secundario); }
+.imp-texto { margin: 0 0 10px; color: var(--texto-secundario); line-height: 1.5; }
+.imp-passos { margin: 0 0 14px 18px; padding: 0; color: var(--texto-secundario); line-height: 1.6; }
+.imp-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.imp-zona {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 26px 16px; cursor: pointer;
+  border: 2px dashed var(--vinho-suave-2); border-radius: 10px; background: var(--creme); text-align: center;
+}
+.imp-zona.sobre, .imp-zona:hover { border-color: var(--vinho); }
+.imp-zona-titulo { font-weight: 700; color: var(--vinho); }
+.imp-zona-sub { font-size: 0.85rem; color: var(--texto-secundario); }
+.imp-arquivo { margin-top: 8px; max-width: 100%; }
+.imp-aviso-planilha { margin-top: 10px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--status-warning, #b7791f); color: var(--status-warning, #b7791f); background: transparent; font-size: 0.9rem; font-weight: 600; }
+.imp-erro { margin-top: 10px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--status-critical); color: var(--status-critical); background: transparent; font-size: 0.9rem; }
+.imp-arquivo-info { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+.imp-sel-aba, .imp-mapa-grade select { padding: 5px 8px; border: 1px solid var(--linha); border-radius: 6px; background: var(--card); color: var(--texto); }
+.imp-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.imp-chip { display: flex; flex-direction: column; min-width: 96px; padding: 8px 12px; border: 1px solid var(--linha); border-radius: 8px; border-left-width: 4px; }
+.imp-chip-valor { font-size: 1.3rem; font-weight: 700; line-height: 1.1; }
+.imp-chip-rotulo { font-size: 0.78rem; color: var(--texto-secundario); }
+.imp-chip.ok { border-left-color: var(--risco-baixo); }
+.imp-chip.info { border-left-color: var(--teal); }
+.imp-chip.neutro { border-left-color: var(--cinza-quente); }
+.imp-chip.erro { border-left-color: var(--status-critical); }
+.imp-mapeamento { margin-bottom: 12px; border: 1px solid var(--linha); border-radius: 8px; padding: 8px 12px; }
+.imp-mapeamento summary { cursor: pointer; font-weight: 600; color: var(--texto-secundario); }
+.imp-mapa-grade { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(160px, 2fr); gap: 6px 12px; margin-top: 10px; align-items: center; }
+.imp-opcao { display: block; margin-bottom: 10px; font-size: 0.9rem; color: var(--texto-secundario); }
+.imp-tabela-scroll { max-height: 42vh; overflow: auto; border: 1px solid var(--linha); border-radius: 8px; }
+.imp-tabela { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.imp-tabela th { max-width: 190px; position: sticky; top: 0; background: var(--creme); text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--linha); white-space: nowrap; }
+.imp-tabela td { padding: 5px 8px; border-bottom: 1px solid var(--linha); vertical-align: top; }
+.imp-detalhe { min-width: 260px; max-width: 360px; color: var(--texto-secundario); }
+.imp-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--linha); white-space: nowrap; }
+.imp-badge-novo { color: var(--risco-baixo); border-color: var(--risco-baixo); }
+.imp-badge-atualiza { color: var(--teal-escuro); border-color: var(--teal); }
+.imp-badge-igual, .imp-badge-ignorada { color: var(--cinza-quente); }
+.imp-badge-erro { color: var(--status-critical); border-color: var(--status-critical); }
+.imp-linha-erro td { background: rgba(208, 59, 59, 0.07); }
+.imp-chip.alerta { border-left-color: var(--status-warning); }
+.imp-badge-pulada { color: var(--cinza-quente); border-style: dashed; }
+.imp-badge-dup { color: var(--status-warning); border-color: var(--status-warning); margin-left: 4px; }
+.imp-badge-info { color: var(--teal-escuro); border-color: var(--teal); margin-left: 4px; }
+.imp-linha-pulada td { opacity: 0.6; }
+/* V 1.10: blocos de revisao da previa */
+.imp-bloco { margin-bottom: 12px; padding: 10px 12px; border: 1px solid var(--linha); border-left-width: 4px; border-radius: 8px; }
+.imp-bloco-aviso { border-left-color: var(--status-warning); }
+.imp-bloco-ok { border-left-color: var(--teal); }
+.imp-bloco-titulo { font-weight: 700; margin-bottom: 4px; }
+.imp-check-linha { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer; }
+.imp-bloco-nota { font-size: 0.85rem; color: var(--texto-secundario); margin-bottom: 8px; }
+.imp-bloco .btn-cad-primario, .imp-bloco .btn-cad-secundario { margin-top: 8px; }
+.imp-grade-padroes { display: grid; grid-template-columns: minmax(180px, 1.2fr) minmax(180px, 1.4fr) auto; gap: 6px 12px; align-items: center; }
+.imp-entrada { padding: 5px 8px; border: 1px solid var(--linha); border-radius: 6px; background: var(--card); color: var(--texto); font: inherit; }
+.imp-padrao-uso { font-size: 0.8rem; color: var(--texto-secundario); }
+.imp-painel { margin-bottom: 12px; border: 1px solid var(--linha); border-radius: 8px; padding: 8px 12px; }
+.imp-painel > summary { cursor: pointer; font-weight: 600; color: var(--texto-secundario); }
+.imp-painel-aviso { border-left: 4px solid var(--status-warning); }
+.imp-painel-aviso > summary { color: var(--texto); }
+.imp-painel > .imp-bloco-nota { margin-top: 8px; }
+.imp-tabela-curta { max-height: 30vh; margin-top: 6px; }
+.imp-tabela-simples td, .imp-tabela-simples th { white-space: normal; }
+.imp-sel-corr { max-width: 100%; padding: 4px 6px; border: 1px solid var(--linha); border-radius: 6px; background: var(--card); color: var(--texto); }
+.imp-origem { display: inline-block; margin-left: 8px; font-size: 0.78rem; color: var(--texto-secundario); }
+.imp-origem-nenhuma, .imp-origem-rejeitar { color: var(--status-critical); }
+.imp-origem-sugerida { color: var(--status-warning); }
+.imp-grupo-grafia { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--linha); border-radius: 8px; }
+.imp-grupo-titulo { font-weight: 600; margin-bottom: 4px; font-size: 0.9rem; }
+.imp-opcao-graf { display: block; padding: 2px 0; font-size: 0.9rem; cursor: pointer; }
+.imp-barra-filtro { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.imp-filtro { padding: 5px 8px; border: 1px solid var(--linha); border-radius: 6px; background: var(--card); color: var(--texto); }
+.imp-nota { margin-top: 8px; font-size: 0.82rem; color: var(--texto-secundario); }
+.imp-progresso { padding: 24px 0; }
+.imp-barra { height: 10px; border-radius: 6px; background: var(--linha); overflow: hidden; }
+.imp-barra-cheia { height: 100%; width: 0; background: var(--teal); transition: width 0.2s; }
+.imp-final-titulo { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; }
+.imp-final-titulo.ok { color: var(--risco-baixo); }
+.imp-final-titulo.parcial { color: var(--risco-moderado); }
+.imp-final-titulo.erro { color: var(--status-critical); }
+.imp-lista-falhas { margin: 8px 0 0 18px; color: var(--texto-secundario); font-size: 0.85rem; }
+@media (max-width: 640px) {
+  .imp-mapa-grade { grid-template-columns: 1fr; }
+  .imp-overlay { padding: 8px; }
+}
+
+/* V 1.27 - perfil Usuario Cliente: sem Cadastro; Registro somente consulta e Excel */
+body.perfil-cliente .sidebar-nav-grupo[data-grupo-nav="cadastro"],
+body.perfil-cliente .sidebar-nav-grupo[data-grupo-nav="interno"],
+body.perfil-cliente .laudo-emissao,
+body.perfil-cliente .aep-migracao,
+body.perfil-cliente .bloco-cadastro .btn-novo-registro,
+body.perfil-cliente .bloco-cadastro .btn-importar-excel,
+body.perfil-cliente .bloco-cadastro .col-selecao,
+body.perfil-cliente .bloco-cadastro .barra-selecao,
+body.perfil-cliente .bloco-cadastro .btn-acao-editar,
+body.perfil-cliente .bloco-cadastro .btn-acao-excluir { display: none !important; }
+
+/* V 1.28 - Inventario de riscos: repeticao do fator, consequencias padrao */
+.checklist-contador { margin-left: 6px; font-size: 0.8rem; font-weight: 700; color: var(--vinho); }
+.checklist-fator-instancias { display: flex; flex-direction: column; gap: 10px; }
+.checklist-instancia { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--linha); border-radius: 10px; background: var(--card); }
+.checklist-instancia > .campo-form-largo, .checklist-instancia > .checklist-sub-titulo, .checklist-instancia > .checklist-instancia-cab { grid-column: 1 / -1; }
+.checklist-instancia-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.checklist-instancia-cab:empty { display: none; }
+.checklist-instancia-titulo { font-weight: 700; color: var(--vinho); font-size: 0.85rem; }
+.checklist-conseq-padrao { width: 100%; margin-bottom: 4px; }
+.checklist-repetir { align-self: flex-start; }
+.acao-card-nota { font-size: 0.78rem; color: var(--texto-secundario); margin-top: 4px; }
+@media (max-width: 760px) { .checklist-instancia { grid-template-columns: 1fr; } }
+.checklist-fator-instancias[hidden], .checklist-instancia[hidden], .checklist-instancia-cab [hidden] { display: none !important; }
+
+/* V 1.28 - AEP: atualizacao das avaliacoes antigas e "Mais detalhes" */
+.aep-migracao { margin: 6px 0 12px; padding: 12px 14px; border-left: 5px solid var(--vinho); border-radius: 10px; background: var(--fundo-suave, #f5efea); display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.laudo-emissao { margin: 6px 0 12px; padding: 12px 14px; border-left: 5px solid var(--verde, #2E8B57); border-radius: 10px; background: var(--fundo-suave, #f5efea); display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; }
+.laudo-emissao-texto { flex: 1 1 320px; }
+.aep-migracao[hidden] { display: none; }
+.aep-migracao-titulo { font-weight: 700; color: var(--vinho); width: 100%; }
+.aep-migracao-texto { font-size: 0.86rem; color: var(--texto-secundario); flex: 1 1 320px; }
+.aep-migracao-status { font-size: 0.82rem; color: var(--texto-secundario); }
+.aep-det-secao { margin-bottom: 14px; }
+.aep-det-secao-titulo { font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--teal); border-bottom: 1px solid var(--linha); padding-bottom: 4px; margin-bottom: 8px; }
+.aep-det-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 14px; }
+.aep-det-item { min-width: 0; }
+.aep-det-largo { grid-column: 1 / -1; }
+.aep-det-rot { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--cinza-quente); font-weight: 700; }
+.aep-det-val { font-size: 13.5px; white-space: pre-wrap; word-break: break-word; }
+.aep-det-vazio { font-size: 13px; color: var(--texto-secundario); }
+.aep-det-tabela td, .aep-det-tabela th { font-size: 12.5px; }
+.aep-det-hist { padding: 6px 0 6px 10px; border-left: 2px solid var(--linha); margin-left: 4px; }
+.aep-det-hist-cab { font-size: 11.5px; color: var(--texto-secundario); }
+.aep-det-hist-txt { font-size: 13px; }
+
+/* V 1.29 - AET em desenvolvimento e coluna Origem do Plano de Acao */
+.aet-em-desenvolvimento { margin: 0 0 14px; padding: 12px 14px; border-left: 5px solid var(--teal, #2b7a78); border-radius: 10px; background: var(--fundo-suave, #f5efea); line-height: 1.45; }
+.pilula-origem { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .78rem; font-weight: 700; white-space: nowrap; border: 1px solid currentColor; }
+.pilula-origem.origem-aep { color: #2b6f8f; }
+.pilula-origem.origem-psicossocial { color: #7a3d6a; }
+.pilula-origem.origem-aet { color: #6b5a1e; }
+.campo-da-origem select, .campo-da-origem input { pointer-events: none; background: var(--fundo-suave, #f3efe9) !important; color: var(--texto-suave, #555); }
+.aviso-origem-acao { margin: 4px 0 12px; padding: 10px 12px; border-left: 4px solid var(--teal, #2b7a78); border-radius: 8px; background: var(--fundo-suave, #f5efea); font-size: .9rem; line-height: 1.4; }
+.checklist-badge-graduacao.com-cor { display: inline-block; padding: 3px 12px; border-radius: 999px; }
+/* V 1.31 - acao: marcacao "vai reduzir ou eliminar o risco" */
+.acao-reduz { flex-direction: row !important; align-items: center; gap: 8px !important; font-weight: 600; font-size: 13px; align-self: end; padding-bottom: 6px; }
+.acao-reduz input { width: auto !important; }
+/* V 1.31 - reavaliacao do risco ao concluir a acao */
+.reav-fundo { position: fixed; inset: 0; background: rgba(30, 18, 20, .45); z-index: 4000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.reav-caixa { background: var(--card, #fff); color: var(--texto-principal, #3d2e30); border-radius: 14px; max-width: 620px; width: 100%; padding: 20px 22px; box-shadow: 0 20px 50px rgba(0,0,0,.25); max-height: 92vh; overflow: auto; }
+.reav-titulo { font-weight: 800; font-size: 18px; color: var(--vinho, #8B3A42); margin-bottom: 6px; }
+.reav-texto { margin: 0 0 10px; line-height: 1.45; font-size: 14px; }
+.reav-info { background: var(--fundo-suave, #f5efea); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; font-size: 13px; margin-bottom: 12px; }
+.reav-linha { display: flex; gap: 8px; flex-wrap: wrap; }
+.reav-rot { font-weight: 700; min-width: 140px; color: var(--texto-secundario, #8a7a78); }
+.reav-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.reav-campo { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; }
+.reav-campo select { padding: 8px 10px; border: 1px solid var(--linha, #e5d8d8); border-radius: 8px; background: var(--card, #fff); color: inherit; font: inherit; font-weight: 500; font-size: 13.5px; }
+.reav-badge { display: inline-block; padding: 6px 12px; border-radius: 999px; font-weight: 800; border: 1px solid var(--linha, #e5d8d8); align-self: flex-start; }
+.reav-elim { display: flex; gap: 8px; align-items: center; font-weight: 600; margin: 4px 0 10px; }
+.reav-erro { color: var(--status-critical, #c62828); font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+.reav-barra { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+/* V 1.31 - segmentos fora do corpo nos diagramas (Psicossocial e Nao identificado) */
+.bi-diagrama-extras { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.bi-diagrama-extra { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border: 1.5px dashed var(--linha, #e5d8d8); border-radius: 12px; cursor: pointer; color: var(--texto-secundario, #8a7a78); background: var(--card, #fff); min-width: 170px; }
+.bi-diagrama-extra.com-valor { border-style: solid; border-color: var(--vinho, #8B3A42); color: var(--vinho, #8B3A42); }
+.bi-diagrama-extra:hover, .bi-diagrama-extra:focus { outline: 2px solid var(--teal, #3E7B7E); outline-offset: 2px; }
+.bi-diagrama-extra-txt { display: flex; flex-direction: column; font-size: 12px; line-height: 1.25; }
+.bi-diagrama-extra-txt strong { font-size: 14px; color: var(--texto-principal, #3d2e30); }
+.bi-diagrama-extra-icone { display: inline-flex; }
+/* V 1.32: Editor de Texto do laudo - marca de texto alterado e restaurar padrao */
+.editor-texto-alterado { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: var(--fundo-suave, #f5efea); color: var(--vinho, #8B3A42); font-size: 11px; font-weight: 700; text-transform: none; letter-spacing: 0; }
+.editor-texto-restaurar { margin-left: 8px; padding: 2px 10px !important; font-size: 11.5px !important; text-transform: none; letter-spacing: 0; }
+/* V 1.33: Plano de Acao no formato do antigo plano do Psicossocial */
+#bloco-cadastro-planoAcao.plano-v2 > .tabela-controles,
+#bloco-cadastro-planoAcao.plano-v2 > .tabela-scroll,
+#bloco-cadastro-planoAcao.plano-v2 > .tabela-paginacao { display: none; }
+#painel-plano { margin-bottom: 16px; }
+.plano-lista { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.plano-filtros { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; background: var(--fundo-suave, #f5efea); border-radius: 12px; padding: 10px 12px; }
+.plano-filtro { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; font-weight: 700; color: var(--texto-secundario, #8a7a78); text-transform: uppercase; letter-spacing: .03em; min-width: 160px; flex: 1; }
+.plano-filtro--busca { flex: 1.6; }
+.plano-filtro select, .plano-filtro input { padding: 8px 10px; border: 1px solid var(--linha, #e5d8d8); border-radius: 8px; background: var(--card, #fff); color: var(--texto-principal, #3d2e30); font: inherit; font-size: 13.5px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.plano-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.plano-kpi { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 12px; border: 1px solid var(--linha, #e5d8d8); border-left: 5px solid var(--cor); border-radius: 10px; background: var(--card, #fff); cursor: pointer; font: inherit; color: var(--texto-principal, #3d2e30); }
+.plano-kpi strong { font-size: 22px; line-height: 1.1; }
+.plano-kpi-rot { font-size: 12px; color: var(--texto-secundario, #8a7a78); font-weight: 600; }
+.plano-kpi.ativo { outline: 2px solid var(--cor); }
+.plano-nota { margin: 0; font-size: 12.5px; color: var(--texto-secundario, #8a7a78); line-height: 1.45; }
+.plano-contagem { font-size: 13px; font-weight: 700; color: var(--vinho, #8B3A42); }
+.plano-vazio { padding: 18px; text-align: center; color: var(--texto-secundario, #8a7a78); border: 1px dashed var(--linha, #e5d8d8); border-radius: 10px; }
+.plano-tabela td { vertical-align: top; font-size: 13px; padding: 10px 10px; }
+/* V 1.35: textos quebram dentro da coluna (antes herdavam nowrap e passavam por cima das vizinhas) */
+table.tabela-dados.plano-tabela { table-layout: fixed; width: 100%; min-width: 980px; white-space: normal; }
+.plano-tabela tbody tr:nth-child(even) td { background: var(--fundo-suave, #faf6f3); }
+.plano-tabela th:nth-child(1) { width: 104px; } .plano-tabela th:nth-child(2) { width: 18%; } .plano-tabela th:nth-child(4) { width: 140px; } .plano-tabela th:nth-child(5) { width: 14%; } .plano-tabela th:nth-child(6) { width: 19%; } .plano-tabela th:nth-child(7) { width: 132px; }
+.plano-tabela td { overflow-wrap: anywhere; }
+.plano-tabela input { width: 100%; min-width: 0; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--linha, #e5d8d8); border-radius: 7px; font: inherit; font-size: 13px; background: var(--card, #fff); color: inherit; }
+.plano-tabela input:disabled { background: var(--fundo-suave, #f5efea); color: var(--texto-secundario, #8a7a78); }
+.plano-onde { font-size: 12.5px; line-height: 1.35; }
+.plano-onde-setor { display: block; font-size: 13px; }
+.plano-onde-posto { color: var(--texto-principal, #3d2e30); }
+.plano-onde-un { color: var(--texto-secundario, #8a7a78); font-size: 11.5px; margin-top: 2px; }
+.plano-acao { }
+.plano-acao-meta { font-size: 11.5px; color: var(--texto-secundario, #8a7a78); line-height: 1.35; }
+.plano-acao-txt { font-weight: 600; color: var(--texto-principal, #3d2e30); margin: 3px 0 2px; line-height: 1.4; }
+.plano-acao-efeito { font-size: 11.5px; color: var(--teal, #3E7B7E); font-weight: 600; }
+.plano-pilula { display: inline-block; margin-top: 4px; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; background: var(--fundo-suave, #f5efea); white-space: nowrap; }
+.plano-origem { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; color: #fff; background: var(--vinho, #8B3A42); }
+.plano-origem--psicossocial { background: var(--teal, #3E7B7E); }
+.plano-origem--aet { background: #5B6C8F; }
+.plano-email-info { font-size: 11px; color: var(--texto-secundario, #8a7a78); margin-top: 3px; }
+.plano-status { }
+.plano-status-data { font-size: 11px; color: var(--texto-secundario, #8a7a78); }
+.plano-btn { display: block; margin-top: 6px; padding: 4px 12px !important; font-size: 12px !important; }
+.plano-aviso { background: #E8F3EE; color: #1E6B44; border: 1px solid #BFDCCB; border-radius: 10px; padding: 8px 12px; font-weight: 600; font-size: 13px; }
+/* ============ V 1.34: modulo AET ============ */
+.aet-painel .cadastro-cabecalho { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.aet-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.aet-ajuda { margin: 6px 0 10px; font-size: 13px; color: var(--texto-secundario, #8a7a78); line-height: 1.45; }
+.aet-acoes-linha { white-space: nowrap; display: flex; gap: 6px; }
+body.aet-aberta { overflow: hidden; }
+.aet-overlay { position: fixed; inset: 0; background: rgba(30, 18, 20, .5); z-index: 3000; display: flex; align-items: stretch; justify-content: center; padding: 14px; }
+.aet-editor { background: var(--fundo, #f6f1ed); width: 100%; max-width: 1280px; border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+.aet-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 18px; background: var(--vinho, #8B3A42); color: #fff; }
+.aet-topo-titulo { font-weight: 800; font-size: 16px; }
+.aet-topo-acoes { display: flex; gap: 8px; }
+.aet-topo .btn-cad-secundario { background: rgba(255,255,255,.15); color: #fff; border-color: rgba(255,255,255,.4); }
+.aet-msg { padding: 8px 18px; font-weight: 600; font-size: 13px; background: #E8F3EE; color: #1E6B44; }
+.aet-msg.erro { background: #FBEAEA; color: #A32020; }
+.aet-corpo { flex: 1; display: flex; min-height: 0; }
+.aet-nav { width: 220px; flex-shrink: 0; overflow: auto; padding: 14px 10px; border-right: 1px solid var(--linha, #e5d8d8); display: flex; flex-direction: column; gap: 4px; background: var(--card, #fff); }
+.aet-nav a { padding: 7px 10px; border-radius: 8px; color: var(--texto-principal, #3d2e30); text-decoration: none; font-size: 13px; font-weight: 600; }
+.aet-nav a:hover { background: var(--fundo-suave, #f5efea); }
+.aet-area { flex: 1; overflow: auto; padding: 16px 20px 60px; }
+.aet-secao { background: var(--card, #fff); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; border: 1px solid var(--linha, #e5d8d8); }
+.aet-secao-titulo { margin: 0 0 10px; font-size: 15px; color: var(--vinho, #8B3A42); }
+.aet-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 14px; margin: 6px 0; }
+.aet-campo { display: flex; flex-direction: column; gap: 4px; }
+.aet-campo--largo { grid-column: 1 / -1; }
+.aet-rot { font-size: 11.5px; font-weight: 700; color: var(--texto-secundario, #8a7a78); text-transform: uppercase; letter-spacing: .02em; }
+.aet-campo input, .aet-campo select, .aet-campo textarea, .aet-tab input, .ferr-entradas select, .ferr-entradas input, .aet-ferr-add select, .aet-sugestao { padding: 8px 10px; border: 1px solid var(--linha, #e5d8d8); border-radius: 8px; background: var(--card, #fff); color: var(--texto-principal, #3d2e30); font: inherit; font-size: 13.5px; width: 100%; box-sizing: border-box; }
+.aet-campo textarea { resize: vertical; }
+.aet-nota { font-size: 12.5px; color: var(--texto-secundario, #8a7a78); margin: 4px 0 8px; line-height: 1.4; }
+.aet-subtitulo { font-weight: 800; font-size: 13px; color: var(--vinho, #8B3A42); margin: 12px 0 6px; }
+.aet-add { margin-top: 8px; }
+.aet-tab td { padding: 4px; }
+.aet-fotos { margin: 10px 0; }
+.aet-fotos-linha { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.aet-foto { position: relative; width: 170px; display: flex; flex-direction: column; gap: 4px; }
+.aet-foto img { width: 170px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid var(--linha, #e5d8d8); background: #eee; }
+.aet-foto input { font-size: 12px; padding: 4px 6px; border: 1px solid var(--linha, #e5d8d8); border-radius: 6px; }
+.aet-foto-x { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; border: none; background: rgba(0,0,0,.6); color: #fff; cursor: pointer; font-size: 16px; line-height: 1; }
+.aet-foto-add { width: 170px; height: 120px; border: 2px dashed var(--linha, #e5d8d8); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--vinho, #8B3A42); font-weight: 700; }
+.aet-foto-add input { display: none; }
+.aet-atividade { border: 1.5px solid var(--vinho, #8B3A42); border-radius: 12px; padding: 12px 14px; margin: 12px 0; background: #FFFCFA; }
+.aet-ativ-cab, .aet-fator-cab { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.aet-ativ-cab strong { color: var(--vinho, #8B3A42); font-size: 15px; }
+.aet-fator { border: 1px solid var(--linha, #e5d8d8); border-radius: 10px; padding: 10px 12px; margin: 10px 0; background: var(--card, #fff); }
+.aet-fator-cab strong { flex: 1; }
+.aet-grau-detalhe { font-size: 12.5px; color: var(--texto-secundario, #8a7a78); margin: 6px 0; }
+.aet-ferramentas { margin-top: 6px; }
+.aet-ferr-item { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 8px; border-radius: 8px; background: var(--fundo-suave, #f5efea); margin-bottom: 6px; font-size: 13px; }
+.aet-ferr-res { flex: 1; min-width: 200px; }
+.aet-ferr-exp { font-size: 11.5px; color: var(--teal, #3E7B7E); font-weight: 700; }
+.aet-ferr-add { max-width: 420px; }
+.aet-modal-fundo { position: fixed; inset: 0; background: rgba(30, 18, 20, .45); z-index: 4100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.aet-modal { background: var(--card, #fff); border-radius: 14px; width: 100%; max-width: 860px; max-height: 92vh; overflow: auto; padding: 18px 20px; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
+.aet-modal-titulo { font-weight: 800; font-size: 17px; color: var(--vinho, #8B3A42); }
+.aet-check { display: flex; gap: 8px; align-items: center; font-size: 13px; font-weight: 600; grid-column: 1 / -1; }
+.aet-ferr-resultado { background: var(--fundo-suave, #f5efea); border-radius: 10px; padding: 10px 12px; margin: 10px 0; font-size: 13px; display: flex; flex-direction: column; gap: 3px; }
+.ferr-form { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.ferr-titulo { font-weight: 800; color: var(--vinho, #8B3A42); margin-top: 8px; font-size: 13.5px; }
+.ferr-nota { font-size: 12px; color: var(--texto-secundario, #8a7a78); }
+.ferr-campo { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 8px; align-items: center; border-bottom: 1px dashed var(--linha, #e5d8d8); padding-bottom: 6px; font-size: 13px; }
+.ferr-campo--multi { grid-template-columns: 1fr; }
+.ferr-entradas { display: flex; gap: 6px; }
+.ferr-multi { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; }
+@media (max-width: 760px) { .aet-nav { display: none; } .aet-overlay { padding: 0; } .aet-editor { border-radius: 0; } .ferr-campo { grid-template-columns: 1fr; } }
+.aet-editor .btn-excluir, .aet-painel .btn-excluir { background: transparent; border: 1px solid var(--status-critical, #b3261e); color: var(--status-critical, #b3261e); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.aet-editor .btn-excluir:hover, .aet-painel .btn-excluir:hover { background: var(--status-critical, #b3261e); color: #fff; }
+
+/* V 1.35: filtro de origem no topo das abas Gestao de Riscos e Plano de Acao */
+.barra-origem-aba { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; padding: 10px 14px; background: var(--card, #fff); border: 1px solid var(--linha, #e5d8d8); border-radius: 12px; }
+.barra-origem-rotulo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-secundario, #8a7a78); margin-right: 4px; }
+.chip-origem { border: 1px solid var(--linha, #e5d8d8); background: var(--fundo-suave, #f5efea); color: var(--texto-principal, #3d2e30); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.chip-origem.ativa { background: var(--vinho, #8B3A42); border-color: var(--vinho, #8B3A42); color: #fff; }
+.barra-origem-nota { margin-left: auto; font-size: 11.5px; color: var(--texto-secundario, #8a7a78); }
+#aba-registro .barra-origem-aba { margin-bottom: 14px; }
+/* V 1.35: inventario na Gestao de Riscos */
+.inventario-controles { margin: 6px 0 8px; }
+.inventario-controles input { width: 100%; max-width: 360px; padding: 7px 10px; border: 1px solid var(--linha, #e5d8d8); border-radius: 8px; font: inherit; font-size: 13px; background: var(--card, #fff); color: inherit; }
+.inventario-scroll { max-height: 360px; overflow: auto; }
+table.tabela-dados#tabela-inventario { white-space: normal; }
+#tabela-inventario td { vertical-align: top; }
+#tabela-inventario tr.linha-clicavel { cursor: pointer; }
+#tabela-inventario tr.linha-clicavel:hover td { background: var(--fundo-suave, #f5efea); }
+.drilldown-secao { margin: 14px 0 6px; padding: 4px 10px; border-left: 5px solid var(--vinho, #8B3A42); font-weight: 700; font-size: 13.5px; }
+.drilldown-secao:first-child { margin-top: 0; }
+/* V 1.35: sub-abas de tela propria e importacao */
+.bloco-subaba { min-width: 0; }
+.importar-opcoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.importar-opcao { border: 1px solid var(--linha, #e5d8d8); border-radius: 12px; padding: 14px 16px; background: var(--fundo-suave, #faf6f3); display: flex; flex-direction: column; gap: 8px; }
+.importar-opcao p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--texto-secundario, #8a7a78); flex: 1; }
+.importar-opcao-titulo { font-weight: 700; font-size: 15px; }
+.cartao-explica { margin: 2px 0 6px; font-size: 12.5px; line-height: 1.45; color: var(--texto-secundario, #6E5C5C); }
+/* V 1.35: imagens de referencia das ferramentas (planilha FERRAMENTAS_ERGONOMIA_GERAL) */
+.ferr-campo--com-imgs { align-items: start; }
+.ferr-imgs { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px; }
+.ferr-imgs figure { margin: 0; width: 118px; border: 1px solid var(--linha, #e5d8d8); border-radius: 8px; background: #fff; padding: 4px; cursor: zoom-in; display: flex; flex-direction: column; align-items: center; }
+.ferr-imgs img { max-width: 100%; max-height: 92px; object-fit: contain; }
+.ferr-imgs figcaption { font-size: 10.5px; line-height: 1.25; text-align: center; color: #5a4a4a; margin-top: 3px; }
+.ferr-imgs figure.ampliada { width: 260px; cursor: zoom-out; }
+.ferr-imgs figure.ampliada img { max-height: 220px; }
+/* V 1.35: importar AET (Word/PDF) */
+.aet-import-arquivo { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; margin: 4px 0 8px; }
+.aet-import-arquivo input { display: none; }
+.aet-import-arquivo .btn-cad-primario { display: inline-block; }
+.aet-import-item { border: 1px solid var(--linha, #e5d8d8); border-radius: 12px; padding: 12px 14px; margin: 10px 0; background: var(--fundo-suave, #faf6f3); }
+.aet-import-novo { font-size: 11px; color: var(--teal, #3E7B7E); font-weight: 700; }
+.aet-import-det { margin: 6px 0 10px; font-size: 12.5px; }
+.aet-import-det summary { cursor: pointer; font-weight: 600; color: var(--vinho, #8B3A42); }
+.aet-import-det ul { margin: 6px 0 0 18px; padding: 0; }
+.aet-laudo-emissao .reav-barra { justify-content: flex-start; }
+.aet-editor-campo label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 700; font-size: 12.5px; margin-bottom: 4px; }
+.aet-editor-campo textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--linha, #e5d8d8); border-radius: 8px; }
+.aet-editor-campo { margin-bottom: 12px; }
+table.tabela-dados.tabela-secao { white-space: normal; }
+/* V 1.36: migracao do laudo da AEP do sistema anterior */
+.importar-opcao--laudo { grid-column: 1 / -1; }
+.importar-opcao--laudo .aet-import-conf { margin-top: 8px; }
+.laudo-antigo-nova td { background: #fff7e6 !important; }
+.laudo-antigo-log { font-size: 12px; color: var(--texto-secundario, #6E5C5C); margin-top: 6px; max-height: 200px; overflow: auto; }
+.laudo-antigo-aep { max-width: 320px; font: inherit; font-size: 12.5px; padding: 4px 6px; border: 1px solid var(--linha, #e5d8d8); border-radius: 6px; }
+
+/* V 1.37: recomendacoes padronizadas de acoes, ferramentas recomendadas e limpeza de empresas excluidas */
+.acoes-recomendadas { margin: 8px 0; }
+.acoes-rec-det { border: 1px solid var(--linha); border-radius: 10px; padding: 6px 10px; background: var(--creme); }
+.acoes-rec-det > summary { cursor: pointer; font-weight: 700; font-size: 13px; padding: 4px 0; }
+.acoes-rec-nota { font-size: 12px; color: var(--texto-secundario); margin: 4px 0 6px; }
+.acoes-rec-lista { display: flex; flex-direction: column; gap: 4px; }
+.acoes-rec-item { display: grid; grid-template-columns: 150px 1fr auto auto; gap: 8px; align-items: center; padding: 5px 6px; border-radius: 8px; background: var(--card); font-size: 12.5px; }
+.acoes-rec-item--fora { opacity: .7; }
+.acoes-rec-tipo { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 8px; text-align: center; background: #e9e2df; color: #4a3a3a; }
+.acoes-rec-tipo--eliminacao { background: #f3d6d6; color: #7a1f1f; }
+.acoes-rec-tipo--engenharia { background: #dbe7f5; color: #1f4a7a; }
+.acoes-rec-tipo--organizacional { background: #e3f0dc; color: #2f5a1f; }
+.acoes-rec-comp { font-size: 11px; color: var(--texto-secundario); white-space: nowrap; }
+.acoes-rec-usar { padding: 3px 10px !important; font-size: 12px !important; white-space: nowrap; }
+.acoes-rec-todas { margin-top: 6px; background: none; border: none; color: var(--vinho); text-decoration: underline; cursor: pointer; font-size: 12px; padding: 0; }
+@media (max-width: 720px) { .acoes-rec-item { grid-template-columns: 1fr auto; } .acoes-rec-tipo { justify-self: start; } .acoes-rec-texto { grid-column: 1 / -1; } }
+.aet-ferr-rec { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 8px; }
+.aet-ferr-rec .aet-nota { flex-basis: 100%; margin: 0; }
+.aet-ferr-chip { display: inline-block; border: 1px solid var(--vinho-suave); background: var(--card); color: inherit; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+span.aet-ferr-chip { cursor: default; margin: 2px 4px 2px 0; }
+.aet-ferr-chip--principal { border-color: var(--vinho); }
+.aet-ferr-chip--usada, .aet-ferr-chip:disabled { opacity: .65; cursor: default; }
+.checklist-ferr-rec { font-size: 12.5px; padding: 6px 0; }
+.checklist-ferr-rec-rot { font-weight: 600; color: var(--texto-secundario); margin-right: 4px; }
+.checklist-ferr-rec-obs { font-size: 12px; color: var(--texto-secundario); margin-top: 3px; }
+.orfaos-modal { max-width: 640px; }
+.orfaos-linha { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--linha); }
+.plano-limpar-resp { display: block; margin-top: 4px; padding: 0; border: none; background: none; color: var(--texto-secundario); cursor: pointer; font-size: 11.5px; text-decoration: underline; white-space: normal; text-align: left; max-width: 100%; }
+.plano-limpar-resp:hover { color: #b3261e; }
+
+/* V 1.38 */
+.sige-toast { position: fixed; right: 20px; bottom: 20px; z-index: 5000; max-width: 420px; background: var(--vinho-escuro); color: #fff; padding: 12px 16px; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.25); font-size: 14px; font-weight: 600; opacity: 0; transform: translateY(10px); transition: opacity .2s, transform .2s; pointer-events: none; }
+.sige-toast.visivel { opacity: 1; transform: none; }
+.aet-ferr-resultado--topo { position: sticky; top: -18px; z-index: 3; background: var(--card); border: 2px solid var(--vinho); border-radius: 10px; padding: 10px 12px; margin: 8px 0 12px; box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.aet-ferr-res-cab { display: flex; flex-direction: column; gap: 2px; font-size: 15px; }
+.aet-ferr-res-risco { margin-top: 6px; font-size: 13px; }
+.aet-ferr-memorial summary { cursor: pointer; font-size: 12.5px; margin-top: 6px; color: var(--vinho); font-weight: 600; }
+.aet-modo-risco { border: 1px solid var(--linha); border-radius: 10px; padding: 10px 12px; margin: 10px 0; background: var(--creme); }
+.aet-radio { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; cursor: pointer; font-size: 13.5px; }
+.aet-radio input { margin-top: 3px; }
+.aet-aviso-ferr { color: #8a4b00; }
+.campo-arquivo-add { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin-top: 6px; }
+.campo-arquivo-input-oculto { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.fotos-anon-fundo { z-index: 4000; }
+.fotos-anon { max-width: 1000px; }
+.fotos-anon-tela { display: block; max-width: 100%; max-height: 62vh; margin: 8px auto; cursor: crosshair; border-radius: 8px; touch-action: none; }
+.fotos-anon-modo { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.fotos-anon-cont { margin-left: auto; font-weight: 700; color: var(--vinho); }
+.acao-imagens { margin-top: 8px; }
+.acao-imagens > label { display: block; font-size: 12px; font-weight: 700; color: var(--texto); margin-bottom: 4px; }
+.aviso-servico-parcial { margin: 10px 0; padding: 10px 14px; border-radius: 10px; background: #fff4e0; border: 1px solid #f0c27a; color: #5a3b00; font-size: 13.5px; font-weight: 600; }
+:root[data-theme="dark"] .aviso-servico-parcial { background: #3a2a10; color: #ffd89a; border-color: #8a6420; }
+.campo-atualizar { border: 2px solid #d97706 !important; background: #fff7e6 !important; color: #8a4b00 !important; font-weight: 700; }
+:root[data-theme="dark"] .campo-atualizar { background: #3a2a10 !important; color: #ffd89a !important; }
+
+/* V 1.39: cobertura no topo da Gestão de Riscos */
+.cartao-cobertura .cobertura-conteudo { display: grid; grid-template-columns: minmax(220px, 1fr) 2fr; gap: 18px; align-items: center; }
+.cobertura-numeros { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.cobertura-numeros .tile-total { padding: 10px 12px; }
+.cobertura-chart { position: relative; height: 120px; }
+@media (max-width: 720px) { .cartao-cobertura .cobertura-conteudo { grid-template-columns: 1fr; } .cobertura-chart { height: 150px; } }
+
+/* V 1.40: modal "Gerar AET a partir da AEP" (selecao de fatores) */
+.aet-gerar-lista { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; max-height: 44vh; overflow: auto; }
+.aet-gerar-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 1px solid var(--linha, #e5d8d8); border-radius: 8px; cursor: pointer; }
+.aet-gerar-item:hover { background: var(--fundo, #f6f1ed); }
+.aet-gerar-item input { margin-top: 3px; }
+.aet-gerar-info { display: flex; flex-direction: column; gap: 2px; }
+.aet-gerar-meta { font-size: 12px; color: var(--texto-suave, #7a6a6c); }
+
+/* V 1.40: aba Coordenacao (so Administrador) */
+.sidebar-nav button.nav-so-admin { display: none; }
+body.perfil-admin .sidebar-nav button.nav-so-admin { display: flex; }
+.coord-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.coord-kpi { background: var(--card, #fff); border: 1px solid var(--linha, #e5d8d8); border-radius: 12px; padding: 14px 16px; }
+.coord-kpi .coord-kpi-valor { font-size: 24px; font-weight: 800; color: var(--vinho-escuro, #5a2a33); }
+.coord-kpi .coord-kpi-rot { font-size: 12.5px; color: var(--texto-suave, #7a6a6c); margin-top: 2px; }
+.coord-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+.coord-tabela th, .coord-tabela td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--linha, #e5d8d8); vertical-align: top; }
+.coord-tabela th { font-weight: 700; color: var(--texto-suave, #7a6a6c); background: var(--fundo, #f6f1ed); position: sticky; top: 0; }
+.coord-tabela td.num, .coord-tabela th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.coord-tabela tbody tr:hover { background: var(--fundo, #f6f1ed); }
+.coord-sub { font-size: 13px; color: var(--texto-suave, #7a6a6c); margin: 2px 0 10px; }
+.coord-tabela-wrap { overflow: auto; max-height: 60vh; }
+.coord-vazio { padding: 16px; color: var(--texto-suave, #7a6a6c); font-size: 13.5px; }
+
+/* ====================================================================
+   V 1.41 — grupos recolhíveis no Inventário (AEP) e telas mais largas/
+   legíveis (AEP, AET, Psicossocial): "primeiro o grupo, depois os fatores".
+   ==================================================================== */
+.checklist-grupo-toggle {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: var(--fundo, #f6f1ed); border: 1px solid var(--linha, #e5d8d8);
+  border-radius: 8px; padding: 9px 12px; margin: 10px 0 2px; cursor: pointer;
+  font: inherit; text-align: left; color: var(--vinho-escuro, #5a2a33); font-weight: 700;
+}
+.checklist-grupo-toggle:hover { background: #efe6e0; }
+.checklist-grupo-toggle.aberto { background: var(--card, #fff); }
+.checklist-grupo-seta { width: 14px; flex-shrink: 0; color: var(--vinho, #8B3A42); }
+.checklist-grupo-rot { flex: 1; }
+.checklist-grupo-contador { font-size: 12px; font-weight: 600; color: var(--teal, #2b7a78); }
+.checklist-grupo-corpo { padding: 2px 0 6px; }
+
+/* G: mais espaço e fontes um pouco menores nos editores densos */
+.aet-editor { max-width: 1480px; }
+.aet-overlay { padding: 10px; }
+.aet-area { padding: 16px 24px 64px; }
+.aet-grade { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 18px; }
+.aet-editor .aet-campo input, .aet-editor .aet-campo select, .aet-editor .aet-campo textarea { font-size: 13px; }
+.aet-rot { font-size: 12px; }
+.checklist-painel { width: min(980px, 96vw); }
+.checklist-fator-detalhes { font-size: 13px; }
+
+/* V 1.41: sub-abas da Coordenação */
+.coord-subnav { margin-bottom: 12px; }
+.coord-area { display: grid; gap: 14px; }
+.coord-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* V 1.41: importação unificada da AEP (planilha + laudo) */
+.importar-unificado { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 10px 0; }
+.importar-unificado-barra { margin: 6px 0 4px; }
+.importar-conf-area { margin-top: 8px; }
+.importar-conf-area:empty { display: none; }
+
+/* V 1.41: ações na lixeira de empresas */
+.lixeira-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
