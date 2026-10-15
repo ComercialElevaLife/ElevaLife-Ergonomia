@@ -2485,9 +2485,12 @@ body.perfil-admin .sidebar-nav button.nav-so-admin { display: flex; }
 .checklist-painel { width: min(980px, 96vw); }
 .checklist-fator-detalhes { font-size: 13px; }
 
-/* V 1.41: sub-abas da Coordenação */
-.coord-subnav { margin-bottom: 12px; }
-.coord-area { display: grid; gap: 14px; }
+/* V 1.41/1.42: sub-abas da Coordenação (dentro da grade de 12 colunas, precisam
+   ocupar a largura toda, senão caem numa coluna só e ficam espremidas). */
+#grade-coordenacao { align-content: start; }
+.coord-subnav { grid-column: 1 / -1; margin-bottom: 4px; }
+.coord-area { grid-column: 1 / -1; display: grid; gap: 14px; }
+.coord-area > .cartao { width: 100%; box-sizing: border-box; }
 .coord-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 
 /* V 1.41: importação unificada da AEP (planilha + laudo) */
