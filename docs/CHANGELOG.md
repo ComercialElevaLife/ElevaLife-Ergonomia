@@ -2,6 +2,22 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.43 — 15/10/2026
+
+Correção importante: o sistema deixou de depender de um CDN externo (cdnjs) para carregar.
+
+- **Bibliotecas hospedadas no próprio sistema (fim do erro “Chart.js não carregou”).** As bibliotecas que antes vinham do cdnjs.cloudflare.com (Chart.js e o plugin de rótulos, jsPDF, SheetJS/xlsx, pdf.js e o leitor de QR) passaram a ser servidas pelo próprio SIGE, em `vendor/libs/`. Em redes corporativas que bloqueiam o cdnjs, o sistema abria com o erro “A biblioteca Chart.js não carregou (script externo bloqueado ou indisponível)”. Agora o SIGE carrega normalmente mesmo com o cdnjs bloqueado (testado com o CDN e as fontes externas bloqueados). Vale para o painel principal e para o módulo de Riscos Psicossociais. O cache offline (service worker) também guarda essas bibliotecas.
+
+## V 1.42 — 15/10/2026
+
+Rodada de ajustes do Alexandre: importação da AEP só pelo PDF, Gestão de Absenteísmo (modelo + importação, plano de ação próprio, gráficos e análise crítica), ergonomista com acesso ao cadastro de empresa, e correções (Coordenação, admin, filtros, exemplo ElevaLife).
+
+- **Importar AEP — só o PDF.** O ergonomista envia apenas o laudo em PDF do sistema anterior. O SIGE lê tudo (dados do posto, fotos, fatores de risco e as recomendações) e transcreve para o novo sistema; depois abre a conferência (comparação posto a posto). As recomendações entram automaticamente: **eliminação vira ação de Engenharia** e **medidas administrativas/organizacionais viram Organizacional**. Saiu o passo da planilha Excel.
+- **Absenteísmo — modelo + importação por Excel** (vários atestados de uma vez, com modelo para baixar). O mesmo já existia em **HHT / Taxa de frequência** e **Restritos**. No cadastro de Absenteísmo saiu o campo Atividade e entraram **Nome** e **Matrícula** do colaborador. Todos respondem ao filtro.
+- **Gestão de Absenteísmo — aba reforçada:** gráfico **mês a mês de atestados e dias perdidos**; **Plano de Ação do Absenteísmo** próprio (coleção separada do Plano geral), com cadastro de ações por mês de referência e **gráfico de evolução (propostas × concluídas)**; e botão **“Gerar análise crítica”** que produz um documento (PDF + Word) cruzando o absenteísmo com os riscos ergonômicos por setor/posto e com as ações concluídas (Plano geral + Plano do Absenteísmo).
+- **Ergonomista (Consultor) no Cadastro Empresa:** agora cadastra e edita empresas (fica vinculado à empresa que criar); **só o Administrador exclui** empresas.
+- **Correções:** a aba **Coordenação** voltou a ocupar a largura toda e a sub-aba “Contabilidade de tempo” aparece corretamente; o **Administrador volta a ver todo o conteúdo** mesmo em empresas com poucos serviços (o bloqueio de “serviço não contratado” é só para o Cliente); a Coordenação **responde ao filtro** e volta ao limpar; o botão **“Criar empresa de exemplo (ElevaLife)”** agora cria também os **Riscos Psicossociais** (respostas nos GHEs) e o absenteísmo com os campos corretos.
+
 ## V 1.41 — 15/10/2026
 
 Rodada de ajustes pedida pelo Alexandre: importação da AEP numa opção só, lixeira de empresas, empresa de exemplo, papéis/serviços, Coordenação com sub-aba e telas mais legíveis.
