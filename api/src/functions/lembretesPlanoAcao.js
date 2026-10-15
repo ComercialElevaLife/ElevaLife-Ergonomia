@@ -515,6 +515,11 @@ async function tratar(request, context) {
   }
   try {
     const resumo = await executarLembretes(context);
+    // V 1.41: expurgo automático da lixeira de empresas (excluídas há mais de 30 dias).
+    try {
+      const { expurgarLixeiraVencida } = require("../shared/empresaExclusao");
+      resumo.lixeira = await expurgarLixeiraVencida(30, null, context);
+    } catch (e) { context.error("Falha no expurgo da lixeira", e); }
     return { status: 200, jsonBody: resumo };
   } catch (erro) {
     context.error("Falha ao executar lembretes do Plano de Acao", erro);

@@ -35,7 +35,7 @@ const { aplicarAuditoria } = require("../shared/auditoria");
 const { enviarEmail, modeloPlanoAcao, ESTAGIOS_PLANO_ACAO } = require("../shared/email");
 const { avaliarPlanoAcao, precisaNotificarAtribuicao, evidenciasValidas } = require("../shared/planoAcaoRegras");
 const { obterContainerCliente } = require("../shared/blob");
-const { excluirDadosEmpresa, empresasOrfas, empresasCadastradas } = require("../shared/empresaExclusao");
+const { excluirDadosEmpresa, empresasOrfas, empresasCadastradas, empresasNaLixeira } = require("../shared/empresaExclusao");
 const { fotosDaAcaoAET } = require("../shared/fotosAET");
 
 const NOME_APP = "S.I.G.E";
@@ -382,6 +382,17 @@ async function tratar(request, context) {
           const { resources } = await container.items.query({ query: `SELECT * FROM c WHERE ${campo} = @e`, parameters: [{ name: "@e", value: soEmpresa }] }).fetchAll();
           return { jsonBody: resources };
         }
+        // V 1.41: lixeira de empresas - ?lixeira=1 lista só as empresas excluídas
+        // (restauráveis); a lista normal esconde as da lixeira.
+        if (colecao === "cliente") {
+          const soLixeira = request.query && request.query.get ? request.query.get("lixeira") : null;
+          if (soLixeira) {
+            if (identidade.papel !== "Administrador") return { jsonBody: [] };
+            return { jsonBody: await empresasNaLixeira() };
+          }
+          const lista = await listarComFiltro(container, colecao, identidade);
+          return { jsonBody: (lista || []).filter((c) => !c.Excluida) };
+        }
         return { jsonBody: await listarComFiltro(container, colecao, identidade) };
       }
 
@@ -481,9 +492,20 @@ async function tratar(request, context) {
         if (colecao === "cliente" && identidade.papel !== "Administrador") {
           return { status: 403, jsonBody: { erro: "Só Administrador pode excluir uma empresa-cliente." } };
         }
-        // V 1.37: excluir a empresa-cliente apaga TODOS os dados dela (em lotes; enquanto faltar,
-        // responde 202 { restante: true } e o navegador repete; o cadastro sai por ultimo).
+        // V 1.41: excluir empresa manda para a LIXEIRA (soft delete) - restaurável.
+        // Os dados ficam, mas somem das telas (empresasCadastradas ignora as da lixeira).
+        // Só a exclusão DEFINITIVA (?definitivo=1 - botão "Excluir definitivamente"
+        // da lixeira ou o expurgo automático) apaga tudo de verdade.
         if (colecao === "cliente") {
+          const definitivo = request.query && request.query.get ? request.query.get("definitivo") : null;
+          if (!definitivo) {
+            const doc = Object.assign({}, existente, { Excluida: true, ExcluidaEm: new Date().toISOString(), ExcluidaPor: identidade.email });
+            const { resource } = await container.item(id, empresaIdDoDocumento(colecao, existente)).replace(doc);
+            cacheEmpresas = null;
+            return { status: 200, jsonBody: resource };
+          }
+          // V 1.37: exclusão definitiva - apaga TODOS os dados (em lotes; enquanto faltar,
+          // responde 202 { restante: true } e o navegador repete; o cadastro sai por último).
           for (const eid of Array.from(new Set([empresaIdDoDocumento(colecao, existente), existente.id].filter(Boolean)))) {
             const r = await excluirDadosEmpresa(eid, colecoesDaEmpresa(), context);
             if (r.restante) return { status: 202, jsonBody: r };
