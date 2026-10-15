@@ -2,6 +2,37 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.40 — 14/10/2026
+
+Melhorias pedidas pelo Alexandre: aba Coordenação (contabilidade de tempo), gráfico de cobertura no topo da Gestão de Riscos e geração de AET a partir da AEP.
+
+- **Nova aba Coordenação (só Administrador) — contabilidade de tempo (`js/tempo.js`, `js/coordenacao.js`, coleção `tempoTrabalho`).** Mede, por login, quanto tempo cada ergonomista levou para cadastrar cada entidade (empresa, colaboradores, setores, etc.) e para fazer as AEP/AET. São medidos **os dois**: o tempo **ativo** de edição (só conta com a tela visível, em foco e com interação nos últimos 60 s — não conta janela aberta e esquecida) e o **ciclo de vida** da AEP/AET, do início (primeira abertura) à finalização (último salvamento). Cada sessão de trabalho salva gera um registro em `tempoTrabalho` (por EmpresaId; só a equipe grava, nunca o UsuarioCliente). A aba mostra KPIs, uma tabela por login, uma por tipo de cadastro e o ciclo de vida de cada AEP/AET. A gravação do tempo é em segundo plano: se falhar, não afeta o trabalho do usuário. A aba e o item de menu só aparecem para o Administrador (`body.perfil-admin`).
+- **Gestão de Riscos — gráfico de cobertura no topo (`js/calc.js` `coberturaPorOrigem`, `js/app.js` `renderCoberturaPostos`).** Abaixo dos filtros, um cartão mostra quantos postos de trabalho estão cadastrados e quantos já foram avaliados (com os números e uma barra). Respeita o filtro de origem da aba: em AEP conta postos com AEP, em AET postos com AET, em "Todas" qualquer um dos dois; quando a origem é **Psicossocial**, troca para quantidade de **GHEs** cadastrados × avaliados.
+- **AEP → "Gerar AET" (`js/aet.js` `gerarDaAEP`, botão na lista de Avaliações).** Na aba Avaliações, cada AEP tem o botão "🛠 Gerar AET": o ergonomista escolhe quais fatores de risco do Inventário (origem AEP) vão para a AET e o sistema cria uma **AET nova** já preenchida com o que dá para aproveitar (posto, fator, consequência, segmento, fonte, severidade, probabilidade e graduação da AEP), numa atividade "Atividade 01". A AEP **não é alterada**. O editor abre com um aviso explicando que é uma AET gerada a partir da AEP, para o ergonomista completar o que falta (descrição da atividade, fotos, ferramentas) e salvar.
+
+## V 1.39 — 13/10/2026
+
+Revisão de segurança (pen test) e teste de estresse do sistema, mais o gráfico de cobertura (ver V 1.40 abaixo também). As seções datadas a seguir detalham as correções; entram oficialmente nesta versão.
+
+## Desempenho sob carga (teste de estresse) — 13/10/2026
+
+Teste de estresse (até ~500% de uma empresa já grande: 80 mil fatores de risco e 240 mil ações) revelou um ponto que travava o sistema em empresas muito grandes; corrigido.
+
+- **Plano de Ação por fator — O(fatores × ações) → índice (ALTA).** `BI.Acoes.acoesDoFator` (`js/acoes.js`) varria TODO o Plano de Ação a cada fator. Nas telas que chamam isso por fator (tabela do Inventário, geração dos laudos AEP/AET), com dezenas de milhares de fatores o tempo explodia (em teste, >2 min, travando). Agora um índice por "Fator Risco Id" é construído uma vez por coleção e reaproveitado: o mesmo cenário caiu de "travado" para <1 s (e o caso de 12 mil fatores, de ~3,1 s para ~0,2 s).
+- **Tamanho do corpo das requisições (robustez).** A API (`entidades.js` e `publicApi.js`) passou a recusar corpos acima de 1,9 MB com 413 (o Cosmos rejeita documentos acima de ~2 MB; antes virava um 500 confuso) e JSON malformado com 400 (antes 500). Os anexos continuam indo pelo upload de arquivos (Storage), não dentro do registro.
+- **Concorrência:** 800 gravações simultâneas e 1.000 requisições mistas passaram sem erro; os endpoints públicos sob rajada (500 chamadas) respeitam o limite de requisições sem vazar memória nem derrubar o serviço.
+
+## Correções de segurança (pen test) — 13/10/2026
+
+Correções aplicadas após a revisão de segurança (pen test caixa-branca) do código. Entram oficialmente na V 1.39.
+
+- **Endpoints públicos sem limite de requisições (ALTA).** `/api/psicopub/*` (telas do QR Code do HSE-IT) e `/api/verificar` ganharam limite de requisições por IP (`api/src/shared/rateLimit.js`). Na consulta de matrícula, a proteção conta as **tentativas que falham** (matrícula inexistente): um colaborador legítimo acerta a própria matrícula, quem tenta mapear a força de trabalho gera muitas falhas e é bloqueado — sem prejudicar vários colaboradores que respondem pela mesma rede/IP.
+- **Link de redefinição de senha via cabeçalho (MÉDIA).** `montarLink` (`api/src/functions/auth.js`) passou a montar o link de convite/redefinição a partir de `URL_PUBLICA` (ou do domínio oficial fixo `https://sige-ergo.elevalife.com.br` quando ela não está configurada); nunca mais a partir de `x-forwarded-host` (evita sequestro de conta por link forjado). Não exige configuração extra para o domínio oficial.
+- **API pública de escrita contornava as regras (MÉDIA).** `publicApi.js` (POST) agora passa pela mesma esteira da API interna: unicidade do código de laudo, Nr Avaliação atribuído pelo servidor, regras/evidência do Plano de Ação e auditoria; e remove campos internos (`_...`) enviados pelo cliente (fim da injeção de trilha de auditoria / dispensa de evidência).
+- **Injeção de HTML no corpo dos e-mails (BAIXA).** `email.js` escapa todos os campos armazenados nos modelos (`escHtml`). O e-mail dos Riscos Psicossociais já escapava.
+- **JWT sem algoritmo fixado (BAIXA).** `verificarSessao` fixa `algorithms: ["HS256"]`.
+- **Configuração / política (BAIXA).** `staticwebapp.config.json`: Content-Security-Policy completa (além de `frame-ancestors`), `X-Content-Type-Options: nosniff`, `Referrer-Policy`, e bloqueio dos arquivos de teste `data/seed_db*.json` (o `mock_data.json` continua acessível porque o app o usa para abrir antes do login). Política de senha de 8 a 72 caracteres.
+
 ## V 1.38 — 09/10/2026
 
 Rodada de ajustes após o teste de estresse: AET (ferramentas, cadastro, duplicação), fotos anonimizadas, revisão das ferramentas pela planilha, Plano de Ação e separação dos laudos AEP x AET.
