@@ -20,7 +20,7 @@
 
 "use strict";
 
-const VERSAO = "sige-v49";
+const VERSAO = "sige-v51";
 const CACHE_SITE = `${VERSAO}-site`;
 const CACHE_EXTERNO = `${VERSAO}-externo`;
 
@@ -56,7 +56,15 @@ const ARQUIVOS_BASE = [
   "/js/ferramentas-imagens.js",
   "/js/importador.js",
   "/js/coordenacao.js",
+  "/js/absenteismo-laudo.js",
   "/js/app.js",
+  "/vendor/libs/chart.umd.min.js",
+  "/vendor/libs/chartjs-plugin-datalabels.min.js",
+  "/vendor/libs/jspdf.umd.min.js",
+  "/vendor/libs/xlsx.full.min.js",
+  "/vendor/libs/pdf.min.js",
+  "/vendor/libs/pdf.worker.min.js",
+  "/vendor/libs/qrcode.min.js",
   "/img/logo-icone-branco.png",
   "/img/logo-icone-bordo.png",
   "/img/logo-elevalife.png",

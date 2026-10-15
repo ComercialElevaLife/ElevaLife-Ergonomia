@@ -308,11 +308,27 @@
   <section id="aba-medocup" hidden>
     <div class="grade">
 
+      <!-- V 1.42: cabeçalho da aba com o botão de análise crítica -->
+      <div class="cartao col-12 medocup-cab-cartao">
+        <div>
+          <div class="cartao-titulo">Gestão de Absenteísmo</div>
+          <div class="cartao-sub cartao-sub--dados">Atestados, dias perdidos, taxa de frequência e o plano de ação do absenteísmo.</div>
+        </div>
+        <button type="button" id="btn-analise-critica-absenteismo" class="btn-cad-primario">📑 Gerar análise crítica</button>
+      </div>
+
       <!-- 1. Cards de totais -->
       <div class="cartao col-12">
         <div class="cartao-titulo">Totais do período filtrado</div>
         <div class="cartao-sub">Colaboradores, dias perdidos e taxa de frequência (NBR 14280)</div>
         <div class="grade-totais" id="tiles-totais-medocup"></div>
+      </div>
+
+      <!-- V 1.42: evolução mês a mês - atestados e dias perdidos -->
+      <div class="cartao col-12">
+        <div class="cartao-titulo">Atestados e dias perdidos (mês a mês)</div>
+        <div class="cartao-sub">Quantidade de atestados e de dias perdidos por Ano/Mês (responde aos filtros)</div>
+        <div class="altura-chart alta"><canvas id="chart-absenteismo-mensal"></canvas></div>
       </div>
 
       <!-- 2. Evolucao da Taxa de Frequencia -->
@@ -345,6 +361,24 @@
           <div id="diagrama-medocup-costas"></div>
           <figcaption>Silhueta vista de costas; lado Direito da pessoa aparece a direita da imagem.</figcaption>
         </figure>
+      </div>
+
+      <!-- V 1.42: evolução das ações do plano do absenteísmo -->
+      <div class="cartao col-5">
+        <div class="cartao-titulo">Evolução das ações do absenteísmo</div>
+        <div class="cartao-sub">Ações propostas x concluídas por mês (plano de ação do absenteísmo)</div>
+        <div class="altura-chart alta"><canvas id="chart-acao-absenteismo"></canvas></div>
+      </div>
+
+      <!-- V 1.42: plano de ação específico do absenteísmo (separado do Plano geral) -->
+      <div class="cartao col-7" id="cartao-plano-absenteismo">
+        <div class="cadastro-cabecalho">
+          <div class="cartao-titulo">Plano de Ação do Absenteísmo</div>
+          <button type="button" id="btn-nova-acao-absenteismo" class="btn-novo-registro">+ Nova ação</button>
+        </div>
+        <div class="cartao-sub cartao-sub--dados">Ações do ergonomista para o absenteísmo do mês correspondente. Separado do Plano de Ação geral.</div>
+        <div id="form-acao-absenteismo"></div>
+        <div id="lista-acao-absenteismo" class="tabela-scroll"></div>
       </div>
 
     </div>
@@ -614,17 +648,17 @@
 
 <div class="tooltip-chart" id="tooltip-flutuante" style="display:none;"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="vendor/libs/chart.umd.min.js"></script>
+<script src="vendor/libs/chartjs-plugin-datalabels.min.js"></script>
+<script src="vendor/libs/jspdf.umd.min.js"></script>
+<script src="vendor/libs/xlsx.full.min.js"></script>
 <!-- pdf.js: usado so para extrair o TEXTO de um PDF de AET, pra classificacao
      por conteudo (ver js/app.js/extrairTextoPDF e js/calc.js/classificarTextoAET) -
      nunca pra exibir/renderizar o PDF. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="vendor/libs/pdf.min.js"></script>
 <script>
   if (window.pdfjsLib) {
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/libs/pdf.worker.min.js";
   }
 </script>
 <script src="js/rotulos.js"></script>
@@ -645,7 +679,7 @@
      relacao com a identidade visual dos 15 anos da ElevaLife. -->
 <script src="js/pdf-fonts.js"></script>
 <!-- V 1.3: QR Code do laudo (validacao em /verificar) e o gerador do laudo (AEP) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="vendor/libs/qrcode.min.js"></script>
 <script src="js/laudo-textos.js"></script>
 <script src="js/laudo-padrao.js"></script>
 <script src="js/laudo-docx.js"></script>
@@ -662,6 +696,7 @@
 <script src="js/aep-laudo-import.js"></script>
 <script src="js/importador.js"></script>
 <script src="js/coordenacao.js"></script>
+<script src="js/absenteismo-laudo.js"></script>
 <script src="js/app.js"></script>
 <script>
   // App instalável (PWA): registra o service worker (ver sw.js).
