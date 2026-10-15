@@ -78,6 +78,8 @@ const COLECOES = [
   // AET): tempo ativo de edicao + abertura/salvamento, por login. Por
   // EmpresaId; container criado sob demanda. So a equipe grava.
   "tempoTrabalho",
+  // V 1.42: plano de acao do Absenteismo (separado do Plano geral), por EmpresaId.
+  "acaoAbsenteismo",
 ];
 
 // Colecoes sem dono (nenhuma amarrada a uma empresa-cliente especifica) -
@@ -93,7 +95,7 @@ const EMPRESA_GLOBAL = "GLOBAL";
 // empresa e as 3 bibliotecas globais (assinatura/registro do ergonomista,
 // modelo de texto do laudo, certificados de calibracao) alimentam documentos
 // de todas as empresas - antes qualquer usuario-cliente podia altera-las.
-const COLECOES_SO_EQUIPE_GRAVA = ["laudo", "cliente", "ergonomista", "modeloLaudo", "certificadoCalibracao", "tempoTrabalho"];
+const COLECOES_SO_EQUIPE_GRAVA = ["laudo", "cliente", "ergonomista", "modeloLaudo", "certificadoCalibracao", "tempoTrabalho", "acaoAbsenteismo"];
 
 // "me" e "usuarios" sao despachadas aqui dentro (em vez de cada uma ter seu
 // proprio app.http()) porque em producao a rota generica "{colecao}/{id?}"
@@ -350,7 +352,7 @@ async function tratar(request, context) {
     };
   }
 
-  const container = ["configuracao", "ergonomista", "colaborador", "tempoTrabalho"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
+  const container = ["configuracao", "ergonomista", "colaborador", "tempoTrabalho", "acaoAbsenteismo"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
   const id = request.params.id;
   if (COLECOES_SO_ADMIN_GRAVA.includes(colecao) && request.method !== "GET" && identidade.papel !== "Administrador") {
     return { status: 403, jsonBody: { erro: "Só Administrador pode alterar as configurações do sistema." } };
@@ -399,8 +401,10 @@ async function tratar(request, context) {
       case "POST": {
         const parse = await lerCorpoJson(request); if (parse.erro) return parse.erro;
         const corpo = parse.corpo;
-        if (colecao === "cliente" && identidade.papel !== "Administrador") {
-          return { status: 403, jsonBody: { erro: "Só Administrador pode cadastrar uma nova empresa-cliente." } };
+        // V 1.42 (Alexandre): o ergonomista (Consultor) também cadastra empresas;
+        // só o Administrador exclui. UsuarioCliente nunca grava (já barrado acima).
+        if (colecao === "cliente" && !["Administrador", "Consultor"].includes(identidade.papel)) {
+          return { status: 403, jsonBody: { erro: "Sem permissão para cadastrar uma empresa-cliente." } };
         }
         const empresaId = colecao === "cliente"
           ? corpo.EmpresaId || crypto.randomUUID()
@@ -408,7 +412,11 @@ async function tratar(request, context) {
         if (!empresaId) {
           return { status: 400, jsonBody: { erro: "EmpresaId é obrigatório." } };
         }
-        if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerEmpresa(identidade, empresaId)) {
+        // A criação de empresa-cliente nova não passa pela checagem de vínculo
+        // (a empresa ainda não existe); o Consultor é vinculado à empresa logo
+        // abaixo, para poder continuar trabalhando nela.
+        const criandoClienteNovo = colecao === "cliente" && !(corpo.id && await lerPorId(container, corpo.id));
+        if (!COLECOES_GLOBAIS.includes(colecao) && !criandoClienteNovo && !podeVerEmpresa(identidade, empresaId)) {
           return { status: 403, jsonBody: { erro: "Sem permissão para gravar nesta empresa." } };
         }
         const novo = Object.assign({}, corpo, { id: corpo.id || crypto.randomUUID(), EmpresaId: empresaId });
@@ -440,7 +448,21 @@ async function tratar(request, context) {
           resource = await notificarPlanoAcao(context, jaExistia, resource, container, reenviarPsico);
           if (resource.Origem === "Riscos Psicossociais") resource = await notificarAcaoPsico(context, container, resource, reenviarPsico);
         }
-        if (colecao === "cliente") cacheEmpresas = null;
+        if (colecao === "cliente") {
+          cacheEmpresas = null;
+          // V 1.42: Consultor que cria uma empresa nova fica vinculado a ela (senão não a veria depois).
+          if (criandoClienteNovo && identidade.papel === "Consultor") {
+            try {
+              const cu = obterContainer("usuarios");
+              const { resources } = await cu.items.query({ query: "SELECT * FROM c WHERE LOWER(c.Email) = @email", parameters: [{ name: "@email", value: String(identidade.email || "").toLowerCase() }] }).fetchAll();
+              const u = resources && resources[0];
+              if (u) {
+                const vinc = Array.isArray(u.EmpresasVinculadas) ? u.EmpresasVinculadas.slice() : [];
+                if (!vinc.includes(resource.id)) { vinc.push(resource.id); await cu.item(u.id, u.id).replace(Object.assign({}, u, { EmpresasVinculadas: vinc })); }
+              }
+            } catch (e) { context.error("Falha ao vincular o Consultor à empresa nova", e); }
+          }
+        }
         return { status: 201, jsonBody: resource };
       }
 
