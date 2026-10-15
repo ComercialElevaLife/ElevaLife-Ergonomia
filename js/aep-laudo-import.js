@@ -196,22 +196,25 @@
     lb.appendChild(h("span", "btn-cad-primario", est.ocupado && !est.res ? "Lendo o laudo…" : "⬆ Escolher laudo (PDF)")); lb.appendChild(inp); el.appendChild(lb);
     if (est.arquivo) el.appendChild(h("div", "aet-nota", "Arquivo: " + est.arquivo.name));
     const msg = h("div", "aet-msg" + (est.erro ? " erro" : ""), est.msg); msg.hidden = !est.msg; el.appendChild(msg);
-    inp.addEventListener("change", async () => {
-      const f = inp.files && inp.files[0]; if (!f) return;
-      Object.assign(est, { arquivo: f, res: null, lido: null, erro: false, msg: "Lendo o laudo…", ocupado: true, log: [] }); montar(el);
-      try {
-        est.lido = await lerPdf(f, (p, n) => { const m = el.querySelector(".aet-msg"); if (m) { m.hidden = false; m.textContent = `Lendo o laudo… página ${p} de ${n}`; } });
-        est.res = interpretar(est.lido);
-        const nFot = est.res.postos.reduce((s, p) => s + p.imagens.length, 0); const nFat = est.res.postos.reduce((s, p) => s + p.fatores.length, 0);
-        est.msg = est.res.postos.length ? `${est.res.postos.length} posto(s), ${nFat} fator(es) de risco e ${nFot} foto(s) encontrados. Confira abaixo.` : "Nenhuma avaliação encontrada no laudo (seção “4. Avaliações ergonômicas preliminares”).";
-        est.erro = !est.res.postos.length;
-        const clientes = (BI.dados.cliente || []).map((c) => c.Cliente);
-        est.cliente = clientes.find((c) => norm(c) === norm(est.res.cliente)) || clientes.find((c) => est.res.cliente && (norm(c).includes(norm(est.res.cliente)) || norm(est.res.cliente).includes(norm(c)))) || ((BI.filtros && BI.filtros.Cliente && BI.filtros.Cliente.length === 1) ? BI.filtros.Cliente[0] : "");
-        est.unidade = ""; est.escolhas = {};
-      } catch (e) { console.error("laudo antigo", e); est.msg = "Não foi possível ler o laudo: " + (e && e.message ? e.message : e); est.erro = true; }
-      est.ocupado = false; montar(el);
-    });
+    inp.addEventListener("change", () => { const f = inp.files && inp.files[0]; if (f) processarArquivo(el, f); });
     if (est.res && est.res.postos.length) conferencia(el);
+  }
+
+  // V 1.41: lê e interpreta o PDF (usado pelo seletor de arquivo e pela importação
+  // unificada "planilha + laudo", que chama isto já com o arquivo e a empresa).
+  async function processarArquivo(el, f, clientePreferido) {
+    Object.assign(est, { arquivo: f, res: null, lido: null, erro: false, msg: "Lendo o laudo…", ocupado: true, log: [] }); montar(el);
+    try {
+      est.lido = await lerPdf(f, (p, n) => { const m = el.querySelector(".aet-msg"); if (m) { m.hidden = false; m.textContent = `Lendo o laudo… página ${p} de ${n}`; } });
+      est.res = interpretar(est.lido);
+      const nFot = est.res.postos.reduce((s, p) => s + p.imagens.length, 0); const nFat = est.res.postos.reduce((s, p) => s + p.fatores.length, 0);
+      est.msg = est.res.postos.length ? `${est.res.postos.length} posto(s), ${nFat} fator(es) de risco e ${nFot} foto(s) encontrados. Confira e compare abaixo.` : "Nenhuma avaliação encontrada no laudo (seção “4. Avaliações ergonômicas preliminares”).";
+      est.erro = !est.res.postos.length;
+      const clientes = (BI.dados.cliente || []).map((c) => c.Cliente);
+      est.cliente = (clientePreferido && clientes.find((c) => c === clientePreferido)) || clientes.find((c) => norm(c) === norm(est.res.cliente)) || clientes.find((c) => est.res.cliente && (norm(c).includes(norm(est.res.cliente)) || norm(est.res.cliente).includes(norm(c)))) || ((BI.filtros && BI.filtros.Cliente && BI.filtros.Cliente.length === 1) ? BI.filtros.Cliente[0] : "");
+      est.unidade = ""; est.escolhas = {};
+    } catch (e) { console.error("laudo antigo", e); est.msg = "Não foi possível ler o laudo: " + (e && e.message ? e.message : e); est.erro = true; }
+    est.ocupado = false; montar(el);
   }
 
   function aepsDoCliente(cli) { return (BI.dados.avaliacaoErgonomica || []).filter((a) => a.Cliente === cli); }
@@ -242,7 +245,13 @@
     const gr = h("div", "aet-grade"); card.appendChild(gr);
     const clientes = (BI.dados.cliente || []).map((c) => c.Cliente).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
     const lc = h("label", "aet-campo aet-campo--largo"); lc.appendChild(h("span", "aet-rot", `Empresa *${res.cliente ? " (no laudo: " + res.cliente + ")" : ""}`));
-    const sc = h("select"); [["", "Escolha…"]].concat(clientes.map((c) => [c, c])).forEach(([v, t]) => { const o = h("option", null, t); o.value = v; sc.appendChild(o); }); sc.value = est.cliente; sc.addEventListener("change", () => { est.cliente = sc.value; est.unidade = ""; montar(el); }); lc.appendChild(sc); gr.appendChild(lc);
+    const casaCli = clientes.find((c) => norm(c) === norm(res.cliente)) || clientes.find((c) => res.cliente && (norm(c).includes(norm(res.cliente)) || norm(res.cliente).includes(norm(c))));
+    const sc = h("select"); [["", "Escolha…"]].concat(clientes.map((c) => [c, c])).concat(res.cliente && !casaCli ? [["__nova", `Cadastrar nova empresa: ${res.cliente}`]] : []).forEach(([v, t]) => { const o = h("option", null, t); o.value = v; sc.appendChild(o); });
+    sc.value = est.cliente; sc.addEventListener("change", () => {
+      // V 1.41: criar empresa nova abre o Cadastro Empresa (dados + serviços); depois repete a importação.
+      if (sc.value === "__nova") { est.cliente = ""; if (BI.pedirCadastroEmpresa) BI.pedirCadastroEmpresa(res.cliente, {}); return; }
+      est.cliente = sc.value; est.unidade = ""; montar(el);
+    }); lc.appendChild(sc); gr.appendChild(lc);
     const unidades = Array.from(new Set((BI.dados.unidade || []).filter((u) => u.Cliente === est.cliente).map((u) => u.Unidade).concat((BI.dados.cargo || []).filter((c) => c.Cliente === est.cliente).map((c) => c.Unidade)).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
     if (!est.unidade) est.unidade = unidades.find((u) => res.unidade && (norm(u) === norm(res.unidade) || norm(u).includes(norm(res.unidade)) || norm(res.unidade).includes(norm(u)))) || (unidades.length === 1 ? unidades[0] : "") || res.unidade || "";
     const lu = h("label", "aet-campo"); lu.appendChild(h("span", "aet-rot", `Unidade *${res.unidade ? " (no laudo: " + res.unidade + ")" : ""}`)); const iu = h("input"); iu.type = "text"; iu.value = est.unidade; const dl = h("datalist"); dl.id = "dl-laudo-antigo-un"; unidades.forEach((u) => { const o = h("option"); o.value = u; dl.appendChild(o); }); iu.setAttribute("list", dl.id); iu.addEventListener("change", () => { est.unidade = iu.value.trim(); montar(el); }); lu.appendChild(iu); lu.appendChild(dl); gr.appendChild(lu);
@@ -365,5 +374,7 @@
     est.ocupado = false; montar(el);
   }
 
-  BI.AEPLaudoImport = { montar, lerPdf, interpretar };
+  // V 1.41: inicia a conferência/comparação já com um PDF em mãos (importação unificada).
+  function iniciarComArquivo(el, f, clientePreferido) { return processarArquivo(el, f, clientePreferido); }
+  BI.AEPLaudoImport = { montar, lerPdf, interpretar, iniciarComArquivo };
 })(window);

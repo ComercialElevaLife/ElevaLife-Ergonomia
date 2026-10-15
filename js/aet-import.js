@@ -349,7 +349,12 @@
     const gr = h("div", "aet-grade"); card.appendChild(gr);
     const lCli = h("label", "aet-campo aet-campo--largo"); lCli.appendChild(h("span", "aet-rot", "Empresa *" + (res.cliente ? ` (no arquivo: ${res.cliente}${res.cnpj ? " · CNPJ " + res.cnpj : ""})` : "")));
     const sCli = h("select"); [["", "Escolha…"]].concat(clientes.map((c) => [c, c])).concat(res.cliente && !casaCli ? [["__nova", `Cadastrar nova empresa: ${res.cliente}`]] : []).forEach(([v, t]) => { const o = h("option", null, t); o.value = v; sCli.appendChild(o); });
-    sCli.value = res._cliente; sCli.addEventListener("change", () => { res._cliente = sCli.value; el.innerHTML = ""; renderAba(el); }); lCli.appendChild(sCli); gr.appendChild(lCli);
+    // V 1.41: criar empresa nova abre o Cadastro Empresa (preencher dados e escolher o serviço);
+    // depois de salvar, o usuário volta a esta tela e a empresa já aparece na lista.
+    sCli.value = res._cliente; sCli.addEventListener("change", () => {
+      if (sCli.value === "__nova") { res._cliente = ""; if (BI.pedirCadastroEmpresa) BI.pedirCadastroEmpresa(res.cliente, res.cnpj ? { CNPJ: res.cnpj } : {}); return; }
+      res._cliente = sCli.value; el.innerHTML = ""; renderAba(el);
+    }); lCli.appendChild(sCli); gr.appendChild(lCli);
     const nomeCli = res._cliente === "__nova" ? res.cliente : res._cliente;
     const mz = nomeCli && res._cliente !== "__nova" ? C.matrizDoCliente(BI.dados.cliente || [], nomeCli) : (C.MATRIZ_PADRAO || "Matriz 5x5");
     if (res.avisos.length) { const av = h("div", "aet-msg"); av.textContent = "Atenção: " + Array.from(new Set(res.avisos)).slice(0, 6).join(" "); card.appendChild(av); }

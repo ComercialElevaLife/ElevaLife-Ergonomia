@@ -76,6 +76,15 @@
     return c;
   }
 
+  function ehAlexandre() {
+    const i = BI.DB && BI.DB.estado && BI.DB.estado.identidade;
+    return !!(i && String(i.email || "").toLowerCase() === "alexandre.berloffa@elevalife.com.br");
+  }
+
+  // Sub-abas da Coordenação (hoje só a Contabilidade de tempo; estrutura pronta p/ crescer).
+  let subAtiva = "tempo";
+  const SUBABAS = [{ chave: "tempo", rotulo: "Contabilidade de tempo", montar: renderContabilidade }];
+
   function render() {
     const grade = document.getElementById("grade-coordenacao");
     if (!grade) return;
@@ -87,6 +96,20 @@
       return;
     }
 
+    const nav = h("nav", "subnav-cadastro coord-subnav");
+    const area = h("div", "coord-area");
+    SUBABAS.forEach((s) => {
+      const b = h("button", "subnav-cadastro-item" + (s.chave === subAtiva ? " ativa" : ""), s.rotulo);
+      b.type = "button";
+      b.addEventListener("click", () => { subAtiva = s.chave; render(); });
+      nav.appendChild(b);
+    });
+    grade.appendChild(nav);
+    grade.appendChild(area);
+    (SUBABAS.find((s) => s.chave === subAtiva) || SUBABAS[0]).montar(area);
+  }
+
+  function renderContabilidade(grade) {
     const regs = registros();
 
     // ---- KPIs
@@ -110,7 +133,17 @@
     kg.appendChild(kpi(String(logins.length), "Logins (ergonomistas)"));
     kg.appendChild(kpi(fmtDur(totalAtivo), "Tempo ativo total"));
     kg.appendChild(kpi(fmtDur(regs.length ? totalAtivo / regs.length : 0), "Tempo ativo médio por sessão"));
-    kpis.appendChild(h("div", "cartao-titulo", "Coordenação — contabilidade de tempo"));
+    const cab = h("div", "coord-cab");
+    cab.appendChild(h("div", "cartao-titulo", "Contabilidade de tempo"));
+    // "Gerar tempos" - dados de exemplo para apresentação (só para o Alexandre).
+    if (ehAlexandre()) {
+      const bGerar = h("button", "btn-cad-secundario", "⏱ Gerar tempos (exemplo)");
+      bGerar.type = "button";
+      bGerar.title = "Cria registros de tempo de exemplo (apresentação). Visível só para você.";
+      bGerar.addEventListener("click", () => gerarTemposExemplo(bGerar));
+      cab.appendChild(bGerar);
+    }
+    kpis.appendChild(cab);
     kpis.appendChild(h("div", "coord-sub", "Tempo que cada ergonomista levou para cadastrar e avaliar. “Ativo” conta só enquanto a tela estava em uso; o ciclo de vida das AEP/AET mede do início (primeira abertura) à finalização (último salvamento)." + ((BI.filtros && BI.filtros.Cliente && BI.filtros.Cliente.length) ? " Filtrado por: " + BI.filtros.Cliente.join(", ") + "." : "")));
     kpis.appendChild(kg);
     grade.appendChild(kpis);
@@ -170,6 +203,95 @@
       { rot: "Tempo ativo", num: true, val: (c) => fmtDur(c.ativo) },
       { rot: "Sessões", num: true, val: (c) => String(c.nSess) },
     ], listaCiclos, "Nenhuma AEP/AET cronometrada ainda.")));
+  }
+
+  // ------------------------------------------------------------------ Gerar tempos de exemplo (apresentação)
+  // Só para alexandre.berloffa@elevalife.com.br. Cria registros em tempoTrabalho
+  // para uma empresa (a filtrada, ou a primeira cadastrada), com vários logins.
+  async function gerarTemposExemplo(botao) {
+    if (!ehAlexandre()) return;
+    const DB = BI.DB;
+    if (!DB || !DB.estado || !DB.estado.disponivel || DB.estado.somenteLeitura || !DB.estado.modoApi) {
+      window.alert("Banco indisponível nesta visualização — não dá para gerar tempos de exemplo agora.");
+      return;
+    }
+    const filtro = (BI.filtros && BI.filtros.Cliente) || [];
+    const clientes = BI.dados.cliente || [];
+    const alvo = (filtro.length && clientes.find((c) => c.Cliente === filtro[0])) || clientes[0];
+    if (!alvo) { window.alert("Cadastre (ou gere) uma empresa antes de gerar tempos de exemplo."); return; }
+    const EmpresaId = alvo.id || alvo._id;
+    const cliente = alvo.Cliente;
+    if (!window.confirm(`Gerar registros de tempo de EXEMPLO para a empresa “${cliente}”? (para apresentação)`)) return;
+
+    const ergs = (BI.dados.ergonomista || []).filter((e) => e.Email);
+    const logins = ergs.length ? ergs.slice(0, 3).map((e) => ({ email: e.Email, nome: e.Nome })) : [
+      { email: "felipe.alves@elevalife.com.br", nome: "Felipe Alves da Silva" },
+      { email: "alexandre.berloffa@elevalife.com.br", nome: "Alexandre Berloffa" },
+      { email: "mariana.costa@elevalife.com.br", nome: "Mariana Costa" },
+    ];
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const min = 60000, hora = 3600000, dia = 86400000;
+    const agora = Date.now();
+    const setores = ["Produção", "Expedição", "Administrativo", "Manutenção", "Montagem"];
+    const cargos = ["Operador", "Auxiliar", "Analista", "Montador", "Técnico"];
+    const tiposCad = [["cliente", "Empresa (cliente)"], ["unidade", "Unidade"], ["setor", "Setor / GHE"], ["colaborador", "Colaborador"], ["cargo", "Cargo"]];
+    const docs = [];
+    const novoDoc = (o) => {
+      const login = o.login;
+      docs.push(Object.assign({
+        Categoria: "Cadastro", Tipo: "", RefId: "", RefNome: "", Acao: "criar",
+        Por: login.email, PorNome: login.nome, AtivoMs: 0, AberturaEm: "", SalvoEm: "",
+        Cliente: cliente, Unidade: "", Setor: "", "Posto Trabalho": "", Cargo: "", EmpresaId,
+      }, o.d));
+    };
+    // cadastros
+    for (let i = 0; i < 8; i++) {
+      const login = logins[i % logins.length];
+      const [tipo, nome] = tiposCad[i % tiposCad.length];
+      const ativo = Math.round(rnd(1.5, 9) * min);
+      const ab = agora - Math.round(rnd(3, 25) * dia) - ativo - Math.round(rnd(0, 20) * min);
+      novoDoc({ login, d: { Tipo: tipo, RefId: "exemplo-" + tipo + "-" + i, RefNome: nome + " " + (i + 1), AtivoMs: ativo, AberturaEm: new Date(ab).toISOString(), SalvoEm: new Date(ab + ativo + Math.round(rnd(0, 20) * min)).toISOString() } });
+    }
+    // AEP: 3 postos, 2 sessões cada (ciclo de vida de dias)
+    for (let p = 0; p < 3; p++) {
+      const login = logins[p % logins.length];
+      const setor = setores[p % setores.length], cargo = cargos[p % cargos.length];
+      const refId = "exemplo-aep-" + p, refNome = `${setor} › Posto ${p + 1} › ${cargo}`;
+      let ab = agora - Math.round(rnd(10, 30) * dia);
+      for (let s = 0; s < 2; s++) {
+        const ativo = Math.round(rnd(12, 40) * min);
+        docs.push({ Categoria: "AEP", Tipo: "avaliacaoErgonomica", RefId: refId, RefNome: refNome, Acao: s === 0 ? "criar" : "editar", Por: login.email, PorNome: login.nome, AtivoMs: ativo, AberturaEm: new Date(ab).toISOString(), SalvoEm: new Date(ab + ativo + Math.round(rnd(0, 30) * min)).toISOString(), Cliente: cliente, Unidade: "Unidade 1", Setor: setor, "Posto Trabalho": "Posto " + (p + 1), Cargo: cargo, EmpresaId });
+        ab += Math.round(rnd(2, 6) * dia);
+      }
+    }
+    // AET: 2 postos, 3 sessões cada (ciclo de vida mais longo, tempo ativo em horas)
+    for (let p = 0; p < 2; p++) {
+      const login = logins[(p + 1) % logins.length];
+      const setor = setores[(p + 2) % setores.length], cargo = cargos[(p + 1) % cargos.length];
+      const refId = "exemplo-aet-" + p, refNome = `${setor} › Posto ${p + 1} › ${cargo}`;
+      let ab = agora - Math.round(rnd(20, 45) * dia);
+      for (let s = 0; s < 3; s++) {
+        const ativo = Math.round(rnd(25, 70) * min);
+        docs.push({ Categoria: "AET", Tipo: "aet", RefId: refId, RefNome: refNome, Acao: s === 0 ? "criar" : "editar", Por: login.email, PorNome: login.nome, AtivoMs: ativo, AberturaEm: new Date(ab).toISOString(), SalvoEm: new Date(ab + ativo + Math.round(rnd(0, 45) * min)).toISOString(), Cliente: cliente, Unidade: "Unidade 1", Setor: setor, "Posto Trabalho": "Posto " + (p + 1), Cargo: cargo, EmpresaId });
+        ab += Math.round(rnd(3, 9) * dia);
+      }
+    }
+
+    if (botao) { botao.disabled = true; botao.textContent = "Gerando…"; }
+    let n = 0;
+    try {
+      for (const d of docs) {
+        const id = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : "tmp" + Date.now() + Math.random().toString(36).slice(2, 8);
+        await DB.salvar("tempoTrabalho", id, d, true);
+        n++;
+      }
+      if (DB.recarregar) await DB.recarregar(["tempoTrabalho"]);
+      BI.dados.tempoTrabalho = DB.estado.colecoes.tempoTrabalho;
+      if (BI.avisar) BI.avisar(`${n} registros de tempo de exemplo gerados para ${cliente}.`);
+    } catch (e) {
+      console.error("gerarTempos", e); window.alert("Não foi possível gerar todos os tempos: " + (e && e.message ? e.message : e));
+    }
+    render();
   }
 
   BI.Coordenacao = { render };

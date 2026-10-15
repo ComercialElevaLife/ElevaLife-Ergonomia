@@ -378,6 +378,17 @@
 
   const HISTORICO = [
     {
+      versao: "1.41", data: "15/10/2026",
+      itens: [
+        "Importar AEP numa opção só: escolha a planilha (Excel) e o laudo (PDF) e clique em “Importar e comparar” — o SIGE importa a planilha e abre a conferência do laudo para comparar posto a posto.",
+        "Lixeira de empresas: excluir manda para a lixeira (restaurável). Em Cadastro Empresa › “Lixeira de empresas” dá para restaurar ou excluir definitivamente; empresas na lixeira há mais de 30 dias são apagadas automaticamente.",
+        "Papéis: Administrador vê tudo; Ergonomista (Consultor) vê só as empresas e serviços vinculados; Cliente vê as abas de serviço (com mensagem nas não contratadas). Gestão de Riscos e Plano de Ação ficam sempre disponíveis.",
+        "Ao criar empresa (no cadastro ou ao subir AET/AEP) abre o Cadastro Empresa para preencher os dados e escolher os serviços.",
+        "Fator de risco: primeiro o grupo, depois só os fatores daquele grupo (na AET “Outros” continua junto aos grupos). No Inventário os grupos abrem ao clicar.",
+        "Coordenação com sub-aba “Contabilidade de tempo”. AEP, AET e Psicossocial com telas um pouco mais largas e legíveis.",
+      ],
+    },
+    {
       versao: "1.40", data: "14/10/2026",
       itens: [
         "Nova aba Coordenação (só Administrador): contabilidade de tempo por login — quanto cada ergonomista levou para cadastrar cada entidade (empresa, colaboradores, etc.) e para fazer as AEP/AET. Mede o tempo ativo de edição e o ciclo de vida (do início à finalização).",

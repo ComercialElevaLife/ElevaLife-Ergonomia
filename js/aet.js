@@ -376,12 +376,25 @@
         tit.textContent = `Fator ${fi + 1}${fa.fator ? " · " + (fa.fator === "__outro" ? fa.outro || "outro" : fa.fator) : ""}`;
       };
       const g = grade(card);
-      // V 1.38: uma lista unica com todos os fatores (ISO/TS 20646); o grupo e preenchido automaticamente
+      // V 1.41: primeiro o GRUPO, depois só os fatores daquele grupo (grupo -> subdivisão).
+      // "Outros" fica junto aos grupos; dentro de cada grupo também há "Outro (digitar)".
       const grupos = C.GRUPOS_FATOR_RISCO || [];
       const grupoDe = (f) => grupos.find((g0) => (C.fatoresDoGrupo(g0) || []).includes(f)) || "";
-      const todos = [].concat(...grupos.map((g0) => C.fatoresDoGrupo(g0) || [])).sort((a, b) => a.localeCompare(b, "pt-BR"));
-      g.appendChild(campoSelect(fa, "fator", "Fator de risco (ISO/TS 20646) *", todos.map((x) => [x, x]).concat([["__outro", "Outro (digitar)"]]), (v0) => { fa.grupo = v0 === "__outro" ? "Outros" : grupoDe(v0); desenhar(); }, { largo: true }));
-      if (fa.fator === "__outro") g.appendChild(campoTexto(fa, "outro", "Qual fator? *", { aoMudar: pintar }));
+      if (fa.fator && fa.fator !== "__outro" && !fa.grupo) fa.grupo = grupoDe(fa.fator);
+      if (fa.fator === "__outro" && !fa.grupo) fa.grupo = "Outros";
+      g.appendChild(campoSelect(fa, "grupo", "Grupo do fator (ISO/TS 20646) *", grupos.concat(["Outros"]).map((x) => [x, x]), (gv) => {
+        if (gv === "Outros") fa.fator = "__outro";
+        else if (fa.fator === "__outro" || (fa.fator && grupoDe(fa.fator) !== gv)) { fa.fator = ""; fa.outro = ""; }
+        desenhar();
+      }, { largo: true }));
+      if (fa.grupo === "Outros") {
+        fa.fator = "__outro";
+        g.appendChild(campoTexto(fa, "outro", "Qual fator? *", { aoMudar: pintar }));
+      } else if (fa.grupo) {
+        const fsGrupo = C.fatoresDoGrupo(fa.grupo) || [];
+        g.appendChild(campoSelect(fa, "fator", "Fator de risco *", fsGrupo.map((x) => [x, x]).concat([["__outro", "Outro (digitar)"]]), () => desenhar(), { largo: true }));
+        if (fa.fator === "__outro") g.appendChild(campoTexto(fa, "outro", "Qual fator? *", { aoMudar: pintar }));
+      }
       const conseq = fa.fator && fa.fator !== "__outro" ? C.consequenciasDoFator(fa.fator) : [];
       const cC = campoTexto(fa, "consequencia", "Consequência (ex.: biomecânica – coluna lombar) *", { largo: true }); g.appendChild(cC);
       if (conseq.length && editar) { const s = h("select", "aet-sugestao"); const o0 = h("option", null, "Sugestões da lista padrão…"); o0.value = ""; s.appendChild(o0); conseq.forEach((c) => { const o = h("option", null, c); o.value = c; s.appendChild(o); }); s.addEventListener("change", () => { if (!s.value) return; const inp = cC.querySelector("input"); inp.value = inp.value ? inp.value + "; " + s.value : s.value; fa.consequencia = inp.value; s.value = ""; marcar(); }); cC.appendChild(s); }
@@ -648,7 +661,8 @@
     const conhecido = todos.includes(fr.Fator);
     return {
       uid: uid(),
-      grupo: fr.Grupo || (conhecido ? grupos.find((g0) => (C.fatoresDoGrupo(g0) || []).includes(fr.Fator)) : "Outros") || "Outros",
+      // V 1.41: fator desconhecido vai para o grupo "Outros" (abre o campo de texto no editor agrupado).
+      grupo: conhecido ? (grupos.find((g0) => (C.fatoresDoGrupo(g0) || []).includes(fr.Fator)) || fr.Grupo || "Outros") : "Outros",
       fator: conhecido ? fr.Fator : "__outro",
       outro: conhecido ? "" : (fr.Fator || ""),
       consequencia: fr.Consequencia || "",

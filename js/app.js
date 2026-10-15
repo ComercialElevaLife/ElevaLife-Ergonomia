@@ -3969,10 +3969,27 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const fatoresPorChave = (grupo, fator) => (window.BI.dados.fatorRisco || []).filter((f) => mesmoPostoAEP(f, linhaAval) && f.Grupo === grupo && f.Fator === fator);
 
     Calc.GRUPOS_FATOR_RISCO.forEach((grupo) => {
-      const tituloGrupo = document.createElement("div");
-      tituloGrupo.className = "checklist-grupo-titulo";
-      tituloGrupo.textContent = grupo;
+      // V 1.41: grupo recolhível - primeiro os grupos, clique abre só os fatores daquele grupo.
+      const tituloGrupo = document.createElement("button");
+      tituloGrupo.type = "button";
+      tituloGrupo.className = "checklist-grupo-titulo checklist-grupo-toggle";
+      const setaGrupo = document.createElement("span");
+      setaGrupo.className = "checklist-grupo-seta";
+      setaGrupo.textContent = "▸";
+      const rotGrupo = document.createElement("span");
+      rotGrupo.className = "checklist-grupo-rot";
+      rotGrupo.textContent = grupo;
+      const contGrupo = document.createElement("span");
+      contGrupo.className = "checklist-grupo-contador";
+      tituloGrupo.appendChild(setaGrupo);
+      tituloGrupo.appendChild(rotGrupo);
+      tituloGrupo.appendChild(contGrupo);
       corpo.appendChild(tituloGrupo);
+      const grupoCorpo = document.createElement("div");
+      grupoCorpo.className = "checklist-grupo-corpo";
+      corpo.appendChild(grupoCorpo);
+      let grupoMarcados = 0;
+      const atualizarContadorGrupo = () => { contGrupo.textContent = grupoMarcados ? grupoMarcados + " marcado(s)" : ""; };
 
       Calc.fatoresDoGrupo(grupo).forEach((fator) => {
         const existentes = fatoresPorChave(grupo, fator);
@@ -4009,7 +4026,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         btnRepetir.disabled = !podeEditar;
         detalhes.appendChild(btnRepetir);
         linha.appendChild(detalhes);
-        corpo.appendChild(linha);
+        grupoCorpo.appendChild(linha);
+        if (marcadoInicialmente) grupoMarcados++;
 
         const instancias = [];
         const ativasInst = () => instancias.filter((x) => !x.removida);
@@ -4145,10 +4163,24 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           detalhes.hidden = !checkbox.checked;
           if (checkbox.checked && !ativasInst().length) criarInstancia(null);
           atualizarContador();
+          grupoMarcados += checkbox.checked ? 1 : -1; if (grupoMarcados < 0) grupoMarcados = 0;
+          atualizarContadorGrupo();
         });
         btnRepetir.addEventListener("click", () => { const x = criarInstancia(null); atualizarContador(); if (x.caixa.scrollIntoView) x.caixa.scrollIntoView({ block: "center", behavior: "smooth" }); });
 
         linhasChecklist.push({ grupo, fator, linha, checkbox, existentes, existentesSim, instancias, ativasInst });
+      });
+      // Grupo começa recolhido; se já tem fator marcado, abre para o usuário ver.
+      atualizarContadorGrupo();
+      const abrirInicial = grupoMarcados > 0;
+      grupoCorpo.hidden = !abrirInicial;
+      tituloGrupo.classList.toggle("aberto", abrirInicial);
+      setaGrupo.textContent = abrirInicial ? "▾" : "▸";
+      tituloGrupo.addEventListener("click", () => {
+        const abrir = grupoCorpo.hidden;
+        grupoCorpo.hidden = !abrir;
+        tituloGrupo.classList.toggle("aberto", abrir);
+        setaGrupo.textContent = abrir ? "▾" : "▸";
       });
     });
 
@@ -5700,21 +5732,62 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   // V 1.35: sub-aba "Importar Excel" da AEP (avaliacoes e inventario do sistema anterior).
+  // V 1.41: importação da AEP antiga em UMA opção só - a pessoa escolhe a planilha
+  // (Excel, com as avaliações/inventário) e o laudo (PDF, com a análise). O SIGE
+  // importa a planilha e, em seguida, abre a conferência/comparação do laudo (liga
+  // cada posto à AEP, traz fotos/textos/fatores) para o ergonomista decidir. Pode
+  // demorar, mas fica o mais preciso possível.
+  const estImportAEP = { excel: null, pdf: null };
   function montarImportarAEP(el) {
     el.className = "cartao bloco-cadastro";
     const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
-    const cab = h("div", "cadastro-cabecalho"); cab.appendChild(h("div", "cartao-titulo", "Importar Excel")); el.appendChild(cab);
-    el.appendChild(h("p", "aet-ajuda", "Traga para o SIGE as avaliações e os inventários feitos em planilha ou exportados do sistema anterior. Antes de gravar, você confere tudo na prévia."));
-    const grade = h("div", "importar-opcoes"); el.appendChild(grade);
-    [["avaliacaoErgonomica", "📋 Avaliações (AEP)"], ["fatorRisco", "🧩 Inventário de riscos do sistema anterior"]].forEach(([chave, rot]) => {
-      const cfg = CADASTROS_CONFIG[chave]; if (!cfg || !cfg.importacao) return;
-      const c = h("div", "importar-opcao"); c.appendChild(h("div", "importar-opcao-titulo", rot));
-      c.appendChild(h("p", null, cfg.importacao.descricao || ""));
-      const b = h("button", "btn-cad-primario", "⬆ Escolher planilha"); b.type = "button"; b.addEventListener("click", () => abrirImportacao(chave)); c.appendChild(b);
-      grade.appendChild(c);
+    el.innerHTML = "";
+    const cab = h("div", "cadastro-cabecalho"); cab.appendChild(h("div", "cartao-titulo", "Importar AEP (planilha + laudo)")); el.appendChild(cab);
+    el.appendChild(h("p", "aet-ajuda", "Importe a AEP do sistema anterior de uma vez: escolha a planilha (Excel, com as avaliações e o inventário) e o laudo (PDF, com a análise). O SIGE importa a planilha e abre a conferência do laudo, comparando posto a posto para você confirmar o que entra. Pode levar um tempo — é feito com o máximo de precisão."));
+
+    const grade = h("div", "importar-unificado"); el.appendChild(grade);
+    const campoArquivo = (titulo, accept, chaveEst, ajuda) => {
+      const c = h("div", "importar-opcao");
+      c.appendChild(h("div", "importar-opcao-titulo", titulo));
+      if (ajuda) c.appendChild(h("p", null, ajuda));
+      const lb = h("label", "aet-import-arquivo");
+      const span = h("span", "btn-cad-secundario", "Escolher arquivo");
+      const inp = h("input"); inp.type = "file"; inp.accept = accept;
+      inp.addEventListener("change", () => { estImportAEP[chaveEst] = (inp.files && inp.files[0]) || null; nota.textContent = estImportAEP[chaveEst] ? "Arquivo: " + estImportAEP[chaveEst].name : "Nenhum arquivo escolhido."; });
+      lb.appendChild(span); lb.appendChild(inp); c.appendChild(lb);
+      const nota = h("div", "aet-nota", estImportAEP[chaveEst] ? "Arquivo: " + estImportAEP[chaveEst].name : "Nenhum arquivo escolhido.");
+      c.appendChild(nota);
+      return c;
+    };
+    grade.appendChild(campoArquivo("1) Planilha da AEP (Excel)", ".xlsx,.xls,.csv", "excel", "Avaliações e inventário de riscos do sistema anterior."));
+    grade.appendChild(campoArquivo("2) Laudo da AEP (PDF)", ".pdf,application/pdf", "pdf", "A análise em PDF — traz fotos, textos e fatores, e é comparada com a planilha."));
+
+    const barra = h("div", "importar-unificado-barra");
+    const b = h("button", "btn-cad-primario", "Importar e comparar"); b.type = "button";
+    barra.appendChild(b); el.appendChild(barra);
+
+    // área onde a conferência/comparação do laudo é renderizada
+    const areaConf = h("div", "importar-conf-area"); areaConf.id = "importar-aep-conf"; el.appendChild(areaConf);
+
+    b.addEventListener("click", () => {
+      if (!estImportAEP.excel && !estImportAEP.pdf) { window.alert("Escolha a planilha (Excel) e/ou o laudo (PDF) da AEP para importar."); return; }
+      const seguirPdf = () => {
+        if (estImportAEP.pdf && window.BI.AEPLaudoImport) {
+          const cliPref = (window.BI.filtros && window.BI.filtros.Cliente && window.BI.filtros.Cliente.length === 1) ? window.BI.filtros.Cliente[0] : "";
+          window.BI.AEPLaudoImport.iniciarComArquivo(areaConf, estImportAEP.pdf, cliPref);
+          if (areaConf.scrollIntoView) areaConf.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else if (!estImportAEP.pdf) {
+          areaConf.innerHTML = "";
+          areaConf.appendChild(h("div", "aet-msg", "Planilha importada. Para completar com fotos, textos e fatores e comparar posto a posto, envie também o laudo em PDF."));
+        }
+      };
+      if (estImportAEP.excel) {
+        // importa a planilha (prévia do Importador) e, ao concluir, abre a conferência do laudo
+        abrirImportacao("avaliacaoErgonomica", estImportAEP.excel, seguirPdf);
+      } else {
+        seguirPdf();
+      }
     });
-    // V 1.36: laudo da AEP do sistema anterior (PDF) - completa as AEPs da planilha com fotos, textos e fatores
-    if (window.BI.AEPLaudoImport) { const c = h("div", "importar-opcao importar-opcao--laudo"); grade.appendChild(c); window.BI.AEPLaudoImport.montar(c); }
   }
 
   function montarSubNavCadastro(grupo) {
@@ -5792,6 +5865,24 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       }
       // V 1.37: Administrador limpa os dados que sobraram de empresas excluidas antes desta versao.
       if (chave === "cliente") {
+        // V 1.41: lixeira de empresas (restaurar / excluir definitivamente)
+        const bLix = document.createElement("button");
+        bLix.type = "button"; bLix.className = "btn-cad-secundario"; bLix.id = "btn-lixeira-cliente";
+        bLix.textContent = "🗑 Lixeira de empresas";
+        bLix.title = "Empresas excluídas (restauráveis). Apagadas de vez automaticamente após 30 dias.";
+        bLix.hidden = !ehAdministradorAtual();
+        bLix.addEventListener("click", abrirLixeira);
+        cab.appendChild(bLix);
+        // V 1.41: botão de empresa de exemplo (ElevaLife) - só para o Alexandre (apresentação).
+        // Sempre criado (a identidade ainda não carregou no montarCadastros); a
+        // visibilidade é ajustada em renderizarListaCadastro, após o login.
+        const bEx = document.createElement("button");
+        bEx.type = "button"; bEx.className = "btn-cad-secundario"; bEx.id = "btn-exemplo-elevalife";
+        bEx.textContent = "✨ Criar empresa de exemplo (ElevaLife)";
+        bEx.title = "Cria a empresa ElevaLife com AEP, AET, Psicossocial, riscos e plano de ação para apresentação. Visível só para você.";
+        bEx.hidden = !ehUsuarioAlexandre();
+        bEx.addEventListener("click", () => criarEmpresaExemploElevaLife(bEx));
+        cab.appendChild(bEx);
         const bOrf = document.createElement("button");
         bOrf.type = "button"; bOrf.className = "btn-cad-secundario"; bOrf.id = "btn-orfaos-cliente";
         bOrf.textContent = "🧹 Dados de empresas excluídas";
@@ -5984,7 +6075,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     XLSX.writeFile(wb, `sige-${chave}-${hoje.toISOString().slice(0, 10)}.xlsx`);
   }
 
-  function abrirImportacao(chave, inicial) {
+  function abrirImportacao(chave, inicial, aoConcluir) {
     if (ehUsuarioCliente()) return;
     const cfg = CADASTROS_CONFIG[chave];
     if (!cfg || !cfg.importacao) return;
@@ -6056,6 +6147,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         const base = fundo ? linhasCadastroMestre(fundo).slice(0, 2) : [{}];
         return base.map((l) => Object.assign({}, l, imp.exemplo || {}));
       },
+      // V 1.41: callback ao concluir a importação (usado para encadear planilha -> laudo na importação unificada da AEP)
+      aoConcluir: typeof aoConcluir === "function" ? aoConcluir : undefined,
     };
     window.BI.Importador.abrir(def, ctx, inicial);
   }
@@ -6471,6 +6564,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function ehAdministradorAtual() { const i = window.BI.DB && window.BI.DB.estado.identidade; return !!(i && i.papel === "Administrador"); }
+  // V 1.41: ferramentas de apresentação (empresa de exemplo) só para o Alexandre.
+  function ehUsuarioAlexandre() { const i = window.BI.DB && window.BI.DB.estado.identidade; return !!(i && String(i.email || "").toLowerCase() === "alexandre.berloffa@elevalife.com.br"); }
   // V 1.37: dados de empresas excluidas (antes da exclusao completa) - lista e apaga, so Administrador.
   async function abrirLimpezaOrfaos() {
     if (!ehAdministradorAtual()) return;
@@ -6520,6 +6615,181 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     await listar();
   }
 
+  // V 1.41: Lixeira de empresas - excluídas mas restauráveis; expurgo automático após 30 dias.
+  async function abrirLixeira() {
+    if (!ehAdministradorAtual()) return;
+    const fundo = document.createElement("div"); fundo.className = "aet-modal-fundo";
+    const cx = document.createElement("div"); cx.className = "aet-modal orfaos-modal"; fundo.appendChild(cx);
+    const tit = document.createElement("div"); tit.className = "aet-modal-titulo"; tit.textContent = "Lixeira de empresas"; cx.appendChild(tit);
+    const corpo = document.createElement("div"); corpo.textContent = "Carregando a lixeira…"; cx.appendChild(corpo);
+    const barra = document.createElement("div"); barra.className = "reav-barra";
+    const bF = document.createElement("button"); bF.type = "button"; bF.className = "btn-cad-secundario"; bF.textContent = "Fechar";
+    barra.appendChild(bF); cx.appendChild(barra); document.body.appendChild(fundo);
+    let mudou = false;
+    const PRAZO = 30;
+    async function listar() {
+      corpo.innerHTML = "";
+      let lista;
+      try {
+        const r = await fetch("/api/cliente?lixeira=1", { credentials: "same-origin" });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erro || "Falha (" + r.status + ")");
+        lista = await r.json();
+      } catch (e) { corpo.textContent = "Não foi possível carregar a lixeira: " + (e && e.message ? e.message : e); return; }
+      if (!lista.length) { corpo.textContent = "A lixeira está vazia. Empresas excluídas aparecem aqui e podem ser restauradas por até 30 dias."; return; }
+      const p = document.createElement("p"); p.className = "aet-nota"; p.textContent = "Empresas excluídas. Os dados ficam guardados e podem ser restaurados. Após 30 dias na lixeira, a empresa é apagada definitivamente de forma automática."; corpo.appendChild(p);
+      lista.forEach((e) => {
+        const l = document.createElement("div"); l.className = "orfaos-linha";
+        const t = document.createElement("div");
+        const b = document.createElement("strong"); b.textContent = e.Cliente || "(empresa sem nome)"; t.appendChild(b);
+        const d = document.createElement("div"); d.className = "aet-nota";
+        const dias = e.ExcluidaEm ? Math.max(0, PRAZO - Math.floor((Date.now() - new Date(e.ExcluidaEm).getTime()) / 86400000)) : PRAZO;
+        d.textContent = `Excluída em ${e.ExcluidaEm ? formatarDataBR(e.ExcluidaEm.slice(0, 10)) : "—"}${e.ExcluidaPor ? " por " + e.ExcluidaPor : ""} · apaga de vez em ${dias} dia(s)`;
+        t.appendChild(d); l.appendChild(t);
+        const acoes = document.createElement("div"); acoes.className = "lixeira-acoes";
+        const bR = document.createElement("button"); bR.type = "button"; bR.className = "btn-cad-secundario"; bR.textContent = "↩ Restaurar";
+        bR.addEventListener("click", async () => {
+          bR.disabled = true; bR.textContent = "Restaurando…";
+          try {
+            const r = await fetch("/api/cliente/" + encodeURIComponent(e.id), { method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({}, e, { Excluida: false, ExcluidaEm: null, ExcluidaPor: null })) });
+            if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erro || "Falha (" + r.status + ")");
+            mudou = true; await listar();
+          } catch (err) { bR.disabled = false; bR.textContent = "↩ Restaurar"; window.alert("Não foi possível restaurar: " + (err && err.message ? err.message : err)); }
+        });
+        const bX = document.createElement("button"); bX.type = "button"; bX.className = "btn-excluir"; bX.textContent = "Excluir definitivamente";
+        bX.addEventListener("click", async () => {
+          if (!window.confirm(`Apagar DEFINITIVAMENTE a empresa “${e.Cliente || e.id}” e TODOS os seus dados? Esta ação não pode ser desfeita.`)) return;
+          bX.disabled = true; bX.textContent = "Apagando…";
+          try {
+            for (let i = 0; i < 200; i++) {
+              const r = await fetch("/api/cliente/" + encodeURIComponent(e.id) + "?definitivo=1", { method: "DELETE", credentials: "same-origin" });
+              if (r.status === 202) continue;
+              if (!r.ok && r.status !== 204) throw new Error((await r.json().catch(() => ({}))).erro || "Falha (" + r.status + ")");
+              break;
+            }
+            mudou = true; await listar();
+          } catch (err) { bX.disabled = false; bX.textContent = "Excluir definitivamente"; window.alert("Não foi possível apagar: " + (err && err.message ? err.message : err)); }
+        });
+        acoes.appendChild(bR); acoes.appendChild(bX); l.appendChild(acoes); corpo.appendChild(l);
+      });
+    }
+    bF.addEventListener("click", () => { fundo.remove(); if (mudou && window.BI.DB.recarregarTudo) window.BI.DB.recarregarTudo(); });
+    await listar();
+  }
+
+  // V 1.41: empresa ElevaLife de EXEMPLO (apresentação) - só para o Alexandre.
+  // Cria tudo pela própria API (no navegador): cadastro, colaboradores, AEP com
+  // inventário, AET, Plano de Ação, absenteísmo, restritos e Riscos Psicossociais.
+  async function criarEmpresaExemploElevaLife(botao) {
+    if (!ehUsuarioAlexandre()) return;
+    if (!window.BI.DB.estado.disponivel || window.BI.DB.estado.somenteLeitura) { window.alert("Banco indisponível nesta visualização."); return; }
+    if (!window.confirm("Criar a empresa ElevaLife de EXEMPLO (com AEP, AET, Psicossocial, riscos e plano de ação)? Serve para apresentação.")) return;
+    const Calc = window.BI.Calc;
+    const api = async (method, path, body) => {
+      const r = await fetch("/api" + path, { method, credentials: "same-origin", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
+      const t = await r.text(); let d; try { d = JSON.parse(t); } catch (e) { d = t; }
+      if (!r.ok) throw new Error((d && d.erro) || ("Falha " + r.status + " em " + path));
+      return d;
+    };
+    const setBtn = (t) => { if (botao) { botao.disabled = true; botao.textContent = t; } };
+    const mz = "Matriz 5x5"; const esc = Calc.escalaDaMatriz(mz);
+    const [MB, BX, ME, AL, MA] = esc; // Muito Baixa, Baixa, Media, Alta, Muito Alta
+    const grad = (prob, crit) => Calc.nivelDaMatriz(mz, prob, crit);
+    const pont = (prob, crit) => Calc.pontuacaoDaMatriz(mz, prob, crit);
+    const cid = "exemplo-elevalife";
+    const CLI = "ElevaLife (Exemplo)";
+    const hoje = new Date().toISOString().slice(0, 10);
+    const diasAtras = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+    try {
+      setBtn("Criando empresa…");
+      await api("POST", "/cliente", { id: cid, EmpresaId: cid, Cliente: CLI, "Matriz Risco": mz, Servicos: ["aep", "aet", "psicossocial", "ergo", "registro", "medocup", "compativeis"], CNPJ: "12.345.678/0001-90", Cidade: "Florianópolis", Estado: "SC", Logradouro: "Av. Exemplo", Numero: "1000", CNAE: "8299-7/99", "Grau Risco NR4": "2" });
+      const base = { EmpresaId: cid, Cliente: CLI };
+      // hierarquia
+      const unidades = ["Unidade Matriz", "Unidade Filial"];
+      for (const u of unidades) await api("POST", "/unidade", Object.assign({ id: "ex-un-" + slugLocal(u), Unidade: u }, base));
+      const setores = [["Unidade Matriz", "Produção", "Setor"], ["Unidade Matriz", "Administrativo", "Setor"], ["Unidade Matriz", "Linha de Montagem", "GHE"], ["Unidade Filial", "Expedição", "GHE"]];
+      for (const [u, s, t] of setores) await api("POST", "/setor", Object.assign({ id: "ex-se-" + slugLocal(u + s), Unidade: u, Setor: s, "Tipo Setor": t }, base));
+      const postos = [["Unidade Matriz", "Produção", "Prensa", "Operador de Prensa"], ["Unidade Matriz", "Administrativo", "Estação de Trabalho", "Analista Administrativo"], ["Unidade Matriz", "Linha de Montagem", "Bancada", "Montador"], ["Unidade Filial", "Expedição", "Doca", "Auxiliar de Expedição"]];
+      for (const [u, s, p, cg] of postos) await api("POST", "/cargo", Object.assign({ id: "ex-cg-" + slugLocal(u + s + p + cg), Unidade: u, Setor: s, "Posto Trabalho": p, Cargo: cg }, base));
+
+      setBtn("Colaboradores…");
+      let m = 1000;
+      for (const [u, s] of setores.map((x) => [x[0], x[1]])) for (let i = 0; i < 4; i++) { m++; await api("POST", "/colaborador", Object.assign({ id: "ex-col-" + m, Unidade: u, Setor: s, Matricula: String(m), Nome: "Colaborador Exemplo " + m }, base)); }
+
+      setBtn("AEP e inventário…");
+      // AEP em 2 postos, com inventário de riscos (fatorRisco origem AEP)
+      const postosAEP = [postos[0], postos[2]];
+      let nr = 0;
+      const invAEP = [
+        { Grupo: "Posturas e movimentos", Fator: "Movimentos repetitivos dos membros superiores", seg: "Punho", crit: AL, prob: AL, cons: "Biomecânica – punho/mão", fonte: "Operação repetitiva na prensa" },
+        { Grupo: "Levantamento e transporte de carga", Fator: "Levantamento manual de carga", seg: "Lombar", crit: ME, prob: ME, cons: "Biomecânica – coluna lombar", fonte: "Movimentação de peças" },
+        { Grupo: "Fatores físicos do ambiente", Fator: "Ruído", seg: "Corpo Todo", crit: BX, prob: AL, cons: "Auditivo", fonte: "Máquinas em operação" },
+      ];
+      for (const [u, s, p, cg] of postosAEP) {
+        nr++;
+        await api("POST", "/avaliacaoErgonomica", Object.assign({ id: "ex-aep-" + nr, Unidade: u, Setor: s, "Posto Trabalho": p, Cargo: cg, "Nr Avaliacao": nr, "Data Avaliacao": diasAtras(20), "Jornada de Trabalho": "08h/dia", Pausas: "2 pausas de 10 min", Rodizio: "Sim", "Descricao Atividade Observada": "Atividade de exemplo para apresentação." }, base));
+        for (let k = 0; k < invAEP.length; k++) {
+          const f = invAEP[k];
+          await api("POST", "/fatorRisco", Object.assign({ id: `ex-aepfr-${nr}-${k}`, Unidade: u, Setor: s, "Posto Trabalho": p, Cargo: cg, Origem: "AEP", Grupo: f.Grupo, Fator: f.Fator, "Existe Fator Risco": "Sim", Consequencia: f.cons, "Circunstancia Geradora": f.fonte, "Segmento Corporal": f.seg, Criticidade: f.crit, Probabilidade: f.prob, "Graduacao Risco": grad(f.prob, f.crit), "Graduacao Inicial": grad(f.prob, f.crit), "Pontuacao Risco": pont(f.prob, f.crit), Matriz: mz, Status: "Em andamento", "Dt Identificacao": diasAtras(20) }, base));
+        }
+      }
+
+      setBtn("AET…");
+      // AET em 1 posto, com 1 atividade e 2 fatores (+ inventário origem AET)
+      const aetPosto = postos[2]; const aetId = "ex-aet-1";
+      const fatAET = [
+        { uid: "exf1", grupo: "Posturas e movimentos", fator: "Postura inadequada", outro: "", consequencia: "Biomecânica – coluna", segmento: "Lombar", fonte: "Flexão de tronco", ferramentas: [], exposicao: "3", severidade: AL },
+        { uid: "exf2", grupo: "Força", fator: "__outro", outro: "Uso de força manual excessiva", consequencia: "Biomecânica – ombro", segmento: "Ombro", fonte: "Aperto manual", ferramentas: [], exposicao: "2", severidade: ME },
+      ];
+      await api("POST", "/aet", Object.assign({ id: aetId, "Tipo Registro": "AET", Unidade: aetPosto[0], Setor: aetPosto[1], "Posto Trabalho": aetPosto[2], Cargo: aetPosto[3], "Data Analise": diasAtras(10), "Nr AET": 1, Ergonomista: "Alexandre Berloffa", Demandas: {}, Medicoes: [], Ciclos: [], Cargas: [], "Foto Geral": [], Atividades: [{ uid: "exat1", nome: "Atividade 01", descricao: "Montagem de componentes.", fotos: [], recomendacoes: "", fatores: fatAET }] }, base));
+      for (let k = 0; k < fatAET.length; k++) {
+        const fa = fatAET[k]; const nome = fa.fator === "__outro" ? fa.outro : fa.fator; const prob = esc[Number(fa.exposicao)] || ME;
+        await api("POST", "/fatorRisco", Object.assign({ id: `ex-aetfr-${k}`, Unidade: aetPosto[0], Setor: aetPosto[1], "Posto Trabalho": aetPosto[2], Cargo: aetPosto[3], Atividade: "Atividade 01", Origem: "AET", "AET Id": aetId, "AET Fator": fa.uid, Grupo: fa.grupo === "__outro" ? "Outros" : fa.grupo, Fator: nome, "Existe Fator Risco": "Sim", Consequencia: fa.consequencia, "Circunstancia Geradora": fa.fonte, "Segmento Corporal": fa.segmento, Criticidade: fa.severidade, Probabilidade: prob, "Graduacao Risco": grad(prob, fa.severidade), "Graduacao Inicial": grad(prob, fa.severidade), "Pontuacao Risco": pont(prob, fa.severidade), Matriz: mz, Status: "Em andamento", "Dt Identificacao": diasAtras(10) }, base));
+      }
+
+      setBtn("Plano de ação…");
+      const acoes = [
+        { Origem: "AEP", "Fator Risco Id": "ex-aepfr-1-0", "Fator Risco Nome": "Movimentos repetitivos dos membros superiores", "Acao Recomendada": "Implantar rodízio e pausas ativas na prensa", "Tipo Acao": "Organizacional", "Status Execucao": "Em andamento", "Dt Programada": diasAtras(-15), Setor: "Produção", "Posto Trabalho": "Prensa" },
+        { Origem: "AEP", "Fator Risco Id": "ex-aepfr-1-1", "Fator Risco Nome": "Levantamento manual de carga", "Acao Recomendada": "Disponibilizar dispositivo de elevação", "Tipo Acao": "Engenharia", "Status Execucao": "Nao iniciada", "Dt Programada": diasAtras(-30), Setor: "Produção", "Posto Trabalho": "Prensa" },
+        { Origem: "AET", "Fator Risco Id": "ex-aetfr-0", "Fator Risco Nome": "Postura inadequada", "Acao Recomendada": "Ajustar altura da bancada", "Tipo Acao": "Engenharia", "Status Execucao": "Concluida", "Dt Programada": diasAtras(5), "Dt Conclusao": diasAtras(2), "Justificativa Sem Evidencia": "Ação concluída em campo; evidência fotográfica a anexar (registro de exemplo).", "Prazo Evidencia": diasAtras(-10), Setor: "Linha de Montagem", "Posto Trabalho": "Bancada" },
+      ];
+      for (let k = 0; k < acoes.length; k++) await api("POST", "/planoAcao", Object.assign({ id: "ex-ac-" + k, "Nr Acao": k + 1, "Gestao Acao": "ElevaLife", "Reduz Risco": "Nao" }, base, acoes[k]));
+
+      setBtn("Absenteísmo e restritos…");
+      await api("POST", "/diasUteis", Object.assign({ id: "ex-du-1", Mes: hoje.slice(0, 7), "Dias Uteis": 22, HHT: 35200 }, base));
+      const abss = [["Produção", "Operador de Prensa", "M54"], ["Administrativo", "Analista Administrativo", "M51"]];
+      for (let k = 0; k < abss.length; k++) await api("POST", "/absenteismo", Object.assign({ id: "ex-abs-" + k, Unidade: "Unidade Matriz", Setor: abss[k][0], Cargo: abss[k][1], CID: abss[k][2], "Dias Afastamento": 3 + k, Mes: hoje.slice(0, 7), "Segmento Corporal": k ? "Cervical" : "Lombar" }, base));
+      await api("POST", "/compativeis", Object.assign({ id: "ex-comp-1", Unidade: "Unidade Matriz", Setor: "Produção", Cargo: "Operador de Prensa", Nome: "Colaborador Restrito Exemplo", "Status Restricao": "Em Avaliação", "Atividade Compativel": "Sim", Restricao: "Evitar carga acima de 5 kg" }, base));
+
+      setBtn("Riscos Psicossociais…");
+      await criarPsicoExemplo(api, cid, CLI);
+
+      if (window.BI.DB.recarregarTudo) await window.BI.DB.recarregarTudo();
+      if (window.BI.avisar) window.BI.avisar("Empresa ElevaLife de exemplo criada. Filtre por ela para apresentar.");
+      window.alert("Empresa ElevaLife de exemplo criada com AEP, AET, Psicossocial, riscos e plano de ação. Filtre por “" + CLI + "” para ver.");
+    } catch (e) {
+      console.error("exemplo ElevaLife", e); window.alert("Não foi possível criar todo o exemplo: " + (e && e.message ? e.message : e) + "\nO que já foi criado permanece.");
+    }
+    if (botao) { botao.disabled = false; botao.textContent = "✨ Criar empresa de exemplo (ElevaLife)"; }
+  }
+  function slugLocal(s) { return String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60); }
+  async function criarPsicoExemplo(api, cid, CLI) {
+    const eid = "e_sige-" + cid;
+    try {
+      await api("PUT", "/psico/doc?c=" + encodeURIComponent("empresas/" + eid), { v: 127, k: eid, clienteId: cid, razao: CLI, cnpj: "12.345.678/0001-90", codigo: "EXEMPLO1", status: "aberta", inicio: new Date().toISOString().slice(0, 10) });
+      const mats = ["1005", "1006", "1007", "1009", "1010", "1013"]; // subset dos colaboradores criados
+      for (const mat of mats) {
+        try {
+          const c = await api("POST", "/psicopub/matricula", { e: eid, matricula: mat });
+          if (!c || !c.colab) continue;
+          const respostas = Array.from({ length: 35 }, () => 2 + Math.floor(Math.random() * 3)); // 2..4
+          await api("POST", "/psicopub/resposta", { e: eid, matricula: mat, respostas, termo: true });
+        } catch (e) { /* segue */ }
+      }
+      const r33 = {}; for (let i = 0; i < 33; i++) r33[i] = i % 4 === 0 ? "P" : "S";
+      await api("POST", "/psicopub/iso", { e: eid, nome: "Gestor Exemplo", r: r33 });
+    } catch (e) { console.warn("psico exemplo", e && e.message); }
+  }
+
   // V 1.38: concluida a acao de eliminacao da AET, a foto da evidencia vira a foto atual da atividade
   // (copiada para os arquivos da AET); as fotos anteriores ficam marcadas como "antes".
   async function atualizarFotoAtividadeAET(acao, foto) {
@@ -6540,7 +6810,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function renderizarListaCadastro(chave) {
-    if (chave === "cliente") { const bo = document.getElementById("btn-orfaos-cliente"); if (bo) bo.hidden = !ehAdministradorAtual(); }
+    if (chave === "cliente") {
+      const bo = document.getElementById("btn-orfaos-cliente"); if (bo) bo.hidden = !ehAdministradorAtual();
+      const bl = document.getElementById("btn-lixeira-cliente"); if (bl) bl.hidden = !ehAdministradorAtual();
+      const be = document.getElementById("btn-exemplo-elevalife"); if (be) be.hidden = !ehUsuarioAlexandre();
+    }
     if (chave === "planoAcao") { try { renderPlanoLista(); } catch (e) { console.error(e); } }
     if (chave === "avaliacaoErgonomica") { try { atualizarAvisoMigracaoAEP(); } catch (e) { console.error(e); } }
     if (chave === "laudo") { try { atualizarPainelEmissaoLaudo(); } catch (e) { console.error(e); } }
@@ -7514,6 +7788,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // usuario) tem o servico, o conteudo da aba da lugar a um aviso. Cliente
   // antigo, sem o campo, conta como tendo todos os servicos.
   function empresaTemServico(c, servico) {
+    // V 1.41: Gestão de Riscos (ergo) e Gestão do Plano de Ação (registro) são a
+    // etapa final de QUALQUER serviço - toda empresa tem acesso, independe do contrato.
+    if (servico === "ergo" || servico === "registro") return true;
     if (!Array.isArray(c.Servicos)) return true;
     if (c.Servicos.indexOf(servico) >= 0) return true;
     // cadastro anterior a V 1.35: "Gestao de Risco" (ergo) incluia AEP, AET e Plano de Acao
@@ -7594,6 +7871,28 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     }
     if (criados.length && window.BI.recarregar) await window.BI.recarregar();
     return criados;
+  };
+  // V 1.41: ao criar empresa (cadastro OU ao subir AET/AEP) abre o Cadastro Empresa
+  // já preenchido para o usuário completar os dados e escolher os serviços. As
+  // importações chamam isto quando a empresa do arquivo ainda não existe e então
+  // pedem para repetir a importação depois do cadastro salvo.
+  window.BI.pedirCadastroEmpresa = (nome, extras) => {
+    const ident = window.BI.DB.estado.identidade;
+    if (ident && ident.papel !== "Administrador") {
+      window.alert("A empresa “" + (nome || "") + "” não está cadastrada. Peça ao Administrador para cadastrá-la antes de importar.");
+      return false;
+    }
+    ativarAba("cadastro");
+    try { selecionarSubAbaCadastro("mestre", "cliente"); } catch (e) { /* ainda montando */ }
+    const est = estadoCadastro.cliente;
+    est.editandoId = null; est.formAberto = true;
+    est.valoresForm = Object.assign({ Cliente: nome || "" }, extras || {});
+    if (window.BI.Tempo) window.BI.Tempo.iniciar("cad:cliente", { Categoria: "Cadastro", Tipo: "cliente", Acao: "criar" });
+    renderizarFormCadastro("cliente");
+    const bloco = document.getElementById("bloco-cadastro-cliente");
+    if (bloco && bloco.scrollIntoView) bloco.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (window.BI.avisar) window.BI.avisar("Cadastre a empresa “" + (nome || "") + "” e escolha os serviços. Depois, repita a importação.");
+    return true;
   };
   // V 1.38: aviso rapido (toast) no canto da tela
   window.BI.avisar = (msg) => { let t = document.getElementById("sige-toast"); if (!t) { t = document.createElement("div"); t.id = "sige-toast"; t.className = "sige-toast"; t.setAttribute("role", "status"); document.body.appendChild(t); } t.textContent = msg; t.classList.add("visivel"); clearTimeout(window.BI.avisar._t); window.BI.avisar._t = setTimeout(() => t.classList.remove("visivel"), 5000); };
