@@ -2,6 +2,19 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.41 — 15/10/2026
+
+Rodada de ajustes pedida pelo Alexandre: importação da AEP numa opção só, lixeira de empresas, empresa de exemplo, papéis/serviços, Coordenação com sub-aba e telas mais legíveis.
+
+- **Importar AEP — uma opção só (planilha + laudo).** A sub-aba Importar da AEP virou um cartão único: a pessoa escolhe a planilha (Excel, com as avaliações/inventário) e o laudo (PDF, com a análise) e clica em “Importar e comparar”. O SIGE importa a planilha e abre a conferência do laudo, ligando posto a posto e comparando para o ergonomista decidir (mesma conferência de antes, agora encadeada). Saíram as opções separadas (Avaliações, Inventário, Laudo) que confundiam.
+- **Lixeira de empresas (restaurar + expurgo automático).** Excluir uma empresa agora manda para a **lixeira** (os dados ficam guardados e somem das telas) em vez de apagar de vez. Em Cadastro Empresa › “🗑 Lixeira de empresas” (Administrador) dá para **Restaurar** ou **Excluir definitivamente**. Empresas na lixeira há mais de **30 dias** são apagadas definitivamente de forma automática (expurgo no job diário). A exclusão definitiva (manual ou automática) é a única que apaga os dados de verdade.
+- **Papéis e serviços.** Administrador vê tudo e todas as empresas; o Ergonomista (Consultor) vê só as empresas vinculadas e os serviços de cada uma; o Cliente vê as abas de serviço (nas não contratadas aparece a mensagem para procurar a ElevaLife) e não vê Cadastro/Interno/Usuários/Coordenação. **Gestão de Riscos e Gestão do Plano de Ação ficam sempre disponíveis** (etapa final de qualquer serviço, sem a mensagem de “não contratado”).
+- **Serviços ao criar empresa.** Ao criar uma empresa — no Cadastro ou ao subir uma AET/AEP cuja empresa ainda não existe — o SIGE abre o Cadastro Empresa já preenchido para completar os dados e **escolher os serviços** (depois é só repetir a importação).
+- **Empresa de exemplo (ElevaLife).** Botão em Cadastro Empresa (só para o Alexandre) que cria a empresa ElevaLife com AEP, AET, Riscos Psicossociais, Gestão de Riscos, Plano de Ação, colaboradores, absenteísmo e restritos — para apresentação.
+- **Coordenação com sub-aba.** A contabilidade de tempo foi para a sub-aba “Contabilidade de tempo”. Botão “⏱ Gerar tempos (exemplo)” (só para o Alexandre) cria tempos de exemplo para apresentação.
+- **Fator de risco: grupo → subdivisão.** Na AET e no Inventário (AEP), primeiro escolhe-se o **grupo** e só então aparecem os **fatores daquele grupo** (na AET “Outros” continua junto aos grupos; dentro de cada grupo também há “Outro (digitar)”). O Inventário mostra os grupos recolhidos e abre o grupo ao clicar.
+- **Telas mais legíveis.** AEP, AET e Psicossocial com janelas um pouco mais largas e fontes ligeiramente menores, para ficar menos apertado.
+
 ## V 1.40 — 14/10/2026
 
 Melhorias pedidas pelo Alexandre: aba Coordenação (contabilidade de tempo), gráfico de cobertura no topo da Gestão de Riscos e geração de AET a partir da AEP.
