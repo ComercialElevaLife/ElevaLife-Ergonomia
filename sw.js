@@ -20,7 +20,7 @@
 
 "use strict";
 
-const VERSAO = "sige-v47";
+const VERSAO = "sige-v48";
 const CACHE_SITE = `${VERSAO}-site`;
 const CACHE_EXTERNO = `${VERSAO}-externo`;
 
@@ -35,6 +35,7 @@ const ARQUIVOS_BASE = [
   "/js/offline.js",
   "/js/db.js",
   "/js/acoes.js",
+  "/js/tempo.js",
   "/js/indicadores.js",
   "/js/ajuda.js",
   "/js/diagramas.js",
@@ -54,6 +55,7 @@ const ARQUIVOS_BASE = [
   "/js/aep-laudo-import.js",
   "/js/ferramentas-imagens.js",
   "/js/importador.js",
+  "/js/coordenacao.js",
   "/js/app.js",
   "/img/logo-icone-branco.png",
   "/img/logo-icone-bordo.png",
