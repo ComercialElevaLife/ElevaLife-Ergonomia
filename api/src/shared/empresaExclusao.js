@@ -29,12 +29,32 @@ async function containerDe(nome) {
 }
 
 // Ids (e EmpresaId) de todas as empresas cadastradas.
+// V 1.41: empresas ATIVAS (não na lixeira). Usado para esconder os dados das
+// empresas na lixeira (semEmpresaExcluida) - a empresa continua cadastrada, mas
+// os dados dela somem das telas até ser restaurada ou expurgada.
 async function empresasCadastradas() {
+  const c = await containerDe("cliente");
+  const { resources } = await c.items.query("SELECT c.id, c.EmpresaId, c.Excluida FROM c").fetchAll();
+  const s = new Set();
+  (resources || []).forEach((x) => { if (x.Excluida) return; if (x.id) s.add(x.id); if (x.EmpresaId) s.add(x.EmpresaId); });
+  return s;
+}
+
+// Todos os ids com cadastro de cliente (inclusive os da lixeira) - para o
+// levantamento de órfãos não confundir empresa na lixeira com dado sem dono.
+async function empresasComCadastro() {
   const c = await containerDe("cliente");
   const { resources } = await c.items.query("SELECT c.id, c.EmpresaId FROM c").fetchAll();
   const s = new Set();
   (resources || []).forEach((x) => { if (x.id) s.add(x.id); if (x.EmpresaId) s.add(x.EmpresaId); });
   return s;
+}
+
+// Empresas na lixeira (excluídas, restauráveis) - docs completos do cliente.
+async function empresasNaLixeira() {
+  const c = await containerDe("cliente");
+  const { resources } = await c.items.query("SELECT * FROM c WHERE c.Excluida = true").fetchAll();
+  return (resources || []).sort((a, b) => String(b.ExcluidaEm || "").localeCompare(String(a.ExcluidaEm || "")));
 }
 
 // Apaga em lotes os documentos da empresa em cada colecao. Devolve
@@ -88,7 +108,7 @@ async function excluirDadosEmpresa(empresaId, colecoes, context, limiteMs = 2000
 
 // Empresas excluidas que ainda tem dados: [{ EmpresaId, Cliente, total, porColecao }].
 async function empresasOrfas(colecoes) {
-  const existentes = await empresasCadastradas();
+  const existentes = await empresasComCadastro();
   const mapa = new Map();
   for (const nome of colecoes) {
     let c;
@@ -105,4 +125,29 @@ async function empresasOrfas(colecoes) {
   return Array.from(mapa.values()).sort((a, b) => String(a.Cliente).localeCompare(String(b.Cliente), "pt-BR"));
 }
 
-module.exports = { excluirDadosEmpresa, empresasOrfas, empresasCadastradas };
+// V 1.41: expurgo automático da lixeira - apaga de vez as empresas excluídas há
+// mais de `diasLimite` dias (padrão 30). Rodado pelo job diário. Respeita um
+// limite de tempo; o que faltar fica para o próximo dia (nada é perdido).
+const COLECOES_EMPRESA_PADRAO = ["mapaRisco", "planoAcao", "absenteismo", "compativeis", "unidade", "setor", "cargo", "posto", "atividade", "avaliacaoErgonomica", "fatorRisco", "laudo", "aet", "diasUteis", "colaborador", "tempoTrabalho"];
+async function expurgarLixeiraVencida(diasLimite, colecoes, context, limiteMs = 30000) {
+  colecoes = colecoes && colecoes.length ? colecoes : COLECOES_EMPRESA_PADRAO;
+  const limite = Date.now() - (diasLimite || 30) * 86400000;
+  const naLixeira = await empresasNaLixeira();
+  const vencidas = naLixeira.filter((c) => c.ExcluidaEm && new Date(c.ExcluidaEm).getTime() <= limite);
+  let apagadas = 0; const ini = Date.now();
+  for (const emp of vencidas) {
+    if (Date.now() - ini >= limiteMs) break;
+    const ids = Array.from(new Set([emp.EmpresaId, emp.id].filter(Boolean)));
+    let restante = false;
+    for (const eid of ids) {
+      const r = await excluirDadosEmpresa(eid, colecoes, context, Math.max(5000, limiteMs - (Date.now() - ini)));
+      if (r.restante) { restante = true; break; }
+    }
+    if (restante) break; // continua no próximo dia
+    try { const c = await containerDe("cliente"); await c.item(emp.id, emp.EmpresaId || emp.id).delete(); apagadas++; }
+    catch (e) { if (context && context.error) context.error("Expurgo: falha ao apagar o cadastro de " + emp.id, e); }
+  }
+  return { apagadas, vencidas: vencidas.length };
+}
+
+module.exports = { excluirDadosEmpresa, empresasOrfas, empresasCadastradas, empresasComCadastro, empresasNaLixeira, expurgarLixeiraVencida };
