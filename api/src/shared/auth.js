@@ -61,7 +61,10 @@ async function conferirSenha(senha, hash) {
 }
 
 function senhaValida(senha) {
-  return typeof senha === "string" && senha.length >= 8;
+  // V 1.39 (revisão de segurança): mínimo 8; máximo 72 bytes porque o bcrypt
+  // trunca silenciosamente em 72 (senha mais longa também custa CPU à toa).
+  if (typeof senha !== "string" || senha.length < 8) return false;
+  return Buffer.byteLength(senha, "utf8") <= 72;
 }
 
 // ------------------------------------------------------------------
@@ -113,12 +116,14 @@ function tokenExpirado(expiraEmIso) {
 // Sessao (JWT em cookie httpOnly)
 // ------------------------------------------------------------------
 function assinarSessao(email) {
-  return jwt.sign({ sub: email }, segredoSessao(), { expiresIn: VALIDADE_SESSAO_SEGUNDOS });
+  return jwt.sign({ sub: email }, segredoSessao(), { algorithm: "HS256", expiresIn: VALIDADE_SESSAO_SEGUNDOS });
 }
 
 function verificarSessao(tokenJwt) {
   try {
-    const payload = jwt.verify(tokenJwt, segredoSessao());
+    // V 1.39 (revisao de seguranca): fixa o algoritmo HS256 - nunca aceitar "alg: none"
+    // nem confusao de algoritmo vinda de um token forjado.
+    const payload = jwt.verify(tokenJwt, segredoSessao(), { algorithms: ["HS256"] });
     const email = String(payload.sub || "").trim().toLowerCase();
     return email || null;
   } catch (erro) {

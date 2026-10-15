@@ -185,42 +185,46 @@ function formatarDataBR(isoOuData) {
   return ano && mes && dia ? `${dia}/${mes}/${ano}` : s;
 }
 
+// V 1.39 (revisão de segurança): escapa valores armazenados antes de colocá-los no HTML do e-mail
+// (defesa contra injeção de HTML no corpo da mensagem). NÃO usar em assuntos (subject é texto puro).
+const escHtml = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
 const ESTAGIOS_PLANO_ACAO = {
   atribuida: {
     cor: "#5c1a2b",
     assunto: (a) => `Nova ação sob sua responsabilidade – ${a.Cliente}`,
     titulo: "Nova ação do Plano de Ação atribuída a você",
-    mensagem: (a) => `Você foi definido(a) como responsável por uma nova ação no Plano de Ação de <strong>${a.Cliente}</strong>.`,
+    mensagem: (a) => `Você foi definido(a) como responsável por uma nova ação no Plano de Ação de <strong>${escHtml(a.Cliente)}</strong>.`,
   },
   antes30: {
     cor: "#8a6d1a",
     assunto: (a) => `Lembrete: ação vence em breve – ${a.Cliente}`,
     titulo: "Uma ação sob sua responsabilidade vence em até 30 dias",
-    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, tem prazo programado para <strong>${formatarDataBR(a["Dt Programada"])}</strong>.`,
+    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${escHtml(a.Cliente)}</strong>, tem prazo programado para <strong>${formatarDataBR(a["Dt Programada"])}</strong>.`,
   },
   vencimento: {
     cor: "#8a6d1a",
     assunto: (a) => `Vence hoje: ação do Plano de Ação – ${a.Cliente}`,
     titulo: "Uma ação sob sua responsabilidade vence hoje",
-    mensagem: (a) => `A data programada da ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, é <strong>hoje (${formatarDataBR(a["Dt Programada"])})</strong>.`,
+    mensagem: (a) => `A data programada da ação abaixo, do Plano de Ação de <strong>${escHtml(a.Cliente)}</strong>, é <strong>hoje (${formatarDataBR(a["Dt Programada"])})</strong>.`,
   },
   atraso: {
     cor: "#a32020",
     assunto: (a) => `Ação em atraso – ${a.Cliente}`,
     titulo: "Uma ação sob sua responsabilidade está em atraso",
-    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, passou da data programada (${formatarDataBR(a["Dt Programada"])}) sem data de conclusão registrada.`,
+    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${escHtml(a.Cliente)}</strong>, passou da data programada (${formatarDataBR(a["Dt Programada"])}) sem data de conclusão registrada.`,
   },
   atraso30: {
     cor: "#a32020",
     assunto: (a) => `Ação com 30 dias de atraso – ${a.Cliente}`,
     titulo: "Uma ação sob sua responsabilidade está há 30 dias em atraso",
-    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, completou 30 dias de atraso (data programada: ${formatarDataBR(a["Dt Programada"])}).`,
+    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${escHtml(a.Cliente)}</strong>, completou 30 dias de atraso (data programada: ${formatarDataBR(a["Dt Programada"])}).`,
   },
   semanal: {
     cor: "#a32020",
     assunto: (a) => `[Lembrete semanal] Ação em atraso – ${a.Cliente}`,
     titulo: "Lembrete semanal: ação continua em atraso",
-    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, continua em atraso (data programada: ${formatarDataBR(a["Dt Programada"])}).`,
+    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${escHtml(a.Cliente)}</strong>, continua em atraso (data programada: ${formatarDataBR(a["Dt Programada"])}).`,
   },
   // V 1.2 - ação concluída por um Administrador SEM evidência: cobra o anexo
   // (foto ou PDF) até "Prazo Evidencia".
@@ -228,28 +232,28 @@ const ESTAGIOS_PLANO_ACAO = {
     cor: "#8a6d1a",
     assunto: (a) => `Ação concluída sem evidência – anexe até ${formatarDataBR(a["Prazo Evidencia"])} – ${a.Cliente}`,
     titulo: "Ação concluída sem evidência: falta anexar o comprovante",
-    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, foi concluída por um Administrador sem evidência anexada. O comprovante (foto ou PDF) precisa ser anexado até <strong>${formatarDataBR(a["Prazo Evidencia"])}</strong>.`,
+    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${escHtml(a.Cliente)}</strong>, foi concluída por um Administrador sem evidência anexada. O comprovante (foto ou PDF) precisa ser anexado até <strong>${formatarDataBR(a["Prazo Evidencia"])}</strong>.`,
     extra: (a) => [["Justificativa", a["Justificativa Sem Evidencia"] || "-"], ["Prazo para anexar a evidência", formatarDataBR(a["Prazo Evidencia"])]],
   },
   evidAntes: {
     cor: "#8a6d1a",
     assunto: (a) => `Lembrete: evidência pendente vence em breve – ${a.Cliente}`,
     titulo: "A evidência de uma ação concluída vence em até 3 dias",
-    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, está concluída sem evidência. O prazo para anexar o comprovante é <strong>${formatarDataBR(a["Prazo Evidencia"])}</strong>.`,
+    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${escHtml(a.Cliente)}</strong>, está concluída sem evidência. O prazo para anexar o comprovante é <strong>${formatarDataBR(a["Prazo Evidencia"])}</strong>.`,
     extra: (a) => [["Prazo para anexar a evidência", formatarDataBR(a["Prazo Evidencia"])]],
   },
   evidVence: {
     cor: "#8a6d1a",
     assunto: (a) => `Vence hoje: anexar evidência da ação – ${a.Cliente}`,
     titulo: "Hoje é o último dia para anexar a evidência",
-    mensagem: (a) => `O prazo para anexar o comprovante da ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, é <strong>hoje (${formatarDataBR(a["Prazo Evidencia"])})</strong>.`,
+    mensagem: (a) => `O prazo para anexar o comprovante da ação abaixo, do Plano de Ação de <strong>${escHtml(a.Cliente)}</strong>, é <strong>hoje (${formatarDataBR(a["Prazo Evidencia"])})</strong>.`,
     extra: (a) => [["Prazo para anexar a evidência", formatarDataBR(a["Prazo Evidencia"])]],
   },
   evidAtraso: {
     cor: "#a32020",
     assunto: (a) => `Evidência em atraso – ${a.Cliente}`,
     titulo: "O prazo para anexar a evidência de uma ação foi ultrapassado",
-    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${a.Cliente}</strong>, continua sem evidência e o prazo (${formatarDataBR(a["Prazo Evidencia"])}) já passou.`,
+    mensagem: (a) => `A ação abaixo, do Plano de Ação de <strong>${escHtml(a.Cliente)}</strong>, continua sem evidência e o prazo (${formatarDataBR(a["Prazo Evidencia"])}) já passou.`,
     extra: (a) => [["Prazo para anexar a evidência", formatarDataBR(a["Prazo Evidencia"])]],
   },
 };
@@ -261,7 +265,6 @@ function blocoFotosEmail(fotos, semFoto) {
   return `<p style="font-size:13.5px;font-weight:600;margin:16px 0 6px">Registro fotográfico da atividade</p>
         <div>${lista.map((f) => `<div style="margin:0 0 10px"><img src="cid:${f.cid}" alt="Foto da atividade" style="display:block;max-width:100%;width:512px;height:auto;border-radius:8px;border:1px solid #e5d9d9">${f.legenda ? `<div style="font-size:12px;color:#7a6a6a;margin-top:3px">${escHtml(f.legenda)}</div>` : ""}</div>`).join("")}</div>`;
 }
-const escHtml = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 function modeloPlanoAcao({ nomeApp, estagio, acao, paraAdmin, fotos, semFoto }) {
   const cfg = ESTAGIOS_PLANO_ACAO[estagio];
@@ -279,14 +282,14 @@ function modeloPlanoAcao({ nomeApp, estagio, acao, paraAdmin, fotos, semFoto }) 
         <p style="font-size:15.5px;font-weight:600;margin:0 0 8px">${cfg.titulo}</p>
         <p style="font-size:14.5px;line-height:1.6">${cfg.mensagem(acao)}</p>
         <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px">
-          <tr><td style="padding:4px 0;color:#7a6a6a">Cliente</td><td style="padding:4px 0">${acao.Cliente || "-"}</td></tr>
-          <tr><td style="padding:4px 0;color:#7a6a6a">Setor / Posto</td><td style="padding:4px 0">${acao.Setor || "-"} / ${acao["Posto Trabalho"] || "-"}</td></tr>
+          <tr><td style="padding:4px 0;color:#7a6a6a">Cliente</td><td style="padding:4px 0">${escHtml(acao.Cliente) || "-"}</td></tr>
+          <tr><td style="padding:4px 0;color:#7a6a6a">Setor / Posto</td><td style="padding:4px 0">${escHtml(acao.Setor) || "-"} / ${escHtml(acao["Posto Trabalho"]) || "-"}</td></tr>
           ${acao.Atividade ? `<tr><td style="padding:4px 0;color:#7a6a6a">Atividade</td><td style="padding:4px 0">${escHtml(acao.Atividade)}</td></tr>` : ""}
           ${acao["Fator Risco Nome"] ? `<tr><td style="padding:4px 0;color:#7a6a6a">Fator de risco</td><td style="padding:4px 0">${escHtml(acao["Fator Risco Nome"])}</td></tr>` : ""}
-          <tr><td style="padding:4px 0;color:#7a6a6a">Ação recomendada</td><td style="padding:4px 0">${acao["Acao Recomendada"] || "-"}</td></tr>
-          <tr><td style="padding:4px 0;color:#7a6a6a">Responsável</td><td style="padding:4px 0">${acao["Responsavel Acao"] || "-"}</td></tr>
+          <tr><td style="padding:4px 0;color:#7a6a6a">Ação recomendada</td><td style="padding:4px 0">${escHtml(acao["Acao Recomendada"]) || "-"}</td></tr>
+          <tr><td style="padding:4px 0;color:#7a6a6a">Responsável</td><td style="padding:4px 0">${escHtml(acao["Responsavel Acao"]) || "-"}</td></tr>
           <tr><td style="padding:4px 0;color:#7a6a6a">Data programada</td><td style="padding:4px 0">${formatarDataBR(acao["Dt Programada"])}</td></tr>
-          ${(cfg.extra ? cfg.extra(acao) : []).map(([r, v]) => `<tr><td style="padding:4px 0;color:#7a6a6a">${r}</td><td style="padding:4px 0">${v}</td></tr>`).join("")}
+          ${(cfg.extra ? cfg.extra(acao) : []).map(([r, v]) => `<tr><td style="padding:4px 0;color:#7a6a6a">${escHtml(r)}</td><td style="padding:4px 0">${escHtml(v)}</td></tr>`).join("")}
         </table>
         ${blocoFotosEmail(fotos, semFoto)}
         ${linhaAdmin}
