@@ -378,6 +378,22 @@
 
   const HISTORICO = [
     {
+      versao: "1.43", data: "15/10/2026",
+      itens: [
+        "Correção: o sistema não depende mais de um CDN externo (cdnjs). As bibliotecas (Chart.js, jsPDF, Excel, PDF, QR) passaram a ser servidas pelo próprio SIGE — fim do erro “Chart.js não carregou” em redes que bloqueiam o cdnjs.",
+      ],
+    },
+    {
+      versao: "1.42", data: "15/10/2026",
+      itens: [
+        "Importar AEP: só o PDF do sistema anterior — o SIGE lê tudo (fotos, fatores e recomendações) e transcreve; eliminação vira ação de Engenharia e medidas administrativas viram Organizacional; depois abre a conferência posto a posto.",
+        "Absenteísmo: modelo + importação por Excel (vários atestados); sem o campo Atividade; com Nome e Matrícula do colaborador. HHT/Taxa de frequência e Restritos também importam por Excel.",
+        "Gestão de Absenteísmo: gráfico mês a mês de atestados e dias perdidos; Plano de Ação do Absenteísmo próprio (por mês) com gráfico de evolução; e botão “Gerar análise crítica” (PDF + Word) cruzando absenteísmo, riscos ergonômicos e ações concluídas.",
+        "Ergonomista (Consultor) cadastra e edita empresas (só o Administrador exclui).",
+        "Correções: Coordenação com largura e sub-aba corretas; Administrador vê todo o conteúdo mesmo em empresas com poucos serviços; filtros voltam ao serem limpos; empresa de exemplo ElevaLife agora com Riscos Psicossociais.",
+      ],
+    },
+    {
       versao: "1.41", data: "15/10/2026",
       itens: [
         "Importar AEP numa opção só: escolha a planilha (Excel) e o laudo (PDF) e clique em “Importar e comparar” — o SIGE importa a planilha e abre a conferência do laudo para comparar posto a posto.",

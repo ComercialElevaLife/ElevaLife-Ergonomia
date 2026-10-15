@@ -56,6 +56,9 @@
     // registro por sessao de trabalho salva (cadastro, AEP, AET): tempo ativo
     // de edicao + marco de abertura/salvamento, por login. Por EmpresaId.
     "tempoTrabalho",
+    // V 1.42: plano de acao especifico do Absenteismo (separado do Plano geral) -
+    // acoes por mes de referencia, na aba Gestao de Absenteismo. Por EmpresaId.
+    "acaoAbsenteismo",
   ];
 
   const estado = {
@@ -84,7 +87,7 @@
       mapaRisco: [], planoAcao: [], absenteismo: [], compativeis: [],
       cliente: [], unidade: [], setor: [], cargo: [], posto: [], atividade: [],
       avaliacaoErgonomica: [], fatorRisco: [], laudo: [], aet: [], diasUteis: [],
-      certificadoCalibracao: [], modeloLaudo: [], configuracao: [], ergonomista: [], colaborador: [], tempoTrabalho: [],
+      certificadoCalibracao: [], modeloLaudo: [], configuracao: [], ergonomista: [], colaborador: [], tempoTrabalho: [], acaoAbsenteismo: [],
     },
     inscricoes: [],
   };

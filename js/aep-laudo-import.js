@@ -191,7 +191,7 @@
   function montar(el) {
     if (!el) return; el.innerHTML = "";
     el.appendChild(h("div", "importar-opcao-titulo", "📄 Laudo da AEP do sistema anterior (PDF)"));
-    el.appendChild(h("p", null, "Depois de importar a planilha do sistema anterior, envie o laudo correspondente em PDF. O SIGE liga cada posto do laudo à AEP da planilha e traz as fotos, a jornada, as pausas, as descrições e os fatores de risco que faltarem. Você confere tudo antes de gravar."));
+    el.appendChild(h("p", null, "Envie apenas o laudo em PDF do sistema anterior. O SIGE lê tudo — dados do posto, fotos, fatores de risco e as recomendações (eliminação vira ação de Engenharia; administrativas/organizacionais viram Organizacional) — e transcreve para o novo sistema. Antes de gravar, você confere posto a posto na comparação abaixo."));
     const lb = h("label", "aet-import-arquivo"); const inp = h("input"); inp.type = "file"; inp.accept = ".pdf,application/pdf";
     lb.appendChild(h("span", "btn-cad-primario", est.ocupado && !est.res ? "Lendo o laudo…" : "⬆ Escolher laudo (PDF)")); lb.appendChild(inp); el.appendChild(lb);
     if (est.arquivo) el.appendChild(h("div", "aet-nota", "Arquivo: " + est.arquivo.name));
@@ -297,7 +297,9 @@
     async function levarAcoes(fatorId, f, v) {
       if (!est.converterAcoes || !fatorId) return 0;
       if ((BI.dados.planoAcao || []).some((a) => a["Fator Risco Id"] === fatorId)) return 0;
-      const textos = [["Eliminacao", f["Acao Eliminacao"]], ["Organizacional", f["Controles Administrativos"]]].filter(([, t]) => t && !VAZIO.test(String(t).trim()));
+      // V 1.42 (Alexandre): recomendação de ELIMINAÇÃO do laudo antigo vira ação de ENGENHARIA no
+      // modelo novo; medidas administrativas/organizacionais viram ação ORGANIZACIONAL.
+      const textos = [["Engenharia", f["Acao Eliminacao"]], ["Organizacional", f["Controles Administrativos"]]].filter(([, t]) => t && !VAZIO.test(String(t).trim()));
       let n = 0;
       for (const [tipo, txt] of textos) {
         const nrs = (BI.dados.planoAcao || []).filter((a) => a.Cliente === v.Cliente).map((a) => Number(a["Nr Acao"]) || 0);
