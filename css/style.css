@@ -2457,3 +2457,44 @@ body.perfil-admin .sidebar-nav button.nav-so-admin { display: flex; }
 .coord-sub { font-size: 13px; color: var(--texto-suave, #7a6a6c); margin: 2px 0 10px; }
 .coord-tabela-wrap { overflow: auto; max-height: 60vh; }
 .coord-vazio { padding: 16px; color: var(--texto-suave, #7a6a6c); font-size: 13.5px; }
+
+/* ====================================================================
+   V 1.41 — grupos recolhíveis no Inventário (AEP) e telas mais largas/
+   legíveis (AEP, AET, Psicossocial): "primeiro o grupo, depois os fatores".
+   ==================================================================== */
+.checklist-grupo-toggle {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: var(--fundo, #f6f1ed); border: 1px solid var(--linha, #e5d8d8);
+  border-radius: 8px; padding: 9px 12px; margin: 10px 0 2px; cursor: pointer;
+  font: inherit; text-align: left; color: var(--vinho-escuro, #5a2a33); font-weight: 700;
+}
+.checklist-grupo-toggle:hover { background: #efe6e0; }
+.checklist-grupo-toggle.aberto { background: var(--card, #fff); }
+.checklist-grupo-seta { width: 14px; flex-shrink: 0; color: var(--vinho, #8B3A42); }
+.checklist-grupo-rot { flex: 1; }
+.checklist-grupo-contador { font-size: 12px; font-weight: 600; color: var(--teal, #2b7a78); }
+.checklist-grupo-corpo { padding: 2px 0 6px; }
+
+/* G: mais espaço e fontes um pouco menores nos editores densos */
+.aet-editor { max-width: 1480px; }
+.aet-overlay { padding: 10px; }
+.aet-area { padding: 16px 24px 64px; }
+.aet-grade { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 18px; }
+.aet-editor .aet-campo input, .aet-editor .aet-campo select, .aet-editor .aet-campo textarea { font-size: 13px; }
+.aet-rot { font-size: 12px; }
+.checklist-painel { width: min(980px, 96vw); }
+.checklist-fator-detalhes { font-size: 13px; }
+
+/* V 1.41: sub-abas da Coordenação */
+.coord-subnav { margin-bottom: 12px; }
+.coord-area { display: grid; gap: 14px; }
+.coord-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* V 1.41: importação unificada da AEP (planilha + laudo) */
+.importar-unificado { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 10px 0; }
+.importar-unificado-barra { margin: 6px 0 4px; }
+.importar-conf-area { margin-top: 8px; }
+.importar-conf-area:empty { display: none; }
+
+/* V 1.41: ações na lixeira de empresas */
+.lixeira-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
