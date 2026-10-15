@@ -15,11 +15,15 @@
 "use strict";
 
 const { obterContainer } = require("../shared/cosmos");
+const { ipDaRequisicao, limitar, resposta429 } = require("../shared/rateLimit");
 
 const FORMATO_CODIGO = /^ELV-[A-Z]{2,5}-\d{4}-[A-Z0-9]{6}$/;
 
 async function tratar(request, context) {
   if (request.method !== "GET") return { status: 405, jsonBody: { erro: "Método não permitido." } };
+  // V 1.39 (segurança): endpoint público - limita a varredura/raspagem de códigos de laudo por IP.
+  const rl = limitar("verificar:" + ipDaRequisicao(request), 20, 60000);
+  if (!rl.ok) return resposta429(rl.retryApos);
   const codigo = String(request.params.id || request.query.get("codigo") || "").trim().toUpperCase();
   if (!FORMATO_CODIGO.test(codigo)) {
     return { status: 400, jsonBody: { encontrado: false, erro: "Código de verificação em formato inválido." } };

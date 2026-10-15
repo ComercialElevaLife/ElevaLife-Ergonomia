@@ -69,6 +69,7 @@ const crypto = require("crypto");
 const { garantirContainer } = require("../shared/cosmos");
 const { resolverIdentidade, PAPEIS, podeVerEmpresa } = require("../shared/tenant");
 const { enviarEmail, formatarDataBR, logoEmailHtml } = require("../shared/email");
+const { ipDaRequisicao, limitar, resposta429 } = require("../shared/rateLimit");
 
 const CONTAINER = "psicossocial";
 const GLOBAL = "PSICO_GLOBAL";
@@ -357,6 +358,14 @@ function coletaAberta(e) {
 
 async function tratarPublico(request, context) {
   const acao = String(request.params.id || "");
+  // V 1.39 (segurança): endpoints públicos (QR Code do HSE-IT), sem login. Limite por IP, generoso
+  // o bastante para uma equipe inteira respondendo pela mesma rede/IP (NAT corporativo). A proteção
+  // contra enumeração da força de trabalho (risco de LGPD) é feita contando as CONSULTAS DE MATRÍCULA
+  // QUE FALHAM (abaixo, no ramo "matricula"): um colaborador legítimo acerta a própria matrícula;
+  // quem varre gera muitas falhas. `ip` fica disponível para o contador de falhas.
+  const ip = ipDaRequisicao(request);
+  const geral = limitar("psicopub:" + ip, 240, 60000);
+  if (!geral.ok) return resposta429(geral.retryApos);
   try {
     if (acao === "codigo" && request.method === "GET") {
       const c = String(request.query.get("c") || "").trim();
@@ -376,7 +385,13 @@ async function tratarPublico(request, context) {
       const eid = String(b.e || ""), k = matKey(b.matricula);
       if (!eidValido(eid) || !k) return { status: 400, jsonBody: { code: "invalid_argument" } };
       const g = await acharColaborador(eid, k);
-      if (!g) return { jsonBody: { erro: "nao_encontrada" } };
+      if (!g) {
+        // V 1.39 (segurança): cada matrícula inexistente conta como falha; muitas falhas do mesmo IP
+        // em pouco tempo = tentativa de enumerar a força de trabalho -> bloqueia por um tempo.
+        const falhas = limitar("psicopub-falha:" + ip, 15, 60000);
+        if (!falhas.ok) return resposta429(falhas.retryApos);
+        return { jsonBody: { erro: "nao_encontrada" } };
+      }
       const p = await lerDoc(`${baseCiclo(eid, await empresa(eid))}/participacao/${k}`);
       if (p && p.dados && p.dados.respondido === true) return { jsonBody: { erro: "ja_respondeu" } };
       const u = g.unidadeNome ? null : await lerDoc(`empresas/${eid}/unidades/${g.unidadeId}`);

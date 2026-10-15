@@ -31,7 +31,7 @@ const { app } = require("@azure/functions");
 const { obterContainer } = require("../shared/cosmos");
 const { podeVerEmpresa, podeVerDocumento, empresaIdDoDocumento } = require("../shared/tenant");
 const { autenticarRequisicaoPublica, colecaoPermitidaParaChave } = require("../shared/apiKeys");
-const { COLECOES, COLECOES_GLOBAIS, COLECOES_SO_EQUIPE_GRAVA, listarComFiltro, lerPorId } = require("./entidades");
+const { COLECOES, COLECOES_GLOBAIS, COLECOES_SO_EQUIPE_GRAVA, listarComFiltro, lerPorId, codigoVerificacaoEmUso, proximoNrAvaliacao, avaliarPlanoAcaoComArquivos, aplicarAuditoria } = require("./entidades");
 
 // "cliente" fica de fora da API publica por enquanto - criar uma empresa
 // nova continua sendo so pela API interna, com Administrador de verdade.
@@ -95,7 +95,13 @@ async function tratar(request, context) {
         if (identidade.papel === "UsuarioCliente" && COLECOES_SO_EQUIPE_GRAVA.includes(colecao)) {
           return { status: 403, jsonBody: { erro: `Chaves de API de empresa não gravam em “${colecao}”.` } };
         }
-        const corpo = await request.json();
+        // V 1.39 (robustez): corpo com limite de tamanho e JSON válido (ver entidades.lerCorpoJson).
+        let corpo;
+        try {
+          const texto = await request.text();
+          if (texto && Buffer.byteLength(texto, "utf8") > 1900000) return comCabecalhosPadrao({ status: 413, jsonBody: { erro: "Registro grande demais (acima de 1,9 MB)." } }, rateLimitRestante);
+          corpo = texto ? JSON.parse(texto) : {};
+        } catch (e) { return comCabecalhosPadrao({ status: 400, jsonBody: { erro: "Corpo da requisição não é um JSON válido." } }, rateLimitRestante); }
         // Chave escopada a uma empresa sempre grava naquela empresa, mesmo
         // que o corpo tente mandar outro EmpresaId - nunca confiar no
         // cliente pra isso. Chave admin (sem empresa) precisa informar.
@@ -107,7 +113,32 @@ async function tratar(request, context) {
         if (!podeVerEmpresa(identidade, empresaId)) {
           return { status: 403, jsonBody: { erro: "Sem permissão para gravar nesta empresa." } };
         }
-        const doc = Object.assign({}, corpo, { id: corpo.id || crypto.randomUUID(), EmpresaId: empresaId });
+        // V 1.39 (segurança): nunca aceitar campos internos vindos do cliente (auditoria, histórico,
+        // dispensa de evidência, notificações...). Eles são definidos só pelo servidor.
+        const corpoLimpo = {};
+        Object.keys(corpo).forEach((k) => { if (k[0] !== "_") corpoLimpo[k] = corpo[k]; });
+        const novo = Object.assign({}, corpoLimpo, { id: corpoLimpo.id || crypto.randomUUID(), EmpresaId: empresaId });
+        const jaExistia = corpoLimpo.id ? await lerPorId(container, novo.id) : null;
+        if (jaExistia && !podeVerDocumento(identidade, colecao, jaExistia)) {
+          return { status: 403, jsonBody: { erro: "Sem permissão." } };
+        }
+        // Mesmas regras de negócio da API interna (entidades.js):
+        if (colecao === "laudo" && await codigoVerificacaoEmUso(container, novo["Codigo Verificacao"], novo.id)) {
+          return { status: 409, jsonBody: { erro: "Já existe um laudo com este código de verificação." } };
+        }
+        let paraGravar = novo;
+        if (colecao === "avaliacaoErgonomica") {
+          if (jaExistia && jaExistia["Nr Avaliacao"]) paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": jaExistia["Nr Avaliacao"] });
+          else if (!paraGravar["Nr Avaliacao"]) paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": await proximoNrAvaliacao(container, empresaId) });
+        }
+        if (colecao === "planoAcao") {
+          const idParaRegras = Object.assign({}, identidade, { email: "api-key:" + (identidade.nomeChave || identidade.chaveId || "publica") });
+          const avaliacao = await avaliarPlanoAcaoComArquivos(jaExistia, novo, idParaRegras, context);
+          if (!avaliacao.ok) return { status: avaliacao.status, jsonBody: { erro: avaliacao.erro, codigo: avaliacao.codigo } };
+          paraGravar = avaliacao.doc;
+        }
+        const doc = aplicarAuditoria(jaExistia, paraGravar, "api-key:" + (identidade.nomeChave || identidade.chaveId || "publica"));
+        if (colecao === "planoAcao") { delete doc._reenviarPsico; delete doc._reenviarAcao; }
         const { resource } = await container.items.upsert(doc);
         return comCabecalhosPadrao({ status: 201, jsonBody: resource }, rateLimitRestante);
       }

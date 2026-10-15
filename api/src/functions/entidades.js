@@ -73,6 +73,11 @@ const COLECOES = [
   // base do questionario HSE-IT dos Riscos Psicossociais. Container criado
   // sob demanda (particao /EmpresaId).
   "colaborador",
+  // V 1.40: contabilidade de tempo (aba Coordenacao, so Administrador le a
+  // visao agregada). Um registro por sessao de trabalho salva (cadastro, AEP,
+  // AET): tempo ativo de edicao + abertura/salvamento, por login. Por
+  // EmpresaId; container criado sob demanda. So a equipe grava.
+  "tempoTrabalho",
 ];
 
 // Colecoes sem dono (nenhuma amarrada a uma empresa-cliente especifica) -
@@ -88,7 +93,7 @@ const EMPRESA_GLOBAL = "GLOBAL";
 // empresa e as 3 bibliotecas globais (assinatura/registro do ergonomista,
 // modelo de texto do laudo, certificados de calibracao) alimentam documentos
 // de todas as empresas - antes qualquer usuario-cliente podia altera-las.
-const COLECOES_SO_EQUIPE_GRAVA = ["laudo", "cliente", "ergonomista", "modeloLaudo", "certificadoCalibracao"];
+const COLECOES_SO_EQUIPE_GRAVA = ["laudo", "cliente", "ergonomista", "modeloLaudo", "certificadoCalibracao", "tempoTrabalho"];
 
 // "me" e "usuarios" sao despachadas aqui dentro (em vez de cada uma ter seu
 // proprio app.http()) porque em producao a rota generica "{colecao}/{id?}"
@@ -122,6 +127,22 @@ const ROTAS_ESPECIAIS = {
 
 // V 1.37: colecoes com dados por empresa (tudo o que sai junto quando a empresa-cliente e excluida).
 function colecoesDaEmpresa() { return COLECOES.filter((c) => c !== "cliente" && !COLECOES_GLOBAIS.includes(c)); }
+
+// V 1.39 (robustez sob carga): lê o corpo JSON com dois cuidados que faltavam:
+//  - tamanho máximo (o Cosmos rejeita documentos acima de ~2 MB; sem isto, um corpo gigante virava
+//    um erro 500 confuso lá no banco). 1,9 MB deixa margem; os documentos do SIGE guardam referências
+//    de arquivo (as fotos/PDFs vão para o Storage), então ficam muito abaixo disso.
+//  - JSON malformado vira 400 (requisição inválida), não 500 (erro interno).
+const CORPO_MAX_BYTES = 1900000;
+async function lerCorpoJson(request) {
+  let texto;
+  try { texto = await request.text(); } catch (e) { return { erro: { status: 400, jsonBody: { erro: "Corpo da requisição inválido." } } }; }
+  if (texto && Buffer.byteLength(texto, "utf8") > CORPO_MAX_BYTES) {
+    return { erro: { status: 413, jsonBody: { erro: "O registro é grande demais (acima de 1,9 MB). Anexos (fotos/PDF) devem ir pelo upload de arquivos, não dentro do registro." } } };
+  }
+  try { return { corpo: texto ? JSON.parse(texto) : {} }; }
+  catch (e) { return { erro: { status: 400, jsonBody: { erro: "Corpo da requisição não é um JSON válido." } } }; }
+}
 
 async function tratarManutencao(request, context) {
   let identidade;
@@ -329,7 +350,7 @@ async function tratar(request, context) {
     };
   }
 
-  const container = ["configuracao", "ergonomista", "colaborador"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
+  const container = ["configuracao", "ergonomista", "colaborador", "tempoTrabalho"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
   const id = request.params.id;
   if (COLECOES_SO_ADMIN_GRAVA.includes(colecao) && request.method !== "GET" && identidade.papel !== "Administrador") {
     return { status: 403, jsonBody: { erro: "Só Administrador pode alterar as configurações do sistema." } };
@@ -365,7 +386,8 @@ async function tratar(request, context) {
       }
 
       case "POST": {
-        const corpo = await request.json();
+        const parse = await lerCorpoJson(request); if (parse.erro) return parse.erro;
+        const corpo = parse.corpo;
         if (colecao === "cliente" && identidade.papel !== "Administrador") {
           return { status: 403, jsonBody: { erro: "Só Administrador pode cadastrar uma nova empresa-cliente." } };
         }
@@ -418,7 +440,8 @@ async function tratar(request, context) {
         if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerDocumento(identidade, colecao, existente)) {
           return { status: 403, jsonBody: { erro: "Sem permissão." } };
         }
-        const corpo = await request.json();
+        const parsePut = await lerCorpoJson(request); if (parsePut.erro) return parsePut.erro;
+        const corpo = parsePut.corpo;
         const empresaIdFinal = colecao === "cliente"
           ? empresaIdDoDocumento(colecao, existente)
           : COLECOES_GLOBAIS.includes(colecao) ? EMPRESA_GLOBAL : corpo.EmpresaId || existente.EmpresaId;
@@ -489,4 +512,7 @@ app.http("entidades", {
   handler: tratar,
 });
 
-module.exports = { COLECOES, COLECOES_GLOBAIS, COLECOES_SO_EQUIPE_GRAVA, listarComFiltro, lerPorId };
+// V 1.39 (revisão de segurança): a API pública (publicApi.js) reaproveita estas funções para
+// gravar com AS MESMAS regras de negócio/auditoria da API interna (código de laudo único,
+// Nr Avaliação pelo servidor, regras/evidência do Plano de Ação), em vez de um upsert cru.
+module.exports = { COLECOES, COLECOES_GLOBAIS, COLECOES_SO_EQUIPE_GRAVA, listarComFiltro, lerPorId, codigoVerificacaoEmUso, proximoNrAvaliacao, avaliarPlanoAcaoComArquivos, aplicarAuditoria };

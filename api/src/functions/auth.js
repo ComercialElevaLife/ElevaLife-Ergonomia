@@ -21,7 +21,7 @@
 "use strict";
 
 const { obterContainer } = require("../shared/cosmos");
-const { resolverIdentidade, PAPEIS, vinculosDoCorpo } = require("../shared/tenant");
+const { resolverIdentidade, PAPEIS } = require("../shared/tenant");
 const {
   gerarHashSenha,
   conferirSenha,
@@ -79,17 +79,18 @@ async function buscarUsuarioPorEmail(container, email) {
 // (witty-sea-....azurestaticapps.net) que o navegador realmente usou.
 // Solucao: a URL publica fica fixa na Application Setting URL_PUBLICA
 // (nunca muda depois de configurada - e' o dominio do Static Web App).
-// Mantemos x-forwarded-host e request.url como fallback, nessa ordem,
-// soh pra nao quebrar em dev local (func start) caso URL_PUBLICA nao
-// esteja definida.
+// V 1.39 (revisao de seguranca): o link de convite/redefinicao usa URL_PUBLICA quando configurada
+// e, se nao estiver, cai para o dominio oficial fixo abaixo. NUNCA usa cabecalhos da requisicao
+// (x-forwarded-host): senao um atacante poderia pedir "esqueci a senha" de uma vitima com
+// X-Forwarded-Host: site-falso.com e a vitima receberia um link real apontando para o site do
+// atacante (sequestro de conta). Para outro dominio, defina URL_PUBLICA nas Configuracoes do app
+// (em dev local, http://localhost:4280).
+const URL_PUBLICA_PADRAO = "https://sige-ergo.elevalife.com.br";
 function montarLink(request, tipo, email, tokenBruto) {
-  const hostPublico = request.headers.get("x-forwarded-host");
-  const origem =
-    (process.env.URL_PUBLICA && process.env.URL_PUBLICA.replace(/\/+$/, "")) ||
-    (hostPublico && `${request.headers.get("x-forwarded-proto") || "https"}://${hostPublico}`) ||
-    new URL(request.url).origin;
+  const configurada = String(process.env.URL_PUBLICA || "").replace(/\/+$/, "");
+  const base = /^https?:\/\/[^\s/]+$/.test(configurada) ? configurada : URL_PUBLICA_PADRAO;
   const parametros = new URLSearchParams({ tela: tipo, email, token: tokenBruto });
-  return `${origem}/index.html?${parametros.toString()}`;
+  return `${base}/index.html?${parametros.toString()}`;
 }
 
 async function enviarConvite(request, container, doc, { reenvio }) {
@@ -117,16 +118,14 @@ async function enviarConvite(request, container, doc, { reenvio }) {
 // SEMPRE dispara um convite por e-mail agora, nao existe mais "criar sem
 // convidar" (pedido do Leo: toda pessoa nova tem que receber o convite).
 // Faz upsert pelo e-mail (nunca cria um segundo documento pro mesmo e-mail).
-async function criarOuConvidarUsuario(request, container, { Email, Papel, EmpresasVinculadas, id, SigeVinculo, PsicoVinculo, EmpresasPsico }, identidade) {
+async function criarOuConvidarUsuario(request, container, { Email, Papel, EmpresasVinculadas, id }, identidade) {
   const crypto = require("crypto");
   const email = normalizarEmail(Email);
   if (!email) return { erro: { status: 400, jsonBody: { erro: "E-mail é obrigatório." } } };
   if (!PAPEIS_VALIDOS.has(Papel)) {
     return { erro: { status: 400, jsonBody: { erro: `Papel inválido. Use um de: ${Array.from(PAPEIS_VALIDOS).join(", ")}.` } } };
   }
-  // V 1.26: vinculos separados para o SIGE e para Riscos Psicossociais (ver shared/tenant.js).
-  const vinc = vinculosDoCorpo({ SigeVinculo, PsicoVinculo, EmpresasPsico }, Papel);
-  const empresas = vinc.SigeVinculo === "nenhuma" ? [] : (Array.isArray(EmpresasVinculadas) ? EmpresasVinculadas.filter((e) => typeof e === "string" && e) : []);
+  const empresas = Array.isArray(EmpresasVinculadas) ? EmpresasVinculadas.filter((e) => typeof e === "string" && e) : [];
 
   // V 1.7 (revisao de seguranca): so o Administrador define papeis altos e
   // vincula empresas livremente. Um Consultor so convida UsuarioCliente e
@@ -140,10 +139,6 @@ async function criarOuConvidarUsuario(request, container, { Email, Papel, Empres
     const minhas = (identidade && identidade.empresasVinculadas) || [];
     if (empresas.some((e) => !minhas.includes(e))) {
       return { erro: { status: 403, jsonBody: { erro: "Você só pode vincular o usuário a empresas às quais você mesmo está vinculado." } } };
-    }
-    const meuPsico = identidade && identidade.psicoVinculo;
-    if (vinc.EmpresasPsico.length && meuPsico !== "todas" && vinc.EmpresasPsico.some((e) => !((identidade && identidade.empresasPsico) || []).includes(e))) {
-      return { erro: { status: 403, jsonBody: { erro: "Você só pode vincular o usuário a empresas do psicossocial às quais você mesmo está vinculado." } } };
     }
   }
 
@@ -162,7 +157,6 @@ async function criarOuConvidarUsuario(request, container, { Email, Papel, Empres
   const doc = existente || { id: id || crypto.randomUUID(), Email: email };
   doc.Papel = Papel;
   doc.EmpresasVinculadas = empresas;
-  Object.assign(doc, vinc);
 
   const { link, avisoEmail } = await enviarConvite(request, container, doc, { reenvio: Boolean(existente) });
   return { doc, link, avisoEmail };
@@ -278,7 +272,7 @@ async function tratar(request, context) {
         const tokenBruto = String(corpo.Token || "");
         const novaSenha = String(corpo.NovaSenha || "");
         if (!email || !tokenBruto) return { status: 400, jsonBody: { erro: "Link inválido." } };
-        if (!senhaValida(novaSenha)) return { status: 400, jsonBody: { erro: "A senha precisa ter pelo menos 8 caracteres." } };
+        if (!senhaValida(novaSenha)) return { status: 400, jsonBody: { erro: "A senha precisa ter de 8 a 72 caracteres." } };
 
         const doc = await buscarUsuarioPorEmail(container, email);
         if (!doc || !doc.TokenConviteHash) return { status: 400, jsonBody: { erro: "Link inválido ou já utilizado." } };
@@ -337,7 +331,7 @@ async function tratar(request, context) {
         const tokenBruto = String(corpo.Token || "");
         const novaSenha = String(corpo.NovaSenha || "");
         if (!email || !tokenBruto) return { status: 400, jsonBody: { erro: "Link inválido." } };
-        if (!senhaValida(novaSenha)) return { status: 400, jsonBody: { erro: "A senha precisa ter pelo menos 8 caracteres." } };
+        if (!senhaValida(novaSenha)) return { status: 400, jsonBody: { erro: "A senha precisa ter de 8 a 72 caracteres." } };
 
         const doc = await buscarUsuarioPorEmail(container, email);
         if (!doc || !doc.TokenResetHash) return { status: 400, jsonBody: { erro: "Link inválido ou já utilizado." } };
