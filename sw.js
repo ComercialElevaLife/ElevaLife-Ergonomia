@@ -20,7 +20,7 @@
 
 "use strict";
 
-const VERSAO = "sige-v55";
+const VERSAO = "sige-v56";
 const CACHE_SITE = `${VERSAO}-site`;
 const CACHE_EXTERNO = `${VERSAO}-externo`;
 
@@ -78,7 +78,11 @@ const HOSTS_EXTERNOS = ["cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.g
 self.addEventListener("install", (evento) => {
   evento.waitUntil(
     caches.open(CACHE_SITE)
-      .then((cache) => cache.addAll(ARQUIVOS_BASE))
+      // V 1.46: precache tolerante a falhas - cada arquivo é guardado por conta
+      // própria. Antes, com addAll (tudo-ou-nada), um único 404 (ex.: vendor/libs
+      // ausente/mal publicado) abortava TODO o precache e o cache offline ficava
+      // vazio. Agora um arquivo que falta não derruba os demais.
+      .then((cache) => Promise.all(ARQUIVOS_BASE.map((u) => cache.add(u).catch(() => { /* esse arquivo fica de fora; os outros entram */ }))))
       .catch(() => { /* sem rede na instalação: segue, o cache enche no uso */ })
       .then(() => self.skipWaiting())
   );
