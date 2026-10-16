@@ -426,6 +426,16 @@ async function tratar(request, context) {
         if (jaExistia && !COLECOES_GLOBAIS.includes(colecao) && !podeVerDocumento(identidade, colecao, jaExistia)) {
           return { status: 403, jsonBody: { erro: "Sem permissão." } };
         }
+        // V 1.46 (Alexandre): trava anti-colisao de empresa. O id/EmpresaId da empresa vem
+        // do nome (slug). Se ja existe OUTRA empresa com o MESMO codigo (nome diferente que
+        // gera o mesmo slug, ou a empresa na lixeira), NAO sobrescreve - rejeita. Antes, o
+        // upsert juntava as duas no mesmo codigo e excluir uma afetava/apagava a outra.
+        if (colecao === "cliente" && jaExistia) {
+          const mesmoNome = String(jaExistia.Cliente || "").trim().toLowerCase() === String(novo.Cliente || "").trim().toLowerCase();
+          if (!mesmoNome) {
+            return { status: 409, jsonBody: { erro: `Já existe uma empresa (“${jaExistia.Cliente || jaExistia.id}”${jaExistia.Excluida ? ", na lixeira" : ""}) com o mesmo código interno gerado a partir do nome. Use um nome um pouco diferente para a nova empresa (ou restaure/edite a existente).` } };
+          }
+        }
         if (colecao === "laudo" && await codigoVerificacaoEmUso(container, novo["Codigo Verificacao"], novo.id)) {
           return { status: 409, jsonBody: { erro: "Já existe um laudo com este código de verificação." } };
         }
