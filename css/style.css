@@ -2501,3 +2501,6 @@ body.perfil-admin .sidebar-nav button.nav-so-admin { display: flex; }
 
 /* V 1.41: ações na lixeira de empresas */
 .lixeira-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* V 1.43.1: aviso quando um gráfico não pode ser desenhado (biblioteca ausente) */
+.grafico-indisponivel { padding: 18px; text-align: center; color: var(--texto-suave, #7a6a6c); font-size: 13px; font-style: italic; }
