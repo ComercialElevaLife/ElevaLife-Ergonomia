@@ -88,11 +88,12 @@
   function carregarScriptPdf(src) {
     return new Promise((ok, err) => { const s = document.createElement("script"); s.src = src; s.async = true; s.onload = () => ok(true); s.onerror = () => err(new Error("falha " + src)); document.head.appendChild(s); });
   }
+  const PDF_WORKER_CDN = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   async function garantirPdfJs() {
-    if (g.pdfjsLib) return g.pdfjsLib;
+    if (g.pdfjsLib) { try { const w = g.pdfjsLib.GlobalWorkerOptions; if (w && !w.workerSrc) w.workerSrc = PDF_WORKER_CDN; } catch (e) { /* */ } return g.pdfjsLib; }
     const fontes = [
       { lib: "vendor/libs/pdf.min.js", worker: "vendor/libs/pdf.worker.min.js" },
-      { lib: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js", worker: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js" },
+      { lib: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js", worker: PDF_WORKER_CDN },
     ];
     for (const f of fontes) { try { await carregarScriptPdf(f.lib); } catch (e) { continue; } if (g.pdfjsLib) { try { g.pdfjsLib.GlobalWorkerOptions.workerSrc = f.worker; } catch (e) { /* */ } return g.pdfjsLib; } }
     return null;

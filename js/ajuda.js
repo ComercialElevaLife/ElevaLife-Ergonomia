@@ -378,6 +378,13 @@
 
   const HISTORICO = [
     {
+      versao: "1.46", data: "16/10/2026",
+      itens: [
+        "Importar AEP: o PDF do sistema anterior passa a ser transcrito por completo e automaticamente — dados do posto, fotos, fatores de risco com a graduação (criticidade, probabilidade, pontuação e graduação) e as recomendações (eliminação vira Engenharia; administrativas/organizacionais viram Organizacional). Corrigida a leitura da tabela de risco (cabeçalho quebrado em duas linhas) que fazia o fator entrar sem a graduação. Saíram as opções da tela: tudo entra de uma vez, e o PDF antigo não fica guardado no sistema.",
+        "Geração de laudos (AEP e AET) tolerante a falhas: quando a cópia local das bibliotecas (vendor/libs) não está publicada, o SIGE busca jsPDF, Chart.js, SheetJS, pdf.js e o leitor de QR automaticamente no CDN — fim do erro “A biblioteca de geração de PDF não carregou” ao gerar o laudo.",
+      ],
+    },
+    {
       versao: "1.45", data: "16/10/2026",
       itens: [
         "Importação de AEP/AET em PDF mais robusta: o leitor de PDF é carregado sob demanda, tentando a cópia local e, se faltar, o CDN — fim do erro “O leitor de PDF não carregou” quando a biblioteca não tinha carregado na abertura.",

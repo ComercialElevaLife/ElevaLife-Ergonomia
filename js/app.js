@@ -8086,6 +8086,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // V 1.38: aviso rapido (toast) no canto da tela
   window.BI.avisar = (msg) => { let t = document.getElementById("sige-toast"); if (!t) { t = document.createElement("div"); t.id = "sige-toast"; t.className = "sige-toast"; t.setAttribute("role", "status"); document.body.appendChild(t); } t.textContent = msg; t.classList.add("visivel"); clearTimeout(window.BI.avisar._t); window.BI.avisar._t = setTimeout(() => t.classList.remove("visivel"), 5000); };
   window.BI.abrirAba = (aba, sub) => { ativarAba(aba); if (GRUPO_DA_ABA[aba]) selecionarSubAbaCadastro(GRUPO_DA_ABA[aba], sub || chavesDoGrupo(GRUPO_DA_ABA[aba], true)[0]); };
+  // V 1.46: o Chart.js pode chegar pelo CDN (fallback) depois da inicialização;
+  // quando isso acontece, o index.html chama isto para redesenhar os gráficos.
+  window.BI.reRenderizar = () => { try { if (typeof configurarChartDefaults === "function") configurarChartDefaults(); renderizarTudo(); } catch (e) { console.error(e); } };
 
   // ------------------------------------------------------------------
   // V 1.33 - Plano de Acao no formato do antigo plano do Psicossocial: filtros (Unidade, Setor / GHE,

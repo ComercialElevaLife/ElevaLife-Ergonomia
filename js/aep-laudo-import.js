@@ -45,11 +45,12 @@
   function carregarScript(src) {
     return new Promise((ok, err) => { const s = document.createElement("script"); s.src = src; s.async = true; s.onload = () => ok(true); s.onerror = () => err(new Error("falha ao carregar " + src)); document.head.appendChild(s); });
   }
+  const PDF_WORKER_CDN = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   async function garantirPdfJs() {
-    if (g.pdfjsLib) return g.pdfjsLib;
+    if (g.pdfjsLib) { try { const w = g.pdfjsLib.GlobalWorkerOptions; if (w && !w.workerSrc) w.workerSrc = PDF_WORKER_CDN; } catch (e) { /* */ } return g.pdfjsLib; }
     const fontes = [
       { lib: "vendor/libs/pdf.min.js", worker: "vendor/libs/pdf.worker.min.js" },
-      { lib: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js", worker: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js" },
+      { lib: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js", worker: PDF_WORKER_CDN },
     ];
     for (const f of fontes) {
       try { await carregarScript(f.lib); } catch (e) { continue; }
@@ -123,7 +124,7 @@
     // capa: titulo, empresa, unidade, mes
     const capa = L.filter((l) => l.p === 1).map((l) => l.texto).filter((t) => !/an[aá]lise ergon[oô]mica|^sum[aá]rio/i.test(t) && !/^(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b/i.test(t));
     res.cliente = capa[0] || ""; res.unidade = capa[1] || "";
-    let dentro = false; let posto = null; let campo = null; let fator = null; let campoF = null; let cabRisco = null; let esperandoNomeFator = false;
+    let dentro = false; let posto = null; let campo = null; let fator = null; let campoF = null; let esperandoNomeFator = false; let esperandoRisco = false;
     const acrescenta = (obj, k, t) => { obj[k] = obj[k] ? obj[k] + "\n" + t : t; };
     for (let i = 0; i < L.length; i++) {
       const l = L[i]; const t = l.texto; const n = norm(t);
@@ -136,16 +137,25 @@
       const ms = !mf && t.match(/^4\.(\d+)\.\s+(.+)$/);
       if (ms) { posto = { secao: ms[1], titulo: limpa(ms[2]), dados: {}, fatores: [], imgDe: null, y0: l.y }; res.postos.push(posto); campo = null; fator = null; continue; }
       if (!posto) continue;
-      if (mf) { fator = { grupoLaudo: limpa(mf[3]).replace(/^a\s+/i, ""), Fator: "" }; posto.fatores.push(fator); campo = null; campoF = null; cabRisco = null; esperandoNomeFator = true; if (!posto.yFim) posto.yFim = l.y; continue; }
+      if (mf) { fator = { grupoLaudo: limpa(mf[3]).replace(/^a\s+/i, ""), Fator: "" }; posto.fatores.push(fator); campo = null; campoF = null; esperandoNomeFator = true; esperandoRisco = false; if (!posto.yFim) posto.yFim = l.y; continue; }
       if (fator) {
         if (esperandoNomeFator) { fator.Fator = t; esperandoNomeFator = false; continue; }
-        if (/^criticidade\b/.test(n) && /probabilidade/.test(n)) { cabRisco = { y: l.y, xs: l.xs, cells: l.cells }; campoF = "__risco"; continue; }
-        if (campoF === "__risco" && cabRisco) {
-          // valores da linha de risco: cada celula vai para a coluna do cabecalho mais proxima
-          l.cells.forEach((c, ci) => { let q = 0; cabRisco.xs.forEach((x0, k) => { if (l.xs[ci] >= x0 - 20) q = k; }); const rot = norm(cabRisco.cells[q] || ""); const chave = /criticidade/.test(rot) ? "_crit" : /probabilidade/.test(rot) ? "_prob" : /pontuacao/.test(rot) ? "Pontuacao Risco" : "Graduacao Risco"; fator[chave] = c; });
-          campoF = null; continue;
+        // cabecalho da tabela de risco - pode vir quebrado em varias linhas:
+        // "Criticidade Probabilidade Pontuacao Risco" + "Graduacao do" + "Risco". A linha que
+        // tem Criticidade e Probabilidade marca o inicio; os fragmentos sao ignorados.
+        if (/criticidade/.test(n) && /probabilidade/.test(n)) { esperandoRisco = true; campoF = null; continue; }
+        if (/^(graduacao( do)?( risco)?|risco|pontuacao( risco)?|criticidade|probabilidade)$/.test(n) && (esperandoRisco || campoF === "Medida Controle Existente")) continue; // fragmento do cabecalho
+        // linha de valores da tabela de risco: a 1a linha apos o cabecalho que comeca por uma escala.
+        // Colunas sempre nesta ordem: Criticidade, Probabilidade, Pontuacao Risco, Graduacao do Risco.
+        if (esperandoRisco && /^(muito baixa|muito alta|muito baixo|muito alto|baixa|baixo|moderad[ao]|medi[ao]|alta|alto)\b/.test(n)) {
+          const c = l.cells.slice();
+          fator._crit = c[0] || ""; if (c.length > 1) fator._prob = c[1];
+          const num = c.find((x) => /^\d+([.,]\d+)?$/.test(String(x).trim())); if (num) fator["Pontuacao Risco"] = num;
+          if (c.length >= 4) fator["Graduacao Risco"] = c.slice(3).join(" ").trim();
+          else { const g = c.slice(2).find((x) => /^(muito baixo|muito alto|baixo|baixa|moderad[ao]|medi[ao]|alto|alta)$/.test(norm(x))); if (g) fator["Graduacao Risco"] = g; }
+          esperandoRisco = false; continue;
         }
-        const rf = ROT_FATOR.find(([, rx]) => rx.test(n)); if (rf) { campoF = rf[0]; continue; }
+        const rf = ROT_FATOR.find(([, rx]) => rx.test(n)); if (rf) { campoF = rf[0]; esperandoRisco = false; continue; }
         if (campoF) { acrescenta(fator, campoF, t); continue; }
         continue;
       }
@@ -206,11 +216,13 @@
   async function sha1(texto) { try { const b = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(texto)); return Array.from(new Uint8Array(b)).map((x) => x.toString(16).padStart(2, "0")).join(""); } catch (e) { return String(texto.length) + texto.slice(-60); } }
 
   // ------------------------------------------------------------------ tela (cartao dentro de AEP › Importar Excel)
-  const est = { arquivo: null, lido: null, res: null, msg: "", erro: false, ocupado: false, escolhas: {}, sobrescrever: false, criarFatores: true, converterAcoes: true, guardarLaudo: true, cliente: "", unidade: "", log: [] };
+  // V 1.46 (Alexandre): a importacao e automatica - traz TUDO do PDF (dados, fotos, fatores e acoes),
+  // sem opcoes para o usuario; o PDF antigo nao fica guardado no sistema.
+  const est = { arquivo: null, lido: null, res: null, msg: "", erro: false, ocupado: false, escolhas: {}, sobrescrever: true, criarFatores: true, converterAcoes: true, guardarLaudo: false, cliente: "", unidade: "", log: [] };
   function montar(el) {
     if (!el) return; el.innerHTML = "";
     el.appendChild(h("div", "importar-opcao-titulo", "📄 Laudo da AEP do sistema anterior (PDF)"));
-    el.appendChild(h("p", null, "Envie apenas o laudo em PDF do sistema anterior. O SIGE lê tudo — dados do posto, fotos, fatores de risco e as recomendações (eliminação vira ação de Engenharia; administrativas/organizacionais viram Organizacional) — e transcreve para o novo sistema. Antes de gravar, você confere posto a posto na comparação abaixo."));
+    el.appendChild(h("p", null, "Envie apenas o laudo em PDF do sistema anterior. O SIGE lê e transcreve tudo automaticamente — dados do posto, fotos, fatores de risco (com a graduação) e as recomendações (eliminação vira ação de Engenharia; administrativas/organizacionais viram Organizacional). Escolha a empresa e a unidade, confira a lista de postos e clique em migrar; o PDF antigo não fica guardado no sistema."));
     const lb = h("label", "aet-import-arquivo"); const inp = h("input"); inp.type = "file"; inp.accept = ".pdf,application/pdf";
     lb.appendChild(h("span", "btn-cad-primario", est.ocupado && !est.res ? "Lendo o laudo…" : "⬆ Escolher laudo (PDF)")); lb.appendChild(inp); el.appendChild(lb);
     if (est.arquivo) el.appendChild(h("div", "aet-nota", "Arquivo: " + est.arquivo.name));
@@ -276,8 +288,7 @@
     const lu = h("label", "aet-campo"); lu.appendChild(h("span", "aet-rot", `Unidade *${res.unidade ? " (no laudo: " + res.unidade + ")" : ""}`)); const iu = h("input"); iu.type = "text"; iu.value = est.unidade; const dl = h("datalist"); dl.id = "dl-laudo-antigo-un"; unidades.forEach((u) => { const o = h("option"); o.value = u; dl.appendChild(o); }); iu.setAttribute("list", dl.id); iu.addEventListener("change", () => { est.unidade = iu.value.trim(); montar(el); }); lu.appendChild(iu); lu.appendChild(dl); gr.appendChild(lu);
     if (!est.cliente) { card.appendChild(h("div", "aet-nota", "Escolha a empresa para ligar os postos às AEPs.")); return; }
     const plano = planejar(); est.plano = plano;
-    const op = h("div", "ferr-multi"); card.appendChild(op);
-    [["sobrescrever", "Trocar também os campos da AEP já preenchidos (jornada, pausas, descrições…)"], ["criarFatores", "Criar os fatores de risco que ainda não existem no Inventário"], ["converterAcoes", "Levar as ações do laudo (eliminação e controles administrativos) para o Plano de Ação"], ["guardarLaudo", "Guardar o PDF do laudo antigo no histórico de laudos do cliente"]].forEach(([k, t]) => { const l = h("label"); const cb = h("input"); cb.type = "checkbox"; cb.checked = !!est[k]; cb.addEventListener("change", () => { est[k] = cb.checked; }); l.appendChild(cb); l.appendChild(document.createTextNode(" " + t)); op.appendChild(l); });
+    // V 1.46: sem opcoes - a importacao traz tudo (campos, fotos, fatores e acoes) automaticamente.
     if (res.avisos.length) { const av = h("div", "aet-msg"); av.textContent = "Atenção: " + res.avisos.slice(0, 5).join(" "); card.appendChild(av); }
     const wrap = h("div", "tabela-scroll"); const tb = h("table", "tabela-dados tabela-secao"); const tr0 = h("tr");
     ["Seção", "Setor › posto › cargo", "AEP no SIGE", "Campos", "Fotos", "Fatores (existentes / novos)"].forEach((c) => tr0.appendChild(h("th", null, c)));
@@ -384,15 +395,7 @@
         }
         registrar(`Seção ${x.p.secao} · ${x.v["Posto Trabalho"]} (${x.v.Cargo}): AEP ${x.aep ? "atualizada" : "criada"}, ${x.p.imagens.length} foto(s) lidas.`);
       }
-      // laudo antigo no historico
-      if (est.guardarLaudo && empresaId && est.arquivo) {
-        try {
-          const r = await BI.DB.enviarArquivo("laudo", empresaId, new File([est.arquivo], est.arquivo.name.replace(/[^\w .-]+/g, "_"), { type: "application/pdf" }));
-          const jaTem = (BI.dados.laudo || []).some((l) => l.Cliente === est.cliente && l["Arquivo Original Laudo Anterior"] === est.arquivo.name && l["Tamanho Laudo Anterior"] === est.arquivo.size);
-          if (!jaTem) await BI.DB.salvar("laudo", null, { EmpresaId: empresaId, Cliente: est.cliente, Unidade: est.unidade, Tipo: "Laudo", Origem: "AEP", Abrangencia: "Unidade", "Abrangencia Descricao": `Unidade: ${est.unidade} (laudo do sistema anterior)`, "Emitido Em": (plano.map((x) => x.p.dados["Data Avaliacao"]).filter(Boolean).sort().pop()) || new Date().toISOString().slice(0, 10), "Emitido Por": "Sistema anterior", Revisao: "", Texto: "Laudo da AEP do sistema anterior, migrado para o S.I.G.E.", "Arquivo Url": [{ chave: r.chave, nomeArquivo: r.nomeArquivo || est.arquivo.name, tamanho: r.tamanho || est.arquivo.size, tipoConteudo: "application/pdf" }], "Arquivo Original Laudo Anterior": est.arquivo.name, "Tamanho Laudo Anterior": est.arquivo.size });
-          registrar("Laudo antigo guardado em AEP › Laudos.");
-        } catch (e) { registrar("O PDF do laudo antigo não foi guardado: " + (e && e.message ? e.message : e)); }
-      }
+      // V 1.46 (Alexandre): o PDF do laudo antigo NAO fica guardado no sistema.
       est.msg = `Migração concluída: ${nAep} AEP(s), ${nFot} foto(s) nova(s), ${nFat} fator(es) criado(s), ${nFatComp} completado(s) e ${nAc} ação(ões) levada(s) ao Plano de Ação.`;
     } catch (e) { console.error("migrar laudo", e); est.msg = "A migração parou: " + (e && e.message ? e.message : e) + ". O que já foi gravado fica; rode de novo para continuar (nada é duplicado)."; est.erro = true; }
     est.ocupado = false; montar(el);
