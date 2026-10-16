@@ -84,9 +84,23 @@
   }
 
   // ------------------------------------------------------------------ leitura do PDF (texto com posicao)
+  // V 1.45: carrega o leitor de PDF sob demanda (cópia local e, se faltar, CDN).
+  function carregarScriptPdf(src) {
+    return new Promise((ok, err) => { const s = document.createElement("script"); s.src = src; s.async = true; s.onload = () => ok(true); s.onerror = () => err(new Error("falha " + src)); document.head.appendChild(s); });
+  }
+  async function garantirPdfJs() {
+    if (g.pdfjsLib) return g.pdfjsLib;
+    const fontes = [
+      { lib: "vendor/libs/pdf.min.js", worker: "vendor/libs/pdf.worker.min.js" },
+      { lib: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js", worker: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js" },
+    ];
+    for (const f of fontes) { try { await carregarScriptPdf(f.lib); } catch (e) { continue; } if (g.pdfjsLib) { try { g.pdfjsLib.GlobalWorkerOptions.workerSrc = f.worker; } catch (e) { /* */ } return g.pdfjsLib; } }
+    return null;
+  }
   async function lerPdf(arquivo) {
-    if (!g.pdfjsLib) throw new Error("O leitor de PDF não carregou. Atualize a página (Ctrl+F5).");
-    const pdf = await g.pdfjsLib.getDocument({ data: await arquivo.arrayBuffer(), isEvalSupported: false }).promise;
+    const lib = await garantirPdfJs();
+    if (!lib) throw new Error("O leitor de PDF não carregou. Verifique se a pasta vendor/libs foi publicada (vendor/libs/pdf.min.js) e atualize a página (Ctrl+F5).");
+    const pdf = await lib.getDocument({ data: await arquivo.arrayBuffer(), isEvalSupported: false }).promise;
     const linhas = [];
     for (let p = 1; p <= Math.min(pdf.numPages, 200); p++) {
       const pg = await pdf.getPage(p); const tc = await pg.getTextContent(); const base = p * 10000;

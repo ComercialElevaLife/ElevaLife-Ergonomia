@@ -378,6 +378,12 @@
 
   const HISTORICO = [
     {
+      versao: "1.45", data: "16/10/2026",
+      itens: [
+        "Importação de AEP/AET em PDF mais robusta: o leitor de PDF é carregado sob demanda, tentando a cópia local e, se faltar, o CDN — fim do erro “O leitor de PDF não carregou” quando a biblioteca não tinha carregado na abertura.",
+      ],
+    },
+    {
       versao: "1.44", data: "16/10/2026",
       itens: [
         "Rostos anonimizados nas fotos da AET (editor já tinha; agora também nas fotos importadas de AET em Word/PDF) e nas fotos importadas do laudo antigo da AEP — automaticamente, sem conferência por foto nos lotes de importação.",
