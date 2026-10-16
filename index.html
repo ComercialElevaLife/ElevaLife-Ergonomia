@@ -648,14 +648,30 @@
 
 <div class="tooltip-chart" id="tooltip-flutuante" style="display:none;"></div>
 
-<script src="vendor/libs/chart.umd.min.js"></script>
-<script src="vendor/libs/chartjs-plugin-datalabels.min.js"></script>
-<script src="vendor/libs/jspdf.umd.min.js"></script>
-<script src="vendor/libs/xlsx.full.min.js"></script>
+<!-- V 1.46: bibliotecas servidas pelo próprio sistema (vendor/libs), com FALLBACK
+     automático para o CDN caso a cópia local não esteja publicada no servidor.
+     Assim o sistema funciona tanto em redes que bloqueiam o CDN (usa a cópia
+     local) quanto quando a pasta vendor/libs não foi para o deploy (usa o CDN). -->
+<script>
+  // Carrega o CDN como alternativa quando a cópia local falha (onerror). Mantém
+  // a ordem de carregamento (async=false) para o datalabels enxergar o Chart.
+  window.sigeCdnFallback = function (url) {
+    var s = document.createElement("script"); s.src = url; s.async = false;
+    s.onload = function () {
+      // Chart chegou pelo CDN depois da inicialização: redesenha os gráficos.
+      if (/chart\.umd/i.test(url) && window.BI && typeof window.BI.reRenderizar === "function") { try { window.BI.reRenderizar(); } catch (e) { /* */ } }
+    };
+    document.head.appendChild(s);
+  };
+</script>
+<script src="vendor/libs/chart.umd.min.js" onerror="sigeCdnFallback('https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js')"></script>
+<script src="vendor/libs/chartjs-plugin-datalabels.min.js" onerror="sigeCdnFallback('https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js')"></script>
+<script src="vendor/libs/jspdf.umd.min.js" onerror="sigeCdnFallback('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')"></script>
+<script src="vendor/libs/xlsx.full.min.js" onerror="sigeCdnFallback('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js')"></script>
 <!-- pdf.js: usado so para extrair o TEXTO de um PDF de AET, pra classificacao
      por conteudo (ver js/app.js/extrairTextoPDF e js/calc.js/classificarTextoAET) -
      nunca pra exibir/renderizar o PDF. -->
-<script src="vendor/libs/pdf.min.js"></script>
+<script src="vendor/libs/pdf.min.js" onerror="sigeCdnFallback('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js')"></script>
 <script>
   if (window.pdfjsLib) {
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/libs/pdf.worker.min.js";
@@ -679,7 +695,7 @@
      relacao com a identidade visual dos 15 anos da ElevaLife. -->
 <script src="js/pdf-fonts.js"></script>
 <!-- V 1.3: QR Code do laudo (validacao em /verificar) e o gerador do laudo (AEP) -->
-<script src="vendor/libs/qrcode.min.js"></script>
+<script src="vendor/libs/qrcode.min.js" onerror="sigeCdnFallback('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js')"></script>
 <script src="js/laudo-textos.js"></script>
 <script src="js/laudo-padrao.js"></script>
 <script src="js/laudo-docx.js"></script>
