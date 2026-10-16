@@ -2,6 +2,10 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.45 — 16/10/2026
+
+- **Leitor de PDF tolerante a falhas (importação da AEP e da AET).** Ao subir o laudo em PDF, o SIGE agora carrega o leitor de PDF sob demanda: tenta primeiro a cópia local (`vendor/libs/pdf.min.js`) e, se ela não estiver disponível, o CDN — assim a importação funciona mesmo que um dos caminhos falhe. Antes, se a biblioteca não tivesse carregado na abertura da página, a importação parava com “O leitor de PDF não carregou”. A mensagem de erro, quando ocorre, agora orienta a conferir se a pasta `vendor/libs` foi publicada. **Importante:** confirme que a pasta `vendor/libs/` está no deploy (abra `…/vendor/libs/pdf.min.js` no navegador: deve mostrar código JavaScript, não a página do sistema).
+
 ## V 1.44 — 16/10/2026
 
 - **Anonimização de rostos nas fotos da AET (e nas importações).** As fotos anexadas no editor da AET já tinham a conferência de anonimização (igual à AEP); agora as fotos que entram pela **importação de AET (Word/PDF)** e pela **importação do laudo antigo da AEP (PDF)** também têm os rostos desfocados — automaticamente, sem abrir uma conferência por foto (seria inviável em lote). Em resumo: os rostos são anonimizados em todas as fotos, tanto na AEP quanto na AET, inclusive nas importadas.
