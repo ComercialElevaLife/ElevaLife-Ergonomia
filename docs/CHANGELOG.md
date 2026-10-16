@@ -2,6 +2,17 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.44 — 16/10/2026
+
+- **Anonimização de rostos nas fotos da AET (e nas importações).** As fotos anexadas no editor da AET já tinham a conferência de anonimização (igual à AEP); agora as fotos que entram pela **importação de AET (Word/PDF)** e pela **importação do laudo antigo da AEP (PDF)** também têm os rostos desfocados — automaticamente, sem abrir uma conferência por foto (seria inviável em lote). Em resumo: os rostos são anonimizados em todas as fotos, tanto na AEP quanto na AET, inclusive nas importadas.
+
+## V 1.43.1 — 15/10/2026
+
+Correção crítica: a tela de login voltou a abrir mesmo se os gráficos não carregarem.
+
+- **Login não depende mais do Chart.js.** Antes, se a biblioteca de gráficos (Chart.js) não carregasse, o sistema travava na abertura com o erro “A biblioteca Chart.js não carregou” — e **nem a tela de login aparecia**. Agora o SIGE abre normalmente: a tela de login, os cadastros e todas as telas funcionam; apenas os gráficos que dependem da biblioteca aparecem com um aviso “Gráfico indisponível”. Combinado com a V 1.43 (bibliotecas hospedadas no próprio sistema), os gráficos também voltam a funcionar em redes que bloqueiam o cdnjs.
+- **Importante ao atualizar:** a pasta **`vendor/libs/`** precisa ir no deploy (é onde ficam as bibliotecas). Depois de publicar, force a atualização no navegador (Ctrl+Shift+R) para descartar o cache antigo.
+
 ## V 1.43 — 15/10/2026
 
 Correção importante: o sistema deixou de depender de um CDN externo (cdnjs) para carregar.
