@@ -149,5 +149,19 @@
     automatico = false; return out;
   }
 
-  BI.Fotos = { preparar: (a) => prepararLista([a]).then((l) => l[0] || null), prepararLista, carregarModelo, _aplicar: aplicar, _detectar: detectar, _imagemDe: imagemDe };
+  // V 1.44: anonimização AUTOMÁTICA (sem a janela de conferência) - para lotes de
+  // importação (AET Word/PDF e laudo da AEP), onde abrir uma conferência por foto
+  // seria inviável. Detecta os rostos e desfoca; sem modelo disponível, devolve a
+  // foto reduzida (não dá para borrar sem detectar, mas segue reduzida).
+  async function prepararAuto(arquivo) {
+    if (!arquivo || !/^image\/(jpeg|png)$/.test(arquivo.type)) return arquivo;
+    let cv; try { cv = await imagemDe(arquivo); } catch (e) { return arquivo; }
+    let caixas = []; try { caixas = await detectar(cv); } catch (e) { caixas = []; }
+    if (caixas.length) aplicar(cv, caixas, "desfocar");
+    return paraArquivo(cv, arquivo.name);
+  }
+  async function prepararListaAuto(arquivos) {
+    const out = []; for (const a of Array.from(arquivos || [])) out.push(await prepararAuto(a)); return out;
+  }
+  BI.Fotos = { preparar: (a) => prepararLista([a]).then((l) => l[0] || null), prepararLista, prepararAuto, prepararListaAuto, carregarModelo, _aplicar: aplicar, _detectar: detectar, _imagemDe: imagemDe };
 })(window);

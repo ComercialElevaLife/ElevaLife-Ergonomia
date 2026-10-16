@@ -378,6 +378,18 @@
 
   const HISTORICO = [
     {
+      versao: "1.44", data: "16/10/2026",
+      itens: [
+        "Rostos anonimizados nas fotos da AET (editor já tinha; agora também nas fotos importadas de AET em Word/PDF) e nas fotos importadas do laudo antigo da AEP — automaticamente, sem conferência por foto nos lotes de importação.",
+      ],
+    },
+    {
+      versao: "1.43.1", data: "15/10/2026",
+      itens: [
+        "Correção: a tela de login volta a abrir mesmo que os gráficos não carreguem. Antes o sistema travava com “Chart.js não carregou” e nem o login aparecia; agora abre normalmente e só os gráficos afetados mostram “Gráfico indisponível”.",
+      ],
+    },
+    {
       versao: "1.43", data: "15/10/2026",
       itens: [
         "Correção: o sistema não depende mais de um CDN externo (cdnjs). As bibliotecas (Chart.js, jsPDF, Excel, PDF, QR) passaram a ser servidas pelo próprio SIGE — fim do erro “Chart.js não carregou” em redes que bloqueiam o cdnjs.",

@@ -330,7 +330,10 @@
           const hs = await sha1(dUrl); if (jaHash.has(hs)) continue;
           const bin = Uint8Array.from(atob(dUrl.split(",")[1]), (c) => c.charCodeAt(0));
           const nome = `laudo-anterior-${x.p.secao}-${k + 1}.jpg`;
-          try { const r = await BI.DB.enviarArquivo("avaliacaoErgonomica", empresaId, new File([bin], nome, { type: "image/jpeg" })); fotos.push({ chave: r.chave, nomeArquivo: r.nomeArquivo || nome, tamanho: r.tamanho || bin.length, tipoConteudo: "image/jpeg" }); jaHash.add(hs); nFot++; }
+          // V 1.44: fotos importadas do laudo antigo também com rostos anonimizados (automático).
+          let arqFoto = new File([bin], nome, { type: "image/jpeg" });
+          if (BI.Fotos && BI.Fotos.prepararAuto) { try { arqFoto = await BI.Fotos.prepararAuto(arqFoto); } catch (e3) { /* segue com a original */ } }
+          try { const r = await BI.DB.enviarArquivo("avaliacaoErgonomica", empresaId, arqFoto); fotos.push({ chave: r.chave, nomeArquivo: r.nomeArquivo || nome, tamanho: r.tamanho || (arqFoto.size || bin.length), tipoConteudo: "image/jpeg" }); jaHash.add(hs); nFot++; }
           catch (e) { registrar(`Seção ${x.p.secao}: foto ${k + 1} não enviada (${e && e.message ? e.message : e}).`); }
         }
         dados.Fotos = fotos; dados["Fotos Laudo Anterior"] = Array.from(jaHash);

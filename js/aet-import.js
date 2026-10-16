@@ -386,7 +386,8 @@
           const criados = await BI.garantirHierarquia(valores, res.cnpj ? { CNPJ: res.cnpj } : {});
           const emp = (BI.dados.cliente || []).find((c) => c.Cliente === nomeCli); const empresaId = emp ? (emp.id || emp._id) : null;
           const mzCli = C.matrizDoCliente(BI.dados.cliente || [], nomeCli);
-          const enviar = async (ids) => { const out = []; for (const id of ids) { /* V 1.38: sem limite de fotos */ const im = (estado.lido.imagens || [])[id]; if (!im || !empresaId) continue; try { const r = await BI.DB.enviarArquivo("aet", empresaId, new File([im.bytes], im.nome, { type: im.tipo })); out.push({ chave: r.chave, nomeArquivo: r.nomeArquivo || im.nome }); } catch (e) { console.warn("foto", e); } } return out; };
+          // V 1.44: as fotos importadas da AET também têm os rostos anonimizados (automático, sem conferência por foto).
+          const enviar = async (ids) => { const out = []; for (const id of ids) { /* V 1.38: sem limite de fotos */ const im = (estado.lido.imagens || [])[id]; if (!im || !empresaId) continue; try { let arq = new File([im.bytes], im.nome, { type: im.tipo }); if (BI.Fotos && BI.Fotos.prepararAuto) { try { arq = await BI.Fotos.prepararAuto(arq); } catch (e2) { /* segue com a original */ } } const r = await BI.DB.enviarArquivo("aet", empresaId, arq); out.push({ chave: r.chave, nomeArquivo: r.nomeArquivo || im.nome }); } catch (e) { console.warn("foto", e); } } return out; };
           const d = JSON.parse(JSON.stringify(a.d));
           Object.assign(d, valores);
           d["Foto Geral"] = a._fotosGeralEnviadas || (a._fotosGeralEnviadas = await enviar(a.fotosGeral));

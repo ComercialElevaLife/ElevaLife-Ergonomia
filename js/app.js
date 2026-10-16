@@ -208,6 +208,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function configurarChartDefaults() {
+    // V 1.43.1: se o Chart.js não carregou, não derruba o sistema - a tela de
+    // login e os cadastros continuam funcionando; só os gráficos ficam de fora.
+    if (typeof Chart === "undefined") return;
     Chart.defaults.font.family = "'Montserrat', system-ui, -apple-system, sans-serif";
     Chart.defaults.font.size = 12;
     Chart.defaults.color = corTextoSecundario();
@@ -289,6 +292,15 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function criarOuAtualizarGrafico(id, config) {
+    // V 1.43.1: sem Chart.js, mostra um aviso no lugar do gráfico em vez de
+    // derrubar a renderização inteira (login e cadastros seguem funcionando).
+    if (typeof Chart === "undefined") {
+      const c = document.getElementById(id);
+      if (c && c.parentElement && !c.parentElement.querySelector(".grafico-indisponivel")) {
+        const av = document.createElement("div"); av.className = "grafico-indisponivel"; av.textContent = "Gráfico indisponível (biblioteca não carregou)."; c.parentElement.appendChild(av); c.style.display = "none";
+      }
+      return;
+    }
     if (registroGraficos[id]) registroGraficos[id].destroy();
     const canvas = document.getElementById(id);
     // V 1.34: sem o <canvas> (index.html de outra versao em cache, ou grafico retirado) o grafico e ignorado,
@@ -8953,8 +8965,14 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
   async function iniciar() {
     try {
+      // V 1.43.1: o Chart.js NÃO é mais pré-requisito para abrir o sistema. Se
+      // ele não carregar (CDN bloqueado, cache antigo, etc.), o SIGE continua
+      // abrindo - a tela de login e todos os cadastros funcionam; apenas os
+      // gráficos ficam indisponíveis, com um aviso discreto. Antes, um erro aqui
+      // impedia até a tela de login de aparecer.
       if (typeof Chart === "undefined") {
-        throw new Error("A biblioteca Chart.js não carregou (script externo bloqueado ou indisponível).");
+        console.warn("SIGE: Chart.js não carregou; o sistema abre sem os gráficos.");
+        try { window.BI = window.BI || {}; } catch (e) { /* */ }
       }
 
       const resp = await fetch("data/mock_data.json");
