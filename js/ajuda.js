@@ -380,6 +380,8 @@
     {
       versao: "1.46", data: "16/10/2026",
       itens: [
+        "Correção crítica: duas empresas não podem mais ter o mesmo código interno (gerado do nome). Antes, nomes parecidos (ou a mesma empresa recadastrada) acabavam compartilhando o código e os dados se misturavam — excluir uma afetava a outra. Agora o sistema bloqueia a criação com código duplicado e pede um nome um pouco diferente. (Empresas que já tinham sido mescladas por esse problema precisam ser recadastradas.)",
+        "Tamanho de arquivo liberado para laudos (AEP e AET) e arquivos da AET: o limite de 15MB/20MB do sistema foi praticamente removido (vale para o envio manual e para o laudo final gerado). Resta apenas o teto da plataforma de hospedagem (~100MB por envio), que não depende do SIGE.",
         "Importar AEP: o PDF do sistema anterior passa a ser transcrito por completo e automaticamente — dados do posto, fotos, fatores de risco com a graduação (criticidade, probabilidade, pontuação e graduação) e as recomendações (eliminação vira Engenharia; administrativas/organizacionais viram Organizacional). Corrigida a leitura da tabela de risco (cabeçalho quebrado em duas linhas) que fazia o fator entrar sem a graduação. Saíram as opções da tela: tudo entra de uma vez, e o PDF antigo não fica guardado no sistema.",
         "Geração de laudos (AEP e AET) tolerante a falhas: quando a cópia local das bibliotecas (vendor/libs) não está publicada, o SIGE busca jsPDF, Chart.js, SheetJS, pdf.js e o leitor de QR automaticamente no CDN — fim do erro “A biblioteca de geração de PDF não carregou” ao gerar o laudo.",
       ],
