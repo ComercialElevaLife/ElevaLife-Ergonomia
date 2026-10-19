@@ -186,7 +186,7 @@
     const logoEleva = await imagemUrl("img/logo-elevalife-branco.png"), logoElevaCor = await imagemUrl("img/logo-elevalife.png");
     for (const av of avaliacoes) for (const f of av.Fotos || []) {
       const d = await imagem(f && f.chave);
-      if (f && f.chave && d) cacheImg[f.chave] = await comprimirFoto(d, 1600, 0.72);
+      if (f && f.chave && d) cacheImg[f.chave] = await comprimirFoto(d, 1280, 0.7);
     }
     for (const e of assinantes) e._assinatura = await imagem(chaveDe(e.Assinatura));
     // V 1.35: certificados de calibracao escolhidos na emissao - saem no proprio arquivo (uma pagina cada, no final)
