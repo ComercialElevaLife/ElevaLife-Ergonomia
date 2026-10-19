@@ -19,6 +19,10 @@
     "Ano": "Ano", "Mes": "Mês", "Cliente": "Cliente", "Unidade": "Unidade", "Setor": "Setor / GHE",
     "Posto Trabalho": "Posto de Trabalho", "Cargo": "Cargo", "Atividade": "Atividade", "Origem": "Origem",
   };
+  // V 1.46 (Alexandre): limite "quase infinito" para laudos (AEP/AET) e arquivos da AET -
+  // alguns laudos passam de 15MB. O app não impõe mais um teto prático; o único limite
+  // real é o da plataforma (tamanho de requisição do Azure Static Web Apps), fora do nosso código.
+  const LIMITE_ARQUIVO_GRANDE = 1024 * 1024 * 1024; // 1 GB
   // Colecoes que tem origem (AEP/AET/Psicossocial): recebem _origem (so em memoria) para o filtro.
   const COLECOES_COM_ORIGEM = { fatorRisco: null, planoAcao: null, avaliacaoErgonomica: "AEP", laudo: null, aet: "AET" };
   function carimbarOrigens() {
@@ -2327,14 +2331,14 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       comSecao([
         { campo: "Codigo Verificacao", rotulo: "Código de verificação", tipo: "calculado" },
         {
-          campo: "Arquivo Url", rotulo: "Arquivo do Laudo (gerado automaticamente; envio manual de PDF ou imagem, até 15MB)", tipo: "arquivo", multiplo: false,
+          campo: "Arquivo Url", rotulo: "Arquivo do Laudo (PDF, gerado automaticamente)", tipo: "arquivo", multiplo: false,
           colecaoArquivo: "laudo", aceitaTipos: "application/pdf,image/jpeg,image/png",
-          tamanhoMaximoBytes: 15 * 1024 * 1024,
+          tamanhoMaximoBytes: LIMITE_ARQUIVO_GRANDE, ocultarSeletor: true,
         },
         {
-          campo: "Arquivo Word", rotulo: "Laudo em Word (.docx, editável; gerado junto com o PDF, até 15MB)", tipo: "arquivo", multiplo: false,
+          campo: "Arquivo Word", rotulo: "Laudo em Word (.docx, gerado automaticamente)", tipo: "arquivo", multiplo: false,
           colecaoArquivo: "laudo", aceitaTipos: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          tamanhoMaximoBytes: 15 * 1024 * 1024,
+          tamanhoMaximoBytes: LIMITE_ARQUIVO_GRANDE, ocultarSeletor: true,
         },
         // Ocultos: preenchidos pelo gerador.
         { campo: "Texto", rotulo: "Texto do Laudo", tipo: "textarea" },
@@ -2491,11 +2495,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       comSecao([
         {
           campo: "Arquivos AET",
-          rotulo: "Arquivos da AET (Excel e/ou PDF, até 20MB cada) - o sistema lê o conteúdo de cada arquivo e sugere a classificação automaticamente",
+          rotulo: "Arquivos da AET (Excel e/ou PDF, arquivos grandes aceitos) - o sistema lê o conteúdo de cada arquivo e sugere a classificação automaticamente",
           tipo: "arquivo", multiplo: true,
           colecaoArquivo: "aet",
           aceitaTipos: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/pdf",
-          tamanhoMaximoBytes: 20 * 1024 * 1024,
+          tamanhoMaximoBytes: LIMITE_ARQUIVO_GRANDE,
           extrairTextoParaClassificacao: extrairTextoParaClassificacaoAET,
         },
       ], "📎 Documentos da AET")
@@ -5272,6 +5276,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // gerador de Laudo pra anexar o PDF/imagem gerado sem passar pelo
     // <input type="file"> manual.
     campoFake.anexarArquivos = anexarArquivos;
+
+    // V 1.46 (Alexandre): campos que só recebem o arquivo GERADO (laudo PDF/Word) não mostram
+    // o seletor manual "Escolher arquivo" - ele não faz sentido ali. O chip com o arquivo gerado
+    // (link de download) continua aparecendo, e o gerador segue usando campoFake.anexarArquivos.
+    if (def.ocultarSeletor) return wrap;
 
     if (!window.BI.DB.estado.modoApi) {
       mostrarAviso("Upload de arquivo disponível só na versão publicada (produção).");

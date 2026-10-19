@@ -231,9 +231,18 @@
     B.push(H1("s5", "5. Informações cadastrais da empresa", true));
     if (logoCliente && imgs[logoCliente]) B.push(imagemPar(logoCliente, 190, 52, { jc: "center", depois: 100, nome: "Logotipo do cliente" }));
     {
-      const end = [docCliente.Logradouro, docCliente.Numero, docCliente.Complemento, docCliente.Bairro, [docCliente.Cidade, docCliente.Estado].filter(Boolean).join("/"), docCliente.CEP ? "CEP " + docCliente.CEP : ""].filter(Boolean).join(", ");
-      const ficha = [["Razão social", opcoes.nomeCliente], ["CNPJ", docCliente.CNPJ], ["Inscrição estadual", docCliente["Inscricao Estadual"]], ["CNAE", docCliente.CNAE],
-        ["Grau de risco (NR-04)", docCliente["Grau Risco NR4"]], ["Unidade avaliada", unidadesAv.join(" · ")], ["Endereço", end], ["Telefone", docCliente.Telefone],
+      // V 1.46 (Alexandre): razão social em MAIÚSCULO; nomes (unidade, endereço) em Title Case; abrangência como cadastrada.
+      const MINUS_TC = new Set(["de", "da", "do", "das", "dos", "e", "a", "o", "as", "os", "à", "em", "no", "na"]);
+      const tcase = (s) => String(s || "").split(/(\s+|,|\/|·|›)/).map((tok) => {
+        if (/^(\s+|,|\/|·|›)$/.test(tok) || !tok) return tok;
+        const low = tok.toLowerCase();
+        if (tok.length <= 3 && tok === tok.toUpperCase() && /[A-ZÀ-Ú]/.test(tok)) return tok;
+        if (MINUS_TC.has(low)) return low;
+        return low.charAt(0).toUpperCase() + low.slice(1);
+      }).join("");
+      const end = tcase([docCliente.Logradouro, docCliente.Numero, docCliente.Complemento, docCliente.Bairro, [docCliente.Cidade, docCliente.Estado].filter(Boolean).join("/"), docCliente.CEP ? "CEP " + docCliente.CEP : ""].filter(Boolean).join(", "));
+      const ficha = [["Razão social", String(opcoes.nomeCliente || "").toUpperCase()], ["CNPJ", docCliente.CNPJ], ["Inscrição estadual", docCliente["Inscricao Estadual"]], ["CNAE", docCliente.CNAE],
+        ["Grau de risco (NR-04)", docCliente["Grau Risco NR4"]], ["Unidade avaliada", tcase(unidadesAv.join(" · "))], ["Endereço", end], ["Telefone", docCliente.Telefone],
         ["Abrangência do laudo", opcoes.abrangenciaDescricao && opcoes.abrangenciaDescricao !== "Empresa toda" ? opcoes.abrangenciaDescricao : ""], ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo]].filter((r) => r[1]);
       B.push(tbl([30, 70], ficha.map((r) => [{ t: r[0], b: true, fundo: C.creme }, String(r[1])]), { tam: 9 }));
     }
@@ -269,19 +278,12 @@
       for (let i = 0; i < pd.length; i += 2) linhas.push(pd.slice(i, i + 2).map((r, k) => ({ paras: par(run(r[0], { b: true, cor: C.vinhoE, tam: 9 }), { depois: 30 }) + par(run(r[1] || "", { tam: 8.5, cor: C.texto }), { depois: 0 }), fundo: CORES[(i + k) % 4], v: "top" })).concat(pd.length - i < 2 ? [{ t: "", fundo: "FFFFFF" }] : []));
       B.push(tbl([1, 1], linhas, { bordaBranca: true, semBorda: true, margemV: 90 }));
     }
+    // V 1.46 (Alexandre): 7.2 sem a tabela Norma/ferramenta; 7.3 lista os fatores de cada grupo; 7.4 (Guias) removido; 7.5 vira 7.4.
     B.push(H2("s72", "7.2 Técnicas e instrumentos"), lista(linhasDe("Tecnicas")), paragrafos("AEP AET"));
-    B.push(tbl([32, 68], celulas("Metodos").map((r) => [{ t: r[0], b: true }, r[1] || ""]), { cab: ["Norma / ferramenta", "Aplicação"], zebra: true }));
     B.push(H2("s73", "7.3 Lista de fatores de risco (ISO/TS 20646)"), paragrafos("ISO Intro"));
-    B.push(tbl([10, 78, 12], Calc.GRUPOS_FATOR_RISCO.map((g, i) => [{ t: String(i + 1), jc: "center" }, g, { t: String(Calc.fatoresDoGrupo(g).length), jc: "center" }]), { cab: ["Grupo", "Descrição do grupo", "Fatores"], zebra: true }));
+    B.push(tbl([38, 62], Calc.GRUPOS_FATOR_RISCO.map((g, i) => [`${i + 1}. ${g}`, Calc.fatoresDoGrupo(g).join("; ")]), { cab: ["Grupo de fatores", "Fatores que compõem o grupo"], zebra: true }));
     B.push(legenda(texto("ISO Legenda")));
-    B.push(H2("s74", "7.4 Guias de referência para graduação"), paragrafos("Guias Intro"), H3(titDe("adm", "Referência para postura – amplitude de movimento (ADM)")));
-    B.push(tbl([14, 24, 12, 14, 18, 18], celulas("ADM Tabela").map((r) => [0, 1, 2, 3, 4, 5].map((c) => r[c] || "")), { cab: ["Segmento", "Postura", "Leve", "Moderada", "Acentuada", "Não recomendada"], zebra: true, tam: 8 }), legenda(texto("ADM Fonte")));
-    texto("Escalas").split(/\n{2,}/).map((b) => b.split("\n").map((l) => l.trim()).filter(Boolean)).filter((b) => b.length >= 2).forEach((b) => {
-      const cab = b[1].split("|").map((c) => c.trim());
-      B.push(par(run(b[0].toUpperCase(), { b: true, cor: C.tealE, tam: 8.5 }), { manter: true, depois: 40 }), tbl([30].concat(cab.slice(1).map(() => 70 / Math.max(cab.length - 1, 1))), b.slice(2).map((l) => l.split("|").map((c) => c.trim())), { cab, zebra: true, tam: 8 }));
-    });
-    B.push(legenda(texto("Escalas Legenda")));
-    B.push(H2("s75", "7.5 Interfaces com as demais frentes da ElevaLife"), paragrafos("Interfaces Intro"));
+    B.push(H2("s74", "7.4 Interfaces com as demais frentes da ElevaLife"), paragrafos("Interfaces Intro"));
     B.push(tbl([32, 68], celulas("Interfaces").map((r) => [{ t: r[0], b: true }, r[1] || ""]), { cab: ["Frente", "Como se conecta a esta AEP"], zebra: true }));
 
     // ================================================================ 8
@@ -307,7 +309,7 @@
       B.push(legenda(NOTA_MATRIZ));
       B.push(P(TXT_RISCO_POSTO));
     }
-    B.push(H2("s83", "8.3 Medidas de controle e evolução do risco"), paragrafos("Medidas Intro"));
+    B.push(H2("s83", "8.3 Recomendações e evolução do risco"), paragrafos("Medidas Intro"));
     {
       const desc = linhasDe("Medidas Tipos"); const pil = [C.vinhoE, C.tealE, C.vinhoM];
       B.push(tbl([22, 78], (Acoes ? Acoes.tipos() : []).map((t, i) => [{ t: t.rotulo, pilula: pil[i % 3] }, desc[i % (desc.length || 1)] || ""]), {}));
@@ -334,8 +336,8 @@
       const fotos = (av.Fotos || []).filter((f) => f && f.chave && cacheImg[f.chave] && imgs[cacheImg[f.chave]]);
       for (let k = 0; k < fotos.length; k += 2) {
         const l = fotos.slice(k, k + 2).map((f) => {
-          nFigura++;
-          return { paras: imagemPar(cacheImg[f.chave], 235, 160, { jc: "center", depois: 30, nome: f.nomeArquivo || "Registro fotográfico" }) + par(run(`Figura ${nFigura} – ${(f.nomeArquivo || "registro fotográfico").replace(/\.[a-z0-9]+$/i, "").slice(0, 60)}`, { tam: 7.5, cor: C.cinza }), { depois: 0 }), fundo: "FFFFFF", v: "top" };
+          // V 1.46 (Alexandre): fotos da análise sem legenda.
+          return { paras: imagemPar(cacheImg[f.chave], 235, 160, { jc: "center", depois: 30, nome: f.nomeArquivo || "Registro fotográfico" }), fundo: "FFFFFF", v: "top" };
         });
         if (l.length < 2) l.push({ t: "", fundo: "FFFFFF" });
         B.push(tbl([1, 1], [l], { semBorda: true }));
@@ -387,7 +389,8 @@
     }
     if (todasAcoes.length) {
       const ord = todasAcoes.slice().sort((x, z) => (x.av.Setor + x.av["Posto Trabalho"]).localeCompare(z.av.Setor + z.av["Posto Trabalho"], "pt-BR") || (Number(x.a["Nr Acao"]) || 0) - (Number(z.a["Nr Acao"]) || 0));
-      B.push(tbl([7, 19, 12, 22, 12, 13, 15], ord.map(({ av, fr, a }) => { const d = dadosAcao(a, grau(fr)); return [{ t: d.nr, b: true }, `${av.Setor} · ${fr.Fator || ""}`, d.tipo || "-", { t: d.descricao || "-", extra: d.evidencia }, d.responsavel, d.prazo, { t: d.status.rotulo, pilula: hex(d.status.cor), tam: 7.5 }]; }), { cab: ["Ação", "Setor · fator", "Tipo", "Descrição", "Responsável", "Prazo", "Situação"], zebra: true, tam: 7.8 }));
+      // V 1.46 (Alexandre): Ação, Setor, Fator (coluna própria), Tipo, Descrição; sem Responsável/Prazo/Situação.
+      B.push(tbl([8, 20, 28, 16, 28], ord.map(({ av, fr, a }) => { const d = dadosAcao(a, grau(fr)); return [{ t: d.nr, b: true }, av.Setor || "-", fr.Fator || "-", d.tipo || "-", { t: d.descricao || "-", extra: d.evidencia }]; }), { cab: ["Ação", "Setor", "Fator", "Tipo", "Descrição"], zebra: true, tam: 7.8 }));
     } else B.push(P("Nenhuma ação cadastrada para os fatores deste documento.", { cor: C.cinza }));
     B.push(H3(titDe("residual", "Evolução dos riscos")));
     B.push(tbl([16, 24, 12, 12, 12, 24], todosComEliminados.map(({ av, fr }) => {
@@ -395,9 +398,8 @@
       return [`${av.Setor} · ${av["Posto Trabalho"]}`, fr.Fator || "", fr["Segmento Corporal"] || "-", { t: ini, pilula: hex(corNivel(ini)), tam: 7.5 }, elim ? { t: "Eliminado", b: true, cor: C.tealE } : { t: grau(fr), pilula: hex(corNivel(grau(fr))), tam: 7.5 }, Calc.textoEvolucaoRisco(fr) || "Sem reavaliação"];
     }), { cab: ["Setor · posto", "Fator de risco", "Segmento", "Risco inicial", "Risco atual", "Evolução"], zebra: true, tam: 7.8 }));
     B.push(legenda(texto("Residual Legenda")));
-    B.push(H1("s11", "11. Referências", false));
-    linhasDe("Referencias").forEach((r, i) => B.push(par(run(`${i + 1}.\t`, { tam: 9, cor: C.texto }) + rico(r, { tam: 9, cor: C.texto }), { recuo: 400, suspenso: 400, depois: 60, tabs: '<w:tab w:val="left" w:pos="400"/>' })));
-    B.push(H1("s12", "12. Conclusão e validação do documento", true), paragrafos("Conclusao"));
+    // V 1.46 (Alexandre): Referências movidas para o fim (após a Conclusão).
+    B.push(H1("s12", "11. Conclusão e validação do documento", true), paragrafos("Conclusao"));
     {
       const rc = resumoConclusao();
       if (rc.postos.length) {
@@ -417,13 +419,19 @@
     }, imgs));
     // V 1.35: certificados de calibracao no proprio arquivo (uma pagina cada)
     (certificados || []).forEach((c, i) => {
-      if (i === 0) B.push(H1("s13", "13. Certificados de calibração dos instrumentos", true));
+      if (i === 0) B.push(H1("s13", "12. Certificados de calibração dos instrumentos", true));
       B.push(par(run(c.nome || "Instrumento", { b: true, cor: C.vinho, tam: 10.5 }), { depois: 20, quebraAntes: i > 0 }));
       B.push(par(run(c.validade ? `Validade da calibração: ${dataBR(c.validade)}` : "Validade da calibração não informada", { cor: C.cinza, tam: 8.5 }), { depois: 100 }));
       const pags = (c.imgs || []).filter((d) => imgs[d]);
       if (!pags.length) B.push(par(run("(certificado não anexado)", { cor: C.cinza, tam: 9 })));
       pags.forEach((d, k) => B.push(imagemParDe(imgs, d, 480, 640, { jc: "center", depois: 0, nome: "Certificado de calibração – " + (c.nome || "") }).replace("<w:pPr>", k > 0 ? "<w:pPr><w:pageBreakBefore/>" : "<w:pPr>")));
     });
+    // V 1.46 (Alexandre): Referências por último, em página própria.
+    {
+      const nRef = (certificados && certificados.length) ? 13 : 12;
+      B.push(H1("s11", nRef + ". Referências", true));
+      linhasDe("Referencias").forEach((r, i) => B.push(par(run(`${i + 1}.\t`, { tam: 9, cor: C.texto }) + rico(r, { tam: 9, cor: C.texto }), { recuo: 400, suspenso: 400, depois: 60, tabs: '<w:tab w:val="left" w:pos="400"/>' })));
+    }
 
     const capa = capaXml({
       logoEleva, logoCliente, nomeCliente: opcoes.nomeCliente, lema: texto("Capa Lema"), titulo: linhasDe("Capa Titulo"), subtitulo: texto("Capa Subtitulo"),

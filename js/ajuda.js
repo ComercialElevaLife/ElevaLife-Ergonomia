@@ -378,8 +378,9 @@
 
   const HISTORICO = [
     {
-      versao: "1.46", data: "16/10/2026",
+      versao: "1.46", data: "19/10/2026",
       itens: [
+        "Laudo (AEP/AET): emissão sem trava de tamanho e sem os dois campos de upload manual (o arquivo gerado é anexado sozinho). Informações cadastrais padronizadas (razão social em MAIÚSCULO; unidade e endereço em Primeira Maiúscula; abrangência como cadastrada). 7.2 sem a tabela norma/ferramenta; 7.3 lista os fatores de cada grupo; item 7.4 (Guias) removido; 8.3 passou a “Recomendações e evolução do risco”; fotos sem legenda; tabela de ações não deixa mais o cabeçalho órfão (corrige “fator sem ação” por quebra de página); item 10 com colunas Ação/Setor/Fator/Tipo/Descrição (sem responsável/prazo/situação); Referências no fim, em página própria.",
         "Correção crítica: duas empresas não podem mais ter o mesmo código interno (gerado do nome). Antes, nomes parecidos (ou a mesma empresa recadastrada) acabavam compartilhando o código e os dados se misturavam — excluir uma afetava a outra. Agora o sistema bloqueia a criação com código duplicado e pede um nome um pouco diferente. (Empresas que já tinham sido mescladas por esse problema precisam ser recadastradas.)",
         "Tamanho de arquivo liberado para laudos (AEP e AET) e arquivos da AET: o limite de 15MB/20MB do sistema foi praticamente removido (vale para o envio manual e para o laudo final gerado). Resta apenas o teto da plataforma de hospedagem (~100MB por envio), que não depende do SIGE.",
         "Importar AEP: o PDF do sistema anterior passa a ser transcrito por completo e automaticamente — dados do posto, fotos, fatores de risco com a graduação (criticidade, probabilidade, pontuação e graduação) e as recomendações (eliminação vira Engenharia; administrativas/organizacionais viram Organizacional). Corrigida a leitura da tabela de risco (cabeçalho quebrado em duas linhas) que fazia o fator entrar sem a graduação. Saíram as opções da tela: tudo entra de uma vez, e o PDF antigo não fica guardado no sistema.",
