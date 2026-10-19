@@ -141,6 +141,38 @@
       } catch (e) { cacheImg[chave] = null; }
       return cacheImg[chave];
     }
+    // V 1.47 (Alexandre - erro ao emitir laudo da AGCO): as fotos das análises
+    // entravam no PDF/Word no tamanho e na codificação originais (foto de celular
+    // de 3-5 MB cada). Em clientes com muitos postos o laudo passava de dezenas de
+    // MB e o POST /api/arquivos estourava o limite de tamanho da requisição da
+    // plataforma ("erro no API"). Aqui cada foto é redimensionada (lado maior ≤
+    // 1600px) e recomprimida em JPEG antes de entrar no laudo - fica legível e o
+    // arquivo final cai para poucos MB. Se algo falhar, mantém a original.
+    function comprimirFoto(dataUrl, maxLado, qualidade) {
+      return new Promise((res) => {
+        try {
+          if (!dataUrl || typeof dataUrl !== "string" || dataUrl.indexOf("data:image") !== 0) return res(dataUrl);
+          const img = new global.Image();
+          img.onload = () => {
+            try {
+              const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+              if (!w || !h) return res(dataUrl);
+              const lado = Math.max(w, h);
+              const esc = lado > maxLado ? maxLado / lado : 1;
+              const nw = Math.max(1, Math.round(w * esc)), nh = Math.max(1, Math.round(h * esc));
+              const cv = global.document.createElement("canvas"); cv.width = nw; cv.height = nh;
+              const cx = cv.getContext("2d");
+              cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, nw, nh); // achata transparência (PNG) em branco
+              cx.drawImage(img, 0, 0, nw, nh);
+              const saida = cv.toDataURL("image/jpeg", qualidade);
+              res(saida && saida.length < dataUrl.length ? saida : dataUrl);
+            } catch (e) { res(dataUrl); }
+          };
+          img.onerror = () => res(dataUrl);
+          img.src = dataUrl;
+        } catch (e) { res(dataUrl); }
+      });
+    }
     const chaveDe = (v) => (Array.isArray(v) ? v[0] : v) && (Array.isArray(v) ? v[0] : v).chave;
     const logoCliente = await imagem(chaveDe(docCliente.Logotipo));
     // V 1.27: logotipos oficiais da ElevaLife (branco para fundo vinho, bordô para fundo claro)
@@ -152,7 +184,10 @@
       } catch (e) { return null; }
     }
     const logoEleva = await imagemUrl("img/logo-elevalife-branco.png"), logoElevaCor = await imagemUrl("img/logo-elevalife.png");
-    for (const av of avaliacoes) for (const f of av.Fotos || []) await imagem(f && f.chave);
+    for (const av of avaliacoes) for (const f of av.Fotos || []) {
+      const d = await imagem(f && f.chave);
+      if (f && f.chave && d) cacheImg[f.chave] = await comprimirFoto(d, 1600, 0.72);
+    }
     for (const e of assinantes) e._assinatura = await imagem(chaveDe(e.Assinatura));
     // V 1.35: certificados de calibracao escolhidos na emissao - saem no proprio arquivo (uma pagina cada, no final)
     const certificados = [];

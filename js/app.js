@@ -7437,6 +7437,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (aba === "psicossocial") sincronizarFiltroPsico(true);
     if (aba === "aep" && estadoSubAbaCadastro.aep === "modeloLaudo") abrirEditorTextoDireto();
     if (aba === "coordenacao" && window.BI.Coordenacao) { try { window.BI.Coordenacao.render(); } catch (e) { console.error(e); } }
+    if (aba === "notificacoes") { try { renderNotificacoes(); } catch (e) { console.error(e); } }
     // V 1.35: a sub-aba atual de tela propria (AET, laudos, importacao) se atualiza ao abrir a aba
     const grupoAba = GRUPO_DA_ABA[aba]; const subAtual = grupoAba && estadoSubAbaCadastro[grupoAba];
     if (subAtual && SUBABAS_EXTRAS[subAtual] && SUBABAS_EXTRAS[subAtual].aoAbrir) { try { SUBABAS_EXTRAS[subAtual].aoAbrir(); } catch (e) { console.error(e); } }
@@ -7874,6 +7875,94 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     }
   }
 
+  // ------------------------------------------------------------------
+  // V 1.46 (Alexandre): aba de Notificações (abre ao entrar no SIGE).
+  // Mostra: ações não iniciadas, atrasadas e perto do vencimento (7 dias).
+  // No login do ergonomista (Consultor) e do Administrador, lista também as
+  // análises (AEP/AET) dos clientes visíveis que estão faltando informações ou fotos.
+  // ------------------------------------------------------------------
+  function ehEquipeNotif() { const i = window.BI.DB && window.BI.DB.estado.identidade; return !!(i && (i.papel === "Administrador" || i.papel === "Consultor")); }
+  function contarNotificacoes() {
+    const norma = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+    const hoje = new Date(); const hojeMs = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    const prazoMs = (p) => { const m = String(p["Dt Programada"] || "").slice(0, 10).split("-").map(Number); if (m.length !== 3 || m.some(Number.isNaN)) return null; return Date.UTC(m[0], m[1] - 1, m[2]); };
+    const planos = (window.BI.dados.planoAcao || []).filter((p) => !p["Dt Conclusao"]);
+    const naoIniciadas = planos.filter((p) => norma(p["Status Execucao"]) === "nao iniciada");
+    const atrasadas = planos.filter((p) => { const d = prazoMs(p); return d != null && d < hojeMs; });
+    const perto = planos.filter((p) => { const d = prazoMs(p); return d != null && d >= hojeMs && (d - hojeMs) <= 7 * 86400000; });
+    return { naoIniciadas, atrasadas, perto };
+  }
+  function analisesIncompletasNotif() {
+    const out = [];
+    (window.BI.dados.avaliacaoErgonomica || []).forEach((a) => {
+      const semFoto = !(Array.isArray(a.Fotos) && a.Fotos.length);
+      const semInfo = !String(a["Descricao Atividade Observada"] || "").trim();
+      if (semFoto || semInfo) out.push({ tipo: "AEP", id: a._id || a.id, cliente: a.Cliente || "-", local: [a.Setor, a["Posto Trabalho"], a.Cargo].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", semInfo ? "sem descrição da atividade" : ""].filter(Boolean) });
+    });
+    (window.BI.dados.aet || []).forEach((a) => {
+      const ats = a.Atividades || [];
+      const semFotoGeral = !(Array.isArray(a["Foto Geral"]) && a["Foto Geral"].length);
+      const semFotoAtiv = !ats.some((at) => Array.isArray(at.fotos) && at.fotos.length);
+      const semFoto = semFotoGeral && semFotoAtiv;
+      const semInfo = !ats.length || !String(a["Diagnostico Global"] || "").trim();
+      if (semFoto || semInfo) out.push({ tipo: "AET", id: a._id || a.id, cliente: a.Cliente || "-", local: [a.Setor, a["Posto Trabalho"], a.Cargo].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", !ats.length ? "sem atividades" : (!String(a["Diagnostico Global"] || "").trim() ? "sem diagnóstico" : "")].filter(Boolean) });
+    });
+    return out;
+  }
+  function atualizarBadgeAbaNotificacoes() {
+    const badge = document.getElementById("badge-aba-notificacoes");
+    if (!badge) return;
+    try {
+      const c = contarNotificacoes();
+      const n = c.atrasadas.length + c.perto.length + (ehEquipeNotif() ? analisesIncompletasNotif().length : 0);
+      badge.hidden = n === 0; badge.textContent = n > 99 ? "99+" : String(n);
+    } catch (e) { badge.hidden = true; }
+  }
+  function renderNotificacoes() {
+    const el = document.getElementById("painel-notificacoes");
+    if (!el) return;
+    el.innerHTML = "";
+    const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+    const c = contarNotificacoes();
+    el.appendChild(h("h2", "notif-titulo", "Notificações"));
+    el.appendChild(h("p", "aet-nota", "Resumo do Plano de Ação das empresas que você acompanha. Clique num cartão para abrir o Plano de Ação."));
+    const cards = h("div", "notif-cards");
+    [["Ações não iniciadas", c.naoIniciadas.length, "#8a6d3b", "nao"], ["Ações atrasadas", c.atrasadas.length, "#b02a37", "atraso"], ["Perto do vencimento (7 dias)", c.perto.length, "#1f6f8b", "perto"]].forEach(([rot, n, cor, key]) => {
+      const card = h("button", "notif-card"); card.type = "button";
+      card.style.cssText = "flex:1;min-width:150px;text-align:left;border:1px solid #e3dcd6;border-left:5px solid " + cor + ";border-radius:10px;padding:14px 16px;background:#fff;cursor:pointer";
+      const num = h("div", null, String(n)); num.style.cssText = "font-size:30px;font-weight:700;color:" + cor;
+      card.appendChild(num); card.appendChild(h("div", null, rot));
+      card.addEventListener("click", () => { ativarAba("registro"); });
+      cards.appendChild(card);
+    });
+    cards.style.cssText = "display:flex;gap:12px;flex-wrap:wrap;margin:10px 0 18px";
+    el.appendChild(cards);
+
+    if (ehEquipeNotif()) {
+      const inc = analisesIncompletasNotif();
+      el.appendChild(h("h3", "notif-sub", `Análises faltando informações ou fotos (${inc.length})`));
+      if (!inc.length) {
+        el.appendChild(h("p", "aet-nota", "Nenhuma AEP/AET dos seus clientes está com informações ou fotos faltando. 👍"));
+      } else {
+        const wrap = h("div", "tabela-scroll"); const tb = h("table", "tabela-dados");
+        const thead = h("thead"); const tr0 = h("tr"); ["Tipo", "Empresa", "Setor › posto › cargo", "O que falta", ""].forEach((t) => tr0.appendChild(h("th", null, t))); thead.appendChild(tr0); tb.appendChild(thead);
+        const tbody = h("tbody");
+        inc.slice(0, 200).forEach((x) => {
+          const tr = h("tr");
+          tr.appendChild(h("td", null, x.tipo));
+          tr.appendChild(h("td", null, x.cliente));
+          tr.appendChild(h("td", null, x.local || "-"));
+          tr.appendChild(h("td", null, x.faltas.join(" · ")));
+          const td = h("td"); const b = h("button", "btn-cad-secundario", "Abrir"); b.type = "button";
+          b.addEventListener("click", () => { ativarAba(x.tipo === "AEP" ? "aep" : "aet"); });
+          td.appendChild(b); tr.appendChild(td);
+          tbody.appendChild(tr);
+        });
+        tb.appendChild(tbody); wrap.appendChild(tb); el.appendChild(wrap);
+      }
+    }
+  }
+
   function configurarSinoNotificacoes() {
     const btn = document.getElementById("btn-sino-notificacoes");
     const painel = document.getElementById("painel-sino-notificacoes");
@@ -8279,6 +8368,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // se estiverem abertas, re-renderiza; ao limpar o filtro as páginas voltam.
       const secCoord = document.getElementById("aba-coordenacao");
       if (secCoord && !secCoord.hidden && window.BI.Coordenacao) { try { window.BI.Coordenacao.render(); } catch (e) { console.error(e); } }
+      // V 1.46: badge e conteúdo da aba de Notificações acompanham os dados.
+      try { atualizarBadgeAbaNotificacoes(); } catch (e) { /* */ }
+      const secNotif = document.getElementById("aba-notificacoes");
+      if (secNotif && !secNotif.hidden) { try { renderNotificacoes(); } catch (e) { console.error(e); } }
     } catch (erro) {
       console.error("BI Ergonomia - erro ao renderizar:", erro);
       mostrarErro(erro && erro.message ? erro.message : String(erro));
@@ -9041,6 +9134,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       remontarSubAbas();
       configurarBotaoSair();
       esconderCarregamento();
+      // V 1.46 (Alexandre): ao entrar no SIGE (logado e com acesso liberado), abre a aba de Notificações.
+      try {
+        const ident = window.BI.DB.estado.identidade;
+        const liberado = ident && (ident.acessoLiberado !== false);
+        if (window.BI.DB.estado.modoApi && liberado) ativarAba("notificacoes");
+      } catch (e) { /* mantém a aba padrão */ }
     } catch (erro) {
       console.error("BI Ergonomia - erro na inicialização:", erro);
       mostrarErro(erro && erro.message ? erro.message : String(erro));
