@@ -75,6 +75,12 @@
         <span class="badge-filtros" id="badge-filtros" hidden>0</span>
       </button>
       <div class="sidebar-nav-divisor" aria-hidden="true"></div>
+      <!-- V 1.46 (Alexandre): Notificações no topo do menu; abre sozinha ao entrar no SIGE. -->
+      <button type="button" data-aba="notificacoes" title="Notificações">
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3a4 4 0 0 1 4 4c0 3 1 4 1.5 4.7.3.4 0 1.1-.6 1.1H5.1c-.6 0-.9-.7-.6-1.1C5 11 6 10 6 7a4 4 0 0 1 4-4Z"/><path d="M8.5 16a1.6 1.6 0 0 0 3 0"/></svg></span>
+        <span class="rotulo">Notificações</span>
+        <span class="badge-filtros" id="badge-aba-notificacoes" hidden>0</span>
+      </button>
       <!-- V 1.35: ordem do menu (pedido do Alexandre): AEP, AET, Psicossocial, Gestão de Riscos, Gestão do Plano de Ação,
            Gestão de Absenteísmo, Gestão de Restritos, Cadastro Empresa, Cadastro Interno (com Usuários) e Ajuda.
            Configurações saiu do menu. -->
@@ -636,6 +642,11 @@
 
   <section id="aba-referencia" hidden>
     <div class="grade" id="grade-referencia"></div>
+  </section>
+
+  <!-- V 1.46 (Alexandre): aba de Notificações, montada por js/app.js (renderNotificacoes). -->
+  <section id="aba-notificacoes" hidden>
+    <div id="painel-notificacoes"></div>
   </section>
     </main>
 
