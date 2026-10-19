@@ -374,6 +374,18 @@
           const sorted = acoesF.slice().sort((a, b) => (Number(a["Nr Acao"]) || 0) - (Number(b["Nr Acao"]) || 0));
           B.push(tbl([9, 17, 44, 30], sorted.map((a) => { const d = dadosAcao(a, g); return [{ t: d.nr, b: true }, d.tipo || "-", { t: d.descricao || "-", extra: d.evidencia }, d.efeito]; }), { cab: ["Ação", "Tipo", "Descrição", "Efeito no risco"], zebra: true, tam: 8 }));
         } else B.push(P("Sem ação proposta para este fator.", { cor: C.cinza }));
+        // V 1.48 (Alexandre): foto(s) do fator, quando houver (campo opcional).
+        const fotosFr = (fr["Foto Fator"] || []).filter((it) => it && it.chave && cacheImg[it.chave] && imgs[cacheImg[it.chave]]);
+        if (fotosFr.length) {
+          B.push(par(run("REGISTRO FOTOGRÁFICO DO FATOR", { b: true, cor: C.cinza, tam: 6.5 }), { depois: 20 }));
+          for (let k = 0; k < fotosFr.length; k += 2) {
+            const dupla = fotosFr.slice(k, k + 2);
+            if (dupla.length === 1) dupla.push(null);
+            B.push(tbl([1, 1], [dupla.map((it) => it
+              ? ({ paras: imagemPar(cacheImg[it.chave], 235, 160, { jc: "center", depois: 30, nome: "Foto do fator" }), fundo: "FFFFFF", v: "top" })
+              : ({ paras: par("", { depois: 0 }), fundo: "FFFFFF", v: "top" }))], { semBorda: true }));
+          }
+        }
       });
       const elim = eliminadosDoPosto(av);
       if (elim.length) {

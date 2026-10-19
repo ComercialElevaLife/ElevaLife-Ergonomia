@@ -2215,6 +2215,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   function camposAvaliacaoErgonomica() {
     return comSecao(camposChaveAEP().concat([
       { campo: "Data Avaliacao", rotulo: "Data da avaliação", tipo: "data", obrigatorio: true, padraoHoje: true },
+      // V 1.48 (Alexandre): número da avaliação - atribuído automaticamente por
+      // empresa ao cadastrar e fixo depois, mas editável manualmente. Define a
+      // ORDEM em que a avaliação sai no laudo. Em branco = numeração automática.
+      { campo: "Nr Avaliacao", rotulo: "Nº da avaliação (em branco = automático · define a ordem no laudo)", tipo: "numero", min: 1 },
     ]), "🧭 Identificação do Posto").concat(
       comSecao([
         { campo: "Jornada de Trabalho", rotulo: "Jornada de Trabalho", tipo: "textarea", obrigatorio: true },
@@ -2261,6 +2265,14 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         { campo: "Pontuacao Risco", rotulo: "Pontuação de Risco (calculada)", tipo: "calculado" },
         { campo: "Graduacao Risco", rotulo: "Graduação do Risco (calculada)", tipo: "calculado" },
         { campo: "Matriz", rotulo: "Matriz de Risco em uso", tipo: "calculado" },
+        // V 1.48 (Alexandre): foto do fator (opcional). Quando enviada, sai no
+        // laudo junto do fator, além da(s) foto(s) gerais do posto. Se ficar em
+        // branco, nada aparece para este fator (não é obrigatório).
+        {
+          campo: "Foto Fator", rotulo: "Foto do fator (JPG/PNG · opcional · sai no laudo · rostos anonimizados no envio)", tipo: "arquivo", multiplo: true,
+          colecaoArquivo: "avaliacaoErgonomica", aceitaTipos: "image/jpeg,image/png",
+          tamanhoMaximoBytes: 5 * 1024 * 1024, anonimizarRostos: true,
+        },
       ], "🎯 Classificação do Risco"),
       // V 1.2: no lugar de "Ação para Eliminação"/"Ação Organizacional" (texto
       // aberto) e do risco "após a melhoria" digitado, o fator tem uma LISTA de

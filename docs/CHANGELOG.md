@@ -2,6 +2,11 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.48 — 19/10/2026
+
+- **Número da avaliação (AEP) editável e define a ordem do laudo (Alexandre).** Cada avaliação já recebia um número automático por empresa ao ser cadastrada (1, 2, 3…), fixo depois. Agora esse número é **editável manualmente** no formulário da avaliação (campo “Nº da avaliação”; em branco = numeração automática) e passou a ser **a ordem em que as avaliações saem no laudo** (seção 9) — antes a ordem era alfabética por unidade/setor/cargo. Avaliações sem número vão para o fim, aí em ordem alfabética. O servidor respeita o número informado, mantém o existente quando não se mexe nele, e atribui o próximo da sequência quando não há nenhum (`api/src/functions/entidades.js` e `publicApi.js`).
+- **Foto do fator de risco no laudo (Alexandre).** Ao graduar um fator de risco, há um novo campo **opcional** para anexar foto(s) do fator (JPG/PNG, rostos anonimizados no envio). Quando preenchido, a foto sai **no laudo (PDF e Word), junto do fator**, além da(s) foto(s) gerais do posto. Se o campo ficar em branco, nada aparece para aquele fator (não é obrigatório e não bloqueia o cadastro). As fotos dos fatores também são comprimidas antes de entrar no laudo. Service worker subiu para `sige-v63`.
+
 ## V 1.47 — 19/10/2026
 
 - **Correção definitiva do erro 413 ao emitir laudo (envio do arquivo em pedaços) (Alexandre).** Mesmo com as fotos comprimidas, um laudo grande podia estourar o **limite de tamanho de requisição da própria plataforma (Azure Static Web Apps)** — a requisição era barrada *antes* de chegar na API (erro 413 “seco”, sem mensagem). Agora, arquivos acima de 2 MB sobem **em pedaços de 1 MB**: cada pedaço é uma requisição pequena que o servidor guarda como “bloco” no armazenamento e, no fim, os blocos são confirmados e o arquivo é montado inteiro (`api/src/functions/arquivos.js` + `js/db.js`). Isso **não depende de nenhuma configuração extra na Azure** e funciona para qualquer tamanho de laudo. Testado com remontagem byte a byte idêntica ao original (conferência por SHA-256). Arquivos pequenos continuam indo em uma requisição só. Service worker subiu para `sige-v62`.

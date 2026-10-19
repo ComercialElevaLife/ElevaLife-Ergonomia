@@ -441,9 +441,18 @@ async function tratar(request, context) {
         }
         let paraGravar = novo;
         // V 1.28: numero da AEP (sequencial por empresa), atribuido pelo servidor na criacao e mantido depois.
+        // V 1.48 (Alexandre): o numero passou a ser editavel manualmente - se vier um
+        // valor valido no corpo, ele e respeitado; senao mantem o que ja existia; e,
+        // nao havendo nenhum, atribui o proximo da sequencia da empresa.
         if (colecao === "avaliacaoErgonomica") {
-          if (jaExistia && jaExistia["Nr Avaliacao"]) paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": jaExistia["Nr Avaliacao"] });
-          else if (!paraGravar["Nr Avaliacao"]) paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": await proximoNrAvaliacao(container, empresaId) });
+          const manual = Number(paraGravar["Nr Avaliacao"]);
+          if (Number.isFinite(manual) && manual > 0) {
+            paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": Math.trunc(manual) });
+          } else if (jaExistia && jaExistia["Nr Avaliacao"]) {
+            paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": jaExistia["Nr Avaliacao"] });
+          } else {
+            paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": await proximoNrAvaliacao(container, empresaId) });
+          }
         }
         if (colecao === "planoAcao") {
           const avaliacao = await avaliarPlanoAcaoComArquivos(jaExistia, novo, identidade, context);

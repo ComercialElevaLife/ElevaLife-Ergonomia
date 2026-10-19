@@ -128,8 +128,15 @@ async function tratar(request, context) {
         }
         let paraGravar = novo;
         if (colecao === "avaliacaoErgonomica") {
-          if (jaExistia && jaExistia["Nr Avaliacao"]) paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": jaExistia["Nr Avaliacao"] });
-          else if (!paraGravar["Nr Avaliacao"]) paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": await proximoNrAvaliacao(container, empresaId) });
+          // V 1.48: numero editavel manualmente (ver entidades.js).
+          const manual = Number(paraGravar["Nr Avaliacao"]);
+          if (Number.isFinite(manual) && manual > 0) {
+            paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": Math.trunc(manual) });
+          } else if (jaExistia && jaExistia["Nr Avaliacao"]) {
+            paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": jaExistia["Nr Avaliacao"] });
+          } else {
+            paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": await proximoNrAvaliacao(container, empresaId) });
+          }
         }
         if (colecao === "planoAcao") {
           const idParaRegras = Object.assign({}, identidade, { email: "api-key:" + (identidade.nomeChave || identidade.chaveId || "publica") });

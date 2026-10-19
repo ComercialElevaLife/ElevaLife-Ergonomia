@@ -72,7 +72,16 @@
     }).map((a) => Object.assign({}, a, {
       _nrTexto: Number(a["Nr Avaliacao"]) ? "AEP-" + String(Number(a["Nr Avaliacao"])).padStart(3, "0") : "",
       _atualizadaEm: ultimaAtualizacao(a),
-    })).sort((a, b) => (a.Unidade || "").localeCompare(b.Unidade || "", "pt-BR") || (a.Setor || "").localeCompare(b.Setor || "", "pt-BR") || (a.Cargo || "").localeCompare(b.Cargo || "", "pt-BR") || (a["Posto Trabalho"] || "").localeCompare(b["Posto Trabalho"] || "", "pt-BR"));
+    })).sort((a, b) => {
+      // V 1.48 (Alexandre): a ordem das avaliações no laudo segue o Nº da avaliação
+      // (campo "Nr Avaliacao", fixo e editável manualmente). Avaliações sem número
+      // vão para o fim, aí sim em ordem alfabética (unidade/setor/cargo/posto).
+      const na = Number(a["Nr Avaliacao"]) || 0, nb = Number(b["Nr Avaliacao"]) || 0;
+      if (na && nb && na !== nb) return na - nb;
+      if (na && !nb) return -1;
+      if (!na && nb) return 1;
+      return (a.Unidade || "").localeCompare(b.Unidade || "", "pt-BR") || (a.Setor || "").localeCompare(b.Setor || "", "pt-BR") || (a.Cargo || "").localeCompare(b.Cargo || "", "pt-BR") || (a["Posto Trabalho"] || "").localeCompare(b["Posto Trabalho"] || "", "pt-BR");
+    });
     if (!avaliacoes.length) {
       throw new Error("Nenhuma Avaliação Ergonômica (AEP) cadastrada para a abrangência escolhida - cadastre a avaliação antes de emitir o laudo.");
     }
@@ -187,6 +196,15 @@
     for (const av of avaliacoes) for (const f of av.Fotos || []) {
       const d = await imagem(f && f.chave);
       if (f && f.chave && d) cacheImg[f.chave] = await comprimirFoto(d, 1280, 0.7);
+    }
+    // V 1.48 (Alexandre): foto do fator de risco (campo "Foto Fator", opcional) -
+    // sai no laudo junto do fator, além da(s) foto(s) gerais do posto.
+    for (const f of (dados.fatorRisco || [])) {
+      if (f.Cliente !== opcoes.nomeCliente) continue;
+      for (const item of (f["Foto Fator"] || [])) {
+        const d = await imagem(item && item.chave);
+        if (item && item.chave && d) cacheImg[item.chave] = await comprimirFoto(d, 1280, 0.7);
+      }
     }
     for (const e of assinantes) e._assinatura = await imagem(chaveDe(e.Assinatura));
     // V 1.35: certificados de calibracao escolhidos na emissao - saem no proprio arquivo (uma pagina cada, no final)
@@ -810,6 +828,24 @@
             const sorted = acoesF.slice().sort((a, b) => (Number(a["Nr Acao"]) || 0) - (Number(b["Nr Acao"]) || 0));
             tabela(["Ação", "Tipo", "Descrição", "Efeito no risco"], sorted.map((a) => { const d = dadosAcao(a, g); return [{ t: d.nr, negrito: true }, d.tipo || "-", { t: d.descricao || "-", extra: d.evidencia }, d.efeito]; }), [9, 17, 44, 30], { tam: 7.2 });
           } else { fonte("normal", 7.5); cor(PAL.cinza); garantir(14); doc.text("Sem ação proposta para este fator.", M, y + 6); y += 14; }
+          // V 1.48 (Alexandre): foto(s) do fator, quando houver (campo opcional).
+          const fotosFr = (fr["Foto Fator"] || []).filter((it) => it && it.chave && cacheImg[it.chave]);
+          if (fotosFr.length) {
+            y += 2; fonte("bold", 6.3); cor(PAL.cinza); garantir(12); doc.text("REGISTRO FOTOGRÁFICO DO FATOR", M, y + 6); y += 12;
+            const gap = 8; const w = (L - gap) / 2; const hImg = 130;
+            for (let k = 0; k < fotosFr.length; k += 2) {
+              garantir(hImg + 10);
+              fotosFr.slice(k, k + 2).forEach((it, j) => {
+                const x = M + j * (w + gap); caixa(x, y, w, hImg, PAL.creme, PAL.suave);
+                try {
+                  const dURL = cacheImg[it.chave]; const pr = doc.getImageProperties(dURL);
+                  let iw = w - 10; let ih = iw * pr.height / pr.width; if (ih > hImg - 10) { ih = hImg - 10; iw = ih * pr.width / pr.height; }
+                  doc.addImage(dURL, pr.fileType, x + (w - iw) / 2, y + (hImg - ih) / 2, iw, ih);
+                } catch (e) { fonte("normal", 8); cor(PAL.cinza); doc.text("(imagem indisponível)", x + w / 2, y + hImg / 2, { align: "center" }); }
+              });
+              y += hImg + 6;
+            }
+          }
           y += 4;
         });
         const elim = eliminadosDoPosto(av);
