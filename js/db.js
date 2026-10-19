@@ -951,23 +951,78 @@
     });
   }
 
+  // V 1.47 (erro 413 ao emitir laudos grandes): a plataforma (Azure Static Web
+  // Apps) barra requisições acima de um certo tamanho ANTES de chegar na API, com
+  // um 413 "seco" (sem corpo). Por isso arquivos acima de ENVIO_SIMPLES_MAX vão em
+  // PEDAÇOS: cada pedaço (ENVIO_PEDACO_BYTES) é uma requisição pequena que o
+  // servidor guarda como "bloco" no Storage; no fim, a lista de blocos é
+  // confirmada e o arquivo é montado inteiro. Arquivos pequenos continuam indo em
+  // uma requisição só (caminho de sempre).
+  const ENVIO_SIMPLES_MAX = 2 * 1024 * 1024; // 2 MB: abaixo disso, envio direto
+  const ENVIO_PEDACO_BYTES = 1024 * 1024;    // 1 MB por pedaço (~1,37 MB por requisição em base64)
+
   async function enviarArquivoRede(colecaoChave, empresaId, arquivo, nome, tipo) {
-    const conteudoBase64 = await lerArquivoComoBase64(arquivo);
-    const resp = await fetch("/api/arquivos", {
-      method: "POST",
-      credentials: "same-origin",
+    const nomeArquivo = nome || arquivo.name;
+    const tipoConteudo = tipo || arquivo.type;
+
+    // ---- Arquivo pequeno: 1 requisição (caminho de sempre) ----
+    if (!arquivo.size || arquivo.size <= ENVIO_SIMPLES_MAX) {
+      const conteudoBase64 = await lerArquivoComoBase64(arquivo);
+      const resp = await fetch("/api/arquivos", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          EmpresaId: empresaId,
+          Colecao: colecaoChave,
+          NomeArquivo: nomeArquivo,
+          TipoConteudo: tipoConteudo,
+          ConteudoBase64: conteudoBase64,
+        }),
+      });
+      if (resp.status === 401) { estado.sessaoExpirada = true; }
+      if (!resp.ok) throw new Error(await corpoDeErro(resp));
+      return resp.json(); // { chave, nomeArquivo, tamanho }
+    }
+
+    // ---- Arquivo grande: envio em pedaços (stage de blocos + confirmação) ----
+    const total = arquivo.size;
+    const nPedacos = Math.ceil(total / ENVIO_PEDACO_BYTES);
+    const blocos = [];
+    let chave = null;
+    for (let i = 0; i < nPedacos; i++) {
+      const fatia = arquivo.slice(i * ENVIO_PEDACO_BYTES, Math.min((i + 1) * ENVIO_PEDACO_BYTES, total));
+      const parteBase64 = await lerArquivoComoBase64(fatia);
+      // id do bloco: base64 de "bloco-00000000" (todos do mesmo tamanho, como o Storage exige)
+      const blocoId = global.btoa("bloco-" + String(i).padStart(8, "0"));
+      blocos.push(blocoId);
+      const corpo = {
+        EmpresaId: empresaId, Colecao: colecaoChave, NomeArquivo: nomeArquivo,
+        TipoConteudo: tipoConteudo, BlocoId: blocoId, ParteBase64: parteBase64,
+      };
+      if (chave) corpo.Chave = chave;
+      const resp = await fetch("/api/arquivos", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo),
+      });
+      if (resp.status === 401) { estado.sessaoExpirada = true; }
+      if (!resp.ok) throw new Error(await corpoDeErro(resp));
+      const r = await resp.json();
+      if (!chave) chave = r && r.chave;
+      if (!chave) throw new Error("Falha ao iniciar o envio do arquivo.");
+    }
+    // confirmação final: monta o arquivo a partir dos blocos
+    const respFim = await fetch("/api/arquivos", {
+      method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        EmpresaId: empresaId,
-        Colecao: colecaoChave,
-        NomeArquivo: nome || arquivo.name,
-        TipoConteudo: tipo || arquivo.type,
-        ConteudoBase64: conteudoBase64,
+        EmpresaId: empresaId, Colecao: colecaoChave, NomeArquivo: nomeArquivo,
+        TipoConteudo: tipoConteudo, Chave: chave, Commit: true, Blocos: blocos, TamanhoTotal: total,
       }),
     });
-    if (resp.status === 401) { estado.sessaoExpirada = true; }
-    if (!resp.ok) throw new Error(await corpoDeErro(resp));
-    return resp.json(); // { chave, nomeArquivo, tamanho }
+    if (respFim.status === 401) { estado.sessaoExpirada = true; }
+    if (!respFim.ok) throw new Error(await corpoDeErro(respFim));
+    return respFim.json(); // { chave, nomeArquivo, tamanho }
   }
 
   async function enviarArquivo(colecaoChave, empresaId, arquivo) {

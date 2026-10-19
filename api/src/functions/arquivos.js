@@ -40,9 +40,13 @@ function podeAcessarEmpresaOuGlobal(identidade, empresaId) {
   return empresaId === EMPRESA_GLOBAL || podeVerEmpresa(identidade, empresaId);
 }
 
-// Tipo/tamanho aceitos por colecao - mesmos limites do sistema legado (ate 5
-// fotos de 5MB na Avaliacao; Laudo sem limite documentado no legado, 15MB e
-// uma folga confortavel pra PDF/imagem escaneada).
+// Tipo/tamanho aceitos por colecao. Fotos da Avaliacao: 5MB cada. Laudos (AEP e
+// AET, gerados pelo sistema ou enviados manualmente) e arquivos da AET: V 1.46 o
+// limite do app foi praticamente removido (1 GB) a pedido do Alexandre, porque
+// alguns laudos passam de 15MB. O teto real continua sendo o limite de tamanho
+// de requisicao da plataforma (Azure Static Web Apps, ~100MB nas functions
+// gerenciadas), que nao se configura aqui.
+const LIMITE_GRANDE = 1024 * 1024 * 1024; // 1 GB - na pratica "sem limite" do lado do app
 const REGRAS_POR_COLECAO = {
   avaliacaoErgonomica: {
     tiposAceitos: ["image/jpeg", "image/png"],
@@ -51,7 +55,7 @@ const REGRAS_POR_COLECAO = {
   laudo: {
     // V 1.9: o laudo tambem e guardado em Word (.docx)
     tiposAceitos: ["application/pdf", "image/jpeg", "image/png", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
-    tamanhoMaximoBytes: 15 * 1024 * 1024,
+    tamanhoMaximoBytes: LIMITE_GRANDE,
   },
   // AET (Analise Ergonomica do Trabalho): Excel (Mapa de Risco/Plano de Acao)
   // e/ou PDF (analise narrativa) - o conteudo e lido e classificado no
@@ -65,7 +69,7 @@ const REGRAS_POR_COLECAO = {
       // V 1.34: fotos do modulo AET (foto geral do posto e fotos das atividades)
       "image/jpeg", "image/png",
     ],
-    tamanhoMaximoBytes: 20 * 1024 * 1024,
+    tamanhoMaximoBytes: LIMITE_GRANDE,
   },
   // Foto do Certificado de Calibracao (biblioteca global de instrumentos -
   // ver docs/bi-ergonomia-manual.md, secao Laudos).
@@ -126,9 +130,92 @@ function streamParaBuffer(stream) {
   });
 }
 
+// V 1.47: confere que a identidade pode gravar nesta empresa/coleção (usado
+// tanto pelo upload simples quanto pelo upload em pedaços).
+function validarDestinoUpload(identidade, empresaId, colecao) {
+  const regra = REGRAS_POR_COLECAO[colecao];
+  if (!regra) return { status: 400, jsonBody: { erro: `Coleção sem upload de arquivo: ${colecao}` } };
+  if (!empresaId || typeof empresaId !== "string" || !chaveArquivoValida(`${empresaId}/${colecao}/x`) || !podeAcessarEmpresaOuGlobal(identidade, empresaId)) {
+    return { status: 403, jsonBody: { erro: "Sem permissão para gravar arquivo nesta empresa." } };
+  }
+  if (identidade.papel === "UsuarioCliente" && UPLOAD_SO_EQUIPE.includes(colecao)) {
+    return { status: 403, jsonBody: { erro: "Só a equipe ElevaLife (Administrador ou Consultor) envia arquivos deste tipo." } };
+  }
+  return null;
+}
+
+// V 1.47 (erro 413 ao emitir laudo da AGCO): arquivos grandes (laudos com muitas
+// fotos) estouravam o limite de TAMANHO DE REQUISIÇÃO da plataforma (Azure Static
+// Web Apps) - a requisição era barrada ANTES de chegar nesta função (413 sem corpo
+// JSON). A solução é enviar o arquivo em PEDAÇOS pequenos: cada pedaço vira um
+// "bloco" no Blob Storage (stageBlock) numa requisição pequena, e no fim a lista
+// de blocos é confirmada (commitBlockList), montando o arquivo inteiro no Storage
+// sem nunca mandar o arquivo todo numa requisição só. Não depende de nenhuma
+// configuração extra na Azure (sem CORS/SAS) - usa o mesmo SDK de Blob já usado.
+async function tratarUploadEmPedacos(corpo, identidade) {
+  const { EmpresaId, Colecao, NomeArquivo, TipoConteudo, ParteBase64, BlocoId, Chave, Commit, Blocos } = corpo || {};
+  const regra = REGRAS_POR_COLECAO[Colecao];
+  if (!regra) return { status: 400, jsonBody: { erro: `Coleção sem upload de arquivo: ${Colecao}` } };
+  if (!regra.tiposAceitos.includes(TipoConteudo)) {
+    return { status: 400, jsonBody: { erro: `Tipo de arquivo não aceito para esta coleção: ${TipoConteudo}` } };
+  }
+  const erroDestino = validarDestinoUpload(identidade, EmpresaId, Colecao);
+  if (erroDestino) return erroDestino;
+
+  const containerCliente = obterContainerCliente(Colecao);
+  if (Colecao === "planoAcao" || Colecao === "ergonomista") await containerCliente.createIfNotExists();
+
+  // ---- Confirmação final: fecha a lista de blocos e monta o arquivo ----
+  if (Commit) {
+    if (!Chave || !chaveArquivoValida(Chave)) return { status: 400, jsonBody: { erro: "Chave inválida para finalizar o upload." } };
+    const partes = Chave.split("/");
+    if (partes[0] !== EmpresaId || partes[1] !== Colecao) return { status: 403, jsonBody: { erro: "Chave não corresponde à empresa/coleção informada." } };
+    if (!Array.isArray(Blocos) || !Blocos.length) return { status: 400, jsonBody: { erro: "Lista de blocos vazia." } };
+    const bloco = containerCliente.getBlockBlobClient(Chave);
+    await bloco.commitBlockList(Blocos, { blobHTTPHeaders: { blobContentType: TipoConteudo } });
+    let tamanho = 0;
+    try { const props = await bloco.getProperties(); tamanho = props.contentLength || 0; } catch (e) { /* tamanho fica 0 */ }
+    if (tamanho > regra.tamanhoMaximoBytes) {
+      try { await bloco.deleteIfExists(); } catch (e) { /* ignora */ }
+      const limiteMB = (regra.tamanhoMaximoBytes / (1024 * 1024)).toFixed(0);
+      return { status: 413, jsonBody: { erro: `Arquivo maior que o limite de ${limiteMB} MB.` } };
+    }
+    return { status: 201, jsonBody: { chave: Chave, nomeArquivo: sanitizarNomeArquivo(NomeArquivo), tamanho } };
+  }
+
+  // ---- Guarda um bloco (stage) ----
+  if (!ParteBase64 || !BlocoId) return { status: 400, jsonBody: { erro: "Bloco de upload inválido." } };
+  let buffer;
+  try { buffer = Buffer.from(ParteBase64, "base64"); } catch (e) { return { status: 400, jsonBody: { erro: "Conteúdo do bloco inválido." } }; }
+  if (buffer.length === 0) return { status: 400, jsonBody: { erro: "Bloco vazio." } };
+
+  let chave = Chave;
+  if (!chave) {
+    // Primeiro bloco: cria a chave e confere a assinatura (bytes iniciais) do arquivo.
+    if (!assinaturaConfere(TipoConteudo, buffer)) {
+      return { status: 400, jsonBody: { erro: "O conteúdo do arquivo não corresponde ao tipo informado." } };
+    }
+    chave = `${EmpresaId}/${Colecao}/${crypto.randomUUID()}-${sanitizarNomeArquivo(NomeArquivo)}`;
+  } else {
+    if (!chaveArquivoValida(chave)) return { status: 400, jsonBody: { erro: "Chave inválida." } };
+    const partes = chave.split("/");
+    if (partes[0] !== EmpresaId || partes[1] !== Colecao) return { status: 403, jsonBody: { erro: "Chave não corresponde à empresa/coleção informada." } };
+  }
+  const bloco = containerCliente.getBlockBlobClient(chave);
+  await bloco.stageBlock(BlocoId, buffer, buffer.length);
+  return { status: 200, jsonBody: { chave } };
+}
+
 async function tratarUpload(request, identidade) {
   const corpo = await request.json();
   const { EmpresaId, Colecao, NomeArquivo, TipoConteudo, ConteudoBase64 } = corpo || {};
+
+  // V 1.47: upload em pedaços (arquivos grandes) - detecta pelo campo do bloco
+  // ou pela confirmação final. O caminho simples (abaixo) continua para arquivos
+  // pequenos (1 requisição só).
+  if ((corpo && corpo.ParteBase64 !== undefined) || (corpo && corpo.Commit)) {
+    return tratarUploadEmPedacos(corpo, identidade);
+  }
 
   const regra = REGRAS_POR_COLECAO[Colecao];
   if (!regra) {
