@@ -2,8 +2,13 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.47 — 19/10/2026
+
+- **Correção: erro na API ao emitir o laudo da AGCO (e de clientes com muitas fotos) (Alexandre).** As fotos das análises entravam no laudo (PDF e Word) no tamanho e na codificação originais — fotos de celular de 3 a 5 MB cada. Em clientes com vários postos, o laudo final passava de dezenas de MB; como o arquivo é enviado para a API em base64 (que ainda infla ~33%), estourava o **limite de tamanho de requisição da plataforma (Azure)** e dava erro ao salvar. Agora cada foto é **redimensionada (lado maior ≤ 1600 px) e recomprimida em JPEG** antes de entrar no laudo (`js/laudo.js`, no preparo comum ao PDF e ao Word). Uma foto típica cai ~83% (ex.: 589 KB → 101 KB), mantendo boa legibilidade, e o laudo final fica em poucos MB — bem dentro do limite. Se a compressão falhar por algum motivo, a foto original é mantida (não quebra o laudo). Service worker subiu para `sige-v60`.
+
 ## V 1.46 — 19/10/2026
 
+- **Nova aba “Notificações” (abre ao entrar no SIGE) (Alexandre).** Logo após o login, o sistema abre a aba de Notificações, com três cartões: ações **não iniciadas**, **atrasadas** e **perto do vencimento** (próximos 7 dias), somando as empresas que o usuário acompanha. Para o **ergonomista (Consultor)** e o **Administrador**, mostra também a lista das análises (AEP/AET) dos clientes dele que estão **faltando informações ou fotos** (ex.: AEP sem fotos ou sem descrição da atividade; AET sem fotos, sem atividades ou sem diagnóstico), com um botão para abrir cada uma. O item do menu tem um contador (badge) com os pendentes.
 - **Laudo da AEP/AET — vários ajustes (Alexandre).**
   - **Emissão sem trava de tamanho:** o laudo gerado (PDF/Word) não é mais barrado por tamanho; os dois campos de upload manual (“Arquivo do Laudo” e “Laudo em Word”) saíram da tela de emissão (o arquivo gerado continua anexado automaticamente e aparece para baixar).
   - **Informações cadastrais padronizadas:** razão social sempre em MAIÚSCULO; unidade e endereço em “Primeira Maiúscula” (preservando siglas como SP/ETE); a abrangência sai como foi cadastrada.
