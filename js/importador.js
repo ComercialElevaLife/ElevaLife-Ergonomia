@@ -31,7 +31,7 @@
 
   const BI = (global.BI = global.BI || {});
 
-  const MAX_LINHAS = 2000;        // limite por arquivo (protege o navegador e a API)
+  const MAX_LINHAS = 50000;       // V 1.50 (Alexandre): limite bem maior por arquivo (antes 2000)
   const MAX_LINHAS_PREVIA = 300;  // linhas desenhadas na tabela de previa
   const TIPOS_IGNORADOS = ["personalizado", "calculado", "arquivo", "foto", "fotos", "imagem", "assinatura"];
 
@@ -141,6 +141,9 @@
   }
 
   function converterCampo(def, bruto) {
+    // V 1.50 (Alexandre): normalização por campo na importação (ex.: segmento
+    // corporal - tira o lado D/E e trata "não informado" como "Não identificado").
+    if (def.normalizarImport) { try { const nb = def.normalizarImport(bruto); if (nb !== undefined) bruto = nb; } catch (e) { /* mantém o bruto */ } }
     const vazioBruto = bruto == null || String(bruto).trim() === "";
     if (def.tipo === "numero") return converterNumero(bruto, def);
     if (def.tipo === "data") return converterData(bruto);
@@ -197,7 +200,17 @@
     const ws = wb.Sheets[nomeAba];
     if (!ws) return { cabecalhos: [], linhas: [] };
     const m = global.XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, blankrows: false });
-    const iniciar = m.findIndex((l) => l.some((c) => c != null && String(c).trim() !== ""));
+    // V 1.50 (Alexandre): o cabeçalho é a PRIMEIRA linha "cheia" (com pelo menos
+    // metade das células da linha mais preenchida entre as primeiras). Antes pegava
+    // a 1ª linha não vazia, o que confundia planilhas com um título acima do
+    // cabeçalho real (ex.: "CONTADOR DE COMPATÍVEIS" nos Restritos), fazendo a
+    // importação ler só uma linha / mapear colunas erradas.
+    const naoVazias = (l) => l.filter((c) => c != null && String(c).trim() !== "").length;
+    let maxN = 0; const limiteTopo = Math.min(m.length, 15);
+    for (let i = 0; i < limiteTopo; i++) maxN = Math.max(maxN, naoVazias(m[i]));
+    let iniciar = -1;
+    if (maxN > 0) { const alvo = Math.max(2, Math.ceil(maxN / 2)); iniciar = m.findIndex((l) => naoVazias(l) >= alvo); }
+    if (iniciar === -1) iniciar = m.findIndex((l) => l.some((c) => c != null && String(c).trim() !== ""));
     if (iniciar === -1) return { cabecalhos: [], linhas: [] };
     const cabecalhos = m[iniciar].map((c) => (c == null ? "" : String(c).trim()));
     const linhas = [];

@@ -2,6 +2,35 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.52 — 22/10/2026
+
+- **Importar mesmo com linhas incompletas (Absenteísmo e Restritos) (Alexandre).** Agora dá para confirmar a importação mesmo com linhas faltando informação — nenhuma coluna é obrigatória na importação. A linha incompleta (ex.: absenteísmo sem CID/data/dias; restrito sem status/turno/início) é **importada assim mesmo**, fica marcada como pendente e:
+  - aparece na **aba Notificações**, numa seção “Importações com pendência para corrigir”, com botão **Abrir** que leva direto ao registro para o ergonomista completar;
+  - **não entra no gráfico de absenteísmo** enquanto estiver pendente;
+  - **sai da lista** assim que o registro é corrigido e salvo (a pendência é limpa automaticamente ao salvar pelo formulário).
+  
+  O contador (badge) da aba Notificações passa a incluir essas pendências. Service worker subiu para `sige-v67`. *(Arquivo: `js/app.js`.)*
+
+## V 1.51 — 22/10/2026
+
+- **Importação de Absenteísmo e Restritos — melhorias (Alexandre).**
+  - **Limite de linhas** subiu de 2.000 para 50.000 por arquivo.
+  - **Linhas repetidas são contabilizadas**: cada linha da planilha vira um registro próprio (antes a 2ª linha igual virava “linha repetida” e era descartada). Isso também corrige os Restritos, que estavam puxando praticamente só a 1ª linha.
+  - **Cabeçalho detectado corretamente** mesmo quando a planilha tem uma linha de título acima do cabeçalho real (ex.: “CONTADOR DE COMPATÍVEIS” na planilha de Restritos) — antes o título era lido como cabeçalho e as colunas não mapeavam.
+  - **Segmento corporal com lado**: “JOELHO DIREITO/ESQUERDO” passa a ser entendido como “Joelho” (o segmento, sem o lado); vazio ou “não informado/especificado” vira **“Não identificado”**.
+  - **Nome e Matrícula não são mais obrigatórios** na importação (de Absenteísmo e de Restritos). Service worker subiu para `sige-v66`. *(Arquivos: `js/importador.js`, `js/calc.js`, `js/app.js`.)*
+
+## V 1.50 — 22/10/2026
+
+- **AET — botões “Como definir o risco do fator” corrigidos (Alexandre).** Os dois botões (“Seguir o risco da ferramenta” / “Informar a probabilidade”) ficavam marcados ao mesmo tempo e não dava para alternar, porque cada um recebia um nome diferente e não formavam um grupo de rádio. Agora selecionar um desmarca o outro, como esperado (`js/aet.js`).
+- **AET — resultado da ferramenta no relatório (Alexandre).** Quando a ferramenta não está concluída, o laudo não imprime mais o texto de interface “Preencha os campos da ferramenta”; mostra o resultado quando há pontuação, o nível atribuído pelo ergonomista quando houver, ou “Ferramenta não concluída — faltam dados para calcular a pontuação” (`js/laudo-aet.js`). *Obs.: ferramentas como a REBA precisam de todos os campos preenchidos (tronco, pescoço, pernas, carga, braço, antebraço, punho, pega e atividade) e do botão “Aplicar” para gerar a pontuação.*
+- **Migração do laudo anterior — “N/A” em vez de citar o sistema antigo (Alexandre).** Campos sem dado no laudo migrado (jornada, pausas, rodízio, características dos trabalhadores, histórico de acidentes) passam a ficar como **N/A**, sem nenhuma referência ao “laudo do sistema anterior”. Textos antigos com essa frase também são trocados por N/A ao reimportar (`js/aep-laudo-import.js`).
+- **Migração do laudo anterior — fim do “Máquina/linha/célula:” na descrição (Alexandre).** A descrição da atividade não recebe mais o prefixo “Máquina/linha/célula: …”, que estava vazando para esse campo indevidamente (`js/aep-laudo-import.js`). Service worker subiu para `sige-v65`.
+
+## V 1.49 — 19/10/2026
+
+- **Aba de Notificações: Nº da AEP e “Abrir” leva ao registro exato (Alexandre).** Na lista de análises com informações/fotos faltando, passou a aparecer uma coluna **Nº** com o número da avaliação (ex.: AEP-001 · para AET, o Nº AET quando houver). O botão **“Abrir”** agora não leva mais só para a aba: abre **diretamente o registro exato** que precisa de ajuste, já no formulário de edição (AEP abre a avaliação na aba AEP; AET abre o editor daquela AET). Service worker subiu para `sige-v64`.
+
 ## V 1.48 — 19/10/2026
 
 - **Número da avaliação (AEP) editável e define a ordem do laudo (Alexandre).** Cada avaliação já recebia um número automático por empresa ao ser cadastrada (1, 2, 3…), fixo depois. Agora esse número é **editável manualmente** no formulário da avaliação (campo “Nº da avaliação”; em branco = numeração automática) e passou a ser **a ordem em que as avaliações saem no laudo** (seção 9) — antes a ordem era alfabética por unidade/setor/cargo. Avaliações sem número vão para o fim, aí em ordem alfabética. O servidor respeita o número informado, mantém o existente quando não se mexe nele, e atribui o próximo da sequência quando não há nenhum (`api/src/functions/entidades.js` e `publicApi.js`).

@@ -349,9 +349,14 @@
         const dados = {}; if (aep) Object.keys(aep).forEach((k) => { if (k[0] !== "_" && k !== "id") dados[k] = aep[k]; });
         Object.assign(dados, x.v);
         ["Data Avaliacao", "Jornada de Trabalho", "Pausas", "Rodizio", "Caracteristicas Trabalhadores", "Historico Acidentes", "Descricao Atividade Observada", "Descricao Setor"].forEach((k) => { const v = x.p.dados[k]; if (v && (est.sobrescrever || !dados[k])) dados[k] = v; });
-        if (x.p.dados.Maquina && (!dados["Descricao Atividade Observada"] || !dados["Descricao Atividade Observada"].includes(x.p.dados.Maquina))) dados["Descricao Atividade Observada"] = `Máquina/linha/célula: ${x.p.dados.Maquina}` + (dados["Descricao Atividade Observada"] ? "\n" + dados["Descricao Atividade Observada"] : "");
-        // obrigatorios da AEP sem dado no laudo
-        ["Jornada de Trabalho", "Pausas", "Rodizio"].forEach((k) => { if (!dados[k]) dados[k] = "Não informado no laudo do sistema anterior."; });
+        // V 1.50 (Alexandre): não prefixar mais "Máquina/linha/célula: …" na descrição
+        // da atividade - essa informação não deve aparecer nesse campo.
+        // V 1.50 (Alexandre): campos sem dado no laudo ficam como "N/A"
+        // (sem citar o laudo/sistema anterior em nada). Também troca qualquer texto
+        // antigo de "não informado no laudo anterior" por "N/A".
+        ["Jornada de Trabalho", "Pausas", "Rodizio", "Caracteristicas Trabalhadores", "Historico Acidentes"].forEach((k) => {
+          if (!dados[k] || /n[ãa]o informado no laudo/i.test(String(dados[k]))) dados[k] = "N/A";
+        });
         if (!dados["Data Avaliacao"]) dados["Data Avaliacao"] = new Date().toISOString().slice(0, 10);
         // fotos (sem repetir as ja migradas)
         const jaHash = new Set(dados["Fotos Laudo Anterior"] || []); const fotos = Array.isArray(dados.Fotos) ? dados.Fotos.slice() : [];

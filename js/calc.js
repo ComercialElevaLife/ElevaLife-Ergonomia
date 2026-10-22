@@ -995,6 +995,18 @@
   // com lado entram no segmento geral ("Ombro Direito" -> "Ombro").
   function regiaoSemLado(r) { return String(r || "").replace(/\s+(Direit[oa]|Esquerd[oa])$/, ""); }
   function regioesSemLado(regioes) { return Array.from(new Set((regioes || []).map(regiaoSemLado))); }
+  // V 1.50 (Alexandre): normaliza o segmento vindo de planilhas de importação.
+  // - tira o lado (direito/esquerda), em maiúsculas/minúsculas, com ou sem acento
+  //   ("JOELHO DIREITO" -> "JOELHO", que casa com a opção "Joelho");
+  // - vazio ou "não informado/especificado" vira "Não identificado".
+  function normalizarSegmento(bruto) {
+    const s = String(bruto == null ? "" : bruto).trim();
+    if (!s) return "Não identificado";
+    const u = s.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+    if (u === "-" || /^N\/?A$/.test(u) || u === "NE" || u.startsWith("NAO ") || u.startsWith("INDEF") ||
+        u.indexOf("ESPECIF") >= 0 || u.indexOf("INFORMAD") >= 0 || u.indexOf("IDENTIFIC") >= 0) return "Não identificado";
+    return s.replace(/[\s,/()-]+(direit[oa]|esquerd[oa])\s*$/i, "").trim() || s;
+  }
   function somaDiasPorRegiao(absenteismoF, regioes, semLado) {
     const mapa = {};
     const norm = semLado ? regiaoSemLado : (r) => r;
@@ -1097,6 +1109,7 @@
     evolucaoMensalRiscos,
     regiaoSemLado,
     regioesSemLado,
+    normalizarSegmento,
     SEGMENTOS_GERAIS,
     riscoDosPostos,
     DIMENSOES,

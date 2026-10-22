@@ -4536,6 +4536,19 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     return { valores: novo, avisos, marcas };
   }
 
+  // V 1.52 (Alexandre): marca uma linha da importação (Absenteísmo/Restritos) como
+  // pendente quando faltam campos essenciais. A linha é importada assim mesmo (com o
+  // que tem), aparece nas Notificações para o ergonomista corrigir e só é
+  // contabilizada no gráfico depois de corrigida. `camposRotulos` = { campo: rótulo }.
+  function pendenciaImportacao(valores, camposRotulos) {
+    const faltando = [];
+    Object.keys(camposRotulos).forEach((k) => {
+      const v = valores[k];
+      if (v == null || v === "" || (Array.isArray(v) && !v.length)) faltando.push(camposRotulos[k]);
+    });
+    return faltando.length ? { valores: { "Pendencia Importacao": "Faltando: " + faltando.join(", ") } } : {};
+  }
+
   // grupo "mestre" = aba Cadastro (setup: estrutura organizacional valida);
   // grupo "registro" = aba Registro (input operacional do dia a dia).
   const CADASTROS_CONFIG = {
@@ -4724,18 +4737,32 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         { campo: "Dt Afastamento", rotulo: "Dt Afastamento", tipo: "data", obrigatorio: true },
         { campo: "Qtd Dias", rotulo: "Qtd Dias", tipo: "numero", obrigatorio: true, min: 1 },
         // V 1.29: segmento geral, sem direito/esquerdo (pedido do Alexandre)
-        { campo: "Regiao Corporal", rotulo: "Segmento corporal", tipo: "select", obrigatorio: true, opcoes: () => window.BI.Calc.regioesSemLado(regioesCorporais()).concat(window.BI.Calc.SEGMENTOS_GERAIS) },
+        // V 1.50 (Alexandre): na importação, o segmento aceita lado (D/E) e "não
+        // informado" - normalizarImport tira o lado e trata vazio/não informado
+        // como "Não identificado".
+        { campo: "Regiao Corporal", rotulo: "Segmento corporal", tipo: "select", obrigatorio: true, opcoes: () => window.BI.Calc.regioesSemLado(regioesCorporais()).concat(window.BI.Calc.SEGMENTOS_GERAIS), normalizarImport: (v) => window.BI.Calc.normalizarSegmento(v) },
         { campo: "Dt Retorno", rotulo: "Dt Retorno", tipo: "data" },
       ]),
       // V 1.42: importação por planilha (vários atestados de uma vez) com modelo para baixar.
+      // V 1.50 (Alexandre): sem chaveNatural - linhas repetidas são contabilizadas
+      // (cada linha vira um registro próprio); Nome e Matrícula não são obrigatórios
+      // na importação.
+      // V 1.52 (Alexandre): é possível importar mesmo com linhas incompletas -
+      // nenhuma coluna é obrigatória na importação. A linha que estiver faltando
+      // algo essencial (CID, data ou dias) entra marcada com "Pendencia Importacao"
+      // (aparece nas Notificações para o ergonomista corrigir) e só conta no
+      // gráfico de absenteísmo depois de corrigida.
       importacao: {
-        chaveNatural: ["Cliente", "Unidade", "Setor", "Matricula", "Dt Afastamento"],
         arquivo: "absenteismo",
         nomePlanilha: "Dados",
+        opcionais: ["Matricula", "Nome", "Cod CID", "Dt Afastamento", "Qtd Dias", "Regiao Corporal"],
         colunasPrevia: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Matricula", "Nome", "Cod CID", "Dt Afastamento", "Qtd Dias", "Regiao Corporal"],
         exemplo: { Matricula: "12345", Nome: "Nome do colaborador", "Cod CID": "M54.5", "Dt Afastamento": "01/10/2026", "Qtd Dias": 3, "Regiao Corporal": "Lombar" },
-        descricao: "Importe vários atestados de uma só vez. Atestados que já existem (mesmo Cliente, Unidade, Setor, Matrícula e data de afastamento) são atualizados, nunca duplicados.",
+        validarLinha: (valores) => pendenciaImportacao(valores, { "Cod CID": "CID", "Dt Afastamento": "data de afastamento", "Qtd Dias": "nº de dias" }),
+        descricao: "Importe vários atestados de uma só vez. Cada linha vira um registro (linhas repetidas são contabilizadas). Nome e Matrícula são opcionais. Linhas incompletas (sem CID, data ou dias) são importadas assim mesmo, ficam pendentes nas Notificações e só entram no gráfico depois de corrigidas. Unidade, Setor, Posto e Cargo são ligados aos cadastros existentes (ou criados, se você marcar a opção).",
       },
+      // V 1.52: ao salvar pelo formulário (correção), limpa a pendência da importação.
+      aoPrepararDados: (form, dados) => { dados["Pendencia Importacao"] = ""; },
       aoConstruir: comCascata((form) => {
         // V 1.29: registro antigo com lado ("Ombro Direito") abre no segmento geral ("Ombro").
         const el = form._campos["Regiao Corporal"];
@@ -4809,7 +4836,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         { campo: "Responsavel Area", rotulo: "Responsavel Area", tipo: "texto", sugestoesDe: "Responsavel Area" },
         { campo: "Medico Avaliador", rotulo: "Medico Avaliador", tipo: "texto", sugestoesDe: "Medico Avaliador" },
         { campo: "Queixa Principal", rotulo: "Queixa Principal", tipo: "texto", sugestoesDe: "Queixa Principal" },
-        { campo: "Segmento Corporal", rotulo: "Segmento Corporal", tipo: "select", opcoes: () => regioesCorporais().concat(window.BI.Calc.SEGMENTOS_GERAIS) },
+        { campo: "Segmento Corporal", rotulo: "Segmento Corporal", tipo: "select", opcoes: () => regioesCorporais().concat(window.BI.Calc.SEGMENTOS_GERAIS), normalizarImport: (v) => window.BI.Calc.normalizarSegmento(v) },
         { campo: "Restricao Medica", rotulo: "Restricao Medica", tipo: "texto", sugestoesDe: "Restricao Medica" },
         { campo: "Inicio Restricao", rotulo: "Inicio Restricao", tipo: "data", obrigatorio: true },
         { campo: "Fim Restricao", rotulo: "Fim Restricao", tipo: "data" },
@@ -4823,14 +4850,22 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // V 1.6: importacao por planilha Excel. Um mesmo colaborador (Cliente +
       // Matricula) pode ter varias restricoes ao longo do tempo; a chave de
       // atualizacao inclui o inicio da restricao.
+      // V 1.50 (Alexandre): sem chaveNatural - cada linha vira um registro próprio
+      // (linhas repetidas são contabilizadas); Matrícula e Funcionário não são
+      // obrigatórios na importação.
+      // V 1.52 (Alexandre): importa mesmo com linhas incompletas - nenhuma coluna é
+      // obrigatória; linha sem Status, Turno ou Início da restrição entra marcada
+      // como pendente (aparece nas Notificações para corrigir).
       importacao: {
-        chaveNatural: ["Cliente", "Matricula", "Inicio Restricao"],
         arquivo: "restritos-compativeis",
         nomePlanilha: "Dados",
+        opcionais: ["Matricula", "Funcionario", "Status Restricao", "Turno Trabalho", "Inicio Restricao"],
         colunasPrevia: ["Cliente", "Setor", "Matricula", "Funcionario", "Status Restricao", "Inicio Restricao"],
         exemplo: { Matricula: "12345", Funcionario: "Nome do colaborador", "Inicio Restricao": "01/10/2026" },
-        descricao: "Importe várias restrições médicas de uma só vez. Restrições que já existem (mesmo Cliente, Matrícula e início da restrição) são atualizadas, nunca duplicadas.",
+        validarLinha: (valores) => pendenciaImportacao(valores, { "Status Restricao": "status", "Turno Trabalho": "turno", "Inicio Restricao": "início da restrição" }),
+        descricao: "Importe várias restrições de uma só vez. Cada linha vira um registro (linhas repetidas são contabilizadas). Matrícula e Funcionário são opcionais. Linhas incompletas (sem status, turno ou início da restrição) são importadas assim mesmo e ficam pendentes nas Notificações. Unidade, Setor, Posto e Cargo são ligados aos cadastros existentes (ou criados, se você marcar a opção).",
       },
+      aoPrepararDados: (form, dados) => { dados["Pendencia Importacao"] = ""; },
     },
     // As 3 telas abaixo sao o pacote "Sistema de Gestao Integrada" (ver
     // docs/bi-ergonomia-manual.md) - reproduzem, dentro do proprio BI
@@ -7909,7 +7944,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     (window.BI.dados.avaliacaoErgonomica || []).forEach((a) => {
       const semFoto = !(Array.isArray(a.Fotos) && a.Fotos.length);
       const semInfo = !String(a["Descricao Atividade Observada"] || "").trim();
-      if (semFoto || semInfo) out.push({ tipo: "AEP", id: a._id || a.id, cliente: a.Cliente || "-", local: [a.Setor, a["Posto Trabalho"], a.Cargo].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", semInfo ? "sem descrição da atividade" : ""].filter(Boolean) });
+      if (semFoto || semInfo) out.push({ tipo: "AEP", id: a._id || a.id, nr: Number(a["Nr Avaliacao"]) || null, cliente: a.Cliente || "-", local: [a.Setor, a["Posto Trabalho"], a.Cargo].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", semInfo ? "sem descrição da atividade" : ""].filter(Boolean) });
     });
     (window.BI.dados.aet || []).forEach((a) => {
       const ats = a.Atividades || [];
@@ -7917,7 +7952,19 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const semFotoAtiv = !ats.some((at) => Array.isArray(at.fotos) && at.fotos.length);
       const semFoto = semFotoGeral && semFotoAtiv;
       const semInfo = !ats.length || !String(a["Diagnostico Global"] || "").trim();
-      if (semFoto || semInfo) out.push({ tipo: "AET", id: a._id || a.id, cliente: a.Cliente || "-", local: [a.Setor, a["Posto Trabalho"], a.Cargo].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", !ats.length ? "sem atividades" : (!String(a["Diagnostico Global"] || "").trim() ? "sem diagnóstico" : "")].filter(Boolean) });
+      if (semFoto || semInfo) out.push({ tipo: "AET", id: a._id || a.id, nr: Number(a["Nr AET"]) || null, cliente: a.Cliente || "-", local: [a.Setor, a["Posto Trabalho"], a.Cargo].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", !ats.length ? "sem atividades" : (!String(a["Diagnostico Global"] || "").trim() ? "sem diagnóstico" : "")].filter(Boolean) });
+    });
+    return out;
+  }
+  // V 1.52 (Alexandre): linhas importadas (Absenteísmo/Restritos) que ficaram
+  // incompletas - aparecem aqui para o ergonomista corrigir; só contam no gráfico
+  // depois de corrigidas (some a "Pendencia Importacao").
+  function pendenciasImportacaoNotif() {
+    const out = [];
+    [["absenteismo", "Absenteísmo"], ["compativeis", "Restritos"]].forEach(([col, rot]) => {
+      (window.BI.dados[col] || []).forEach((r) => {
+        if (r && r["Pendencia Importacao"]) out.push({ colecao: col, tipo: rot, id: r._id || r.id, cliente: r.Cliente || "-", local: [r.Setor, r["Posto Trabalho"], r.Cargo].filter(Boolean).join(" › "), falta: r["Pendencia Importacao"] });
+      });
     });
     return out;
   }
@@ -7926,7 +7973,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (!badge) return;
     try {
       const c = contarNotificacoes();
-      const n = c.atrasadas.length + c.perto.length + (ehEquipeNotif() ? analisesIncompletasNotif().length : 0);
+      const n = c.atrasadas.length + c.perto.length + (ehEquipeNotif() ? analisesIncompletasNotif().length + pendenciasImportacaoNotif().length : 0);
       badge.hidden = n === 0; badge.textContent = n > 99 ? "99+" : String(n);
     } catch (e) { badge.hidden = true; }
   }
@@ -7957,20 +8004,60 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         el.appendChild(h("p", "aet-nota", "Nenhuma AEP/AET dos seus clientes está com informações ou fotos faltando. 👍"));
       } else {
         const wrap = h("div", "tabela-scroll"); const tb = h("table", "tabela-dados");
-        const thead = h("thead"); const tr0 = h("tr"); ["Tipo", "Empresa", "Setor › posto › cargo", "O que falta", ""].forEach((t) => tr0.appendChild(h("th", null, t))); thead.appendChild(tr0); tb.appendChild(thead);
+        const thead = h("thead"); const tr0 = h("tr"); ["Tipo", "Nº", "Empresa", "Setor › posto › cargo", "O que falta", ""].forEach((t) => tr0.appendChild(h("th", null, t))); thead.appendChild(tr0); tb.appendChild(thead);
         const tbody = h("tbody");
+        // V 1.49 (Alexandre): mostra o Nº da AEP e o botão "Abrir" leva direto ao
+        // registro exato que precisa de ajuste (não só à aba).
+        const nrTexto = (x) => x.nr ? `${x.tipo}-${String(x.nr).padStart(3, "0")}` : "—";
+        const abrirRegistro = (x) => {
+          if (x.tipo === "AEP") {
+            try { window.BI.abrirAba("aep", "avaliacaoErgonomica"); } catch (e) { ativarAba("aep"); }
+            try { abrirFormEditar("avaliacaoErgonomica", x.id); } catch (e) { console.error("abrir AEP", e); }
+          } else {
+            ativarAba("aet");
+            const rec = (window.BI.dados.aet || []).find((r) => (r._id || r.id) === x.id);
+            if (rec && window.BI.AET && window.BI.AET.abrirEditor) { try { window.BI.AET.abrirEditor(rec); } catch (e) { console.error("abrir AET", e); } }
+          }
+        };
         inc.slice(0, 200).forEach((x) => {
           const tr = h("tr");
           tr.appendChild(h("td", null, x.tipo));
+          tr.appendChild(h("td", null, nrTexto(x)));
           tr.appendChild(h("td", null, x.cliente));
           tr.appendChild(h("td", null, x.local || "-"));
           tr.appendChild(h("td", null, x.faltas.join(" · ")));
           const td = h("td"); const b = h("button", "btn-cad-secundario", "Abrir"); b.type = "button";
-          b.addEventListener("click", () => { ativarAba(x.tipo === "AEP" ? "aep" : "aet"); });
+          b.addEventListener("click", () => abrirRegistro(x));
           td.appendChild(b); tr.appendChild(td);
           tbody.appendChild(tr);
         });
         tb.appendChild(tbody); wrap.appendChild(tb); el.appendChild(wrap);
+      }
+
+      // V 1.52 (Alexandre): linhas de importação (Absenteísmo/Restritos) pendentes.
+      const pend = pendenciasImportacaoNotif();
+      el.appendChild(h("h3", "notif-sub", `Importações com pendência para corrigir (${pend.length})`));
+      if (!pend.length) {
+        el.appendChild(h("p", "aet-nota", "Nenhuma linha importada está pendente de correção. 👍"));
+      } else {
+        const wrapP = h("div", "tabela-scroll"); const tbP = h("table", "tabela-dados");
+        const thP = h("thead"); const trP0 = h("tr"); ["Tipo", "Empresa", "Setor › posto › cargo", "O que falta", ""].forEach((t) => trP0.appendChild(h("th", null, t))); thP.appendChild(trP0); tbP.appendChild(thP);
+        const tbodyP = h("tbody");
+        pend.slice(0, 300).forEach((x) => {
+          const tr = h("tr");
+          tr.appendChild(h("td", null, x.tipo));
+          tr.appendChild(h("td", null, x.cliente));
+          tr.appendChild(h("td", null, x.local || "-"));
+          tr.appendChild(h("td", null, x.falta || "-"));
+          const td = h("td"); const b = h("button", "btn-cad-secundario", "Abrir"); b.type = "button";
+          b.addEventListener("click", () => {
+            try { window.BI.abrirAba("cadastro", x.colecao); } catch (e) { ativarAba("cadastro"); }
+            try { abrirFormEditar(x.colecao, x.id); } catch (e) { console.error("abrir pendência", e); }
+          });
+          td.appendChild(b); tr.appendChild(td);
+          tbodyP.appendChild(tr);
+        });
+        tbP.appendChild(tbodyP); wrapP.appendChild(tbP); el.appendChild(wrapP);
       }
     }
   }
@@ -8463,7 +8550,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (estadoSubAbaCadastro.aep === "modeloLaudo") abrirEditorTextoDireto();
 
     const diasUteisF = Calc.filtrar(window.BI.dados.diasUteis, filtros, ["Ano/Mes Uteis"]);
-    const absenteismoF = Calc.filtrar(window.BI.dados.absenteismo, filtros, ["Dt Afastamento"]);
+    // V 1.52 (Alexandre): registros importados com pendência (faltando CID/data/dias)
+    // não entram nos gráficos até serem corrigidos (some a pendência).
+    const absenteismoF = Calc.filtrar(window.BI.dados.absenteismo, filtros, ["Dt Afastamento"]).filter((l) => !l["Pendencia Importacao"]);
     renderTotaisMedOcup(Calc.totaisMedOcup(absenteismoF, diasUteisF));
     const evoAbs = Calc.evolucaoTaxaFrequencia(absenteismoF, diasUteisF);
     renderEvolucaoTaxa(evoAbs, absenteismoF);

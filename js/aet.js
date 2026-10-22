@@ -499,7 +499,11 @@
       // modo do risco
       const modoBox = h("div", "aet-modo-risco"); modoBox.appendChild(h("div", "aet-subtitulo", "Como definir o risco do fator"));
       let modo = comExposicao(it) ? "ferramenta" : "prob";
-      const radio = (val, txt, nota) => { const l = h("label", "aet-radio"); const r = h("input"); r.type = "radio"; r.name = "modo-" + it.id + Math.random(); r.value = val; r.checked = modo === val; r.disabled = !editar; r.addEventListener("change", () => { modo = val; mostrar(); }); l.appendChild(r); const t = h("span"); t.appendChild(h("strong", null, txt)); t.appendChild(h("span", "aet-nota", " " + nota)); l.appendChild(t); return l; };
+      // V 1.50 (Alexandre): os dois rádios precisam do MESMO name para formarem um
+      // grupo - antes cada um recebia um name diferente (Math.random por rádio),
+      // então os dois ficavam marcados ao mesmo tempo e não dava para alternar.
+      const nomeGrupoModo = "modo-" + it.id;
+      const radio = (val, txt, nota) => { const l = h("label", "aet-radio"); const r = h("input"); r.type = "radio"; r.name = nomeGrupoModo; r.value = val; r.checked = modo === val; r.disabled = !editar; r.addEventListener("change", () => { modo = val; mostrar(); }); l.appendChild(r); const t = h("span"); t.appendChild(h("strong", null, txt)); t.appendChild(h("span", "aet-nota", " " + nota)); l.appendChild(t); return l; };
       const r1 = radio("ferramenta", "Seguir o risco da ferramenta", "– o resultado da ferramenta define a graduação do fator (indicado quando a métrica já considera o tempo de exposição)."); const r2 = radio("prob", "Informar a probabilidade", "– o resultado da ferramenta vira a severidade, cruzada com a probabilidade (exposição na jornada) na matriz do cliente.");
       modoBox.appendChild(r1); modoBox.appendChild(r2);
       const probL = h("label", "aet-campo aet-campo--largo"); probL.appendChild(h("span", "aet-rot", "Probabilidade – exposição na jornada *"));

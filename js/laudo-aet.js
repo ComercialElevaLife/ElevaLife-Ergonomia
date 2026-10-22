@@ -197,7 +197,14 @@
             } else linhas.push([cell("Dados preenchidos na ferramenta", { bold: true, size: 7.8 }), cell("Ferramenta aplicada sem dados de entrada preenchidos.", { size: 7.8 })]);
             if ((r.memorial || []).length) linhas.push([cell("Cálculo", { bold: true, size: 7.8, color: COR.deep, fill: "F6EEEF", span: 2 })]);
             (r.memorial || []).forEach(([k, v]) => linhas.push([cell(k, { bold: true, size: 7.8 }), cell(v, { size: 7.8 })]));
-            linhas.push([cell("Resultado", { bold: true, size: 7.8 }), cell(`${r.ok ? r.pontuacao + " – " : ""}${r.classe}${nv != null ? " (nível " + BI.Ferramentas.NIVEIS[nv].toLowerCase() + ")" : ""} · ${BI.AET.comExposicao(it) ? "considera o tempo de exposição: define o risco" : "cruzado com a probabilidade (exposição)"}`, { size: 7.8 })]);
+            // V 1.50 (Alexandre): quando a ferramenta não foi concluída, não imprimir
+            // o texto de interface "Preencha os campos da ferramenta" no laudo. Mostra
+            // o resultado quando há pontuação; senão, o nível atribuído pelo ergonomista
+            // ou uma frase apropriada para o documento.
+            const resultadoFerr = r.ok
+              ? `${r.pontuacao} – ${r.classe}${nv != null ? " (nível " + BI.Ferramentas.NIVEIS[nv].toLowerCase() + ")" : ""} · ${BI.AET.comExposicao(it) ? "considera o tempo de exposição: define o risco" : "cruzado com a probabilidade (exposição)"}`
+              : (nv != null ? `Nível ${BI.Ferramentas.NIVEIS[nv].toLowerCase()} atribuído pelo ergonomista` : "Ferramenta não concluída — faltam dados para calcular a pontuação.");
+            linhas.push([cell("Resultado", { bold: true, size: 7.8 }), cell(resultadoFerr, { size: 7.8 })]);
             table(linhas, [4300, 5054], { header: false, va: "t", keep: linhas.length <= 24 });
           });
         }
