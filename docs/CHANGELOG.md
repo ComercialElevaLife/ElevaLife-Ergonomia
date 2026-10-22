@@ -2,6 +2,10 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.53 — 22/10/2026
+
+- **Importação — “Posto de Trabalho” opcional (Alexandre).** Na importação de Absenteísmo e de Restritos, a coluna Posto de Trabalho deixou de ser obrigatória (como as demais). Linhas sem posto são importadas normalmente. Service worker subiu para `sige-v68`. *(Arquivo: `js/app.js`.)*
+
 ## V 1.52 — 22/10/2026
 
 - **Importar mesmo com linhas incompletas (Absenteísmo e Restritos) (Alexandre).** Agora dá para confirmar a importação mesmo com linhas faltando informação — nenhuma coluna é obrigatória na importação. A linha incompleta (ex.: absenteísmo sem CID/data/dias; restrito sem status/turno/início) é **importada assim mesmo**, fica marcada como pendente e:

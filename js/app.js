@@ -4755,7 +4755,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       importacao: {
         arquivo: "absenteismo",
         nomePlanilha: "Dados",
-        opcionais: ["Matricula", "Nome", "Cod CID", "Dt Afastamento", "Qtd Dias", "Regiao Corporal"],
+        opcionais: ["Posto Trabalho", "Matricula", "Nome", "Cod CID", "Dt Afastamento", "Qtd Dias", "Regiao Corporal"],
         colunasPrevia: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Matricula", "Nome", "Cod CID", "Dt Afastamento", "Qtd Dias", "Regiao Corporal"],
         exemplo: { Matricula: "12345", Nome: "Nome do colaborador", "Cod CID": "M54.5", "Dt Afastamento": "01/10/2026", "Qtd Dias": 3, "Regiao Corporal": "Lombar" },
         validarLinha: (valores) => pendenciaImportacao(valores, { "Cod CID": "CID", "Dt Afastamento": "data de afastamento", "Qtd Dias": "nº de dias" }),
@@ -4859,7 +4859,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       importacao: {
         arquivo: "restritos-compativeis",
         nomePlanilha: "Dados",
-        opcionais: ["Matricula", "Funcionario", "Status Restricao", "Turno Trabalho", "Inicio Restricao"],
+        opcionais: ["Posto Trabalho", "Matricula", "Funcionario", "Status Restricao", "Turno Trabalho", "Inicio Restricao"],
         colunasPrevia: ["Cliente", "Setor", "Matricula", "Funcionario", "Status Restricao", "Inicio Restricao"],
         exemplo: { Matricula: "12345", Funcionario: "Nome do colaborador", "Inicio Restricao": "01/10/2026" },
         validarLinha: (valores) => pendenciaImportacao(valores, { "Status Restricao": "status", "Turno Trabalho": "turno", "Inicio Restricao": "início da restrição" }),
