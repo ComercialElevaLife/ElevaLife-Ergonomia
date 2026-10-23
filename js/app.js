@@ -8990,7 +8990,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // CADASTROS_CONFIG).
   // ------------------------------------------------------------------
   const PAPEIS_USUARIO = ["Administrador", "Consultor", "UsuarioCliente"];
-  const estadoUsuarios = { lista: [], formAberto: false, editandoId: null, valoresForm: null, carregando: false };
+  const estadoUsuarios = { lista: [], formAberto: false, editandoId: null, valoresForm: null, carregando: false, erro: null };
 
   function souAdministrador() {
     const identidade = window.BI.DB.estado.identidade;
@@ -9069,16 +9069,20 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
   async function carregarUsuarios() {
     estadoUsuarios.carregando = true;
+    estadoUsuarios.erro = null;
     renderizarListaUsuarios();
     try {
       const resp = await fetch("/api/usuarios", { credentials: "same-origin" });
       if (!resp.ok) throw new Error("Falha ao carregar usuários (HTTP " + resp.status + ").");
       estadoUsuarios.lista = await resp.json();
     } catch (e) {
-      // Sem internet (coleta offline em campo) não é erro do sistema: a
-      // lista de usuários só existe online e o indicador na tela já avisa.
+      // V 1.60 (Alexandre): falha ao listar usuários é de um recurso só do
+      // Administrador e NÃO deve derrubar o sistema inteiro (antes um 500 aqui
+      // mostrava o banner "Não foi possível carregar o S.I.G.E" cobrindo tudo).
+      // Agora o erro aparece só dentro da aba Usuários; o resto do SIGE abre normal.
+      // Sem internet (coleta offline em campo) não é erro do sistema.
       const semRede = window.BI.DB.estado.offlineAgora || (navigator && navigator.onLine === false) || e instanceof TypeError;
-      if (!semRede) mostrarErro("Erro ao carregar usuários: " + (e && e.message ? e.message : String(e)));
+      estadoUsuarios.erro = semRede ? null : (e && e.message ? e.message : String(e));
       estadoUsuarios.lista = [];
     } finally {
       estadoUsuarios.carregando = false;
@@ -9200,6 +9204,14 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const tr = document.createElement("tr");
       const td = document.createElement("td");
       td.colSpan = 5; td.className = "sem-dados"; td.textContent = "Carregando...";
+      tr.appendChild(td); tbody.appendChild(tr);
+      return;
+    }
+    if (estadoUsuarios.erro) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 5; td.className = "sem-dados";
+      td.textContent = "Não foi possível carregar a lista de usuários: " + estadoUsuarios.erro + " — tente novamente mais tarde. (O restante do sistema funciona normalmente.)";
       tr.appendChild(td); tbody.appendChild(tr);
       return;
     }

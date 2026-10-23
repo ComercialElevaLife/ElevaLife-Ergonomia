@@ -2,6 +2,10 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.60 — 23/10/2026
+
+- **Falha ao listar usuários não derruba mais o sistema (Alexandre).** Se o endpoint de usuários (recurso só do Administrador) falhar — por exemplo um `HTTP 500` do servidor/Cosmos —, antes aparecia o banner vermelho "Não foi possível carregar o S.I.G.E", dando a impressão de que o sistema inteiro caiu. Agora o erro aparece **apenas dentro da aba Usuários** ("Não foi possível carregar a lista de usuários… o restante do sistema funciona normalmente") e todo o resto do SIGE (dashboards, cadastros, registros) abre normalmente. *Obs.: isto trata o sintoma no app; um 500 nesse endpoint é do lado do servidor (Cosmos/implantação) e deve ser investigado nos logs da Azure Function `/api/usuarios`.* Service worker subiu para `sige-v75`. *(Arquivo: `js/app.js`.)*
+
 ## V 1.59 — 23/10/2026
 
 - **Dashboard como tela inicial, reunindo os dashboards de cada serviço (Alexandre).** Nova aba **Dashboard**, agora a **tela inicial** do sistema. No topo há um seletor: **Geral** + um dashboard por serviço (Gestão de Riscos, Plano de Ação, Absenteísmo, Restritos, Laudo Psicossocial). **Os gráficos saíram das abas de serviço e passaram a viver só no Dashboard** — as abas de serviço ficaram com a parte operacional (as tabelas/cadastro/registro): a Gestão de Riscos mantém o Inventário de Riscos (tabela), a Gestão de Absenteísmo mantém o Plano de Ação do absenteísmo, a Gestão do Plano de Ação mantém a lista de ações. A aba **Gestão de Restritos** (que era só gráficos) saiu do menu — seu dashboard está no seletor. O dashboard **Geral** mostra um resumo de KPIs de todos os serviços (postos avaliados, postos críticos, fatores vigentes, AEPs/AETs, ações abertas/concluídas e % de conclusão, atestados e dias perdidos, restritos, áreas psicossociais em risco), cada bloco com um atalho "Ver dashboard →". Tudo responde aos filtros globais e aos filtros de origem de cada serviço. Service worker subiu para `sige-v74`. *(Arquivos: `index.html`, `css/style.css`, `js/app.js`, `sw.js`.)*
