@@ -2,6 +2,40 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.59 — 23/10/2026
+
+- **Dashboard como tela inicial, reunindo os dashboards de cada serviço (Alexandre).** Nova aba **Dashboard**, agora a **tela inicial** do sistema. No topo há um seletor: **Geral** + um dashboard por serviço (Gestão de Riscos, Plano de Ação, Absenteísmo, Restritos, Laudo Psicossocial). **Os gráficos saíram das abas de serviço e passaram a viver só no Dashboard** — as abas de serviço ficaram com a parte operacional (as tabelas/cadastro/registro): a Gestão de Riscos mantém o Inventário de Riscos (tabela), a Gestão de Absenteísmo mantém o Plano de Ação do absenteísmo, a Gestão do Plano de Ação mantém a lista de ações. A aba **Gestão de Restritos** (que era só gráficos) saiu do menu — seu dashboard está no seletor. O dashboard **Geral** mostra um resumo de KPIs de todos os serviços (postos avaliados, postos críticos, fatores vigentes, AEPs/AETs, ações abertas/concluídas e % de conclusão, atestados e dias perdidos, restritos, áreas psicossociais em risco), cada bloco com um atalho "Ver dashboard →". Tudo responde aos filtros globais e aos filtros de origem de cada serviço. Service worker subiu para `sige-v74`. *(Arquivos: `index.html`, `css/style.css`, `js/app.js`, `sw.js`.)*
+
+## V 1.58 — 23/10/2026
+
+- **Psicossocial — importar laudo em Word (.docx) e montar a dashboard (Alexandre).** Nova tela **Laudo Psicossocial (importado)**: a equipe escolhe a empresa, sobe o laudo psicossocial em Word e o sistema transcreve, por **Unidade × Grupo Ocupacional**, os **7 fatores do HSE-IT** (Demandas, Controle, Apoio da chefia, Apoio dos colegas, Relacionamentos, Cargo, Comunicação e mudanças) com score + classificação de risco, e a média de cada área. Antes de gravar, mostra tudo numa tabela de conferência (os valores podem ser ajustados). Ao confirmar, grava uma área por Unidade × Grupo e, opcionalmente, lança as ações do "Plano de ação" do laudo no **Plano de Ação** (origem *Riscos Psicossociais*, sem repetir ações idênticas). A dashboard abaixo mostra os riscos e o resultado (de-para) desse cliente, nos dois níveis (Unidade e Grupo). A leitura é feita direto no navegador (sem servidor), com 100% de fidelidade validada no laudo de exemplo (142 áreas, 7 dimensões). Isto é **separado** do questionário HSE-IT padrão — não altera o módulo Psicossocial existente. Service worker subiu para `sige-v73`. *(Arquivos: `js/psico-laudo-import.js` (novo), `js/app.js`, `js/db.js`, `api/src/functions/entidades.js`, `index.html`, `sw.js`.)*
+
+## V 1.57 — 23/10/2026
+
+- **Performance (Etapa 1) — salvar e excluir instantâneos (Alexandre).** Antes, ao salvar ou excluir **um** registro, o sistema recarregava a **coleção inteira** do servidor — o que ficava lento com muita informação (ex.: milhares de atestados). Agora só o registro gravado/excluído entra, atualiza ou sai do cache local, na hora, sem recarregar a coleção. Vale para todas as telas de cadastro/registro (AEP, AET, Absenteísmo, Restritos, Plano de Ação, etc.). *(Primeira etapa da melhoria de performance; próximas etapas tratam do carregamento inicial e de filtros/dashboards.)* Service worker subiu para `sige-v72`. *(Arquivo: `js/db.js`.)*
+
+## V 1.56 — 23/10/2026
+
+- **Performance — exclusão de empresas em bloco instantânea (Alexandre).** A exclusão em bloco de empresas também passou a podar o cache local em vez de recarregar todos os dados do servidor (como já era na exclusão individual na V1.54). *(Primeiro passo da melhoria de performance; o rework completo de carregamento sob demanda é uma etapa à parte.)* Service worker subiu para `sige-v71`. *(Arquivo: `js/db.js`.)*
+
+## V 1.55 — 23/10/2026
+
+- **Visibilidade por unidade (vínculo de usuário por empresa E unidade) (Alexandre).** No cadastro de usuário há agora **Unidades vinculadas** (além de Empresas vinculadas). Regras:
+  - **Administrador** vê tudo (independente das listas).
+  - **Ergonomista (Consultor)** e **Cliente** veem **apenas as unidades marcadas** — e as empresas dessas unidades. Mapa de riscos, plano de ação, AEP/AET, absenteísmo e restritos são filtrados por unidade no servidor.
+  - É **obrigatório marcar unidade**: um ergo/cliente **sem nenhuma unidade marcada não vê dados**.
+  - Chaves de API não são afetadas (continuam por empresa).
+  
+  ⚠️ **Importante ao publicar:** os usuários ergonomista/cliente **já existentes** não têm unidades marcadas ainda — ao subir esta versão, eles deixam de ver dados **até um Administrador editar cada um e marcar as unidades**. Reserve um momento para revisar esses cadastros logo após o deploy. Service worker subiu para `sige-v70`. *(Arquivos: `api/src/shared/tenant.js`, `api/src/functions/entidades.js`, `js/app.js`.)*
+  
+  *(Obs.: o módulo **Psicossocial** continua filtrado por empresa; o filtro por unidade nele é uma etapa à parte, porque usa um caminho de dados próprio.)*
+
+## V 1.54 — 23/10/2026
+
+- **Coordenação — ciclo de vida por função do sistema (Alexandre).** Novo card que agrega o tempo de cada função do SIGE (AEP, AET, Plano de Ação, Psicossocial, Absenteísmo, Restritos, Laudos, Cadastro), da mais rápida à mais demorada, com itens trabalhados, sessões, tempo total e médio. *(Obs.: Psicossocial só aparecerá com tempo quando esse módulo passar a cronometrar; os demais já cronometram.)* *(Arquivo: `js/coordenacao.js`.)*
+- **Excluir empresa — rápido e direto para a lixeira (Alexandre).** Excluir uma empresa (Admin) agora é instantâneo: vai para a lixeira (restaurável) e some na hora das telas, sem recarregar todos os dados do servidor — o que antes deixava a exclusão lenta e dava a impressão de que “algumas não apagavam”. A mensagem de confirmação deixou claro que vai para a lixeira. *(Arquivos: `js/db.js`, `js/app.js`.)*
+- **CNPJ por unidade (Alexandre).** A unidade passou a ter um campo **CNPJ** próprio (opcional). No **laudo por unidade**, o CNPJ da unidade sai como o principal; no **laudo da empresa toda**, todos os CNPJs cadastrados (empresa + unidades) são listados. A empresa pode ser cadastrada sem CNPJ. *(Arquivos: `js/app.js`, `js/laudo.js`, `js/laudo-docx.js`.)* Service worker subiu para `sige-v69`.
+
 ## V 1.53 — 22/10/2026
 
 - **Importação — “Posto de Trabalho” opcional (Alexandre).** Na importação de Absenteísmo e de Restritos, a coluna Posto de Trabalho deixou de ser obrigatória (como as demais). Linhas sem posto são importadas normalmente. Service worker subiu para `sige-v68`. *(Arquivo: `js/app.js`.)*

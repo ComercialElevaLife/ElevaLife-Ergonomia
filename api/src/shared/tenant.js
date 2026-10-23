@@ -47,44 +47,19 @@ async function resolverIdentidade(request) {
   const doc = resources[0];
 
   if (!doc) {
-    return { email, papel: null, empresasVinculadas: [], sigeVinculo: "nenhuma", psicoVinculo: "nenhuma", empresasPsico: [] };
+    return { email, papel: null, empresasVinculadas: [], unidadesVinculadas: [], fonteUsuario: true };
   }
 
-  const v = vinculosDoDoc(doc);
   return {
     email,
     papel: doc.Papel || null,
-    empresasVinculadas: v.sigeVinculo === "nenhuma" ? [] : (Array.isArray(doc.EmpresasVinculadas) ? doc.EmpresasVinculadas : []),
-    sigeVinculo: v.sigeVinculo,
-    psicoVinculo: v.psicoVinculo,
-    empresasPsico: v.empresasPsico,
+    empresasVinculadas: Array.isArray(doc.EmpresasVinculadas) ? doc.EmpresasVinculadas : [],
+    // V 1.55 (Alexandre): vínculo por unidade. Chaves no formato "EmpresaId::Unidade".
+    unidadesVinculadas: Array.isArray(doc.UnidadesVinculadas) ? doc.UnidadesVinculadas : [],
+    // marca que esta identidade veio da coleção de usuários (login na interface) -
+    // só nesses casos a restrição por unidade vale (chaves de API não são afetadas).
+    fonteUsuario: true,
   };
-}
-
-// V 1.26 - vinculos separados por modulo (pedido do Alexandre): o usuario
-// tem as empresas do SIGE (EmpresasVinculadas, como antes) e, a parte, as
-// empresas do modulo Riscos Psicossociais (EmpresasPsico). Em cada um pode
-// ficar "nao vinculado" (SigeVinculo/PsicoVinculo = "nenhuma"). PsicoVinculo:
-// "todas" (so Consultor - ergonomista que atende todas as empresas do
-// psicossocial), "marcadas" (so as de EmpresasPsico) ou "nenhuma".
-// Documentos antigos (sem esses campos) continuam como estavam: SIGE pelas
-// empresas marcadas; psicossocial "todas" para Consultor e "marcadas" para
-// UsuarioCliente (que tambem ve as empresas do psicossocial ligadas a um
-// cliente do SIGE ao qual ele esta vinculado).
-const VINC_PSICO = new Set(["todas", "marcadas", "nenhuma"]);
-function vinculosDoDoc(doc) {
-  const papel = doc.Papel || null;
-  const sigeVinculo = doc.SigeVinculo === "nenhuma" ? "nenhuma" : "marcadas";
-  let psicoVinculo = papel === PAPEIS.ADMIN ? "todas" : VINC_PSICO.has(doc.PsicoVinculo) ? doc.PsicoVinculo : (papel === PAPEIS.CONSULTOR ? "todas" : "marcadas");
-  if (psicoVinculo === "todas" && papel === PAPEIS.CLIENTE) psicoVinculo = "marcadas";
-  const empresasPsico = psicoVinculo === "marcadas" && Array.isArray(doc.EmpresasPsico) ? doc.EmpresasPsico.filter((e) => typeof e === "string" && /^e_/.test(e)) : [];
-  return { sigeVinculo, psicoVinculo, empresasPsico };
-}
-
-// Normaliza os campos de vinculo vindos da tela de Usuarios (POST/PUT).
-function vinculosDoCorpo(corpo, papel) {
-  const v = vinculosDoDoc({ Papel: papel, SigeVinculo: corpo.SigeVinculo, PsicoVinculo: corpo.PsicoVinculo, EmpresasPsico: corpo.EmpresasPsico });
-  return { SigeVinculo: v.sigeVinculo, PsicoVinculo: v.psicoVinculo, EmpresasPsico: v.empresasPsico };
 }
 
 // null = sem filtro (Administrador ve tudo); array = lista fechada de EmpresaId.
@@ -106,8 +81,35 @@ function empresaIdDoDocumento(colecao, doc) {
   return doc.EmpresaId;
 }
 
+// V 1.55 (Alexandre): restrição por UNIDADE. Vale só para usuários da interface
+// (fonteUsuario) com papel Consultor (ergonomista) ou UsuarioCliente (cliente).
+// Admin vê tudo; chaves de API não têm fonteUsuario, então não são afetadas.
+function restritoPorUnidade(identidade) {
+  return !!(identidade && identidade.fonteUsuario && (identidade.papel === PAPEIS.CONSULTOR || identidade.papel === PAPEIS.CLIENTE));
+}
+// Unidades que a identidade tem naquela empresa (chaves "EmpresaId::Unidade").
+function unidadesDaEmpresa(identidade, empresaId) {
+  const pref = String(empresaId) + "::";
+  return (identidade.unidadesVinculadas || [])
+    .filter((k) => String(k).indexOf(pref) === 0)
+    .map((k) => String(k).slice(pref.length));
+}
+// Regra de unidade para um documento. Para quem não é restrito, sempre passa
+// (a checagem de empresa continua valendo à parte).
+function podeVerUnidadeDoc(identidade, colecao, doc) {
+  if (!restritoPorUnidade(identidade)) return true;
+  const empresaId = empresaIdDoDocumento(colecao, doc);
+  const minhas = unidadesDaEmpresa(identidade, empresaId);
+  if (!minhas.length) return false; // obrigatório marcar: sem unidade nessa empresa => não vê nada
+  if (colecao === "cliente") return true; // a empresa aparece porque o usuário tem ≥1 unidade nela
+  if (colecao === "unidade") return minhas.indexOf(doc.Unidade) !== -1;
+  const u = doc.Unidade;
+  if (u == null || u === "") return true; // documento sem unidade (empresa já liberada por ter ≥1 unidade)
+  return minhas.indexOf(u) !== -1;
+}
+
 function podeVerDocumento(identidade, colecao, doc) {
-  return podeVerEmpresa(identidade, empresaIdDoDocumento(colecao, doc));
+  return podeVerEmpresa(identidade, empresaIdDoDocumento(colecao, doc)) && podeVerUnidadeDoc(identidade, colecao, doc);
 }
 
 module.exports = {
@@ -117,6 +119,7 @@ module.exports = {
   podeVerEmpresa,
   empresaIdDoDocumento,
   podeVerDocumento,
-  vinculosDoDoc,
-  vinculosDoCorpo,
+  restritoPorUnidade,
+  podeVerUnidadeDoc,
+  unidadesDaEmpresa,
 };

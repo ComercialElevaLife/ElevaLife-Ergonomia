@@ -59,6 +59,10 @@
     // V 1.42: plano de acao especifico do Absenteismo (separado do Plano geral) -
     // acoes por mes de referencia, na aba Gestao de Absenteismo. Por EmpresaId.
     "acaoAbsenteismo",
+    // V 1.58: laudo psicossocial importado (Word). Um registro por Unidade/Grupo
+    // Ocupacional, com os 7 scores do HSE-IT + media + classificacao. Por EmpresaId.
+    // Nao mexe no subsistema padrao do questionario (iframe psicossocial.html).
+    "psicoLaudo",
   ];
 
   const estado = {
@@ -256,6 +260,43 @@
   // Usuarios.
   async function reenviarConvite(email) {
     return chamarAuth("reenviar-convite", { Email: email });
+  }
+
+  // V 1.54 (Alexandre): remove uma empresa (e todos os dados dela) do cache local,
+  // sem recarregar nada do servidor - usado ao mandar a empresa para a lixeira, para
+  // a exclusão ser instantânea mesmo com muito volume de dados. As coleções globais
+  // (EmpresaId "GLOBAL") não são afetadas (o id da empresa nunca é "GLOBAL").
+  function removerEmpresaDoCacheLocal(empresaId) {
+    Object.keys(estado.colecoes || {}).forEach((chave) => {
+      const lista = estado.colecoes[chave];
+      if (!Array.isArray(lista)) return;
+      const antes = lista.length;
+      estado.colecoes[chave] = chave === "cliente"
+        ? lista.filter((d) => (d.id || d._id) !== empresaId)
+        : lista.filter((d) => d.EmpresaId !== empresaId);
+      if (estado.colecoes[chave].length !== antes && callbackAtualizacao) callbackAtualizacao(chave);
+    });
+  }
+
+  // V 1.57 (Alexandre): atualiza UM registro no cache local (sem recarregar a coleção
+  // do servidor). `salvo` é o documento devolvido pela API; `idAnterior` é o id usado
+  // na chamada (pode diferir quando um campo-chave muda e o registro "renomeia").
+  function atualizarRegistroLocal(chave, salvo, idAnterior) {
+    if (!salvo || !salvo.id) { return; }
+    const lista = estado.colecoes[chave] || (estado.colecoes[chave] = []);
+    const linha = Object.assign({ _id: salvo.id }, salvo);
+    const chavesId = new Set([salvo.id, idAnterior].filter(Boolean));
+    const i = lista.findIndex((d) => chavesId.has(d._id) || chavesId.has(d.id));
+    if (i >= 0) lista[i] = linha; else lista.push(linha);
+    if (callbackAtualizacao) callbackAtualizacao(chave);
+  }
+  // V 1.57 (Alexandre): remove UM registro do cache local (sem recarregar a coleção).
+  function removerRegistroLocal(chave, id) {
+    const lista = estado.colecoes[chave];
+    if (!Array.isArray(lista)) return;
+    const antes = lista.length;
+    estado.colecoes[chave] = lista.filter((d) => (d._id || d.id) !== id);
+    if (estado.colecoes[chave].length !== antes && callbackAtualizacao) callbackAtualizacao(chave);
   }
 
   async function recarregarColecaoApi(chave) {
@@ -916,7 +957,10 @@
       }
       if (!resp.ok) throw new Error(await corpoDeErro(resp));
       const salvo = await resp.json();
-      await recarregarColecaoApi(colecaoChave);
+      // V 1.57 (Alexandre - lentidão ao salvar): antes recarregávamos a coleção
+      // INTEIRA do servidor a cada gravação (lento com muitos registros). Agora só o
+      // registro salvo entra/atualiza no cache local, instantaneamente.
+      atualizarRegistroLocal(colecaoChave, salvo, id);
       return salvo.id;
     }
 
@@ -1089,8 +1133,19 @@
       }
       if (resp.status === 401 && podeFila) { estado.sessaoExpirada = true; await enfileirarExclusao(colecaoChave, id); return; }
       if (!resp.ok && resp.status !== 204) throw new Error(await corpoDeErro(resp));
-      if (colecaoChave === "cliente") await carregarTudoOuCopia(); // os dados da empresa sairam de todas as colecoes
-      else await recarregarColecaoApi(colecaoChave);
+      if (colecaoChave === "cliente") {
+        // V 1.54 (Alexandre): excluir empresa vai para a LIXEIRA (soft delete, rápido
+        // no servidor). Antes recarregávamos TODAS as coleções do servidor aqui, o que
+        // deixava a exclusão lentíssima com muito volume (e dava a impressão de que
+        // "algumas não apagam" quando o recarregamento demorava). Agora a empresa e os
+        // dados dela saem na hora do cache local, sem recarregar tudo.
+        removerEmpresaDoCacheLocal(id);
+      } else {
+        // V 1.57 (Alexandre - lentidão ao excluir): antes recarregávamos a coleção
+        // INTEIRA do servidor a cada exclusão (lento com muitos registros). Agora o
+        // registro sai só do cache local, instantaneamente.
+        removerRegistroLocal(colecaoChave, id);
+      }
       return;
     }
 
@@ -1117,7 +1172,9 @@
           if (!resp.ok && resp.status !== 204) throw new Error(await corpoDeErro(resp));
         })
       ));
-      if (colecaoChave === "cliente") await carregarTudoOuCopia();
+      // V 1.55: exclusão em bloco de empresas também é instantânea (poda local,
+      // sem recarregar tudo do servidor).
+      if (colecaoChave === "cliente") ids.forEach((id) => removerEmpresaDoCacheLocal(id));
       else await recarregarColecaoApi(colecaoChave);
       return { total: ids.length, falhas: resultados.filter((r) => r.status === "rejected").length };
     }

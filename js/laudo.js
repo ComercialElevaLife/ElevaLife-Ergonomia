@@ -57,6 +57,20 @@
     const nomeMatriz = Calc.matrizDoCliente(dados.cliente, opcoes.nomeCliente);
     const escala = Calc.escalaDaMatriz(nomeMatriz);
     const docCliente = (dados.cliente || []).find((c) => c.Cliente === opcoes.nomeCliente) || {};
+    // V 1.54 (Alexandre): CNPJ por unidade. Laudo por unidade usa o CNPJ cadastrado
+    // naquela unidade (cai para o da empresa se a unidade não tiver). Laudo da empresa
+    // toda lista todos os CNPJs das unidades (mais o da empresa, se houver).
+    const unidadesCliente = (dados.unidade || []).filter((u) => u.Cliente === opcoes.nomeCliente);
+    const cnpjLaudo = (function () {
+      if (opcoes.unidade) {
+        const u = unidadesCliente.find((x) => x.Unidade === opcoes.unidade);
+        return (u && String(u.CNPJ || "").trim()) || docCliente.CNPJ || "";
+      }
+      const lista = [];
+      if (docCliente.CNPJ && String(docCliente.CNPJ).trim()) lista.push(String(docCliente.CNPJ).trim());
+      unidadesCliente.forEach((u) => { const c = String(u.CNPJ || "").trim(); if (c && lista.indexOf(c) === -1) lista.push(c); });
+      return lista.join(" · ") || docCliente.CNPJ || "";
+    })();
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
 
     // V 1.28: abrangencia do laudo - empresa toda, unidade, setor, cargo ou posto de trabalho.
@@ -304,14 +318,14 @@
     };
     return {
       statusAcaoInfo, dadosAcao, corNivel, dataBR, hojeISO, PAL, ROTULO_ESCALA, URL_VERIFICACAO,
-      Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, eliminadosDoPosto, doPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4, niveisMz, ordemNivel, contaNivelMz, maiorGrau, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe,
+      Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, cnpjLaudo, hoje, avaliacoes, fatoresDoPosto, eliminadosDoPosto, doPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4, niveisMz, ordemNivel, contaNivelMz, maiorGrau, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe,
     };
   }
 
   async function gerar(opcoes) {
     const jsPDFCtor = global.jspdf && global.jspdf.jsPDF;
     if (!jsPDFCtor) throw new Error("A biblioteca de geração de PDF não carregou (script externo bloqueado ou indisponível).");
-    const { statusAcaoInfo, dadosAcao, Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, hoje, avaliacoes, fatoresDoPosto, eliminadosDoPosto, doPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4, niveisMz, ordemNivel, contaNivelMz, maiorGrau, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe } = await preparar(opcoes);
+    const { statusAcaoInfo, dadosAcao, Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, cnpjLaudo, hoje, avaliacoes, fatoresDoPosto, eliminadosDoPosto, doPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4, niveisMz, ordemNivel, contaNivelMz, maiorGrau, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe } = await preparar(opcoes);
 
     // ========================================================================
     function construir(doc, mapa, final) {
@@ -654,7 +668,7 @@
         }).join("");
         const end = tcase([docCliente.Logradouro, docCliente.Numero, docCliente.Complemento, docCliente.Bairro, [docCliente.Cidade, docCliente.Estado].filter(Boolean).join("/"), docCliente.CEP ? "CEP " + docCliente.CEP : ""].filter(Boolean).join(", "));
         const ficha = [
-          ["Razão social", String(opcoes.nomeCliente || "").toUpperCase()], ["CNPJ", docCliente.CNPJ], ["Inscrição estadual", docCliente["Inscricao Estadual"]], ["CNAE", docCliente.CNAE],
+          ["Razão social", String(opcoes.nomeCliente || "").toUpperCase()], ["CNPJ", cnpjLaudo || docCliente.CNPJ], ["Inscrição estadual", docCliente["Inscricao Estadual"]], ["CNAE", docCliente.CNAE],
           ["Grau de risco (NR-04)", docCliente["Grau Risco NR4"]], ["Unidade avaliada", tcase(unidadesAv.join(" · "))], ["Endereço", end],
           ["Telefone", docCliente.Telefone], ["Abrangência do laudo", opcoes.abrangenciaDescricao && opcoes.abrangenciaDescricao !== "Empresa toda" ? opcoes.abrangenciaDescricao : ""], ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo],
         ].filter((r) => r[1]);

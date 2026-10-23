@@ -203,6 +203,51 @@
       { rot: "Tempo ativo", num: true, val: (c) => fmtDur(c.ativo) },
       { rot: "Sessões", num: true, val: (c) => String(c.nSess) },
     ], listaCiclos, "Nenhuma AEP/AET cronometrada ainda.")));
+
+    // ---- V 1.54 (Alexandre): Ciclo de vida por FUNÇÃO DO SISTEMA (AEP, AET, Plano
+    // de Ação, Psicossocial, Absenteísmo, Restritos, Laudos, Cadastro). Agrega o
+    // tempo de todos os registros por módulo. Ordenado do mais rápido (mínima) ao
+    // mais demorado (mais complexa), pelo tempo ativo total.
+    const FUNCOES_SIGE = [
+      { chave: "aep", nome: "AEP (avaliação + inventário de riscos)", tipos: ["avaliacaoErgonomica", "fatorRisco", "mapaRisco"], cats: ["AEP"] },
+      { chave: "aet", nome: "AET", tipos: ["aet"], cats: ["AET"] },
+      { chave: "plano", nome: "Plano de Ação", tipos: ["planoAcao"] },
+      { chave: "psico", nome: "Psicossocial", tipos: ["psicossocial"], cats: ["Psicossocial"] },
+      { chave: "absenteismo", nome: "Absenteísmo", tipos: ["absenteismo"] },
+      { chave: "restritos", nome: "Restritos / compatíveis", tipos: ["compativeis"] },
+      { chave: "laudo", nome: "Laudos", tipos: ["laudo", "modeloLaudo"] },
+      { chave: "cadastro", nome: "Cadastro (empresa e estrutura)", tipos: ["cliente", "unidade", "setor", "cargo", "posto", "colaborador", "atividade"] },
+    ];
+    function funcaoDe(r) {
+      for (const f of FUNCOES_SIGE) {
+        if ((f.cats && f.cats.indexOf(r.Categoria) !== -1) || (f.tipos && f.tipos.indexOf(r.Tipo) !== -1)) return f.chave;
+      }
+      return null;
+    }
+    const aggF = {};
+    FUNCOES_SIGE.forEach((f) => { aggF[f.chave] = { nome: f.nome, ativo: 0, nSess: 0, refs: new Set(), ab: null, sv: null, logins: new Set() }; });
+    regs.forEach((r) => {
+      const fc = funcaoDe(r); if (!fc) return;
+      const a = aggF[fc];
+      a.ativo += Number(r.AtivoMs) || 0; a.nSess += 1;
+      if (r.RefId) a.refs.add(r.RefId);
+      if (r.AberturaEm && (!a.ab || r.AberturaEm < a.ab)) a.ab = r.AberturaEm;
+      if (r.SalvoEm && (!a.sv || r.SalvoEm > a.sv)) a.sv = r.SalvoEm;
+      if (r.Por) a.logins.add(r.PorNome || r.Por);
+    });
+    const listaFuncoes = FUNCOES_SIGE.map((f) => {
+      const a = aggF[f.chave];
+      return Object.assign(a, { itens: a.refs.size, medio: a.refs.size ? a.ativo / a.refs.size : 0 });
+    }).sort((x, y) => x.ativo - y.ativo);
+    grade.appendChild(cartao("Ciclo de vida por função do sistema", "Tempo ativo acumulado em cada função do SIGE (AEP, AET, Plano de Ação, Psicossocial, Absenteísmo, Restritos, Laudos, Cadastro), da mais rápida à mais demorada. “Itens” conta registros distintos trabalhados.", tabela([
+      { rot: "Função", val: (f) => f.nome },
+      { rot: "Itens", num: true, val: (f) => String(f.itens) },
+      { rot: "Sessões", num: true, val: (f) => String(f.nSess) },
+      { rot: "Tempo ativo total", num: true, val: (f) => fmtDur(f.ativo) },
+      { rot: "Tempo médio por item", num: true, val: (f) => f.itens ? fmtDur(f.medio) : "—" },
+      { rot: "Última atividade", val: (f) => fmtData(f.sv) },
+      { rot: "Quem", val: (f) => Array.from(f.logins).join(", ") || "—" },
+    ], listaFuncoes, "Nenhuma atividade cronometrada ainda.")));
   }
 
   // ------------------------------------------------------------------ Gerar tempos de exemplo (apresentação)

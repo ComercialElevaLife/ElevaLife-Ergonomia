@@ -2135,6 +2135,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     return [
       { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
       { campo: "Unidade", rotulo: "Nome da Unidade", tipo: "texto", obrigatorio: true },
+      // V 1.54 (Alexandre): CNPJ por unidade. No laudo por unidade, este CNPJ sai como
+      // o principal; no laudo da empresa toda, todos os CNPJs das unidades são listados.
+      // Opcional (a empresa pode não ter CNPJ e cada unidade ter o seu).
+      { campo: "CNPJ", rotulo: "CNPJ da unidade (opcional)", tipo: "texto", mascara: "cnpj" },
     ];
   }
   // Setor/Posto de Trabalho/Cargo/Atividade: o proprio nivel sendo
@@ -6490,7 +6494,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (ehUsuarioCliente()) return;
     if (!window.BI.DB.estado.disponivel) return;
     // V 1.37: excluir a empresa-cliente apaga todos os dados dela
-    if (!window.confirm("Excluir este registro definitivamente? Essa ação não pode ser desfeita." + (chave === "cliente" ? " A empresa e TODOS os dados dela (unidades, setores, cargos, AEP, AET, Inventário, Plano de Ação, laudos, colaboradores e Riscos Psicossociais) serão apagados." : ""))) return;
+    // V 1.54 (Alexandre): excluir empresa manda para a LIXEIRA (rápido e restaurável);
+    // a exclusão definitiva é feita depois, dentro da Lixeira. Os demais cadastros
+    // continuam com exclusão direta.
+    const msg = chave === "cliente"
+      ? "Enviar esta empresa para a lixeira? Ela e os dados dela somem das telas, mas podem ser restaurados depois (a exclusão definitiva é feita dentro da Lixeira)."
+      : "Excluir este registro definitivamente? Essa ação não pode ser desfeita.";
+    if (!window.confirm(msg)) return;
     window.BI.DB.excluir(chave, id).catch((e) => {
       mostrarErro("Erro ao excluir registro: " + (e && e.message ? e.message : String(e)));
     });
@@ -7485,6 +7495,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (aba === "aep" && estadoSubAbaCadastro.aep === "modeloLaudo") abrirEditorTextoDireto();
     if (aba === "coordenacao" && window.BI.Coordenacao) { try { window.BI.Coordenacao.render(); } catch (e) { console.error(e); } }
     if (aba === "notificacoes") { try { renderNotificacoes(); } catch (e) { console.error(e); } }
+    if (aba === "psicoLaudo") { try { renderPsicoLaudo(); } catch (e) { console.error(e); } }
+    if (aba === "dashboard") { try { montarDashboard(); mostrarDash(dashAtual); } catch (e) { console.error(e); } }
     // V 1.35: a sub-aba atual de tela propria (AET, laudos, importacao) se atualiza ao abrir a aba
     const grupoAba = GRUPO_DA_ABA[aba]; const subAtual = grupoAba && estadoSubAbaCadastro[grupoAba];
     if (subAtual && SUBABAS_EXTRAS[subAtual] && SUBABAS_EXTRAS[subAtual].aoAbrir) { try { SUBABAS_EXTRAS[subAtual].aoAbrir(); } catch (e) { console.error(e); } }
@@ -8059,6 +8071,391 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         });
         tbP.appendChild(tbodyP); wrapP.appendChild(tbP); el.appendChild(wrapP);
       }
+    }
+  }
+
+  // ====================================================================
+  // V 1.58 (Alexandre): Laudo Psicossocial importado (Word .docx).
+  // Lê o laudo, transcreve por Unidade/Grupo os 7 fatores HSE-IT + média,
+  // mostra prévia editável, grava na coleção "psicoLaudo" (dashboard próprio)
+  // e, opcionalmente, leva as ações do "Plano de ação" ao Plano (Origem
+  // "Riscos Psicossociais"). Não mexe no questionário HSE-IT padrão (iframe).
+  // ====================================================================
+  const PSICO_CORES = { BAIXO: "#2e7d32", MODERADO: "#b8860b", ALTO: "#c0392b", CRITICO: "#7b1fa2" };
+  function psicoCor(classe) { return PSICO_CORES[String(classe || "").toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "")] || "#8A7A78"; }
+  const PSICO_DIMS = (window.BI.PsicoLaudoImport && window.BI.PsicoLaudoImport.DIMENSOES) || ["Demandas", "Controle", "Apoio da chefia", "Apoio dos colegas", "Relacionamentos", "Cargo", "Comunicação e mudanças"];
+
+  function renderPsicoLaudo() {
+    const el = document.getElementById("painel-psico-laudo");
+    if (!el) return;
+    el.innerHTML = "";
+    const h = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+    el.appendChild(h("h2", "notif-titulo", "Laudo Psicossocial (importado)"));
+    el.appendChild(h("p", "aet-nota", "Importe um laudo psicossocial em Word (.docx): o sistema transcreve, por Unidade e Grupo Ocupacional, os 7 fatores do HSE-IT (score + classificação) e a média, para você conferir antes de gravar. As ações do “Plano de ação” podem entrar no Plano de Ação. Isto é separado do questionário HSE-IT padrão."));
+
+    if (ehEquipeNotif()) {
+      const box = h("div"); box.style.cssText = "border:1px solid #e3dcd6;border-radius:10px;padding:14px 16px;margin:10px 0 18px;background:#fff";
+      const linha = h("div"); linha.style.cssText = "display:flex;gap:10px;flex-wrap:wrap;align-items:center";
+      linha.appendChild(h("label", null, "Empresa:"));
+      const selEmp = h("select"); selEmp.style.cssText = "min-width:240px;padding:6px;border:1px solid #d8cfc8;border-radius:6px";
+      selEmp.appendChild(new Option("Selecione…", ""));
+      (window.BI.dados.cliente || []).slice().sort((a, b) => String(a.Cliente || "").localeCompare(String(b.Cliente || ""), "pt-BR")).forEach((c) => selEmp.appendChild(new Option(c.Cliente, c.id || c._id)));
+      linha.appendChild(selEmp);
+      const lbl = h("label", "btn-cad-primario", "Escolher laudo (.docx)"); lbl.style.cursor = "pointer";
+      const inp = h("input"); inp.type = "file"; inp.accept = ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"; inp.style.display = "none"; lbl.appendChild(inp);
+      linha.appendChild(lbl);
+      box.appendChild(linha);
+      const status = h("div", "aet-nota"); status.style.marginTop = "8px"; box.appendChild(status);
+      const previa = h("div"); box.appendChild(previa);
+      inp.addEventListener("change", async () => {
+        const f = inp.files && inp.files[0];
+        if (!f) return;
+        if (!selEmp.value) { status.textContent = "Selecione a empresa antes de escolher o arquivo."; inp.value = ""; return; }
+        if (!window.BI.PsicoLaudoImport) { status.textContent = "Leitor de laudo não carregou. Atualize a página (Ctrl+F5)."; return; }
+        status.textContent = "Lendo o laudo…"; previa.innerHTML = "";
+        try {
+          const ab = await f.arrayBuffer();
+          const r = await window.BI.PsicoLaudoImport.lerLaudo(ab);
+          if (!r.areas.length) { status.textContent = "Não encontrei áreas (Unidade × Grupo) neste arquivo. Confirme que é o laudo psicossocial em Word."; return; }
+          status.textContent = `Laudo lido: ${r.areas.length} áreas (Unidade × Grupo Ocupacional). Confira e grave.`;
+          montarPreviaPsico(previa, selEmp.value, selEmp.options[selEmp.selectedIndex].text, r, status);
+        } catch (e) { status.textContent = "Falha ao ler o laudo: " + (e && e.message ? e.message : e); console.error("psico laudo", e); }
+        inp.value = "";
+      });
+      el.appendChild(box);
+    }
+    // V 1.59: a dashboard do laudo importado foi para a aba Dashboard (seletor "Laudo Psicossocial").
+  }
+
+  function montarPreviaPsico(cont, empresaId, nomeCliente, laudo, status) {
+    const h = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+    cont.innerHTML = "";
+    cont.appendChild(h("h3", "notif-sub", `Conferência — ${laudo.areas.length} áreas`));
+    const optCriar = h("label"); optCriar.style.cssText = "display:block;margin:6px 0 10px";
+    const cbAcoes = h("input"); cbAcoes.type = "checkbox"; cbAcoes.checked = true; optCriar.appendChild(cbAcoes);
+    optCriar.appendChild(document.createTextNode(" Também criar as ações do “Plano de ação” no Plano de Ação (origem Psicossocial), sem repetir ações idênticas."));
+    cont.appendChild(optCriar);
+    const wrap = h("div", "tabela-scroll"); wrap.style.maxHeight = "460px"; const tb = h("table", "tabela-dados");
+    const thead = h("thead"); const tr0 = h("tr");
+    ["Unidade", "Grupo Ocupacional"].concat(PSICO_DIMS.map((d) => d)).concat(["Média"]).forEach((t) => tr0.appendChild(h("th", null, t)));
+    thead.appendChild(tr0); tb.appendChild(thead);
+    const tbody = h("tbody");
+    const estado = laudo.areas.map((a) => ({ a, campos: {} }));
+    estado.forEach((linhaE) => {
+      const a = linhaE.a; const tr = h("tr");
+      tr.appendChild(h("td", null, a.unidade || "-"));
+      tr.appendChild(h("td", null, a.grupo || "-"));
+      PSICO_DIMS.forEach((d) => {
+        const td = h("td"); const dd = a.dimensoes[d] || { score: "", classe: "" };
+        const i = h("input"); i.type = "text"; i.value = dd.score || ""; i.size = 4; i.style.cssText = "width:3.2em;text-align:center;border:1px solid #d8cfc8;border-radius:4px;background:" + (dd.classe ? psicoCor(dd.classe) + "22" : "#fff");
+        i.title = dd.classe || ""; linhaE.campos[d] = () => i.value.trim();
+        td.appendChild(i); tr.appendChild(td);
+      });
+      const tdM = h("td"); const mi = h("input"); mi.type = "text"; mi.value = (a.media && a.media.score) || ""; mi.size = 4; mi.style.cssText = "width:3.4em;text-align:center;font-weight:700;border:1px solid #d8cfc8;border-radius:4px;background:" + (a.media && a.media.classe ? psicoCor(a.media.classe) + "33" : "#fff");
+      mi.title = (a.media && a.media.classe) || ""; linhaE.campoMedia = () => mi.value.trim();
+      tdM.appendChild(mi); tr.appendChild(tdM);
+      tbody.appendChild(tr);
+    });
+    tb.appendChild(tbody); wrap.appendChild(tb); cont.appendChild(wrap);
+    const barra = h("div"); barra.style.marginTop = "12px";
+    const btn = h("button", "btn-cad-primario", "Confirmar e gravar laudo"); btn.type = "button";
+    barra.appendChild(btn); cont.appendChild(barra);
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try { await gravarPsicoLaudo(empresaId, nomeCliente, laudo, estado, cbAcoes.checked, status); }
+      catch (e) { status.textContent = "Falha ao gravar: " + (e && e.message ? e.message : e); console.error(e); btn.disabled = false; return; }
+      cont.innerHTML = ""; renderPsicoLaudo();
+    });
+  }
+
+  async function gravarPsicoLaudo(empresaId, nomeCliente, laudo, estado, criarAcoes, status) {
+    const DB = window.BI.DB;
+    // 1) grava um registro por área (Unidade × Grupo) na coleção psicoLaudo — em lote (4 em paralelo)
+    const quando = hojeMeiaNoite().toISOString().slice(0, 10);
+    const itensAreas = estado.map((le) => {
+      const a = le.a;
+      const dimensoes = PSICO_DIMS.map((d) => ({ nome: d, score: le.campos[d](), classe: (a.dimensoes[d] && a.dimensoes[d].classe) || "" }));
+      const idDet = "psicolaudo-" + slug((a.unidade || "") + "-" + (a.grupo || ""));
+      return {
+        id: idDet, criar: true,
+        dados: { EmpresaId: empresaId, Cliente: nomeCliente, Unidade: a.unidade || "", Grupo: a.grupo || "", Dimensoes: dimensoes, MediaScore: le.campoMedia(), MediaClasse: (a.media && a.media.classe) || "", Origem: "Psicossocial", Fonte: "Laudo importado", ImportadoEm: quando },
+      };
+    });
+    status.textContent = `Gravando laudo… 0 de ${itensAreas.length}`;
+    const r1 = await DB.salvarEmLote("psicoLaudo", itensAreas, (feitos) => { status.textContent = `Gravando laudo… ${feitos} de ${itensAreas.length}`; });
+    // 2) ações do "Plano de ação" -> Plano de Ação (origem Psicossocial), sem repetir idênticas
+    let criadas = 0;
+    if (criarAcoes) {
+      const normTxt = (s) => String(s || "").replace(/\s+/g, " ").trim().toLowerCase();
+      const vistas = new Set((window.BI.dados.planoAcao || []).filter((p) => p.EmpresaId === empresaId && p.Origem === "Riscos Psicossociais").map((p) => normTxt(p["Acao Recomendada"])));
+      let maxNr = Math.max(0, ...(window.BI.dados.planoAcao || []).filter((p) => p.EmpresaId === empresaId).map((p) => Number(p["Nr Acao"]) || 0));
+      const itensAcoes = [];
+      for (const le of estado) {
+        const a = le.a;
+        const bullets = String(a.plano || "").split(/\n|•|·/).map((s) => s.trim()).filter((s) => s.length > 8);
+        for (const b of bullets) {
+          const chave = normTxt(b);
+          if (vistas.has(chave)) continue;
+          vistas.add(chave);
+          maxNr += 1;
+          itensAcoes.push({
+            id: null, criar: true,
+            dados: {
+              EmpresaId: empresaId, Cliente: nomeCliente, Unidade: a.unidade || "", Setor: a.grupo || "",
+              "Nr Acao": maxNr, "Acao Recomendada": b, "Status Execucao": "Nao iniciada",
+              "Gestao Acao": "ElevaLife", "Reduz Risco": "Nao", Origem: "Riscos Psicossociais",
+              Psico: { fator: "Psicossocial — " + (a.grupo || a.unidade || ""), risco: (a.media && a.media.classe) || "" },
+            },
+          });
+        }
+      }
+      criadas = itensAcoes.length;
+      if (itensAcoes.length) {
+        status.textContent = `Criando ações no Plano… 0 de ${itensAcoes.length}`;
+        await DB.salvarEmLote("planoAcao", itensAcoes, (feitos) => { status.textContent = `Criando ações no Plano… ${feitos} de ${itensAcoes.length}`; });
+      }
+      status.textContent = `Laudo gravado: ${estado.length} áreas e ${criadas} ação(ões) nova(s) no Plano de Ação.`;
+    } else {
+      status.textContent = `Laudo gravado: ${estado.length} áreas.`;
+    }
+    if (r1 && r1.falhas && r1.falhas.length) status.textContent += ` (${r1.falhas.length} área(s) falharam ao gravar)`;
+  }
+
+  function renderPsicoDashboard(el) {
+    const h = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+    const todos = (window.BI.dados.psicoLaudo || []).slice();
+    el.appendChild(h("h3", "notif-sub", `Dashboard dos laudos importados (${todos.length} áreas)`));
+    if (!todos.length) { el.appendChild(h("p", "aet-nota", "Nenhum laudo psicossocial importado ainda.")); return; }
+    // agrupa por Cliente > Unidade > (áreas/grupos)
+    const porCliente = {};
+    todos.forEach((r) => { (porCliente[r.Cliente] = porCliente[r.Cliente] || []).push(r); });
+    Object.keys(porCliente).sort((a, b) => a.localeCompare(b, "pt-BR")).forEach((cli) => {
+      el.appendChild(h("h4", null, cli));
+      const porUnidade = {};
+      porCliente[cli].forEach((r) => { (porUnidade[r.Unidade || "—"] = porUnidade[r.Unidade || "—"] || []).push(r); });
+      Object.keys(porUnidade).sort((a, b) => a.localeCompare(b, "pt-BR")).forEach((uni) => {
+        const cardU = h("div"); cardU.style.cssText = "border:1px solid #e3dcd6;border-radius:10px;padding:10px 12px;margin:8px 0;background:#fff";
+        cardU.appendChild(h("div", null, "🏢 " + uni)).style.cssText = "font-weight:700;margin-bottom:6px";
+        const wrap = h("div", "tabela-scroll"); const tb = h("table", "tabela-dados");
+        const thead = h("thead"); const tr0 = h("tr");
+        ["Grupo Ocupacional"].concat(PSICO_DIMS).concat(["Média"]).forEach((t) => tr0.appendChild(h("th", null, t)));
+        thead.appendChild(tr0); tb.appendChild(thead);
+        const tbody = h("tbody");
+        porUnidade[uni].sort((a, b) => String(a.Grupo || "").localeCompare(String(b.Grupo || ""), "pt-BR")).forEach((r) => {
+          const tr = h("tr"); tr.appendChild(h("td", null, r.Grupo || "—"));
+          const porNome = {}; (r.Dimensoes || []).forEach((d) => { porNome[d.nome] = d; });
+          PSICO_DIMS.forEach((dn) => {
+            const d = porNome[dn] || { score: "", classe: "" };
+            const td = h("td", null, d.score || "—"); td.style.cssText = "text-align:center;font-weight:600;color:#fff;background:" + (d.classe ? psicoCor(d.classe) : "#cfc6bf");
+            td.title = d.classe || ""; tr.appendChild(td);
+          });
+          const tdM = h("td", null, r.MediaScore || "—"); tdM.style.cssText = "text-align:center;font-weight:800;color:#fff;background:" + (r.MediaClasse ? psicoCor(r.MediaClasse) : "#cfc6bf");
+          tdM.title = r.MediaClasse || ""; tr.appendChild(tdM);
+          tbody.appendChild(tr);
+        });
+        tb.appendChild(tbody); wrap.appendChild(tb); cardU.appendChild(wrap);
+        el.appendChild(cardU);
+      });
+    });
+    // legenda
+    const leg = h("div"); leg.style.cssText = "display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12px";
+    [["BAIXO", "Baixo"], ["MODERADO", "Moderado"], ["ALTO", "Alto"], ["CRITICO", "Crítico"]].forEach(([k, r]) => {
+      const s = h("span"); s.style.cssText = "display:inline-flex;align-items:center;gap:5px";
+      const c = h("span"); c.style.cssText = "width:12px;height:12px;border-radius:3px;display:inline-block;background:" + psicoCor(k);
+      s.appendChild(c); s.appendChild(document.createTextNode(r)); leg.appendChild(s);
+    });
+    el.appendChild(leg);
+  }
+
+  // ------------------------------------------------------------------
+  // V 1.59 (Alexandre): aba Dashboard - tela inicial do sistema.
+  // Reúne os dashboards (gráficos) de cada serviço num só lugar, com um
+  // seletor (um por serviço + "Geral"). Os gráficos são REALOCADOS das
+  // abas de serviço para cá (uma única vez, montarDashboard); as tabelas
+  // e telas operacionais ficam nas abas de serviço. "Geral" é um resumo
+  // de KPIs de todos os serviços.
+  // ------------------------------------------------------------------
+  const DASH_SERVICOS = [
+    { chave: "geral", rotulo: "Geral" },
+    { chave: "ergo", rotulo: "Gestão de Riscos", aba: "ergo", manterIds: ["cartao-inventario-tabela"], origemClone: "ergo" },
+    { chave: "registro", rotulo: "Plano de Ação", aba: "registro", moverGradeId: "painel-plano", origemClone: "registro" },
+    { chave: "medocup", rotulo: "Absenteísmo", aba: "medocup", manterIds: ["cartao-plano-absenteismo"], manterClasses: ["medocup-cab-cartao"] },
+    { chave: "compativeis", rotulo: "Restritos", aba: "compativeis", moverTudo: true, esconderNav: true },
+    { chave: "psicoLaudo", rotulo: "Laudo Psicossocial", custom: "psico" },
+  ];
+  let dashMontado = false;
+  let dashAtual = "geral";
+
+  function montarDashboard() {
+    if (dashMontado) return;
+    const paineis = document.getElementById("dash-paineis");
+    if (!paineis) return;
+    DASH_SERVICOS.forEach((cfg) => {
+      if (cfg.chave === "geral") return; // painel geral já existe no HTML
+      const painel = document.createElement("div");
+      painel.className = "dash-painel"; painel.dataset.dash = cfg.chave; painel.hidden = true;
+      if (cfg.custom === "psico") {
+        const host = document.createElement("div"); host.id = "dash-psico-host"; painel.appendChild(host);
+        paineis.appendChild(painel); return;
+      }
+      const sec = document.getElementById("aba-" + cfg.aba);
+      if (!sec) { paineis.appendChild(painel); return; }
+      // 1) barra de origem / filtros de página: move a original para o dashboard
+      const barra = sec.querySelector(".barra-origem-aba, .barra-filtros-pagina");
+      if (barra) {
+        painel.appendChild(barra);
+        // se algo fica na aba de serviço e depende do filtro de origem, deixa um clone lá
+        if (cfg.origemClone) {
+          const clone = document.createElement("div");
+          clone.className = "barra-origem-aba"; clone.dataset.abaOrigem = cfg.origemClone;
+          sec.insertBefore(clone, sec.firstChild);
+        }
+      }
+      // 2) a grade de gráficos
+      if (cfg.moverGradeId) {
+        const g = document.getElementById(cfg.moverGradeId);
+        if (g) painel.appendChild(g);
+      } else {
+        const srcGrade = sec.querySelector(".grade");
+        if (srcGrade) {
+          const nova = document.createElement("div"); nova.className = "grade";
+          const manter = new Set(cfg.manterIds || []);
+          const manterCls = cfg.manterClasses || [];
+          Array.from(srcGrade.children).forEach((ch) => {
+            const fica = !cfg.moverTudo && ((ch.id && manter.has(ch.id)) || manterCls.some((c) => ch.classList && ch.classList.contains(c)));
+            if (!fica) nova.appendChild(ch);
+          });
+          painel.appendChild(nova);
+        }
+      }
+      paineis.appendChild(painel);
+      if (cfg.esconderNav) {
+        const btn = document.querySelector('#nav-abas button[data-aba="' + cfg.aba + '"]');
+        if (btn) btn.hidden = true;
+      }
+    });
+    montarSeletorDashboard();
+    dashMontado = true;
+  }
+
+  function montarSeletorDashboard() {
+    const sel = document.getElementById("dash-seletor");
+    if (!sel) return;
+    sel.innerHTML = "";
+    DASH_SERVICOS.forEach((cfg) => {
+      const b = document.createElement("button"); b.type = "button";
+      b.className = "chip-dash" + (cfg.chave === dashAtual ? " ativa" : "");
+      b.textContent = cfg.rotulo; b.dataset.dash = cfg.chave;
+      b.addEventListener("click", () => mostrarDash(cfg.chave));
+      sel.appendChild(b);
+    });
+  }
+
+  function mostrarDash(chave) {
+    dashAtual = chave;
+    document.querySelectorAll("#dash-seletor button").forEach((b) => b.classList.toggle("ativa", b.dataset.dash === chave));
+    document.querySelectorAll("#dash-paineis .dash-painel").forEach((p) => { p.hidden = p.dataset.dash !== chave; });
+    if (chave === "geral") {
+      renderDashGeral();
+    } else if (chave === "psicoLaudo") {
+      const host = document.getElementById("dash-psico-host");
+      if (host) { host.innerHTML = ""; try { renderPsicoDashboard(host); } catch (e) { console.error(e); } }
+    } else {
+      // gráficos realocados: re-renderiza para desenhar no tamanho do painel visível
+      try { renderizarTudo(); } catch (e) { console.error(e); }
+    }
+  }
+
+  function renderDashGeral() {
+    const grade = document.getElementById("dash-geral-grade");
+    if (!grade) return;
+    grade.innerHTML = "";
+    const Calc = window.BI.Calc;
+    const filtros = window.BI.filtros || {};
+    const dados = window.BI.dados || {};
+    const hoje = hojeMeiaNoite();
+    const F = (arr, campos) => { try { return Calc.filtrar(arr || [], filtros, campos || []); } catch (e) { return arr || []; } };
+
+    // ---- cálculos (reaproveitam BI.Calc; tolerantes a erro) ----
+    let postos = [], postosCriticos = 0, fatores = 0;
+    try {
+      postos = Calc.riscoDosPostos(dados.fatorRisco || [], dados.avaliacaoErgonomica || []);
+      postos = F(postos, ["Dt Avaliacao"]);
+      postosCriticos = postos.filter((p) => p["Risco Global"] === "Alto" || p["Risco Global"] === "Muito Alto").length;
+    } catch (e) { /* */ }
+    try { fatores = F(dados.fatorRisco || [], ["Dt Identificacao"]).filter((l) => Calc.riscoAtivo(l)).length; } catch (e) { /* */ }
+
+    const aeps = F(dados.avaliacaoErgonomica || [], ["Data Avaliacao"]).length;
+    const aets = F(dados.aet || [], ["Data Analise"]).length;
+
+    const planos = F(dados.planoAcao || [], ["Dt Programada", "Dt Conclusao"]);
+    const planoConcl = planos.filter((a) => a["Dt Conclusao"] || a["Status Execucao"] === "Concluida").length;
+    const planoAbertas = planos.length - planoConcl;
+    const pctConcl = planos.length ? Math.round((planoConcl / planos.length) * 100) : 0;
+
+    const atest = F(dados.absenteismo || [], ["Dt Afastamento"]);
+    const diasPerdidos = atest.reduce((s, a) => s + (Number(a["Qtd Dias"]) || 0), 0);
+
+    const restritos = F(dados.compativeis || [], ["Inicio Restricao"]).length;
+
+    const psico = (dados.psicoLaudo || []);
+    const psicoAlto = psico.filter((r) => /ALTO|CRITICO/i.test(String(r.MediaClasse || "").normalize("NFD").replace(/[̀-ͯ]/g, ""))).length;
+
+    const grupos = [
+      { tit: "Gestão de Riscos", abrir: "ergo", kpis: [
+        { num: postos.length, rot: "Postos avaliados" },
+        { num: postosCriticos, rot: "Postos críticos", sub: "Alto / Muito Alto" },
+        { num: fatores, rot: "Fatores de risco vigentes" },
+      ] },
+      { tit: "Avaliações", abrir: "ergo", kpis: [
+        { num: aeps, rot: "AEPs" },
+        { num: aets, rot: "AETs" },
+      ] },
+      { tit: "Plano de Ação", abrir: "registro", kpis: [
+        { num: planoAbertas, rot: "Ações abertas" },
+        { num: planoConcl, rot: "Ações concluídas" },
+        { num: pctConcl + "%", rot: "Conclusão" },
+      ] },
+      { tit: "Absenteísmo", abrir: "medocup", kpis: [
+        { num: atest.length, rot: "Atestados" },
+        { num: diasPerdidos, rot: "Dias perdidos" },
+      ] },
+      { tit: "Restritos", abrir: "compativeis", kpis: [
+        { num: restritos, rot: "Em restrição / acompanhamento" },
+      ] },
+      { tit: "Laudo Psicossocial", abrir: "psicoLaudo", kpis: [
+        { num: psico.length, rot: "Áreas (Unidade × Grupo)" },
+        { num: psicoAlto, rot: "Áreas em risco Alto/Crítico" },
+      ] },
+    ];
+
+    grupos.forEach((g) => {
+      if (g.kpis.every((k) => !k.num || k.num === 0 || k.num === "0%")) return; // some grupo sem dados
+      const card = document.createElement("div");
+      card.className = "cartao col-12 dash-geral-cartao";
+      const cab = document.createElement("div"); cab.className = "cadastro-cabecalho";
+      const tit = document.createElement("div"); tit.className = "cartao-titulo"; tit.textContent = g.tit; cab.appendChild(tit);
+      if (g.abrir) {
+        const bt = document.createElement("button"); bt.type = "button"; bt.className = "btn-novo-registro"; bt.textContent = "Ver dashboard →";
+        bt.addEventListener("click", () => mostrarDash(g.abrir)); cab.appendChild(bt);
+      }
+      card.appendChild(cab);
+      const kpis = document.createElement("div"); kpis.className = "dash-kpis";
+      g.kpis.forEach((k) => {
+        const kp = document.createElement("div"); kp.className = "dash-kpi";
+        const n = document.createElement("div"); n.className = "dash-kpi-num"; n.textContent = (k.num == null ? "—" : k.num); kp.appendChild(n);
+        const r = document.createElement("div"); r.className = "dash-kpi-rot"; r.textContent = k.rot; kp.appendChild(r);
+        if (k.sub) { const s = document.createElement("div"); s.className = "dash-kpi-sub"; s.textContent = k.sub; kp.appendChild(s); }
+        kpis.appendChild(kp);
+      });
+      card.appendChild(kpis);
+      grade.appendChild(card);
+    });
+
+    if (!grade.children.length) {
+      const vazio = document.createElement("p"); vazio.className = "aet-nota";
+      vazio.textContent = "Sem dados para o filtro atual.";
+      grade.appendChild(vazio);
     }
   }
 
@@ -8650,6 +9047,22 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           .sort((a, b) => String(a.label).localeCompare(String(b.label), "pt-BR")),
         nota: "Ergonomista (Consultor) e cliente só acessam as empresas marcadas. O Administrador vê todas, independente desta lista.",
       },
+      // V 1.55 (Alexandre): vínculo por UNIDADE. Ergonomista e cliente só veem as
+      // unidades marcadas aqui (e as empresas dessas unidades). É OBRIGATÓRIO marcar:
+      // sem nenhuma unidade, o usuário (não-admin) não vê dados. O Administrador vê tudo.
+      {
+        campo: "UnidadesVinculadas",
+        rotulo: "Unidades vinculadas",
+        tipo: "checklist", busca: true, placeholderBusca: "Buscar unidade…",
+        opcoes: () => {
+          const nomeEmp = {}; (window.BI.dados.cliente || []).forEach((c) => { nomeEmp[c.id || c._id] = c.Cliente; });
+          return (window.BI.dados.unidade || []).map((u) => {
+            const eid = u.EmpresaId || (window.BI.DB.idCliente ? window.BI.DB.idCliente(u) : "");
+            return { valor: eid + "::" + u.Unidade, label: u.Unidade, sub: nomeEmp[eid] || u.Cliente || eid };
+          }).sort((a, b) => String(a.sub).localeCompare(String(b.sub), "pt-BR") || String(a.label).localeCompare(String(b.label), "pt-BR"));
+        },
+        nota: "Obrigatório para Ergonomista e Cliente: eles só veem as unidades marcadas (e os dados dessas unidades). O Administrador vê tudo, independente desta lista.",
+      },
     ];
   }
   const CFG_USUARIOS = { campos: camposUsuario() };
@@ -9237,9 +9650,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       esconderCarregamento();
       // V 1.46 (Alexandre): ao entrar no SIGE (logado e com acesso liberado), abre a aba de Notificações.
       try {
+        // V 1.59: Dashboard é a tela inicial (modo API liberado, demo ou offline).
         const ident = window.BI.DB.estado.identidade;
-        const liberado = ident && (ident.acessoLiberado !== false);
-        if (window.BI.DB.estado.modoApi && liberado) ativarAba("notificacoes");
+        const bloqueado = window.BI.DB.estado.modoApi && ident && ident.acessoLiberado === false;
+        if (!bloqueado) { try { montarDashboard(); } catch (e) { /* */ } ativarAba("dashboard"); }
       } catch (e) { /* mantém a aba padrão */ }
     } catch (erro) {
       console.error("BI Ergonomia - erro na inicialização:", erro);

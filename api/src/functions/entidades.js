@@ -20,7 +20,7 @@
 const crypto = require("crypto");
 const { app } = require("@azure/functions");
 const { obterContainer, garantirContainer } = require("../shared/cosmos");
-const { resolverIdentidade, empresasVisiveis, podeVerEmpresa, podeVerDocumento, empresaIdDoDocumento } = require("../shared/tenant");
+const { resolverIdentidade, empresasVisiveis, podeVerEmpresa, podeVerDocumento, empresaIdDoDocumento, restritoPorUnidade, podeVerUnidadeDoc } = require("../shared/tenant");
 const rotaMe = require("./me");
 const rotaUsuarios = require("./usuarios");
 const rotaArquivos = require("./arquivos");
@@ -80,6 +80,9 @@ const COLECOES = [
   "tempoTrabalho",
   // V 1.42: plano de acao do Absenteismo (separado do Plano geral), por EmpresaId.
   "acaoAbsenteismo",
+  // V 1.58: laudo psicossocial importado (Word) - um registro por Unidade/Grupo
+  // Ocupacional (7 dimensoes HSE-IT + media). Por EmpresaId; container sob demanda.
+  "psicoLaudo",
 ];
 
 // Colecoes sem dono (nenhuma amarrada a uma empresa-cliente especifica) -
@@ -230,7 +233,12 @@ async function listarComFiltro(container, colecao, identidade) {
     parameters: [{ name: "@empresas", value: empresas }],
   };
   const { resources } = await container.items.query(consulta).fetchAll();
-  return semEmpresaExcluida(colecao, resources);
+  // V 1.55 (Alexandre): além da empresa, filtra por UNIDADE para ergo/cliente
+  // vinculados a unidades específicas (ver tenant.podeVerUnidadeDoc).
+  const porUnidade = restritoPorUnidade(identidade)
+    ? resources.filter((d) => podeVerUnidadeDoc(identidade, colecao, d))
+    : resources;
+  return semEmpresaExcluida(colecao, porUnidade);
 }
 
 // V 1.2 - Plano de Acao: aplica as regras de status/evidencia (ver
@@ -352,7 +360,7 @@ async function tratar(request, context) {
     };
   }
 
-  const container = ["configuracao", "ergonomista", "colaborador", "tempoTrabalho", "acaoAbsenteismo"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
+  const container = ["configuracao", "ergonomista", "colaborador", "tempoTrabalho", "acaoAbsenteismo", "psicoLaudo"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
   const id = request.params.id;
   if (COLECOES_SO_ADMIN_GRAVA.includes(colecao) && request.method !== "GET" && identidade.papel !== "Administrador") {
     return { status: 403, jsonBody: { erro: "Só Administrador pode alterar as configurações do sistema." } };

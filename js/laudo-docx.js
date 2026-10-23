@@ -183,7 +183,7 @@
   // ---------------------------------------------------------------- documento
   async function construir(ctx, opcoes) {
     const { Calc, Acoes, PAL, corNivel, dataBR, hojeISO, ROTULO_ESCALA, URL_VERIFICACAO, dadosAcao, avaliacoes, fatoresDoPosto, eliminadosDoPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, niveisMz, ordemNivel, contaNivelMz, maiorGrau, grau, pontos, rotCanon, acoesDe,
-      nomeMatriz, escala, docCliente, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4,
+      nomeMatriz, escala, docCliente, cnpjLaudo, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4,
       setoresAv, unidadesAv, periodo, emissao, codigo, revisao, texto, linhasDe, celulas, mapaDe, titDe } = ctx;
 
     // imagens: logotipo, fotos, assinaturas e QR Code
@@ -241,7 +241,7 @@
         return low.charAt(0).toUpperCase() + low.slice(1);
       }).join("");
       const end = tcase([docCliente.Logradouro, docCliente.Numero, docCliente.Complemento, docCliente.Bairro, [docCliente.Cidade, docCliente.Estado].filter(Boolean).join("/"), docCliente.CEP ? "CEP " + docCliente.CEP : ""].filter(Boolean).join(", "));
-      const ficha = [["Razão social", String(opcoes.nomeCliente || "").toUpperCase()], ["CNPJ", docCliente.CNPJ], ["Inscrição estadual", docCliente["Inscricao Estadual"]], ["CNAE", docCliente.CNAE],
+      const ficha = [["Razão social", String(opcoes.nomeCliente || "").toUpperCase()], ["CNPJ", cnpjLaudo || docCliente.CNPJ], ["Inscrição estadual", docCliente["Inscricao Estadual"]], ["CNAE", docCliente.CNAE],
         ["Grau de risco (NR-04)", docCliente["Grau Risco NR4"]], ["Unidade avaliada", tcase(unidadesAv.join(" · "))], ["Endereço", end], ["Telefone", docCliente.Telefone],
         ["Abrangência do laudo", opcoes.abrangenciaDescricao && opcoes.abrangenciaDescricao !== "Empresa toda" ? opcoes.abrangenciaDescricao : ""], ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo]].filter((r) => r[1]);
       B.push(tbl([30, 70], ficha.map((r) => [{ t: r[0], b: true, fundo: C.creme }, String(r[1])]), { tam: 9 }));

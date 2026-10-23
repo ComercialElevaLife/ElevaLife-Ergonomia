@@ -75,6 +75,11 @@
         <span class="badge-filtros" id="badge-filtros" hidden>0</span>
       </button>
       <div class="sidebar-nav-divisor" aria-hidden="true"></div>
+      <!-- V 1.59 (Alexandre): Dashboard é a tela inicial; reúne os dashboards de cada serviço (seletor) + uma visão Geral. -->
+      <button type="button" data-aba="dashboard" class="ativa" title="Dashboard">
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="6" height="8" rx="1"/><rect x="11" y="3" width="6" height="5" rx="1"/><rect x="11" y="10" width="6" height="7" rx="1"/><rect x="3" y="13" width="6" height="4" rx="1"/></svg></span>
+        <span class="rotulo">Dashboard</span>
+      </button>
       <!-- V 1.46 (Alexandre): Notificações no topo do menu; abre sozinha ao entrar no SIGE. -->
       <button type="button" data-aba="notificacoes" title="Notificações">
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3a4 4 0 0 1 4 4c0 3 1 4 1.5 4.7.3.4 0 1.1-.6 1.1H5.1c-.6 0-.9-.7-.6-1.1C5 11 6 10 6 7a4 4 0 0 1 4-4Z"/><path d="M8.5 16a1.6 1.6 0 0 0 3 0"/></svg></span>
@@ -111,7 +116,12 @@
         </button>
         <div class="sidebar-subnav-lateral" id="sidebar-sub-psicossocial" hidden></div>
       </div>
-      <button type="button" data-aba="ergo" class="ativa" title="Gestão de Riscos">
+      <!-- V 1.58 (Alexandre): importação de laudo psicossocial em Word + dashboard do laudo importado (à parte do questionário HSE-IT). -->
+      <button type="button" data-aba="psicoLaudo" title="Laudo Psicossocial (importar)">
+        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h7l3 3v11H5z"/><path d="M12 3v3h3"/><path d="M7 10h6M7 13h6"/></svg></span>
+        <span class="rotulo">Laudo Psicossocial</span>
+      </button>
+      <button type="button" data-aba="ergo" title="Gestão de Riscos">
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17V10"/><path d="M9.5 17V6"/><path d="M16 17V13"/><path d="M2.5 17h15"/></svg></span>
         <span class="rotulo">Gestão de Riscos</span>
       </button>
@@ -226,7 +236,16 @@
     </div>
 
     <main>
-  <section id="aba-ergo">
+  <!-- V 1.59 (Alexandre): Dashboard - tela inicial. Reúne os dashboards de cada serviço
+       (gráficos movidos das abas de serviço) com um seletor, mais uma visão Geral de KPIs.
+       Os gráficos são realocados aqui por montarDashboard() em js/app.js. -->
+  <section id="aba-dashboard">
+    <div class="dash-seletor" id="dash-seletor" role="tablist" aria-label="Escolha do dashboard"></div>
+    <div id="dash-paineis">
+      <div class="dash-painel" data-dash="geral"><div class="grade" id="dash-geral-grade"></div></div>
+    </div>
+  </section>
+  <section id="aba-ergo" hidden>
     <!-- V 1.35: filtro de origem da aba (depois do filtro geral): Todas, AEP, AET ou Psicossocial -->
     <div class="barra-origem-aba" id="origem-ergo" data-aba-origem="ergo"></div>
     <div class="grade">
@@ -281,7 +300,7 @@
         <div class="legenda" id="legenda-fatorrisco-graduacao"></div>
       </div>
 
-      <div class="cartao col-8">
+      <div class="cartao col-8" id="cartao-inventario-tabela">
         <div class="cartao-titulo">Inventário de Riscos<span class="contagem-tabela" id="contagem-inventario"></span></div>
         <div class="cartao-sub">Todos os fatores de risco vigentes, com a origem, o risco atual e a evolução. Clique numa linha para ver os detalhes.</div>
         <div class="inventario-controles"><input type="search" id="busca-inventario" placeholder="Buscar fator, setor, posto, cargo..."></div>
@@ -648,6 +667,10 @@
   <section id="aba-notificacoes" hidden>
     <div id="painel-notificacoes"></div>
   </section>
+  <!-- V 1.58 (Alexandre): Laudo Psicossocial importado (import + dashboard), montado por js/app.js (renderPsicoLaudo). -->
+  <section id="aba-psicoLaudo" hidden>
+    <div id="painel-psico-laudo"></div>
+  </section>
     </main>
 
     <footer class="rodape">
@@ -721,6 +744,7 @@
 <script src="js/aet.js"></script>
 <script src="js/aet-import.js"></script>
 <script src="js/aep-laudo-import.js"></script>
+<script src="js/psico-laudo-import.js"></script>
 <script src="js/importador.js"></script>
 <script src="js/coordenacao.js"></script>
 <script src="js/absenteismo-laudo.js"></script>
