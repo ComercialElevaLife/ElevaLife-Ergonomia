@@ -8377,15 +8377,17 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const F = (arr, campos) => { try { return Calc.filtrar(arr || [], filtros, campos || []); } catch (e) { return arr || []; } };
 
     // ---- cálculos (reaproveitam BI.Calc; tolerantes a erro) ----
-    let postos = [], postosCriticos = 0, fatores = 0;
+    let postos = [], postosCriticos = 0, fatoresArr = [];
     try {
       postos = Calc.riscoDosPostos(dados.fatorRisco || [], dados.avaliacaoErgonomica || []);
       postos = F(postos, ["Dt Avaliacao"]);
       postosCriticos = postos.filter((p) => p["Risco Global"] === "Alto" || p["Risco Global"] === "Muito Alto").length;
     } catch (e) { /* */ }
-    try { fatores = F(dados.fatorRisco || [], ["Dt Identificacao"]).filter((l) => Calc.riscoAtivo(l)).length; } catch (e) { /* */ }
+    try { fatoresArr = F(dados.fatorRisco || [], ["Dt Identificacao"]).filter((l) => Calc.riscoAtivo(l)); } catch (e) { /* */ }
+    const fatores = fatoresArr.length;
 
-    const aeps = F(dados.avaliacaoErgonomica || [], ["Data Avaliacao"]).length;
+    const avaliacaoArr = F(dados.avaliacaoErgonomica || [], ["Data Avaliacao"]);
+    const aeps = avaliacaoArr.length;
     const aets = F(dados.aet || [], ["Data Analise"]).length;
 
     const planos = F(dados.planoAcao || [], ["Dt Programada", "Dt Conclusao"]);
@@ -8400,6 +8402,40 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
     const psico = (dados.psicoLaudo || []);
     const psicoAlto = psico.filter((r) => /ALTO|CRITICO/i.test(String(r.MediaClasse || "").normalize("NFD").replace(/[̀-ͯ]/g, ""))).length;
+
+    // ---------------------------------------------------------------
+    // V 1.61 (Alexandre): gráficos gerais (visão consolidada de todos os
+    // serviços) no topo da aba Geral. Reaproveitam os mesmos renderizadores
+    // dos dashboards de serviço, com canvas próprios (prefixo "dgeral-").
+    // Usam o filtro global (todas as origens).
+    // ---------------------------------------------------------------
+    const hc = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+    const addGraf = (col, titulo, sub, canvasId, legendaId, alta) => {
+      const card = hc("div", "cartao col-" + col);
+      card.appendChild(hc("div", "cartao-titulo", titulo));
+      if (sub) card.appendChild(hc("div", "cartao-sub", sub));
+      const box = hc("div", "altura-chart" + (alta ? " alta" : ""));
+      const cv = document.createElement("canvas"); cv.id = canvasId; box.appendChild(cv);
+      card.appendChild(box);
+      if (legendaId) card.appendChild(hc("div", "legenda")).id = legendaId;
+      grade.appendChild(card);
+    };
+    const temGraficos = (postos.length || fatoresArr.length || planos.length || avaliacaoArr.length || atest.length);
+    if (temGraficos) {
+      grade.appendChild(hc("div", "col-12 titulo-secao-grade", "Visão geral"));
+      addGraf(4, "Risco Global dos Postos", "Postos por nível de risco (todos os serviços)", "dgeral-risco-global", "dgeral-risco-global-leg");
+      addGraf(4, "Inventário de Riscos", "Fatores de risco vigentes, por nível", "dgeral-inventario", "dgeral-inventario-leg");
+      addGraf(4, "Plano de Ação", "Todas as ações, por status", "dgeral-plano", "dgeral-plano-leg");
+      addGraf(6, "AEPs realizadas (mês a mês)", "Avaliações Ergonômicas Preliminares", "dgeral-aep", null, true);
+      addGraf(6, "Atestados (mês a mês)", "Absenteísmo — quantidade de atestados", "dgeral-absent", null, true);
+      // render (canvas já no DOM); cada um tolerante a erro
+      try { renderDonutNiveis("dgeral-risco-global", "dgeral-risco-global-leg", Calc.mapaRiscoGlobal(postos), "postos", "posto(s)", (n) => ({ titulo: `Risco Global dos Postos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} posto(s)`, chave: "riscoPosto", linhas: postos.filter((l) => l["Risco Global"] === n.nivel) })); } catch (e) { console.error(e); }
+      try { renderDonutNiveis("dgeral-inventario", "dgeral-inventario-leg", Calc.distribuicaoPorNivelRisco(fatoresArr, "Graduacao Risco"), "fatores", "fator(es)", (n) => ({ titulo: `Inventário de Riscos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} fator(es)`, chave: "fatorRisco", linhas: fatoresArr.filter((l) => Calc.nivelCanonico(l["Graduacao Risco"]) === n.nivel) })); } catch (e) { console.error(e); }
+      try { renderDonutStatus("dgeral-plano", "dgeral-plano-leg", Calc.statusPlanoAcao(planos, hoje), planos, hoje); } catch (e) { console.error(e); }
+      try { renderLinhaMensal("dgeral-aep", Calc.serieMensal(avaliacaoArr, "Data Avaliacao"), "AEPs realizadas", Calc.resolverCorCSS("var(--teal)"), avaliacaoArr, "Data Avaliacao", "avaliacaoErgonomica"); } catch (e) { console.error(e); }
+      try { renderLinhaMensal("dgeral-absent", Calc.serieMensal(atest, "Dt Afastamento"), "Atestados", Calc.resolverCorCSS("var(--vinho-medio)"), atest, "Dt Afastamento"); } catch (e) { console.error(e); }
+      grade.appendChild(hc("div", "col-12 titulo-secao-grade", "Resumo por serviço"));
+    }
 
     const grupos = [
       { tit: "Gestão de Riscos", abrir: "ergo", kpis: [

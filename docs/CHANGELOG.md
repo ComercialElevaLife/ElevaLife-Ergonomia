@@ -2,6 +2,10 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.61 — 23/10/2026
+
+- **Dashboard "Geral" com gráficos consolidados (Alexandre).** A aba **Geral** do Dashboard passou a trazer, no topo (seção "Visão geral"), os **gráficos consolidados de todos os serviços**: Risco Global dos Postos, Inventário de Riscos por nível, Plano de Ação por status, AEPs realizadas (mês a mês) e Atestados (mês a mês). Logo abaixo ("Resumo por serviço") seguem os cartões de KPIs com o atalho "Ver dashboard →". O seletor (Geral + um por serviço) continua no topo, como já era. Tudo responde ao filtro global. Service worker subiu para `sige-v76`. *(Arquivo: `js/app.js`.)*
+
 ## V 1.60 — 23/10/2026
 
 - **Falha ao listar usuários não derruba mais o sistema (Alexandre).** Se o endpoint de usuários (recurso só do Administrador) falhar — por exemplo um `HTTP 500` do servidor/Cosmos —, antes aparecia o banner vermelho "Não foi possível carregar o S.I.G.E", dando a impressão de que o sistema inteiro caiu. Agora o erro aparece **apenas dentro da aba Usuários** ("Não foi possível carregar a lista de usuários… o restante do sistema funciona normalmente") e todo o resto do SIGE (dashboards, cadastros, registros) abre normalmente. *Obs.: isto trata o sintoma no app; um 500 nesse endpoint é do lado do servidor (Cosmos/implantação) e deve ser investigado nos logs da Azure Function `/api/usuarios`.* Service worker subiu para `sige-v75`. *(Arquivo: `js/app.js`.)*
