@@ -2100,12 +2100,36 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         { campo: "Servicos", rotulo: "Serviços contratados", tipo: "checklist", colunas: true, opcoes: SERVICOS_SIGE,
           nota: "Os serviços não marcados continuam aparecendo no menu, com o aviso de que a empresa não possui o serviço." },
       ], "Identificação"),
-      // Cadastro ampliado de empresa (pedido do Leo) - todos opcionais pra
-      // nao quebrar/obrigar preencher de novo os clientes ja cadastrados
-      // antes desta tela existir (Cosmos DB nao exige schema - registros
-      // antigos simplesmente nao tem esses campos ate serem editados).
+      // V 1.63 (Alexandre): o cadastro do CLIENTE tem só nome, matriz, serviços e
+      // logotipo. Todos os dados cadastrais (CNPJ, Inscrição Estadual, CNAE, Grau de
+      // Risco NR-4, telefone e endereço) foram para o cadastro de UNIDADE
+      // (camposCadastroUnidade) - a empresa pode ter várias unidades, cada uma com o
+      // seu CNPJ e endereço. Os dados antigos no nível do cliente seguem guardados e
+      // são migrados para a unidade (ver migrarCadastralParaUnidade) e usados como
+      // reserva no laudo.
+      // Logotipo: mesmo padrao de upload das demais telas (construirCampoArquivo/
+      // anexarArquivos), so que "auto-referenciado" - o EmpresaId de destino e
+      // o proprio Cliente sendo cadastrado/editado neste form, resolvido pelo
+      // nome digitado mesmo antes de salvar (ver resolverEmpresaIdDoForm, que
+      // cai no calculo deterministico window.BI.DB.idCliente quando ainda nao
+      // existe um registro salvo com esse nome).
       ...comSecao([
-        { campo: "CNPJ", rotulo: "CNPJ", tipo: "texto", mascara: "cnpj" },
+        { campo: "Logotipo", rotulo: "Logotipo (JPG/PNG, até 2MB)", tipo: "arquivo", multiplo: false, colecaoArquivo: "cliente", aceitaTipos: "image/jpeg,image/png" },
+      ], "Logotipo"),
+    ];
+  }
+  function camposCadastroUnidade() {
+    // V 1.63 (Alexandre): os dados cadastrais (CNPJ, Inscrição Estadual, CNAE, Grau de
+    // Risco NR-4, telefone e endereço) ficam na UNIDADE - cada unidade tem o seu. No laudo
+    // por unidade saem os dados daquela unidade; no laudo da empresa toda saem os dados de
+    // todas as unidades. Tudo opcional (não quebra unidades já cadastradas).
+    return [
+      ...comSecao([
+        { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
+        { campo: "Unidade", rotulo: "Nome da Unidade", tipo: "texto", obrigatorio: true },
+      ], "Identificação"),
+      ...comSecao([
+        { campo: "CNPJ", rotulo: "CNPJ da unidade", tipo: "texto", mascara: "cnpj" },
         { campo: "Inscricao Estadual", rotulo: "Inscrição Estadual", tipo: "texto" },
         { campo: "CNAE", rotulo: "CNAE (atividade principal)", tipo: "texto" },
         { campo: "Grau Risco NR4", rotulo: "Grau de Risco (NR-4)", tipo: "select", opcoes: GRAUS_RISCO_NR4 },
@@ -2120,26 +2144,34 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         { campo: "Cidade", rotulo: "Cidade", tipo: "texto" },
         { campo: "Estado", rotulo: "Estado (UF)", tipo: "select", opcoes: ESTADOS_BR },
       ], "Contato e Endereço"),
-      // Logotipo: mesmo padrao de upload das demais telas (construirCampoArquivo/
-      // anexarArquivos), so que "auto-referenciado" - o EmpresaId de destino e
-      // o proprio Cliente sendo cadastrado/editado neste form, resolvido pelo
-      // nome digitado mesmo antes de salvar (ver resolverEmpresaIdDoForm, que
-      // cai no calculo deterministico window.BI.DB.idCliente quando ainda nao
-      // existe um registro salvo com esse nome).
-      ...comSecao([
-        { campo: "Logotipo", rotulo: "Logotipo (JPG/PNG, até 2MB)", tipo: "arquivo", multiplo: false, colecaoArquivo: "cliente", aceitaTipos: "image/jpeg,image/png" },
-      ], "Logotipo"),
     ];
   }
-  function camposCadastroUnidade() {
-    return [
-      { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
-      { campo: "Unidade", rotulo: "Nome da Unidade", tipo: "texto", obrigatorio: true },
-      // V 1.54 (Alexandre): CNPJ por unidade. No laudo por unidade, este CNPJ sai como
-      // o principal; no laudo da empresa toda, todos os CNPJs das unidades são listados.
-      // Opcional (a empresa pode não ter CNPJ e cada unidade ter o seu).
-      { campo: "CNPJ", rotulo: "CNPJ da unidade (opcional)", tipo: "texto", mascara: "cnpj" },
-    ];
+  // V 1.63 (Alexandre): dados cadastrais que agora vivem na UNIDADE (migrados do cliente).
+  const CAMPOS_CADASTRAIS = ["CNPJ", "Inscricao Estadual", "CNAE", "Grau Risco NR4", "Telefone", "CEP", "Logradouro", "Numero", "Complemento", "Bairro", "Cidade", "Estado"];
+  // Migração automática (só Administrador): se um cliente tem exatamente UMA unidade e essa
+  // unidade ainda não tem os dados cadastrais, copia-os do cliente para a unidade. Idempotente
+  // (só preenche campo vazio) e roda uma vez por sessão. Clientes com várias unidades ficam
+  // manuais (não dá para saber de qual unidade é o dado antigo). Fire-and-forget, não trava a tela.
+  let _migracaoCadastralFeita = false;
+  async function migrarCadastralParaUnidade() {
+    if (_migracaoCadastralFeita) return; _migracaoCadastralFeita = true;
+    try {
+      if (!ehAdministradorAtual() || !window.BI.DB.estado.modoApi) return;
+      const clientes = window.BI.dados.cliente || [];
+      const unidades = window.BI.dados.unidade || [];
+      for (const cli of clientes) {
+        const temCadastral = CAMPOS_CADASTRAIS.some((k) => String(cli[k] || "").trim());
+        if (!temCadastral) continue;
+        const nome = cli.Cliente;
+        const us = unidades.filter((u) => u.Cliente === nome);
+        if (us.length !== 1) continue; // só migra quando há exatamente 1 unidade
+        const u = us[0]; const faltando = CAMPOS_CADASTRAIS.filter((k) => !String(u[k] || "").trim() && String(cli[k] || "").trim());
+        if (!faltando.length) continue;
+        const dados = {}; Object.keys(u).forEach((k) => { if (k[0] !== "_" && k !== "id") dados[k] = u[k]; });
+        faltando.forEach((k) => { dados[k] = cli[k]; });
+        try { await window.BI.DB.salvar("unidade", u.id || u._id, dados, false); } catch (e) { console.warn("migração cadastral da unidade", nome, e); }
+      }
+    } catch (e) { console.warn("migrarCadastralParaUnidade", e); }
   }
   // Setor/Posto de Trabalho/Cargo/Atividade: o proprio nivel sendo
   // cadastrado e sempre texto (nunca mais um <select> fixo/desabilitado) -
@@ -4570,7 +4602,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       colunasTabela: ["Cliente", "Unidade"],
       colunasData: [], camposData: [],
       campos: camposCadastroUnidade(),
-      aoConstruir: comCascata(null),
+      // V 1.63: a Unidade agora tem CNPJ e dados cadastrais; a consulta automática de CNPJ
+      // (BrasilAPI) que preenchia o cliente passou para cá.
+      aoConstruir: (form) => { comCascata(null)(form); try { ligarConsultaCNPJ(form); } catch (e) { /* */ } },
     },
     setor: {
       grupo: "mestre", icone: "🗂️", tituloMenu: "Setor / GHE",
@@ -7495,7 +7529,6 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (aba === "aep" && estadoSubAbaCadastro.aep === "modeloLaudo") abrirEditorTextoDireto();
     if (aba === "coordenacao" && window.BI.Coordenacao) { try { window.BI.Coordenacao.render(); } catch (e) { console.error(e); } }
     if (aba === "notificacoes") { try { renderNotificacoes(); } catch (e) { console.error(e); } }
-    if (aba === "psicoLaudo") { try { renderPsicoLaudo(); } catch (e) { console.error(e); } }
     if (aba === "dashboard") { try { montarDashboard(); mostrarDash(dashAtual); } catch (e) { console.error(e); } }
     // V 1.35: a sub-aba atual de tela propria (AET, laudos, importacao) se atualiza ao abrir a aba
     const grupoAba = GRUPO_DA_ABA[aba]; const subAtual = grupoAba && estadoSubAbaCadastro[grupoAba];
@@ -8281,7 +8314,6 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     { chave: "registro", rotulo: "Plano de Ação", aba: "registro", moverGradeId: "painel-plano", origemClone: "registro" },
     { chave: "medocup", rotulo: "Absenteísmo", aba: "medocup", manterIds: ["cartao-plano-absenteismo"], manterClasses: ["medocup-cab-cartao"] },
     { chave: "compativeis", rotulo: "Restritos", aba: "compativeis", moverTudo: true, esconderNav: true },
-    { chave: "psicoLaudo", rotulo: "Laudo Psicossocial", custom: "psico" },
   ];
   let dashMontado = false;
   let dashAtual = "geral";
@@ -8294,10 +8326,6 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       if (cfg.chave === "geral") return; // painel geral já existe no HTML
       const painel = document.createElement("div");
       painel.className = "dash-painel"; painel.dataset.dash = cfg.chave; painel.hidden = true;
-      if (cfg.custom === "psico") {
-        const host = document.createElement("div"); host.id = "dash-psico-host"; painel.appendChild(host);
-        paineis.appendChild(painel); return;
-      }
       const sec = document.getElementById("aba-" + cfg.aba);
       if (!sec) { paineis.appendChild(painel); return; }
       // 1) barra de origem / filtros de página: move a original para o dashboard
@@ -8357,9 +8385,6 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     document.querySelectorAll("#dash-paineis .dash-painel").forEach((p) => { p.hidden = p.dataset.dash !== chave; });
     if (chave === "geral") {
       renderDashGeral();
-    } else if (chave === "psicoLaudo") {
-      const host = document.getElementById("dash-psico-host");
-      if (host) { host.innerHTML = ""; try { renderPsicoDashboard(host); } catch (e) { console.error(e); } }
     } else {
       // gráficos realocados: re-renderiza para desenhar no tamanho do painel visível
       try { renderizarTudo(); } catch (e) { console.error(e); }
@@ -8400,8 +8425,6 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
     const restritos = F(dados.compativeis || [], ["Inicio Restricao"]).length;
 
-    const psico = (dados.psicoLaudo || []);
-    const psicoAlto = psico.filter((r) => /ALTO|CRITICO/i.test(String(r.MediaClasse || "").normalize("NFD").replace(/[̀-ͯ]/g, ""))).length;
 
     // ---------------------------------------------------------------
     // V 1.61 (Alexandre): gráficos gerais (visão consolidada de todos os
@@ -8458,10 +8481,6 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       ] },
       { tit: "Restritos", abrir: "compativeis", kpis: [
         { num: restritos, rot: "Em restrição / acompanhamento" },
-      ] },
-      { tit: "Laudo Psicossocial", abrir: "psicoLaudo", kpis: [
-        { num: psico.length, rot: "Áreas (Unidade × Grupo)" },
-        { num: psicoAlto, rot: "Áreas em risco Alto/Crítico" },
       ] },
     ];
 
@@ -8670,7 +8689,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   window.BI.sincronizarFiltroPsico = sincronizarFiltroPsico;
   // V 1.35: cria no Cadastro Empresa o que ainda nao existe (empresa, unidade, setor, posto, cargo) - usado pela
   // importacao de AET (Word/PDF). Empresa nova so o Administrador cria (mesma regra do importador de planilhas).
-  window.BI.garantirHierarquia = async (v, extrasCliente) => {
+  window.BI.garantirHierarquia = async (v, extrasCliente, extrasUnidade) => {
     const niveis = ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"]; const criados = [];
     for (let i = 0; i < niveis.length; i++) {
       const n = niveis[i]; if (!v[n]) break;
@@ -8683,6 +8702,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         if (ident && !["Administrador", "Consultor"].includes(ident.papel)) throw new Error("A empresa “" + v.Cliente + "” não está cadastrada. Peça à equipe ElevaLife para cadastrá-la (ou escolha uma empresa existente).");
         Object.assign(dados, { "Matriz Risco": window.BI.Calc.MATRIZ_PADRAO || "Matriz 5x5" }, extrasCliente || {});
       }
+      // V 1.63 (Alexandre): os dados cadastrais (CNPJ etc.) vão para a UNIDADE, não para o cliente.
+      if (n === "Unidade") Object.assign(dados, extrasUnidade || {});
       const id = window.BI.DB.idCadastroMestre[col](dados);
       if (n === "Cliente") dados.EmpresaId = id;
       await window.BI.DB.salvar(col, id, dados, true);
@@ -9703,6 +9724,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         const bloqueado = window.BI.DB.estado.modoApi && ident && ident.acessoLiberado === false;
         if (!bloqueado) { try { montarDashboard(); } catch (e) { /* */ } ativarAba("dashboard"); }
       } catch (e) { /* mantém a aba padrão */ }
+      // V 1.63: migra os dados cadastrais do cliente para a unidade (clientes com 1 unidade), em segundo plano.
+      try { migrarCadastralParaUnidade(); } catch (e) { /* */ }
     } catch (erro) {
       console.error("BI Ergonomia - erro na inicialização:", erro);
       mostrarErro(erro && erro.message ? erro.message : String(erro));

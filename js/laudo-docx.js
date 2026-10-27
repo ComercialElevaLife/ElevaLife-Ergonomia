@@ -183,7 +183,7 @@
   // ---------------------------------------------------------------- documento
   async function construir(ctx, opcoes) {
     const { Calc, Acoes, PAL, corNivel, dataBR, hojeISO, ROTULO_ESCALA, URL_VERIFICACAO, dadosAcao, avaliacoes, fatoresDoPosto, eliminadosDoPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, niveisMz, ordemNivel, contaNivelMz, maiorGrau, grau, pontos, rotCanon, acoesDe,
-      nomeMatriz, escala, docCliente, cnpjLaudo, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4,
+      nomeMatriz, escala, docCliente, cnpjLaudo, unidadesCliente, cadastralDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4,
       setoresAv, unidadesAv, periodo, emissao, codigo, revisao, texto, linhasDe, celulas, mapaDe, titDe } = ctx;
 
     // imagens: logotipo, fotos, assinaturas e QR Code
@@ -240,11 +240,26 @@
         if (MINUS_TC.has(low)) return low;
         return low.charAt(0).toUpperCase() + low.slice(1);
       }).join("");
-      const end = tcase([docCliente.Logradouro, docCliente.Numero, docCliente.Complemento, docCliente.Bairro, [docCliente.Cidade, docCliente.Estado].filter(Boolean).join("/"), docCliente.CEP ? "CEP " + docCliente.CEP : ""].filter(Boolean).join(", "));
-      const ficha = [["Razão social", String(opcoes.nomeCliente || "").toUpperCase()], ["CNPJ", cnpjLaudo || docCliente.CNPJ], ["Inscrição estadual", docCliente["Inscricao Estadual"]], ["CNAE", docCliente.CNAE],
-        ["Grau de risco (NR-04)", docCliente["Grau Risco NR4"]], ["Unidade avaliada", tcase(unidadesAv.join(" · "))], ["Endereço", end], ["Telefone", docCliente.Telefone],
-        ["Abrangência do laudo", opcoes.abrangenciaDescricao && opcoes.abrangenciaDescricao !== "Empresa toda" ? opcoes.abrangenciaDescricao : ""], ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo]].filter((r) => r[1]);
-      B.push(tbl([30, 70], ficha.map((r) => [{ t: r[0], b: true, fundo: C.creme }, String(r[1])]), { tam: 9 }));
+      const endDe = (cad) => tcase([cad.Logradouro, cad.Numero, cad.Complemento, cad.Bairro, [cad.Cidade, cad.Estado].filter(Boolean).join("/"), cad.CEP ? "CEP " + cad.CEP : ""].filter(Boolean).join(", "));
+      const abrang = opcoes.abrangenciaDescricao && opcoes.abrangenciaDescricao !== "Empresa toda" ? opcoes.abrangenciaDescricao : "";
+      // V 1.63: dados cadastrais da UNIDADE. Por unidade → ficha da unidade; empresa toda → ficha curta + tabela resumida das unidades.
+      if (opcoes.unidade) {
+        const cad = cadastralDe(opcoes.unidade);
+        const ficha = [["Razão social", String(opcoes.nomeCliente || "").toUpperCase()], ["Unidade", tcase(opcoes.unidade)], ["CNPJ", cad.CNPJ], ["Inscrição estadual", cad["Inscricao Estadual"]], ["CNAE", cad.CNAE],
+          ["Grau de risco (NR-04)", cad["Grau Risco NR4"]], ["Endereço", endDe(cad)], ["Telefone", cad.Telefone],
+          ["Abrangência do laudo", abrang], ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo]].filter((r) => r[1]);
+        B.push(tbl([30, 70], ficha.map((r) => [{ t: r[0], b: true, fundo: C.creme }, String(r[1])]), { tam: 9 }));
+      } else {
+        const ficha = [["Razão social", String(opcoes.nomeCliente || "").toUpperCase()], ["CNPJ(s)", cnpjLaudo], ["Unidades", String((unidadesCliente || []).length || unidadesAv.length)],
+          ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo]].filter((r) => r[1]);
+        B.push(tbl([30, 70], ficha.map((r) => [{ t: r[0], b: true, fundo: C.creme }, String(r[1])]), { tam: 9 }));
+        const uns = (unidadesCliente || []).slice().sort((a, b) => String(a.Unidade || "").localeCompare(String(b.Unidade || ""), "pt-BR"));
+        if (uns.length) {
+          const cab = ["Unidade", "CNPJ", "Cidade/UF", "CNAE", "Grau NR-04"].map((t) => ({ t, b: true, fundo: C.creme }));
+          const linhas = [cab].concat(uns.map((u) => { const cad = cadastralDe(u.Unidade); return [tcase(u.Unidade), cad.CNPJ || "-", tcase([cad.Cidade, cad.Estado].filter(Boolean).join("/")) || "-", cad.CNAE || "-", cad["Grau Risco NR4"] || "-"]; }));
+          B.push(tbl([30, 24, 20, 16, 10], linhas, { tam: 8.5 }));
+        }
+      }
     }
 
     // ================================================================ 6
@@ -319,11 +334,20 @@
     // ================================================================ 9
     B.push(H1("s9", "9. Avaliações ergonômicas preliminares", true), paragrafos("Avaliacoes Intro"));
     let nFigura = 0;
+    let unidadeCorrente = null;
     avaliacoes.forEach((av, i) => {
       const fatores = fatoresDoPosto(av);
+      // V 1.63: no laudo da empresa toda, um cabeçalho de unidade abre o bloco de cada unidade no corpo.
+      let abriuUnidade = false;
+      if (!opcoes.unidade && av.Unidade && av.Unidade !== unidadeCorrente) {
+        unidadeCorrente = av.Unidade; abriuUnidade = true;
+        const cad = cadastralDe(av.Unidade);
+        const sub = [cad.CNPJ ? "CNPJ " + cad.CNPJ : "", [cad.Cidade, cad.Estado].filter(Boolean).join("/")].filter(Boolean).join(" · ");
+        B.push(par(run("Unidade: " + String(av.Unidade), { b: true, cor: "FFFFFF", tam: 12 }) + (sub ? run("  " + sub, { cor: "FFFFFF", tam: 8 }) : ""), { fundo: C.vinho, depois: 60, antes: 40, quebraAntes: i > 0 }));
+      }
       const titPosto = `9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]}${av.Cargo ? ` (${av.Cargo})` : ""}`;
       toc.push([2, titPosto]);
-      B.push(par(run(titPosto), { estilo: "Heading2", quebraAntes: i > 0 }));
+      B.push(par(run(titPosto), { estilo: "Heading2", quebraAntes: i > 0 && !abriuUnidade }));
       const campos = [["Avaliação", [av._nrTexto, av._atualizadaEm ? "última atualização em " + dataBR(av._atualizadaEm) : ""].filter(Boolean).join(" · ")], ["Unidade", av.Unidade], ["Setor", av.Setor], ["Cargo", av.Cargo], ["Posto de trabalho", av["Posto Trabalho"]], ["Risco do posto", riscoDoPosto(av) ? riscoDoPosto(av) + " (maior graduação dos fatores)" : ""], ["Jornada", av["Jornada de Trabalho"]], ["Pausas", av.Pausas], ["Rodízio", av.Rodizio], ["Histórico de acidentes e doenças", av["Historico Acidentes"]]].filter((c) => c[1]);
       {
         const linhas = [];

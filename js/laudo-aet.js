@@ -88,9 +88,23 @@
     H("Fundamentação"); paras("AET Fundamentacao"); bullets("AET Aspectos"); paras("AET Fatores Intro");
     H("Demanda do trabalho"); paras("AET Demanda"); P("**Demanda do trabalho em tópicos:**", { keep: true }); bullets("AET Demanda Topicos");
     H("Informações cadastrais");
+    // V 1.63 (Alexandre): dados cadastrais vêm da UNIDADE (cai para o cliente quando faltar).
     const dc = op.docCliente;
-    const end = [dc.Logradouro, dc.Numero, dc.Complemento, dc.Bairro, dc.Cidade && dc.Estado ? `${dc.Cidade}/${dc.Estado}` : dc.Cidade, dc.CEP ? "CEP " + dc.CEP : ""].filter(Boolean).join(", ");
-    kv([["Nome do cliente", op.cliente], ["Endereço", end || "-"], ["CNPJ", dc.CNPJ || "-"], ["CNAE", dc.CNAE || "-"], ["Grau de risco (NR-4)", dc["Grau Risco NR4"] || "-"], ["Abrangência", op.abrangenciaTxt]]);
+    const CAMPOS_CAD = ["CNPJ", "Inscricao Estadual", "CNAE", "Grau Risco NR4", "Telefone", "CEP", "Logradouro", "Numero", "Complemento", "Bairro", "Cidade", "Estado"];
+    const unidadesDoc = (BI.dados.unidade || []).filter((u) => u.Cliente === op.cliente);
+    const cadDe = (nomeU) => { const u = nomeU ? unidadesDoc.find((x) => x.Unidade === nomeU) : null; const o = {}; CAMPOS_CAD.forEach((k) => { o[k] = (u && String(u[k] || "").trim()) ? u[k] : (dc[k] || ""); }); return o; };
+    const unsAET = Array.from(new Set((op.aets || []).map((a) => a.Unidade).filter(Boolean)));
+    const endDe = (cad) => [cad.Logradouro, cad.Numero, cad.Complemento, cad.Bairro, cad.Cidade && cad.Estado ? `${cad.Cidade}/${cad.Estado}` : cad.Cidade, cad.CEP ? "CEP " + cad.CEP : ""].filter(Boolean).join(", ");
+    if (unsAET.length === 1) {
+      const cad = cadDe(unsAET[0]);
+      kv([["Nome do cliente", op.cliente], ["Unidade", unsAET[0]], ["Endereço", endDe(cad) || "-"], ["CNPJ", cad.CNPJ || "-"], ["CNAE", cad.CNAE || "-"], ["Grau de risco (NR-4)", cad["Grau Risco NR4"] || "-"], ["Abrangência", op.abrangenciaTxt]]);
+    } else {
+      kv([["Nome do cliente", op.cliente], ["Unidades", String(unsAET.length)], ["Abrangência", op.abrangenciaTxt]]);
+      const uns = (unsAET.length ? unsAET : unidadesDoc.map((u) => u.Unidade)).slice().sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+      if (uns.length && typeof table === "function" && typeof hdr === "function" && typeof cell === "function") {
+        table([hdr(["Unidade", "CNPJ", "Cidade/UF", "CNAE", "Grau NR-4"])].concat(uns.map((nu) => { const cad = cadDe(nu); return [cell(nu), cell(cad.CNPJ || "-"), cell([cad.Cidade, cad.Estado].filter(Boolean).join("/") || "-"), cell(cad.CNAE || "-"), cell(cad["Grau Risco NR4"] || "-")]; })), [3000, 2200, 1800, 1500, 1354], { keep: true });
+      }
+    }
     // 5 metodos
     H("Métodos e metodologia utilizada", 0, { pb: true }); paras("AET Metodos Intro");
     H("Análise da organização do trabalho", 1); paras("AET Organizacao");

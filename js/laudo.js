@@ -71,6 +71,15 @@
       unidadesCliente.forEach((u) => { const c = String(u.CNPJ || "").trim(); if (c && lista.indexOf(c) === -1) lista.push(c); });
       return lista.join(" · ") || docCliente.CNPJ || "";
     })();
+    // V 1.63 (Alexandre): os dados cadastrais vivem na UNIDADE. cadastralDe(nome) devolve os dados
+    // da unidade, caindo para os do cliente (dado antigo) quando a unidade não tiver o campo.
+    const CAMPOS_CAD = ["CNPJ", "Inscricao Estadual", "CNAE", "Grau Risco NR4", "Telefone", "CEP", "Logradouro", "Numero", "Complemento", "Bairro", "Cidade", "Estado"];
+    const cadastralDe = (nomeUnidade) => {
+      const u = nomeUnidade ? unidadesCliente.find((x) => x.Unidade === nomeUnidade) : null;
+      const out = {};
+      CAMPOS_CAD.forEach((k) => { out[k] = (u && String(u[k] || "").trim()) ? u[k] : (docCliente[k] || ""); });
+      return out;
+    };
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
 
     // V 1.28: abrangencia do laudo - empresa toda, unidade, setor, cargo ou posto de trabalho.
@@ -90,11 +99,14 @@
       // V 1.48 (Alexandre): a ordem das avaliações no laudo segue o Nº da avaliação
       // (campo "Nr Avaliacao", fixo e editável manualmente). Avaliações sem número
       // vão para o fim, aí sim em ordem alfabética (unidade/setor/cargo/posto).
+      // V 1.63 (Alexandre): no laudo da empresa toda, as avaliações ficam agrupadas por UNIDADE
+      // (para o cabeçalho de unidade no corpo); dentro da unidade, segue o Nº da avaliação.
+      const u = (a.Unidade || "").localeCompare(b.Unidade || "", "pt-BR"); if (u) return u;
       const na = Number(a["Nr Avaliacao"]) || 0, nb = Number(b["Nr Avaliacao"]) || 0;
       if (na && nb && na !== nb) return na - nb;
       if (na && !nb) return -1;
       if (!na && nb) return 1;
-      return (a.Unidade || "").localeCompare(b.Unidade || "", "pt-BR") || (a.Setor || "").localeCompare(b.Setor || "", "pt-BR") || (a.Cargo || "").localeCompare(b.Cargo || "", "pt-BR") || (a["Posto Trabalho"] || "").localeCompare(b["Posto Trabalho"] || "", "pt-BR");
+      return (a.Setor || "").localeCompare(b.Setor || "", "pt-BR") || (a.Cargo || "").localeCompare(b.Cargo || "", "pt-BR") || (a["Posto Trabalho"] || "").localeCompare(b["Posto Trabalho"] || "", "pt-BR");
     });
     if (!avaliacoes.length) {
       throw new Error("Nenhuma Avaliação Ergonômica (AEP) cadastrada para a abrangência escolhida - cadastre a avaliação antes de emitir o laudo.");
@@ -318,14 +330,14 @@
     };
     return {
       statusAcaoInfo, dadosAcao, corNivel, dataBR, hojeISO, PAL, ROTULO_ESCALA, URL_VERIFICACAO,
-      Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, cnpjLaudo, hoje, avaliacoes, fatoresDoPosto, eliminadosDoPosto, doPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4, niveisMz, ordemNivel, contaNivelMz, maiorGrau, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe,
+      Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, cnpjLaudo, unidadesCliente, cadastralDe, hoje, avaliacoes, fatoresDoPosto, eliminadosDoPosto, doPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4, niveisMz, ordemNivel, contaNivelMz, maiorGrau, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe,
     };
   }
 
   async function gerar(opcoes) {
     const jsPDFCtor = global.jspdf && global.jspdf.jsPDF;
     if (!jsPDFCtor) throw new Error("A biblioteca de geração de PDF não carregou (script externo bloqueado ou indisponível).");
-    const { statusAcaoInfo, dadosAcao, Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, cnpjLaudo, hoje, avaliacoes, fatoresDoPosto, eliminadosDoPosto, doPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4, niveisMz, ordemNivel, contaNivelMz, maiorGrau, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe } = await preparar(opcoes);
+    const { statusAcaoInfo, dadosAcao, Calc, Acoes, dados, T, modelo, nomeMatriz, escala, docCliente, cnpjLaudo, unidadesCliente, cadastralDe, hoje, avaliacoes, fatoresDoPosto, eliminadosDoPosto, doPosto, todosComEliminados, riscoDoPosto, TXT_RISCO_POSTO, resumoConclusao, pontuacoesDoNivel, NOTA_MATRIZ, contagemStatus, grau, pontos, rotCanon, acoesDe, responsavel, executor, assinantes, cacheImg, logoCliente, logoEleva, logoElevaCor, todosFatores, todasAcoes, concluidas, certificados, contaNivel, NIVEIS4, niveisMz, ordemNivel, contaNivelMz, maiorGrau, resumoNiveis, setoresAv, unidadesAv, periodo, emissao, codigo, revisao, vars, texto, linhasDe, celulas, mapaDe, titDe } = await preparar(opcoes);
 
     // ========================================================================
     function construir(doc, mapa, final) {
@@ -666,13 +678,33 @@
           if (MINUS_TC.has(low)) return low;
           return low.charAt(0).toUpperCase() + low.slice(1);
         }).join("");
-        const end = tcase([docCliente.Logradouro, docCliente.Numero, docCliente.Complemento, docCliente.Bairro, [docCliente.Cidade, docCliente.Estado].filter(Boolean).join("/"), docCliente.CEP ? "CEP " + docCliente.CEP : ""].filter(Boolean).join(", "));
-        const ficha = [
-          ["Razão social", String(opcoes.nomeCliente || "").toUpperCase()], ["CNPJ", cnpjLaudo || docCliente.CNPJ], ["Inscrição estadual", docCliente["Inscricao Estadual"]], ["CNAE", docCliente.CNAE],
-          ["Grau de risco (NR-04)", docCliente["Grau Risco NR4"]], ["Unidade avaliada", tcase(unidadesAv.join(" · "))], ["Endereço", end],
-          ["Telefone", docCliente.Telefone], ["Abrangência do laudo", opcoes.abrangenciaDescricao && opcoes.abrangenciaDescricao !== "Empresa toda" ? opcoes.abrangenciaDescricao : ""], ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo],
-        ].filter((r) => r[1]);
-        tabela(null, ficha.map((r) => [{ t: r[0], negrito: true, fundo: PAL.creme }, String(r[1])]), [30, 70], { tam: 8.4 });
+        const endDe = (cad) => tcase([cad.Logradouro, cad.Numero, cad.Complemento, cad.Bairro, [cad.Cidade, cad.Estado].filter(Boolean).join("/"), cad.CEP ? "CEP " + cad.CEP : ""].filter(Boolean).join(", "));
+        const abrang = opcoes.abrangenciaDescricao && opcoes.abrangenciaDescricao !== "Empresa toda" ? opcoes.abrangenciaDescricao : "";
+        // V 1.63 (Alexandre): os dados cadastrais saem da UNIDADE. Laudo por unidade → ficha daquela
+        // unidade. Laudo da empresa toda → ficha curta + tabela resumida de todas as unidades.
+        if (opcoes.unidade) {
+          const cad = cadastralDe(opcoes.unidade);
+          const ficha = [
+            ["Razão social", String(opcoes.nomeCliente || "").toUpperCase()], ["Unidade", tcase(opcoes.unidade)],
+            ["CNPJ", cad.CNPJ], ["Inscrição estadual", cad["Inscricao Estadual"]], ["CNAE", cad.CNAE], ["Grau de risco (NR-04)", cad["Grau Risco NR4"]],
+            ["Endereço", endDe(cad)], ["Telefone", cad.Telefone],
+            ["Abrangência do laudo", abrang], ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo],
+          ].filter((r) => r[1]);
+          tabela(null, ficha.map((r) => [{ t: r[0], negrito: true, fundo: PAL.creme }, String(r[1])]), [30, 70], { tam: 8.4 });
+        } else {
+          const ficha = [
+            ["Razão social", String(opcoes.nomeCliente || "").toUpperCase()], ["CNPJ(s)", cnpjLaudo], ["Unidades", String(unidadesCliente.length || unidadesAv.length)],
+            ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo],
+          ].filter((r) => r[1]);
+          tabela(null, ficha.map((r) => [{ t: r[0], negrito: true, fundo: PAL.creme }, String(r[1])]), [30, 70], { tam: 8.4 });
+          // tabela resumida das unidades (uma linha por unidade, com os dados cadastrais principais)
+          const uns = (unidadesCliente || []).slice().sort((a, b) => String(a.Unidade || "").localeCompare(String(b.Unidade || ""), "pt-BR"));
+          if (uns.length) {
+            y += 6;
+            const linhasUn = uns.map((u) => { const cad = cadastralDe(u.Unidade); return [tcase(u.Unidade), cad.CNPJ || "-", tcase([cad.Cidade, cad.Estado].filter(Boolean).join("/")) || "-", cad.CNAE || "-", cad["Grau Risco NR4"] || "-"]; });
+            tabela(["Unidade", "CNPJ", "Cidade/UF", "CNAE", "Grau NR-04"], linhasUn, [30, 24, 20, 16, 10], { tam: 7.8 });
+          }
+        }
       }
 
       // ============================ 6 ===================================================
@@ -754,10 +786,24 @@
       h1("s9", "9. Avaliações ergonômicas preliminares", true);
       paragrafos("Avaliacoes Intro");
       let nFigura = 0;
+      let unidadeCorrente = null;
       avaliacoes.forEach((av, i) => {
         const chavePosto = "s9p" + i;
         const fatores = fatoresDoPosto(av);
         if (i > 0) novaPagina(); else garantir(120);
+        // V 1.63 (Alexandre): no laudo da empresa toda, um cabeçalho de unidade abre o bloco de cada
+        // unidade no corpo (quando a unidade muda). No laudo por unidade isto não aparece (já está na ficha).
+        if (!opcoes.unidade && av.Unidade && av.Unidade !== unidadeCorrente) {
+          unidadeCorrente = av.Unidade;
+          const cad = cadastralDe(av.Unidade);
+          const sub = [cad.CNPJ ? "CNPJ " + cad.CNPJ : "", [cad.Cidade, cad.Estado].filter(Boolean).join("/")].filter(Boolean).join(" · ");
+          garantir(40);
+          preencher(PAL.vinho); doc.roundedRect(M, y, L, sub ? 34 : 26, 4, 4, "F");
+          doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(12); doc.setTextColor(255, 255, 255);
+          doc.text(doc.splitTextToSize("Unidade: " + String(av.Unidade), L - 20)[0], M + 10, y + (sub ? 15 : 17));
+          if (sub) { doc.setFont("Montserrat", "normal"); doc.setFontSize(8); doc.text(sub, M + 10, y + 27); }
+          y += (sub ? 44 : 36);
+        }
         registrar(chavePosto, `9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]} (${av.Cargo})`, 2);
         preencher(PAL.vinhoE); doc.roundedRect(M, y, L, 26, 4, 4, "F");
         doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(11); doc.setTextColor(255, 255, 255);

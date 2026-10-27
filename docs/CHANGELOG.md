@@ -2,6 +2,28 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.63 — 27/10/2026
+
+- **Cadastro de Cliente simplificado + dados cadastrais na Unidade (Alexandre).** O cadastro do **Cliente** passou a ter só o essencial: **Nome, Matriz de Risco, Serviços contratados e Logotipo**. Todos os dados cadastrais (CNPJ, Inscrição Estadual, CNAE, Grau de Risco NR-4, telefone e endereço completo) foram para o cadastro de **Unidade** — cada unidade tem o seu CNPJ e endereço. A consulta automática de CNPJ (BrasilAPI, que preenche CNAE/endereço) também passou para a tela de Unidade. *Migração automática:* para empresas com **uma única unidade**, os dados cadastrais antigos do cliente são copiados para a unidade (empresas com várias unidades ficam manuais); e o laudo usa o dado antigo do cliente como reserva, então nada se perde. *(Arquivos: `js/app.js`.)*
+- **Laudo por empresa ou por unidade (AEP, AET, PDF e Word) (Alexandre).** Na emissão do laudo:
+  - **Por unidade** (escolhendo a unidade, e opcionalmente setor/cargo/posto): as *Informações Cadastrais* saem daquela unidade e o corpo traz só as avaliações dela.
+  - **Por empresa** (sem escolher unidade): as *Informações Cadastrais* trazem uma **tabela resumida de todas as unidades** (CNPJ, cidade/UF, CNAE, grau) e, no corpo, as avaliações ficam **agrupadas por unidade**, com um **cabeçalho de unidade** (nome, CNPJ, cidade) abrindo o bloco de cada uma.
+  *(Arquivos: `js/laudo.js`, `js/laudo-docx.js`, `js/laudo-aet.js`.)*
+- **Visibilidade por unidade (reforço do que já vinha da V1.55).** ADM vê tudo; Ergonomista e Cliente veem apenas os clientes/unidades aos quais estão vinculados. (Sem mudança de código nesta versão — comportamento confirmado.)
+- **Import de laudo psicossocial removido (Alexandre).** A opção de importar o laudo psicossocial em Word (aba e entrada no Dashboard) foi retirada, conforme pedido ("ficou muito estranha e confusa"). O questionário HSE-IT padrão e os demais módulos psicossociais seguem intactos.
+- **Importar AET:** o casamento automático da empresa por CNPJ agora procura o CNPJ nas **unidades** (onde ele passou a viver), e o CNPJ lido do laudo é gravado na unidade criada, não no cliente.
+
+  Service worker subiu para `sige-v78`.
+
+## V 1.62 — 23/10/2026
+
+- **Importar AET em Word — leitura completa do modelo ElevaLife e input mais fácil (Alexandre).** A importação de AET (Word .docx) agora lê **tudo** do laudo e transcreve para o sistema, deixando só o que faltar para o ergonomista revisar no fim:
+  - **Empresa, Unidade e CNPJ** vêm do cabeçalho do documento; a empresa é **casada automaticamente com a já cadastrada** — primeiro por **CNPJ** (ex.: arquivo "IMERYS DO BRASIL… LTDA" → cadastro "Imerys"), depois por nome.
+  - Cada função do laudo (seção "SETOR – CARGO: …") vira uma AET com **setor, posto, cargo**, descrição do cargo, organização do trabalho, ambiente, ciclo, **fotos do posto**, e cada **atividade** com descrição, **fotos**, **fatores de risco** (consequência, metodologia/ferramenta, criticidade, probabilidade e grau) e **recomendações**.
+  - Correções que faziam o modelo não importar: o **Sumário** (TOC) era lido como se fossem atividades; o nome da empresa não era capturado; a coluna **"Demanda"** da tabela de riscos não entrava como consequência (todo fator ficava "sem consequência"); e um fator chamado "Movimentação manual de cargas" se perdia por colidir com o bloco de cargas. No laudo de exemplo (IMERYS, 15 funções): **15 AETs, 23 atividades, 23 fatores e 99 fotos**, tudo lido.
+  - **Botão "Preparar todas as AETs"**: cadastra empresa/unidades/setores/cargos e envia as fotos de **todas** as funções de uma vez; depois é só abrir cada AET (instantâneo), revisar e salvar.
+  Service worker subiu para `sige-v77`. *(Arquivo: `js/aet-import.js`.)*
+
 ## V 1.61 — 23/10/2026
 
 - **Dashboard "Geral" com gráficos consolidados (Alexandre).** A aba **Geral** do Dashboard passou a trazer, no topo (seção "Visão geral"), os **gráficos consolidados de todos os serviços**: Risco Global dos Postos, Inventário de Riscos por nível, Plano de Ação por status, AEPs realizadas (mês a mês) e Atestados (mês a mês). Logo abaixo ("Resumo por serviço") seguem os cartões de KPIs com o atalho "Ver dashboard →". O seletor (Geral + um por serviço) continua no topo, como já era. Tudo responde ao filtro global. Service worker subiu para `sige-v76`. *(Arquivo: `js/app.js`.)*

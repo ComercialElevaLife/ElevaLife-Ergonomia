@@ -65,10 +65,17 @@
     };
     const imgsDe = (el) => Array.from(el.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "blip")).map((b) => imagemDe(b.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "embed") || b.getAttribute("r:embed"))).filter((x) => x != null);
     const linhas = []; // [{ cells: [texto], imgs: [id], tabela: bool }]
+    // V 1.62: estilo do paragrafo (styleId) - usado para pular o SUMARIO (TOC),
+    // que antes era lido como se fossem atividades (ATIVIDADE 01: ... 17).
+    const estiloP = (el) => {
+      const pPr = Array.from(el.childNodes).find((c) => c.localName === "pPr"); if (!pPr) return "";
+      const ps = Array.from(pPr.childNodes).find((c) => c.localName === "pStyle"); if (!ps) return "";
+      return ps.getAttributeNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main", "val") || ps.getAttribute("w:val") || "";
+    };
     const percorrer = (pai) => {
       for (const el of Array.from(pai.childNodes)) {
         if (el.nodeType !== 1 || el.namespaceURI !== W) continue;
-        if (el.localName === "p") { const t = textoDe(el); const im = imgsDe(el); if (t || im.length) linhas.push({ cells: [t], imgs: im, tabela: false }); }
+        if (el.localName === "p") { if (/^toc|sum[aá]?rio|sumrio/i.test(estiloP(el))) continue; const t = textoDe(el); const im = imgsDe(el); if (t || im.length) linhas.push({ cells: [t], imgs: im, tabela: false }); }
         else if (el.localName === "tbl") {
           for (const tr of Array.from(el.childNodes).filter((x) => x.localName === "tr")) {
             const tcs = Array.from(tr.childNodes).filter((x) => x.localName === "tc");
@@ -121,7 +128,7 @@
 
   // ------------------------------------------------------------------ interpretacao
   const RX = {
-    cliente: /^(nome do cliente|raz[aã]o social|empresa( avaliada| contratante)?|cliente)\s*[:\-–]\s*(.+)$/i,
+    cliente: /^(?:nome do cliente|raz[aã]o social|empresa(?: avaliada| contratante)?|cliente)\s*[:\-–]\s*(.+)$/i,
     cnpj: /cnpj\s*[:\-–]?\s*([\d./-]{14,20})/i,
     setor: /(?:^|\b)setor(?:\s*\/\s*ghe)?\s*[:\-–]\s*(.+?)(?=\s*(?:\/|\||posto de trabalho|posto|fun[cç][aã]o|cargo)\s*[:\-–]|$)/i,
     posto: /posto(?: de trabalho)?\s*[:\-–]\s*(.+?)(?=\s*(?:\/|\||fun[cç][aã]o|cargo|setor)\s*[:\-–]|$)/i,
@@ -182,7 +189,7 @@
   const nivelTexto = (s) => { const t = norm(s); if (!t) return ""; if (/altissim|muito alto|intoler|critic/.test(t)) return "Muito Alto"; if (/\balto\b/.test(t)) return "Alto"; if (/moderad|medio|media/.test(t)) return "Moderado"; if (/baix|trivial|irrelev|tolerav|aceitav/.test(t)) return "Baixo"; return ""; };
 
   function interpretar(lido, nomeArquivo) {
-    const L = lido.linhas; const res = { cliente: "", cnpj: "", aets: [], avisos: [] };
+    const L = lido.linhas; const res = { cliente: "", cnpj: "", unidade: "", aets: [], avisos: [] };
     let atual = null; let ativ = null; let modo = ""; let fatCols = null; let medFator = "";
     const novaAet = (base) => { atual = { setor: "", posto: "", cargo: "", unidade: "", d: { "Descricao Setor": "", "Descricao Cargo": "", Demandas: {}, Medicoes: [], Ciclos: [], Cargas: [], Atividades: [], "Foto Geral": [], "Arquivo Importado": nomeArquivo }, fotosGeral: [], ...base }; res.aets.push(atual); ativ = null; modo = ""; return atual; };
     const garantirAet = () => atual || novaAet({});
@@ -197,9 +204,28 @@
     for (let i = 0; i < L.length; i++) {
       const row = L[i]; const cells = row.cells.map(limpa); const tudo = cells.filter(Boolean).join(" / "); const n0 = norm(cells[0] || "");
       // empresa
-      if (!res.cliente) { for (const c of cells) for (const parte of c.split(/\n| \/ /)) { const m = parte.trim().match(RX.cliente); if (m && m[2] && !/x{2,}/i.test(m[2])) { res.cliente = limpa(m[2]).replace(/\s*cnpj.*$/i, ""); break; } } }
+      if (!res.cliente) { for (const c of cells) for (const parte of c.split(/\n| \/ /)) { const m = parte.trim().match(RX.cliente); if (m && m[1] && !/x{2,}/i.test(m[1])) { res.cliente = limpa(m[1]).replace(/\s*cnpj.*$/i, ""); break; } } }
       if (!res.cnpj) { const m = tudo.match(RX.cnpj); if (m) res.cnpj = m[1]; }
-      // inicio de uma AET (setor / posto / cargo)
+      // V 1.62: unidade do cabeçalho (o cabeçalho é um parágrafo com várias linhas: "Empresa:…\nUnidade:…\nCNPJ:…")
+      if (!res.unidade) { for (const c of cells) for (const parte of c.split(/\n| \/ /)) { const m = parte.trim().match(RX.unidade); if (m && m[1] && !/x{2,}/i.test(m[1])) { res.unidade = limpa(m[1]); break; } } }
+      // V 1.62: dentro da tabela de fatores (modo "fatores"), as linhas de dados são
+      // capturadas AQUI, antes dos demais blocos, para o NOME do fator não ser confundido
+      // com um rótulo de seção (ex.: um fator "Movimentação manual de cargas" caía no
+      // bloco de cargas e o fator se perdia). Rótulos terminadores encerram a tabela.
+      if (modo === "fatores" && fatCols && ativ && !lido.pdf && cells.length >= 2 && cells[0]) {
+        if (/^(recomenda[cç]|mem[oó]rial|metodologia de estudo\s*[-–]|atividade\s*\d|diagn[oó]stico|registro fotogr|fator(es)? de risco)/i.test(cells[0])) { modo = ""; }
+        else { adicionarFator(cells, fatCols); continue; }
+      }
+      // V 1.62: cabeçalho de seção do modelo ElevaLife: "<SETOR> – CARGO: <CARGO>"
+      // (parágrafo, não tabela). Abre uma nova AET com setor e cargo; o posto e as
+      // descrições vêm da tabela "Setor:/Posto de Trabalho:" logo abaixo.
+      const sc = (!row.tabela && cells.length === 1) ? (cells[0] || "").match(/^(.+?)\s*[–-]\s*(?:cargo|fun[cç][aã]o)\s*[:\-]\s*(.+)$/i) : null;
+      if (sc && !/^atividade/i.test(n0) && !/\bsetor\s*[:\-–]/i.test(n0) && sc[1].length < 90 && sc[2].length < 90) {
+        novaAet({ setor: limpa(sc[1]), cargo: limpa(sc[2]), posto: "" });
+        atual._doHeading = true;
+        continue;
+      }
+      // inicio de uma AET (setor / posto / cargo) - por tabela rotulada
       const cab = (cells[0] || "").match(RX.cabecalhoPosto);
       const temSetor = /\bsetor\s*(\/\s*ghe)?\s*[:\-–]/i.test(tudo) && /(posto|fun[cç][aã]o|cargo)\s*(de trabalho)?\s*[:\-–]/i.test(tudo);
       if (cab || temSetor) {
@@ -207,13 +233,17 @@
         const s = cab ? cab[1] : ((blob.match(RX.setor) || [])[1] || ""); const p = cab ? cab[2] : ((blob.match(RX.posto) || [])[1] || ""); const c = cab ? cab[3] : ((blob.match(RX.cargo) || [])[1] || "");
         const lixo = (v) => !v || /^x+$/i.test(v.trim());
         const val = (v) => (lixo(v) ? "" : limpa(v).replace(/[\s/|]+$/, ""));
-        // titulo "SETOR X – POSTO Y – CARGO: Z" seguido da tabela "Setor: / Posto: / Funcao:" = a mesma AET
-        const mesma = atual && !atual.d.Atividades.length && (!atual.setor || !val(s) || norm(atual.setor) === norm(val(s)));
-        if (mesma) { if (val(s)) atual.setor = val(s); if (val(p)) atual.posto = val(p); if (val(c)) atual.cargo = val(c); }
-        else novaAet({ setor: val(s), posto: val(p), cargo: val(c) });
+        // titulo "SETOR … – CARGO: Z" seguido da tabela "Setor:/Posto:" = a mesma AET
+        const mesma = atual && !atual.d.Atividades.length && (atual._doHeading || !atual.setor || !val(s) || norm(atual.setor) === norm(val(s)));
+        if (mesma) {
+          if (val(s) && !atual._doHeading) atual.setor = val(s);
+          if (val(p)) atual.posto = val(p);
+          if (val(c) && !atual.cargo) atual.cargo = val(c);
+          atual._doHeading = false;
+        } else novaAet({ setor: val(s), posto: val(p), cargo: val(c) });
         continue;
       }
-      const mu = (cells[0] || "").match(RX.unidade); if (mu) { garantirAet().unidade = limpa(mu[1]); continue; }
+      const mu = (cells[0] || "").match(RX.unidade); if (mu) { const u = limpa(mu[1]); if (atual) atual.unidade = u; else res.unidade = u; continue; }
       // rotulos de bloco (titulo de tabela)
       if (/^descri[cç][aã]o do setor/.test(n0)) { const p = proximaTexto(i); garantirAet().d["Descricao Setor"] = cells[1] || p.t; if (!cells[1]) i = p.k; continue; }
       if (/^descri[cç][aã]o da popula/.test(n0)) {
@@ -251,13 +281,19 @@
       if (modo === "carga") { if (/^cargas? movimentad/i.test(norm(cells[0]))) continue; if (cells.length >= 2 && cells[0]) { garantirAet().d.Cargas.push({ carga: cells[0], peso: cells[1] || "", padrao: cells[2] || "", vezes: cells[3] || "" }); continue; } }
       // atividades
       const ma = (cells[0] || "").match(RX.atividade);
-      if (ma && (cells.length === 1 || !cells[1])) { const a = garantirAet(); ativ = { uid: uid(), nome: limpa(ma[2]) || "Atividade " + ma[1].padStart(2, "0"), descricao: "", fotos: [], _fotos: [], fatores: [], recomendacoes: "" }; a.d.Atividades.push(ativ); modo = "ativ"; fatCols = null; continue; }
+      if (ma && (cells.length === 1 || !cells[1])) {
+        const nomeAtiv = limpa(ma[2]) || "Atividade " + ma[1].padStart(2, "0");
+        // V 1.62: o título da atividade aparece 2x (no heading e na 1ª linha da tabela da atividade);
+        // se a atividade atual é a mesma e ainda está vazia, não cria duplicada.
+        if (ativ && norm(ativ.nome) === norm(nomeAtiv) && !ativ.descricao && !ativ.fatores.length && !ativ._fotos.length) { modo = "ativ"; fatCols = null; continue; }
+        const a = garantirAet(); ativ = { uid: uid(), nome: nomeAtiv, descricao: "", fotos: [], _fotos: [], fatores: [], recomendacoes: "" }; a.d.Atividades.push(ativ); modo = "ativ"; fatCols = null; continue;
+      }
       if (ativ && /^descri[cç][aã]o da atividade/i.test(cells[0] || "")) { const resto = (cells[0] || "").replace(/^descri[cç][aã]o da atividade\s*:?\s*/i, ""); const p = resto ? { t: resto, k: i } : proximaTexto(i); ativ.descricao = p.t; i = p.k; continue; }
       if (ativ && /^registro fotogr[aá]fico/i.test(cells[0] || "")) { modo = "fotosAtiv"; continue; }
       if (ativ && row.imgs.length && (modo === "fotosAtiv" || modo === "ativ")) { ativ._fotos.push(...row.imgs); continue; }
       // tabela de fatores (cabecalho com Fator e Risco/Grau)
       if (cells.length >= 3 && /^fator(es)?( de risco)?\b/.test(n0) && cells.some((c) => /consequ|grau|metodolog/i.test(c))) {
-        const colunasDe = (cs) => { const idx = (rx) => cs.findIndex((c) => rx.test(norm(c))); return { fator: 0, conseq: idx(/consequ/), seg: idx(/segmento/), met: idx(/metodolog|ferrament/), crit: idx(/criticidade|severidade|gravidade/), prob: idx(/probabilidade|exposi/), grau: (() => { const gI = idx(/^grau|grau de risco|graduacao/); return gI > 0 ? gI : cs.findIndex((c, q) => q > 0 && /risco$/.test(norm(c))); })() }; };
+        const colunasDe = (cs) => { const idx = (rx) => cs.findIndex((c) => rx.test(norm(c))); return { fator: 0, conseq: idx(/consequ|^demanda/), seg: idx(/segmento/), met: idx(/metodolog|ferrament/), crit: idx(/criticidade|severidade|gravidade/), prob: idx(/probabilidade|exposi/), grau: (() => { const gI = idx(/^grau|grau de risco|graduacao/); return gI > 0 ? gI : cs.findIndex((c, q) => q > 0 && /risco$/.test(norm(c))); })() }; };
         if (!ativ) { const a = garantirAet(); ativ = { uid: uid(), nome: "Atividade 01", descricao: "", fotos: [], _fotos: [], fatores: [], recomendacoes: "" }; a.d.Atividades.push(ativ); }
         if (!lido.pdf) { fatCols = colunasDe(cells); modo = "fatores"; continue; }
         // PDF: as celulas quebram em varias linhas e o texto fica centralizado na celula. As colunas saem da
@@ -286,13 +322,15 @@
         else if (cells.length >= 2) { adicionarFator(cells, fatCols); continue; }
       }
       if (/^recomenda[cç][oõ]es espec/i.test(cells[0] || "")) { modo = "recom"; continue; }
-      if (modo === "recom" && ativ) { if (/^mem[oó]rial de c[aá]lculo/i.test(cells[0] || "")) { modo = "memorial"; continue; } const t = cells.filter(Boolean).join(" "); if (t) ativ.recomendacoes = [ativ.recomendacoes, t].filter(Boolean).join("\n"); continue; }
-      if (/^mem[oó]rial de c[aá]lculo/i.test(cells[0] || "")) { modo = "memorial"; continue; }
+      if (modo === "recom" && ativ) { if (/mem[oó]rial de c[aá]lculo/i.test(cells[0] || "")) { modo = "memorial"; continue; } const t = cells.filter(Boolean).join(" "); if (t) ativ.recomendacoes = [ativ.recomendacoes, t].filter(Boolean).join("\n"); continue; }
+      if (/mem[oó]rial de c[aá]lculo/i.test(cells[0] || "")) { modo = "memorial"; continue; }
       if (/^diagn[oó]stico global/i.test(cells[0] || "")) { const p = cells[1] ? { t: cells[1], k: i } : proximaTexto(i); if (atual) atual.d["Diagnostico Global"] = p.t; i = p.k; modo = ""; ativ = null; continue; }
       if (/^(conclus[aã]o|encerramento|certificado)/i.test(n0) && !row.tabela) { modo = "fim"; ativ = null; }
     }
     // limpeza: AETs sem nada
     res.aets = res.aets.filter((a) => a.setor || a.posto || a.cargo || a.d.Atividades.length);
+    // V 1.62: a unidade do cabeçalho do documento vale para todas as AETs que não trouxeram unidade própria.
+    res.aets.forEach((a) => { if (!a.unidade && res.unidade) a.unidade = res.unidade; delete a._doHeading; });
     if (!res.aets.length) res.avisos.push("Não foi possível identificar setor, posto, cargo ou atividades neste arquivo.");
     res.aets.forEach((a) => { a.d.Atividades.forEach((at) => { at.fatores.forEach((fa) => { if (!fa.consequencia) res.avisos.push(`“${at.nome}”: fator sem consequência – complete no editor.`); }); }); });
     return res;
@@ -359,7 +397,16 @@
     const C = Calc(); const card = h("div", "cartao bloco-cadastro aet-import-conf"); el.appendChild(card);
     const cab = h("div", "cadastro-cabecalho"); cab.appendChild(h("div", "cartao-titulo", "Conferência")); card.appendChild(cab);
     const clientes = (BI.dados.cliente || []).map((c) => c.Cliente).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
-    const casaCli = clientes.find((c) => norm(c) === norm(res.cliente)) || clientes.find((c) => res.cliente && (norm(c).includes(norm(res.cliente).slice(0, 18)) || norm(res.cliente).includes(norm(c))));
+    // V 1.62/1.63: casa a empresa do arquivo com uma já cadastrada por: 1) CNPJ (mais confiável) -
+    // o CNPJ agora fica na UNIDADE, então procura nas unidades (e, por compatibilidade, no cliente antigo);
+    // 2) nome idêntico; 3) um contém o outro (ex.: arquivo "IMERYS DO BRASIL… LTDA" × cadastro "Imerys").
+    const soDig = (s) => String(s || "").replace(/\D/g, "");
+    let porCnpj = null;
+    if (res.cnpj) {
+      const un = (BI.dados.unidade || []).find((u) => u.CNPJ && soDig(u.CNPJ) === soDig(res.cnpj));
+      porCnpj = (un && { Cliente: un.Cliente }) || (BI.dados.cliente || []).find((c) => c.CNPJ && soDig(c.CNPJ) === soDig(res.cnpj));
+    }
+    const casaCli = (porCnpj && porCnpj.Cliente) || clientes.find((c) => norm(c) === norm(res.cliente)) || clientes.find((c) => res.cliente && (norm(c).includes(norm(res.cliente).slice(0, 18)) || norm(res.cliente).includes(norm(c))));
     if (res._cliente == null) res._cliente = casaCli || (BI.filtros && BI.filtros.Cliente && BI.filtros.Cliente.length === 1 ? BI.filtros.Cliente[0] : "") || "";
     const gr = h("div", "aet-grade"); card.appendChild(gr);
     const lCli = h("label", "aet-campo aet-campo--largo"); lCli.appendChild(h("span", "aet-rot", "Empresa *" + (res.cliente ? ` (no arquivo: ${res.cliente}${res.cnpj ? " · CNPJ " + res.cnpj : ""})` : "")));
@@ -374,6 +421,46 @@
     const mz = nomeCli && res._cliente !== "__nova" ? C.matrizDoCliente(BI.dados.cliente || [], nomeCli) : (C.MATRIZ_PADRAO || "Matriz 5x5");
     if (res.avisos.length) { const av = h("div", "aet-msg"); av.textContent = "Atenção: " + Array.from(new Set(res.avisos)).slice(0, 6).join(" "); card.appendChild(av); }
     const lista = (nivel, filtro) => Array.from(new Set((BI.dados.cargo || []).filter((c) => c.Cliente === nomeCli && Object.keys(filtro).every((k) => !filtro[k] || c[k] === filtro[k])).map((c) => c[nivel]).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+    // V 1.62: processamento de UMA AET (cadastra unidade/setor/posto/cargo que faltam e envia as fotos).
+    // Reaproveitado pelo botão de cada AET e pelo botão "Preparar todas". As fotos enviadas ficam em cache
+    // (a._fotosGeralEnviadas / orig._enviadas), então reprocessar a mesma AET é instantâneo.
+    const prepararAet = async (a) => {
+      const AT = PENDENTE; ["unidade", "setor", "posto", "cargo"].forEach((k) => { if (!a[k]) a[k] = AT; });
+      const valores = { Cliente: nomeCli, Unidade: a.unidade, Setor: a.setor, "Posto Trabalho": a.posto, Cargo: a.cargo };
+      const criados = await BI.garantirHierarquia(valores, {}, res.cnpj ? { CNPJ: res.cnpj } : {});
+      const emp = (BI.dados.cliente || []).find((c) => c.Cliente === nomeCli); const empresaId = emp ? (emp.id || emp._id) : null;
+      const mzCli = C.matrizDoCliente(BI.dados.cliente || [], nomeCli);
+      const enviar = async (ids) => { const out = []; for (const id of ids) { const im = (estado.lido.imagens || [])[id]; if (!im || !empresaId) continue; try { let arq = new File([im.bytes], im.nome, { type: im.tipo }); if (BI.Fotos && BI.Fotos.prepararAuto) { try { arq = await BI.Fotos.prepararAuto(arq); } catch (e2) { /* original */ } } const r = await BI.DB.enviarArquivo("aet", empresaId, arq); out.push({ chave: r.chave, nomeArquivo: r.nomeArquivo || im.nome }); } catch (e) { console.warn("foto", e); } } return out; };
+      const d = JSON.parse(JSON.stringify(a.d)); Object.assign(d, valores);
+      d["Foto Geral"] = a._fotosGeralEnviadas || (a._fotosGeralEnviadas = await enviar(a.fotosGeral));
+      for (let k = 0; k < d.Atividades.length; k++) { const orig = a.d.Atividades[k]; orig._enviadas = orig._enviadas || await enviar(orig._fotos); d.Atividades[k].fotos = orig._enviadas; delete d.Atividades[k]._fotos; delete d.Atividades[k]._enviadas; }
+      aplicarMatriz(d, mzCli); marcarPendentes(d, mzCli);
+      a._aberta = true; return { d, criados };
+    };
+
+    // V 1.62: "Preparar todas" - cadastra a hierarquia e envia as fotos de TODAS as AETs de uma vez,
+    // depois abre a primeira. Assim o trabalho pesado (cadastro + upload) acontece em um clique só; abrir
+    // cada AET em seguida para revisar e salvar é instantâneo (fotos já em cache). Isto deixa o input bem
+    // mais rápido quando o documento traz muitas funções (esta IMERYS tem 15).
+    if (res.aets.length > 1) {
+      const barraTop = h("div"); barraTop.style.cssText = "margin:4px 0 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap";
+      const bTodas = h("button", "btn-cad-primario", `⚡ Preparar todas as ${res.aets.length} AETs (cadastrar e enviar fotos)`); bTodas.type = "button";
+      const stTodas = h("div", "aet-nota"); barraTop.appendChild(bTodas); barraTop.appendChild(stTodas); card.appendChild(barraTop);
+      bTodas.addEventListener("click", async () => {
+        if (!nomeCli) { stTodas.className = "aet-msg erro"; stTodas.textContent = "Escolha a empresa primeiro."; return; }
+        bTodas.disabled = true; let ok = 0; let primeiraD = null;
+        for (let k = 0; k < res.aets.length; k++) {
+          stTodas.textContent = `Preparando AET ${k + 1} de ${res.aets.length}…`;
+          try { const r = await prepararAet(res.aets[k]); if (!primeiraD) primeiraD = r.d; ok++; } catch (e) { console.error("preparar AET", e); }
+        }
+        stTodas.textContent = `${ok} de ${res.aets.length} AETs preparadas (empresa, unidade, setores, cargos e fotos cadastrados). Abra cada uma abaixo, revise e clique em Salvar AET.`;
+        bTodas.disabled = false; bTodas.textContent = "Preparar de novo";
+        el.innerHTML = ""; renderAba(el); // re-render para refletir "aberta" e sugestões já cadastradas
+        if (primeiraD) BI.AET.abrirEditor(null, primeiraD);
+      });
+    }
+
     res.aets.forEach((a, ix) => {
       const box = h("div", "aet-import-item"); card.appendChild(box);
       const nAt = a.d.Atividades.length; const nFa = a.d.Atividades.reduce((s, x) => s + x.fatores.length, 0); const nFo = a.fotosGeral.length + a.d.Atividades.reduce((s, x) => s + x._fotos.length, 0);
@@ -394,22 +481,9 @@
       b.addEventListener("click", async () => {
         // V 1.38: so a empresa e indispensavel; o que faltar no documento sobe como "ATUALIZAR INFORMAÇÕES"
         if (!nomeCli) { msg.hidden = false; msg.className = "aet-msg erro"; msg.textContent = "Escolha a empresa."; return; }
-        const AT = PENDENTE; ["unidade", "setor", "posto", "cargo"].forEach((k) => { if (!a[k]) a[k] = AT; });
         b.disabled = true; msg.hidden = false; msg.className = "aet-msg"; msg.textContent = "Cadastrando e enviando as fotos…";
         try {
-          const valores = { Cliente: nomeCli, Unidade: a.unidade, Setor: a.setor, "Posto Trabalho": a.posto, Cargo: a.cargo };
-          const criados = await BI.garantirHierarquia(valores, res.cnpj ? { CNPJ: res.cnpj } : {});
-          const emp = (BI.dados.cliente || []).find((c) => c.Cliente === nomeCli); const empresaId = emp ? (emp.id || emp._id) : null;
-          const mzCli = C.matrizDoCliente(BI.dados.cliente || [], nomeCli);
-          // V 1.44: as fotos importadas da AET também têm os rostos anonimizados (automático, sem conferência por foto).
-          const enviar = async (ids) => { const out = []; for (const id of ids) { /* V 1.38: sem limite de fotos */ const im = (estado.lido.imagens || [])[id]; if (!im || !empresaId) continue; try { let arq = new File([im.bytes], im.nome, { type: im.tipo }); if (BI.Fotos && BI.Fotos.prepararAuto) { try { arq = await BI.Fotos.prepararAuto(arq); } catch (e2) { /* segue com a original */ } } const r = await BI.DB.enviarArquivo("aet", empresaId, arq); out.push({ chave: r.chave, nomeArquivo: r.nomeArquivo || im.nome }); } catch (e) { console.warn("foto", e); } } return out; };
-          const d = JSON.parse(JSON.stringify(a.d));
-          Object.assign(d, valores);
-          d["Foto Geral"] = a._fotosGeralEnviadas || (a._fotosGeralEnviadas = await enviar(a.fotosGeral));
-          for (let k = 0; k < d.Atividades.length; k++) { const orig = a.d.Atividades[k]; orig._enviadas = orig._enviadas || await enviar(orig._fotos); d.Atividades[k].fotos = orig._enviadas; delete d.Atividades[k]._fotos; delete d.Atividades[k]._enviadas; }
-          aplicarMatriz(d, mzCli);
-          marcarPendentes(d, mzCli);
-          a._aberta = true;
+          const { d, criados } = await prepararAet(a);
           msg.textContent = (criados.length ? "Cadastrado: " + criados.join(", ") + ". " : "") + "AET aberta no editor – confira e clique em Salvar AET.";
           b.disabled = false; b.textContent = "Abrir de novo no editor";
           BI.AET.abrirEditor(null, d);

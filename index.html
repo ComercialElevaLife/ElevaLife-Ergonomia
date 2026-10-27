@@ -116,11 +116,6 @@
         </button>
         <div class="sidebar-subnav-lateral" id="sidebar-sub-psicossocial" hidden></div>
       </div>
-      <!-- V 1.58 (Alexandre): importação de laudo psicossocial em Word + dashboard do laudo importado (à parte do questionário HSE-IT). -->
-      <button type="button" data-aba="psicoLaudo" title="Laudo Psicossocial (importar)">
-        <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h7l3 3v11H5z"/><path d="M12 3v3h3"/><path d="M7 10h6M7 13h6"/></svg></span>
-        <span class="rotulo">Laudo Psicossocial</span>
-      </button>
       <button type="button" data-aba="ergo" title="Gestão de Riscos">
         <span class="icone"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17V10"/><path d="M9.5 17V6"/><path d="M16 17V13"/><path d="M2.5 17h15"/></svg></span>
         <span class="rotulo">Gestão de Riscos</span>
@@ -667,10 +662,6 @@
   <section id="aba-notificacoes" hidden>
     <div id="painel-notificacoes"></div>
   </section>
-  <!-- V 1.58 (Alexandre): Laudo Psicossocial importado (import + dashboard), montado por js/app.js (renderPsicoLaudo). -->
-  <section id="aba-psicoLaudo" hidden>
-    <div id="painel-psico-laudo"></div>
-  </section>
     </main>
 
     <footer class="rodape">
@@ -744,7 +735,6 @@
 <script src="js/aet.js"></script>
 <script src="js/aet-import.js"></script>
 <script src="js/aep-laudo-import.js"></script>
-<script src="js/psico-laudo-import.js"></script>
 <script src="js/importador.js"></script>
 <script src="js/coordenacao.js"></script>
 <script src="js/absenteismo-laudo.js"></script>
