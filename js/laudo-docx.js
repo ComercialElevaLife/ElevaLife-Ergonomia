@@ -241,13 +241,13 @@
         return low.charAt(0).toUpperCase() + low.slice(1);
       }).join("");
       const endDe = (cad) => tcase([cad.Logradouro, cad.Numero, cad.Complemento, cad.Bairro, [cad.Cidade, cad.Estado].filter(Boolean).join("/"), cad.CEP ? "CEP " + cad.CEP : ""].filter(Boolean).join(", "));
-      const abrang = opcoes.abrangenciaDescricao && opcoes.abrangenciaDescricao !== "Empresa toda" ? opcoes.abrangenciaDescricao : "";
       // V 1.63: dados cadastrais da UNIDADE. Por unidade → ficha da unidade; empresa toda → ficha curta + tabela resumida das unidades.
+      // V 1.66: o campo "Abrangência do laudo" saiu (a pedido do Alexandre).
       if (opcoes.unidade) {
         const cad = cadastralDe(opcoes.unidade);
         const ficha = [["Razão social", String(opcoes.nomeCliente || "").toUpperCase()], ["Unidade", tcase(opcoes.unidade)], ["CNPJ", cad.CNPJ], ["Inscrição estadual", cad["Inscricao Estadual"]], ["CNAE", cad.CNAE],
           ["Grau de risco (NR-04)", cad["Grau Risco NR4"]], ["Endereço", endDe(cad)], ["Telefone", cad.Telefone],
-          ["Abrangência do laudo", abrang], ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo]].filter((r) => r[1]);
+          ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo]].filter((r) => r[1]);
         B.push(tbl([30, 70], ficha.map((r) => [{ t: r[0], b: true, fundo: C.creme }, String(r[1])]), { tam: 9 }));
       } else {
         const ficha = [["Razão social", String(opcoes.nomeCliente || "").toUpperCase()], ["CNPJ(s)", cnpjLaudo], ["Unidades", String((unidadesCliente || []).length || unidadesAv.length)],
@@ -343,11 +343,15 @@
         unidadeCorrente = av.Unidade; abriuUnidade = true;
         const cad = cadastralDe(av.Unidade);
         const sub = [cad.CNPJ ? "CNPJ " + cad.CNPJ : "", [cad.Cidade, cad.Estado].filter(Boolean).join("/")].filter(Boolean).join(" · ");
-        B.push(par(run("Unidade: " + String(av.Unidade), { b: true, cor: "FFFFFF", tam: 12 }) + (sub ? run("  " + sub, { cor: "FFFFFF", tam: 8 }) : ""), { fundo: C.vinho, depois: 60, antes: 40, quebraAntes: i > 0 }));
+        // V 1.65: a unidade entra no sumário (Heading2); vira cabeçalho com faixa vinho no corpo.
+        toc.push([2, "Unidade: " + String(av.Unidade)]);
+        B.push(par(run("Unidade: " + String(av.Unidade), { b: true, cor: "FFFFFF", tam: 12 }) + (sub ? run("  " + sub, { cor: "FFFFFF", tam: 8 }) : ""), { estilo: "Heading2", fundo: C.vinho, depois: 60, antes: 40, quebraAntes: i > 0 }));
       }
       const titPosto = `9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]}${av.Cargo ? ` (${av.Cargo})` : ""}`;
-      toc.push([2, titPosto]);
-      B.push(par(run(titPosto), { estilo: "Heading2", quebraAntes: i > 0 && !abriuUnidade }));
+      // V 1.65: com divisão por unidade (laudo da empresa), os postos ficam no nível 3 do sumário.
+      const nivelPosto = opcoes.unidade ? 2 : 3;
+      toc.push([nivelPosto, titPosto]);
+      B.push(par(run(titPosto), { estilo: nivelPosto === 3 ? "Heading3" : "Heading2", quebraAntes: i > 0 && !abriuUnidade }));
       const campos = [["Avaliação", [av._nrTexto, av._atualizadaEm ? "última atualização em " + dataBR(av._atualizadaEm) : ""].filter(Boolean).join(" · ")], ["Unidade", av.Unidade], ["Setor", av.Setor], ["Cargo", av.Cargo], ["Posto de trabalho", av["Posto Trabalho"]], ["Risco do posto", riscoDoPosto(av) ? riscoDoPosto(av) + " (maior graduação dos fatores)" : ""], ["Jornada", av["Jornada de Trabalho"]], ["Pausas", av.Pausas], ["Rodízio", av.Rodizio], ["Histórico de acidentes e doenças", av["Historico Acidentes"]]].filter((c) => c[1]);
       {
         const linhas = [];
@@ -471,7 +475,10 @@
 
     const capa = capaXml({
       logoEleva, logoCliente, nomeCliente: opcoes.nomeCliente, lema: texto("Capa Lema"), titulo: linhasDe("Capa Titulo"), subtitulo: texto("Capa Subtitulo"),
-      infos: [["Empresa avaliada", opcoes.nomeCliente], ["Unidade", unidadesAv.join(" · ")], ["Setores avaliados", setoresAv.join(" · ")], ["Período da avaliação", periodo], ["Data de emissão", emissao], ["Responsável técnico", responsavel ? responsavel.Nome : "-"], ["Documento / revisão", `${codigo} · Rev. ${revisao}`]],
+      infos: [["Empresa avaliada", opcoes.nomeCliente], ["Unidade", unidadesAv.join(" · ")], ["Setores avaliados", setoresAv.join(" · ")], ["Período da avaliação", periodo], ["Data de emissão", emissao],
+        ["Responsável técnico", responsavel ? responsavel.Nome : "-"],
+        (executor && (!responsavel || executor.Nome !== responsavel.Nome)) ? ["Ergonomista responsável", executor.Nome] : null,
+        ["Documento / revisão", `${codigo} · Rev. ${revisao}`]].filter(Boolean),
       numeros: [[avaliacoes.length, "postos de trabalho avaliados"], [todosFatores.length, "fatores de risco identificados"], [todasAcoes.length, `ações no plano${concluidas ? ", " + concluidas + " já concluídas" : ""}`]],
     }, imgs);
     return pacote({
@@ -539,9 +546,10 @@
     const C = CORES(); const sumario = [];
     sumario.push(par(run("Sumário", { b: true, cor: C.vinho, tam: 15 }), { quebraAntes: true, depois: 160, bordaEsq: null }));
     toc.forEach(([nivel, t], k) => {
-      const ini = k === 0 ? '<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \\o "1-2" \\h \\z \\u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>' : "";
+      const ini = k === 0 ? '<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \\o "1-3" \\h \\z \\u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>' : "";
       const fim = k === toc.length - 1 ? '<w:r><w:fldChar w:fldCharType="end"/></w:r>' : "";
-      sumario.push(par(ini + run(t, { tam: nivel === 1 ? 10 : 9, b: nivel === 1, cor: C.texto }) + fim, { estilo: nivel === 1 ? "TOC1" : "TOC2" }));
+      const estilo = nivel === 1 ? "TOC1" : nivel === 2 ? "TOC2" : "TOC3";
+      sumario.push(par(ini + run(t, { tam: nivel === 1 ? 10 : 9, b: nivel <= 2, cor: C.texto }) + fim, { estilo }));
     });
     sumario.push(par(run("O sumário é um campo do Word: ao abrir, aceite a atualização dos campos (ou clique com o botão direito no sumário › Atualizar campo) para exibir os números de página.", { tam: 8, cor: C.cinza }), { antes: 200 }));
     return sumario.join("");
@@ -560,6 +568,7 @@
       + `<w:style w:type="paragraph" w:styleId="Heading3"><w:name w:val="heading 3"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="160" w:after="80"/><w:outlineLvl w:val="2"/></w:pPr><w:rPr><w:b/><w:bCs/><w:caps/><w:color w:val="${C.tealE}"/><w:sz w:val="17"/><w:szCs w:val="17"/></w:rPr></w:style>`
       + `<w:style w:type="paragraph" w:styleId="TOC1"><w:name w:val="toc 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="right" w:leader="dot" w:pos="${TW}"/></w:tabs><w:spacing w:before="80" w:after="40"/></w:pPr></w:style>`
       + `<w:style w:type="paragraph" w:styleId="TOC2"><w:name w:val="toc 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="right" w:leader="dot" w:pos="${TW}"/></w:tabs><w:spacing w:before="0" w:after="30"/><w:ind w:left="280"/></w:pPr></w:style>`
+      + `<w:style w:type="paragraph" w:styleId="TOC3"><w:name w:val="toc 3"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="right" w:leader="dot" w:pos="${TW}"/></w:tabs><w:spacing w:before="0" w:after="24"/><w:ind w:left="560"/></w:pPr></w:style>`
       + `<w:style w:type="paragraph" w:styleId="Header"><w:name w:val="header"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="right" w:pos="${TW}"/></w:tabs><w:spacing w:after="0"/></w:pPr></w:style>`
       + `<w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="right" w:pos="${TW}"/></w:tabs><w:spacing w:after="0"/></w:pPr></w:style></w:styles>`;
 

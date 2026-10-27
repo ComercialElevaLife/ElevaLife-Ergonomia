@@ -49,7 +49,9 @@
         const tam=b.s||9, lh=tam*(b.lh||1.55), ind=b.ind||0, larg=CW-ind;
         if(b.pb&&y>TOP) novaPag();
         y+=b.sb||0; const ls=linhas(b.runs,larg,tam); const altura=ls.length*lh;
-        if(b.keep) garantir(Math.min(altura+80,LIM-TOP)); else garantir(Math.min(lh*2,altura));
+        // V 1.66: keepNext = este parágrafo (ex.: rótulo "Memorial de cálculo") deve ficar junto do
+        // conteúdo seguinte (tabela/fotos); reserva o parágrafo + um pedaço do que vem depois.
+        if(b.keepNext) garantir(Math.min(altura+(b.keepNextH||150),LIM-TOP)); else if(b.keep) garantir(Math.min(altura+80,LIM-TOP)); else garantir(Math.min(lh*2,altura));
         if(b.mark){ garantir(lh); fonte(true,tam); corT(b.markCor||COR.wine); doc.text(b.mark,ML+ind-(b.markW||12),y+tam); }
         ls.forEach((lin,i)=>{ if(garantir(lh)&&b.mark&&i===0){} escreverLinha(lin,ML+ind,y+tam,larg,b.al||"j",i===ls.length-1,tam,b.c||COR.ink); y+=lh; });
         y+=b.sa!=null?b.sa:6;
@@ -57,7 +59,9 @@
       // V 1.30: titulos no padrao ElevaLife (1. Titulo com fio vinho; 1.1 Subtitulo; 1.1.1 em vinho escuro)
       function titulo(b){
         const PAD=window.BI&&BI.LaudoPadrao?BI.LaudoPadrao.PAL:null, vinhoM=PAD?"A34E56":COR.mid;
-        if(b.pb&&y>TOP) novaPag(); else if(b.l===0){ if(y>TOP) y+=14; garantir(70); } else if(b.l===1){ y+=9; garantir(48); } else { y+=8; garantir(40); }
+        // V 1.66: reserva mais espaço para o título não ficar órfão no fim da página (precisa caber
+        // o título + o começo do conteúdo que vem logo abaixo - tabela, parágrafo ou foto).
+        if(b.pb&&y>TOP) novaPag(); else if(b.l===0){ if(y>TOP) y+=14; garantir(130); } else if(b.l===1){ y+=9; garantir(130); } else { y+=8; garantir(150); }
         if(b.toc){ tocPos.push(pag); if(final){ try{ doc.outline.add(null,b.x,{pageNumber:pag}); }catch{} } }
         const tam=b.l===0?15:b.l===1?11.5:10.5; fonte(true,tam,b.l<2); corT(b.l===0?COR.wine:b.l===1?vinhoM:COR.deep);
         const ls=doc.splitTextToSize(b.x,CW); ls.forEach((t,i)=>{ doc.text(t,ML,y+tam); y+=tam*1.25; });

@@ -2,6 +2,22 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.66 — 27/10/2026
+
+- **Laudos AEP e AET — ajustes de conteúdo e formatação (Alexandre).**
+  - **Campo "Abrangência" removido** de todo o documento (capa e Informações cadastrais), no AEP e no AET.
+  - **Capa** passa a mostrar o **Responsável técnico E o Ergonomista responsável** (antes só o responsável técnico) — no AEP, no AET e no Word.
+  - **AET — formatação/quebras de página:** títulos (seção, atividade) não ficam mais órfãos no fim da página; o "Memorial de cálculo", "Registro fotográfico" e "Recomendações" viajam junto com o conteúdo seguinte; o título de atividade sem nome próprio não repete ("Atividade 01" em vez de "Atividade 01: Atividade 01"); e textos de preenchimento ("Aguardando", "ATUALIZAR INFORMAÇÕES") não são mais impressos nas descrições de setor/cargo/posto.
+  - **AET — conclusão como a da AEP:** traz os números do laudo (postos, atividades, fatores, ações), o quadro-resumo dos postos com os fatores determinantes e o risco, e a distribuição dos fatores por graduação.
+  - **AET — página de Referências** (normas, ISO e metodologias), como já havia na AEP.
+  Service worker subiu para `sige-v81`. *(Arquivos: `js/laudo.js`, `js/laudo-docx.js`, `js/laudo-aet.js`, `js/laudo-blocos.js`.)*
+
+## V 1.65 — 27/10/2026
+
+- **Sumário do laudo corrigido + divisão por unidade no sumário (Alexandre).** No laudo (PDF e Word):
+  - **Títulos longos não colidem mais com o número da página.** Antes, nomes grandes de posto passavam por cima do número; agora o título é encurtado com "…" e o número fica sempre alinhado à direita, com o pontilhado entre eles.
+  - **A divisão por unidade agora aparece no sumário.** No laudo da empresa toda, cada unidade entra como um item ("Unidade: …") e os postos daquela unidade ficam recuados logo abaixo (sumário em 3 níveis: seção › unidade › posto). No Word, o sumário é um campo nativo: ao abrir, aceite "Atualizar campo" para ver os números. Service worker subiu para `sige-v80`. *(Arquivos: `js/laudo.js`, `js/laudo-docx.js`.)*
+
 ## V 1.64 — 27/10/2026
 
 - **Aviso claro quando a sessão expira (Alexandre).** Ao tentar enviar foto na AET (ou outra ação) com a sessão vencida, o servidor responde `401` e antes aparecia o erro cru "Não foi possível enviar … : Não autenticado", sem dizer o que fazer. Agora: a mensagem de erro explica que a sessão expirou e, principalmente, aparece um **aviso fixo no topo** com o botão **"Entrar novamente"**. Os lançamentos pendentes continuam guardados no aparelho e são enviados assim que o usuário entra de novo. *(Causa do erro relatado: a sessão de login — cookie — não valia mais; o upload de foto não pode ir para a fila offline, então falhava de imediato enquanto as gravações de texto iam para a fila silenciosamente.)* Service worker subiu para `sige-v79`. *(Arquivos: `js/db.js`, `js/app.js`.)*

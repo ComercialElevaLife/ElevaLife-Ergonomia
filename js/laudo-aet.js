@@ -72,7 +72,7 @@
     const vars = op.vars;
     const blocos = []; const TOC = []; const tocN = [0, 0, 0];
     const H = (t, l, o) => { l = l || 0; tocN[l]++; for (let k = l + 1; k < 3; k++) tocN[k] = 0; const x = `${tocN.slice(0, l + 1).join(".")}${l === 0 ? "." : ""} ${t}`; if (l <= 1) TOC.push({ title: x, level: l + 1 }); blocos.push({ t: "h", l, x, toc: l <= 1, pb: !!(o && o.pb) }); };
-    const P = (txt, o) => { o = o || {}; blocos.push({ t: "p", runs: Array.isArray(txt) ? txt : runsDe(subst(txt, vars)), al: o.al || "j", s: o.s, sa: o.sa, sb: o.sb, keep: !!o.keep, ind: o.ind, mark: o.mark, markW: o.markW, lh: o.lh }); };
+    const P = (txt, o) => { o = o || {}; blocos.push({ t: "p", runs: Array.isArray(txt) ? txt : runsDe(subst(txt, vars)), al: o.al || "j", s: o.s, sa: o.sa, sb: o.sb, keep: !!o.keep, keepNext: !!o.keepNext, keepNextH: o.keepNextH, ind: o.ind, mark: o.mark, markW: o.markW, lh: o.lh }); };
     const paras = (campo) => String(subst(texto(campo), vars)).split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean).forEach((x) => P(x));
     const bullets = (campo) => String(subst(texto(campo), vars)).split("\n").map((x) => x.trim()).filter(Boolean).forEach((x) => P(x, { ind: 16, mark: "•", markW: 11, sa: 3 }));
     const cell = (t, o) => { o = o || {}; return { p: [{ runs: Array.isArray(t) ? t : runsDe(String(t == null ? "" : t), o.bold ? { b: true } : null), s: o.size || 8.5, al: o.align || "l", c: o.color }], f: o.fill, span: o.span, c: o.color }; };
@@ -81,6 +81,9 @@
     const kv = (pares, w) => table(pares.filter((p) => p[1] != null && String(p[1]).trim() !== "").map(([k, v]) => [cell(k, { fill: COR.tint, bold: true, color: COR.deep }), cell(v)]), w || [2700, 6654], { header: false, va: "t" });
     const pill = (n) => { const hx = n ? C.corRiscoHex(n) : null; return cell(n || "-", { fill: hx || undefined, bold: true, align: "c", color: hx ? C.textoSobreHex(hx) : COR.ink }); };
     const corNivel = (n) => C.corRiscoHex(n) || "EADDE0";
+    // V 1.66 (Alexandre): não imprimir no laudo textos de placeholder ("Aguardando",
+    // "ATUALIZAR INFORMAÇÕES", "A definir"...) que ficaram no cadastro da AET — some com a seção.
+    const limpoCampo = (v) => { const s = String(v == null ? "" : v).trim(); return /^(aguardando|atualizar informac|a[\s-]*definir|n[aã]o informad|pendente)/i.test(s) ? "" : s; };
 
     blocos.push({ t: "toc" }); blocos.push({ t: "pb" });
     // 1-4
@@ -97,9 +100,10 @@
     const endDe = (cad) => [cad.Logradouro, cad.Numero, cad.Complemento, cad.Bairro, cad.Cidade && cad.Estado ? `${cad.Cidade}/${cad.Estado}` : cad.Cidade, cad.CEP ? "CEP " + cad.CEP : ""].filter(Boolean).join(", ");
     if (unsAET.length === 1) {
       const cad = cadDe(unsAET[0]);
-      kv([["Nome do cliente", op.cliente], ["Unidade", unsAET[0]], ["Endereço", endDe(cad) || "-"], ["CNPJ", cad.CNPJ || "-"], ["CNAE", cad.CNAE || "-"], ["Grau de risco (NR-4)", cad["Grau Risco NR4"] || "-"], ["Abrangência", op.abrangenciaTxt]]);
+      // V 1.66: o campo "Abrangência" saiu (a pedido do Alexandre).
+      kv([["Nome do cliente", op.cliente], ["Unidade", unsAET[0]], ["Endereço", endDe(cad) || "-"], ["CNPJ", cad.CNPJ || "-"], ["CNAE", cad.CNAE || "-"], ["Grau de risco (NR-4)", cad["Grau Risco NR4"] || "-"]]);
     } else {
-      kv([["Nome do cliente", op.cliente], ["Unidades", String(unsAET.length)], ["Abrangência", op.abrangenciaTxt]]);
+      kv([["Nome do cliente", op.cliente], ["Unidades", String(unsAET.length)]]);
       const uns = (unsAET.length ? unsAET : unidadesDoc.map((u) => u.Unidade)).slice().sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
       if (uns.length && typeof table === "function" && typeof hdr === "function" && typeof cell === "function") {
         table([hdr(["Unidade", "CNPJ", "Cidade/UF", "CNAE", "Grau NR-4"])].concat(uns.map((nu) => { const cad = cadDe(nu); return [cell(nu), cell(cad.CNPJ || "-"), cell([cad.Cidade, cad.Estado].filter(Boolean).join("/") || "-"), cell(cad.CNAE || "-"), cell(cad["Grau Risco NR4"] || "-")]; })), [3000, 2200, 1800, 1500, 1354], { keep: true });
@@ -142,16 +146,16 @@
     for (const a of aets) {
       H(`${a.Setor || "-"} – ${a["Posto Trabalho"] || "-"} – ${a.Cargo || "-"}`, 0, { pb: true });
       kv([["AET", a["Nr AET"] ? "AET-" + String(a["Nr AET"]).padStart(3, "0") : "-"], ["Unidade", a.Unidade], ["Setor / GHE", a.Setor], ["Posto de trabalho", a["Posto Trabalho"]], ["Função / cargo", a.Cargo], ["Data da análise", dataBR(a["Data Analise"])], ["Ergonomista", a.Ergonomista], ["Risco do posto (maior graduação dos fatores)", op.riscoPosto(a) || "-"]]);
-      if (a["Descricao Setor"]) { H("Descrição do setor", 2); P(a["Descricao Setor"]); }
+      if (limpoCampo(a["Descricao Setor"])) { H("Descrição do setor", 2); P(limpoCampo(a["Descricao Setor"])); }
       const pop = [a["Populacao Total"] ? `População de ${a["Populacao Total"]} colaboradores` : "", a["Populacao Masculina"] != null && a["Populacao Masculina"] !== "" ? `${a["Populacao Masculina"]} do sexo masculino` : "", a["Populacao Feminina"] != null && a["Populacao Feminina"] !== "" ? `${a["Populacao Feminina"]} do sexo feminino` : ""].filter(Boolean);
       if (pop.length) { H("Descrição da população trabalhadora", 2); P(pop.join("; ") + "."); }
-      if (a["Descricao Cargo"]) { H("Descrição do cargo / atividades", 2); String(a["Descricao Cargo"]).split("\n").map((x) => x.replace(/^[-•\s]+/, "").trim()).filter(Boolean).forEach((x) => P(x, { ind: 16, mark: "•", markW: 11, sa: 3 })); }
+      if (limpoCampo(a["Descricao Cargo"])) { H("Descrição do cargo / atividades", 2); String(limpoCampo(a["Descricao Cargo"])).split("\n").map((x) => x.replace(/^[-•\s]+/, "").trim()).filter(Boolean).forEach((x) => P(x, { ind: 16, mark: "•", markW: 11, sa: 3 })); }
       const org = BI.AET.ORGANIZACAO.filter(([k]) => a[k]);
       if (org.length) { H("Análise da organização do trabalho", 2); table([hdr(["Item", "Descrição"])].concat(org.map(([k, r]) => [cell(r, { bold: true }), cell(a[k])])), [2700, 6654]); }
       const dm = BI.AET.DEMANDAS.filter(([k]) => a.Demandas && a.Demandas[k]);
       if (dm.length) { H("Demandas cognitivas e psicossociais", 2); table([hdr(["Item", "Descrição"])].concat(dm.map(([k, r]) => [cell(r, { bold: true }), cell(a.Demandas[k])])), [2700, 6654]); }
       H("Análise do posto de trabalho", 2);
-      if (a["Descricao Posto"]) P(a["Descricao Posto"]);
+      if (limpoCampo(a["Descricao Posto"])) P(limpoCampo(a["Descricao Posto"]));
       const fg = []; for (const f of a["Foto Geral"] || []) { const d = await imagem(f.chave); if (d) fg.push({ d, leg: `Figura ${++nFig} – ${f.legenda || "visão geral do posto de trabalho"}` }); }
       if (fg.length) blocos.push({ t: "fotos", itens: fg, alt: 170 });
       const amb = BI.AET.AMBIENTE.filter(([k]) => a[k]);
@@ -171,10 +175,14 @@
       H("Análise sistemática – fatores de riscos ergonômicos", 1);
       for (let ai = 0; ai < (a.Atividades || []).length; ai++) {
         const at = a.Atividades[ai];
-        H(`Atividade ${String(ai + 1).padStart(2, "0")}: ${at.nome}`, 2);
-        if (at.descricao) { P("**Descrição da atividade:**", { keep: true, sa: 2 }); String(at.descricao).split(/\n\s*\n/).forEach((x) => P(x)); }
-        const fts = []; for (const f of at.fotos || []) { const d = await imagem(f.chave); if (d) fts.push({ d, leg: `Figura ${++nFig} – ${f.legenda || at.nome}` }); }
-        if (fts.length) { P("**Registro fotográfico**", { keep: true, sa: 3 }); blocos.push({ t: "fotos", itens: fts, alt: 140 }); }
+        // V 1.66: evita "Atividade 01: Atividade 01" quando a atividade não recebeu um nome próprio.
+        const numAtiv = String(ai + 1).padStart(2, "0");
+        const nomeAtiv = limpoCampo(at.nome);
+        const tituloAtiv = (!nomeAtiv || new RegExp("^atividade\\s*0*" + (ai + 1) + "$", "i").test(nomeAtiv)) ? `Atividade ${numAtiv}` : `Atividade ${numAtiv}: ${nomeAtiv}`;
+        H(tituloAtiv, 2);
+        if (limpoCampo(at.descricao)) { P("**Descrição da atividade:**", { keepNext: true, keepNextH: 45, sa: 2 }); String(limpoCampo(at.descricao)).split(/\n\s*\n/).forEach((x) => P(x)); }
+        const fts = []; for (const f of at.fotos || []) { const d = await imagem(f.chave); if (d) fts.push({ d, leg: `Figura ${++nFig} – ${f.legenda || nomeAtiv || tituloAtiv}` }); }
+        if (fts.length) { P("**Registro fotográfico**", { keepNext: true, sa: 3 }); blocos.push({ t: "fotos", itens: fts, alt: 140 }); }
         const linhasF = (at.fatores || []).map((fa) => ({ fa, row: op.linhaFator(a, fa) }));
         if (linhasF.length) {
           table([hdr(["Fator de risco", "Consequência", "Segmento", "Metodologia de estudo", "Severidade", "Probabilidade", "Grau de risco"])].concat(linhasF.map(({ fa, row }) => {
@@ -190,14 +198,14 @@
         // recomendacoes
         const acoes = linhasF.flatMap(({ row }) => (row ? (BI.dados.planoAcao || []).filter((p) => p["Fator Risco Id"] === row._id) : []));
         if (acoes.length || at.recomendacoes) {
-          P("**Recomendações específicas**", { keep: true, sa: 3, sb: 4 });
+          P("**Recomendações específicas**", { keepNext: true, sa: 3, sb: 4 });
           if (acoes.length) table([hdr(["Ação", "Tipo", "Recomendação", "Efeito no risco"])].concat(acoes.map((ac) => [cell(ac["Nr Acao"] != null ? "A-" + String(ac["Nr Acao"]).padStart(2, "0") : "-", { bold: true }), cell(BI.Acoes ? BI.Acoes.rotuloTipo(ac["Tipo Acao"]) : ac["Tipo Acao"] || "-"), cell(ac["Acao Recomendada"] || "-"), cell(ac["Reduz Risco"] === "Sim" || ac["Risco Apos Acao"] ? (ac["Risco Apos Acao"] === "Eliminado" ? "Elimina o risco" : "Reduz para " + C.rotuloNivel(ac["Risco Apos Acao"])) : "Organizacional / de controle")])), [900, 1800, 4654, 2000], { va: "t" });
           if (at.recomendacoes) P(at.recomendacoes);
         }
         // memorial de calculo
         const usos = (at.fatores || []).flatMap((fa) => (fa.ferramentas || []).map((it) => ({ fa, it })));
         if (usos.length) {
-          P("**Memorial de cálculo**", { keep: true, sa: 3, sb: 4 });
+          P("**Memorial de cálculo**", { keepNext: true, keepNextH: 190, sa: 3, sb: 4 });
           usos.forEach(({ fa, it }) => {
             const def = BI.Ferramentas.porId(it.id); if (!def) return; const r = BI.Ferramentas.calcular(it.id, it.valores || {});
             const nv = r.ok && r.nivel != null ? r.nivel : (it.nivelManual !== "" && it.nivelManual != null ? Number(it.nivelManual) : null);
@@ -223,10 +231,39 @@
           });
         }
       }
-      if (a["Diagnostico Global"]) { H("Diagnóstico global", 1); P(a["Diagnostico Global"]); }
+      if (limpoCampo(a["Diagnostico Global"])) { H("Diagnóstico global", 1); P(limpoCampo(a["Diagnostico Global"])); }
     }
     // conclusao e encerramento
+    // V 1.66 (Alexandre): conclusão parecida com a da AEP - traz os números do laudo, o quadro-resumo
+    // dos postos (fatores determinantes e risco) e a distribuição dos fatores por graduação.
     H("Conclusão", 0, { pb: true }); paras("AET Conclusao");
+    {
+      const niveisMz = C.niveisDaMatriz(mz).slice().sort((x, y) => C.ordemNivel(x) - C.ordemNivel(y));
+      const postosR = aets.map((a) => {
+        const fatRows = (a.Atividades || []).flatMap((at) => (at.fatores || []).map((fa) => op.linhaFator(a, fa))).filter(Boolean).filter((r) => r["Existe Fator Risco"] !== "Nao" && r["Risco Eliminado"] !== "Sim");
+        const r = op.riscoPosto(a);
+        const determinantes = Array.from(new Set(fatRows.filter((f) => r && C.nivelCanonico(f["Graduacao Risco"]) === C.nivelCanonico(r)).map((f) => f.Fator).filter(Boolean)));
+        return { a, risco: r, determinantes, fatRows };
+      });
+      const vigentes = postosR.flatMap((p) => p.fatRows);
+      const idsFat = new Set(vigentes.map((f) => f._id));
+      const totalAcoes = (BI.dados.planoAcao || []).filter((p) => idsFat.has(p["Fator Risco Id"])).length;
+      const nAtivTot = aets.reduce((s, a) => s + (a.Atividades || []).length, 0);
+      const lista = (arr) => arr.length > 1 ? arr.slice(0, -1).join(", ") + " e " + arr[arr.length - 1] : (arr[0] || "");
+      const dist = niveisMz.map((n) => [n, postosR.filter((p) => p.risco && C.nivelCanonico(p.risco) === C.nivelCanonico(n)).length]).filter(([, q]) => q).map(([n, q]) => `${q} com risco ${String(n).toLowerCase()}`);
+      const semRisco = postosR.filter((p) => !p.risco).length;
+      if (postosR.length) {
+        P(`Foram analisados ${postosR.length} posto(s) de trabalho e ${nAtivTot} atividade(s), com ${vigentes.length} fator(es) de risco ergonômico vigente(s) e ${totalAcoes} ação(ões) no plano${dist.length ? ": " + lista(dist) : ""}${semRisco ? `; ${semRisco} posto(s) sem fator de risco identificado` : ""}. O risco de cada posto é a maior graduação entre os seus fatores. O quadro a seguir resume cada posto e os fatores que determinaram a graduação:`);
+        table([hdr(["Unidade", "Setor", "Posto (cargo)", "Fatores determinantes", "Risco do posto"])].concat(postosR.map((p) => [cell(p.a.Unidade || "-", { size: 7.6 }), cell(p.a.Setor || "-", { size: 7.6 }), cell(`${p.a["Posto Trabalho"] || "-"}${p.a.Cargo ? ` (${p.a.Cargo})` : ""}`, { size: 7.6 }), cell(p.determinantes.join("; ") || "Sem fator de risco identificado", { size: 7.6 }), pill(p.risco || "")])), [1500, 1400, 2100, 3100, 1254], { va: "t" });
+        if (vigentes.length) {
+          P("Distribuição dos fatores de risco vigentes por graduação (todos os postos deste documento):", { keepNext: true });
+          // V 1.66: conta pela graduação exata da matriz (evita somar o mesmo fator em dois níveis vizinhos).
+          const contaN = (n) => vigentes.filter((f) => String(f["Graduacao Risco"] || "").trim() === n).length;
+          const w = Math.floor(9354 / niveisMz.length);
+          table([niveisMz.map((n) => pill(n))].concat([niveisMz.map((n) => cell(String(contaN(n)), { align: "c", bold: true }))]), niveisMz.map(() => w), { header: false });
+        }
+      }
+    }
     H("Encerramento e validação do documento", 0); paras("AET Encerramento");
     blocos.push({ t: "fech", assinantes: op.assinantes, cliente: op.cliente, tituloCliente: `Cliente – ${op.cliente}`, codigo: op.codigo, tituloValidacao: "Validação do documento", textoValidacao: BI.LaudoPadrao.TEXTO_VALIDACAO.replace("{nomes}", op.assinantes.map((a) => a.nome).join(" e ") || "o responsável técnico").replace("{emissao}", dataBR(op.emissao)).replace("{codigo}", op.codigo).replace("{revisao}", op.revisao) });
     // certificados
@@ -245,6 +282,9 @@
       H("Métodos aplicados (ferramentas ergonômicas) – descritivo", 0, { pb: true });
       ferrUsadas.forEach((f) => { H(f.nome, 1); P(f.descricao); P([{ x: "Referência: ", b: true }, { x: f.ref }], { s: 8 }); P([{ x: "Graduação no laudo: ", b: true }, { x: f.exposicao ? "a métrica considera o tempo de exposição; o resultado define o risco do fator na matriz do cliente." : "a métrica não considera o tempo de exposição; o resultado define a severidade, cruzada com a probabilidade (exposição) na matriz do cliente." }], { s: 8 }); });
     }
+    // V 1.66 (Alexandre): página de Referências (normas, ISO e metodologias), como na AEP.
+    H("Referências", 0, { pb: true });
+    String(texto("Referencias")).split("\n").map((r) => r.trim()).filter(Boolean).forEach((r, i) => P([{ x: `${i + 1}. `, b: true }].concat(runsDe(subst(r, vars))), { s: 8, sa: 2 }));
     return { blocos, TOC };
   }
 
@@ -398,7 +438,11 @@
     const nFat = o.aets.reduce((s, a) => s + (a.Atividades || []).reduce((t, at) => t + (at.fatores || []).length, 0), 0);
     const nAc = (BI.dados.planoAcao || []).filter((p) => o.aets.some((a) => fatores.some((f) => f["AET Id"] === (a._id || a.id) && f._id === p["Fator Risco Id"]))).length;
     const capa = { logoEleva: logoBranco, lema: "15 anos elevando pessoas e resultados", logoCliente: logoCli, nomeCliente: cliente, titulo: ["Análise Ergonômica", "do Trabalho"], subtitulo: "AET conforme NR-17, com ferramentas ergonômicas e matriz de risco do cliente",
-      infos: [["Empresa avaliada", cliente, true], ["Unidades", unidades.join(" · ") || "-"], ["Abrangência", abrTxt], ["Data de emissão", dataBR(emissao)], ["Responsável técnico", rt ? rt.Nome : ex ? ex.Nome : "-"], ["Documento / revisão", `${codigo} · Rev. ${revisao}`]],
+      // V 1.66 (Alexandre): sem "Abrangência"; a capa mostra o Responsável técnico E o Ergonomista responsável (executor).
+      infos: [["Empresa avaliada", cliente, true], ["Unidades", unidades.join(" · ") || "-"], ["Data de emissão", dataBR(emissao)],
+        ["Responsável técnico", rt ? rt.Nome : (ex ? ex.Nome : "-")],
+        (ex && (!rt || ex.Nome !== rt.Nome)) ? ["Ergonomista responsável", ex.Nome] : null,
+        ["Documento / revisão", `${codigo} · Rev. ${revisao}`]].filter(Boolean),
       numeros: [[o.aets.length, "postos analisados"], [nAt, "atividades"], [nFat, "fatores de risco"], [nAc, "ações no plano"]] };
     const cabecalho = "ElevaLife · Análise Ergonômica do Trabalho (AET)"; const rodape = `${cliente}${unidades.length ? " – " + unidades.join(" · ") : ""}`;
     const blob = BI.LaudoBlocos.renderPDF(blocos, { toc: TOC, logo: logoCor, rodape, cabecalho, codigo, revisao, capa });

@@ -599,12 +599,15 @@
       LP.capa(doc, {
         logoEleva, lema: texto("Capa Lema"), logoCliente, nomeCliente: opcoes.nomeCliente,
         titulo: linhasDe("Capa Titulo"), subtitulo: texto("Capa Subtitulo"),
+        // V 1.66 (Alexandre): a capa mostra o Responsável técnico E o Ergonomista responsável (executor).
         infos: [
           ["Empresa avaliada", opcoes.nomeCliente, true],
           ["Unidade", unidadesAv.join(" · ")], ["Setores avaliados", setoresAv.join(" · ")],
           ["Período da avaliação", periodo], ["Data de emissão", emissao],
-          ["Responsável técnico", responsavel ? responsavel.Nome : "-"], ["Documento / revisão", `${codigo} · Rev. ${revisao}`],
-        ],
+          ["Responsável técnico", responsavel ? responsavel.Nome : "-"],
+          (executor && (!responsavel || executor.Nome !== responsavel.Nome)) ? ["Ergonomista responsável", executor.Nome] : null,
+          ["Documento / revisão", `${codigo} · Rev. ${revisao}`],
+        ].filter(Boolean),
         numeros: [[avaliacoes.length, "postos de trabalho avaliados"], [todosFatores.length, "fatores de risco identificados"], [todasAcoes.length, `ações no plano${concluidas ? ", " + concluidas + " já concluídas" : ""}`]],
       });
 
@@ -615,7 +618,9 @@
       doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(15); cor(PAL.vinho); doc.text("Sumário", M, y);
       y += 7; traco(PAL.vinho, 1.2); doc.line(M, y, M + L, y); traco(PAL.vinho, 0.5); y += 22;
       const ySumario = y; // desenhado ao final, quando se conhece a estrutura (mapa da passada 1)
-      const hSum = 12 * 19 + 11 * 15.5 + avaliacoes.length * 15.5 + 40;
+      // V 1.65: a reserva de páginas do sumário considera as linhas de unidade (nível 2) e os postos (nível 3).
+      const nUnidSum = opcoes.unidade ? 0 : (unidadesAv ? unidadesAv.length : 0);
+      const hSum = 12 * 19 + (10 + nUnidSum) * 16.5 + avaliacoes.length * 15 + 44;
       const dispo1 = H - BASE - ySumario;
       const paginasSum = hSum > dispo1 ? 1 + Math.ceil((hSum - dispo1) / (H - BASE - TOPO)) : 1;
       for (let k = 1; k < paginasSum; k++) novaPagina();
@@ -679,16 +684,16 @@
           return low.charAt(0).toUpperCase() + low.slice(1);
         }).join("");
         const endDe = (cad) => tcase([cad.Logradouro, cad.Numero, cad.Complemento, cad.Bairro, [cad.Cidade, cad.Estado].filter(Boolean).join("/"), cad.CEP ? "CEP " + cad.CEP : ""].filter(Boolean).join(", "));
-        const abrang = opcoes.abrangenciaDescricao && opcoes.abrangenciaDescricao !== "Empresa toda" ? opcoes.abrangenciaDescricao : "";
         // V 1.63 (Alexandre): os dados cadastrais saem da UNIDADE. Laudo por unidade → ficha daquela
         // unidade. Laudo da empresa toda → ficha curta + tabela resumida de todas as unidades.
+        // V 1.66: o campo "Abrangência do laudo" saiu (a pedido do Alexandre).
         if (opcoes.unidade) {
           const cad = cadastralDe(opcoes.unidade);
           const ficha = [
             ["Razão social", String(opcoes.nomeCliente || "").toUpperCase()], ["Unidade", tcase(opcoes.unidade)],
             ["CNPJ", cad.CNPJ], ["Inscrição estadual", cad["Inscricao Estadual"]], ["CNAE", cad.CNAE], ["Grau de risco (NR-04)", cad["Grau Risco NR4"]],
             ["Endereço", endDe(cad)], ["Telefone", cad.Telefone],
-            ["Abrangência do laudo", abrang], ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo],
+            ["Postos avaliados", `${avaliacoes.length} posto(s) de trabalho`], ["Período da avaliação", periodo],
           ].filter((r) => r[1]);
           tabela(null, ficha.map((r) => [{ t: r[0], negrito: true, fundo: PAL.creme }, String(r[1])]), [30, 70], { tam: 8.4 });
         } else {
@@ -786,7 +791,7 @@
       h1("s9", "9. Avaliações ergonômicas preliminares", true);
       paragrafos("Avaliacoes Intro");
       let nFigura = 0;
-      let unidadeCorrente = null;
+      let unidadeCorrente = null; let unidadeIdx = 0;
       avaliacoes.forEach((av, i) => {
         const chavePosto = "s9p" + i;
         const fatores = fatoresDoPosto(av);
@@ -794,7 +799,9 @@
         // V 1.63 (Alexandre): no laudo da empresa toda, um cabeçalho de unidade abre o bloco de cada
         // unidade no corpo (quando a unidade muda). No laudo por unidade isto não aparece (já está na ficha).
         if (!opcoes.unidade && av.Unidade && av.Unidade !== unidadeCorrente) {
-          unidadeCorrente = av.Unidade;
+          unidadeCorrente = av.Unidade; unidadeIdx++;
+          // V 1.65 (Alexandre): a divisão de unidade também entra no sumário (nível 2; os postos ficam no nível 3).
+          registrar("s9u" + unidadeIdx, "Unidade: " + String(av.Unidade), 2);
           const cad = cadastralDe(av.Unidade);
           const sub = [cad.CNPJ ? "CNPJ " + cad.CNPJ : "", [cad.Cidade, cad.Estado].filter(Boolean).join("/")].filter(Boolean).join(" · ");
           garantir(40);
@@ -804,7 +811,7 @@
           if (sub) { doc.setFont("Montserrat", "normal"); doc.setFontSize(8); doc.text(sub, M + 10, y + 27); }
           y += (sub ? 44 : 36);
         }
-        registrar(chavePosto, `9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]} (${av.Cargo})`, 2);
+        registrar(chavePosto, `9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]} (${av.Cargo})`, opcoes.unidade ? 2 : 3);
         preencher(PAL.vinhoE); doc.roundedRect(M, y, L, 26, 4, 4, "F");
         doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
         doc.text(doc.splitTextToSize(`9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]} (${av.Cargo})`, L - 20)[0], M + 10, y + 17); y += 36;
@@ -997,18 +1004,32 @@
         const salvoY = y; const salvoP = pagina;
         let kSum = 0; doc.setPage(paginaSumario); let ys = ySumario;
         const itens = toc.filter((t) => t.nivel >= 1 && t.chave !== "sumario");
+        // V 1.65 (Alexandre): sumário em 3 níveis (seção / unidade / posto). Título longo é
+        // encurtado com "…" para nunca colidir com o número da página (antes o texto passava por cima).
+        const estiloNivel = (n) => n >= 3 ? { peso: "normal", tam: 8.2, ind: 28 } : n === 2 ? { peso: "bold", tam: 8.8, ind: 14 } : { peso: "bold", tam: 9.4, ind: 0 };
+        const encurtar = (txt, larguraMax) => {
+          if (doc.getTextWidth(txt) <= larguraMax) return txt;
+          let s = String(txt);
+          while (s.length > 1 && doc.getTextWidth(s + "…") > larguraMax) s = s.slice(0, -1);
+          return s.replace(/[\s–-]+$/, "") + "…";
+        };
         itens.forEach((t) => {
           const pg = mapa.pags[t.chave];
-          const sub = t.nivel === 2;
+          const e = estiloNivel(t.nivel);
           if (ys > H - BASE - 6) { kSum++; doc.setPage(paginaSumario + kSum); ys = TOPO; }
-          fonte(sub ? "normal" : "bold", sub ? 8.4 : 9.4); cor(PAL.texto);
-          const x0 = M + (sub ? 14 : 0); const num = String(pg || "-");
-          doc.text(t.titulo, x0, ys);
-          const wt = doc.getTextWidth(t.titulo); const wn = doc.getTextWidth(num);
-          const pontos = Math.max(0, Math.floor((L - (x0 - M) - wt - wn - 10) / doc.getTextWidth(".")));
-          cor(PAL.suave2); doc.text(".".repeat(pontos), x0 + wt + 4, ys); cor(PAL.texto); doc.text(num, M + L - wn, ys);
+          fonte(e.peso, e.tam); cor(PAL.texto);
+          const x0 = M + e.ind; const num = String(pg || "-");
+          const wn = doc.getTextWidth(num);
+          // reserva espaço para número + um respiro de pontilhado (>= 18pt)
+          const larguraTitulo = L - e.ind - wn - 22;
+          const titulo = encurtar(t.titulo, larguraTitulo);
+          doc.text(titulo, x0, ys);
+          const wt = doc.getTextWidth(titulo);
+          const pontos = Math.max(0, Math.floor((L - e.ind - wt - wn - 12) / doc.getTextWidth(".")));
+          if (pontos > 0) { cor(PAL.suave2); doc.text(".".repeat(pontos), x0 + wt + 4, ys); cor(PAL.texto); }
+          doc.text(num, M + L - wn, ys);
           if (final && pg) doc.link(M, ys - 11, L, 15, { pageNumber: pg });
-          ys += sub ? 15.5 : 19;
+          ys += t.nivel >= 3 ? 15 : (t.nivel === 2 ? 16.5 : 19);
         });
         fonte("normal", 7.5); cor(PAL.cinza);
         doc.text(doc.splitTextToSize("Clique em um item do sumário para ir direto à página correspondente. Os marcadores do arquivo PDF (painel lateral do leitor) seguem a mesma estrutura.", L), M, ys + 10);
