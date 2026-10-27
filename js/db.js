@@ -363,6 +363,16 @@
   // (e a evidencia pode ser uma foto tirada no campo, sem sinal).
   const OFFLINE_COLECOES = ["avaliacaoErgonomica", "fatorRisco", "planoAcao"];
   const MSG_PRECISA_INTERNET = "Sem conexão com a internet. Esta ação só funciona online — a Avaliação Ergonômica (AEP) e o Inventário de Riscos (com suas ações) podem ser preenchidos sem internet.";
+  // V 1.64 (Alexandre): sessão expirada. O servidor responde 401 ("Não autenticado") quando o login
+  // (cookie de sessão) não vale mais. Antes isto só aparecia como erro cru (ex.: ao enviar foto) e as
+  // gravações iam para a fila offline sem o usuário saber que precisava entrar de novo.
+  const MSG_SESSAO_EXPIRADA = "Sua sessão expirou. Saia e entre novamente (e-mail e senha) para continuar — seus lançamentos pendentes serão enviados quando você entrar.";
+  let _onSessaoExpirada = null;
+  function marcarSessaoExpirada() {
+    const novo = !estado.sessaoExpirada;
+    estado.sessaoExpirada = true;
+    if (novo && typeof _onSessaoExpirada === "function") { try { _onSessaoExpirada(); } catch (e) { /* */ } }
+  }
 
   let filaCache = []; // espelho em memoria da fila (a verdade fica no IndexedDB)
   const ouvintesFila = [];
@@ -667,7 +677,7 @@
           filaCache = filaCache.filter((e) => e.seq !== entrada.seq);
           return "ok";
         }
-        if (respDel.status === 401) { estado.sessaoExpirada = true; return "parar"; }
+        if (respDel.status === 401) { marcarSessaoExpirada(); return "parar"; }
         if (respDel.status >= 500) { entrada.tentativas = (entrada.tentativas || 0) + 1; await salvarEntrada(); return "parar"; }
         entrada.estado = "erro";
         entrada.mensagem = await corpoDeErro(respDel);
@@ -697,7 +707,7 @@
       const rota = "/api/" + encodeURIComponent(entrada.colecao) + "/" + encodeURIComponent(entrada.id);
       if (!entrada.criar && !entrada.forcar && entrada.baseTs) {
         const rg = await fetch(rota, { credentials: "same-origin", headers: { Accept: "application/json" } });
-        if (rg.status === 401) { estado.sessaoExpirada = true; return "parar"; }
+        if (rg.status === 401) { marcarSessaoExpirada(); return "parar"; }
         if (rg.status === 404) {
           entrada.estado = "conflito";
           entrada.mensagem = "este registro foi excluído no servidor enquanto você estava sem internet.";
@@ -732,7 +742,7 @@
         filaCache = filaCache.filter((e) => e.seq !== entrada.seq);
         return "ok";
       }
-      if (resp.status === 401) { estado.sessaoExpirada = true; return "parar"; }
+      if (resp.status === 401) { marcarSessaoExpirada(); return "parar"; }
       if (resp.status >= 500) {
         entrada.tentativas = (entrada.tentativas || 0) + 1;
         await salvarEntrada();
@@ -760,7 +770,7 @@
     avisarFila();
     try {
       const det = await detectarApi();
-      if (det.existe && det.precisaLogin) { estado.sessaoExpirada = true; return; }
+      if (det.existe && det.precisaLogin) { marcarSessaoExpirada(); return; }
       if (!det.existe || !det.identidade || !det.identidade.acessoLiberado) return; // ainda sem conexao
       estado.sessaoExpirada = false;
       guardarIdentidadeLocal(det.identidade);
@@ -952,7 +962,7 @@
         throw new Error(MSG_PRECISA_INTERNET);
       }
       if (resp.status === 401 && capaz) {
-        estado.sessaoExpirada = true;
+        marcarSessaoExpirada();
         return enfileirar(colecaoChave, id, dados, forcarCriacao);
       }
       if (!resp.ok) throw new Error(await corpoDeErro(resp));
@@ -1024,7 +1034,7 @@
           ConteudoBase64: conteudoBase64,
         }),
       });
-      if (resp.status === 401) { estado.sessaoExpirada = true; }
+      if (resp.status === 401) { marcarSessaoExpirada(); throw new Error(MSG_SESSAO_EXPIRADA); }
       if (!resp.ok) throw new Error(await corpoDeErro(resp));
       return resp.json(); // { chave, nomeArquivo, tamanho }
     }
@@ -1049,7 +1059,7 @@
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo),
       });
-      if (resp.status === 401) { estado.sessaoExpirada = true; }
+      if (resp.status === 401) { marcarSessaoExpirada(); throw new Error(MSG_SESSAO_EXPIRADA); }
       if (!resp.ok) throw new Error(await corpoDeErro(resp));
       const r = await resp.json();
       if (!chave) chave = r && r.chave;
@@ -1064,7 +1074,7 @@
         TipoConteudo: tipoConteudo, Chave: chave, Commit: true, Blocos: blocos, TamanhoTotal: total,
       }),
     });
-    if (respFim.status === 401) { estado.sessaoExpirada = true; }
+    if (respFim.status === 401) { marcarSessaoExpirada(); throw new Error(MSG_SESSAO_EXPIRADA); }
     if (!respFim.ok) throw new Error(await corpoDeErro(respFim));
     return respFim.json(); // { chave, nomeArquivo, tamanho }
   }
@@ -1131,7 +1141,7 @@
         if (podeFila) { await enfileirarExclusao(colecaoChave, id); return; }
         throw new Error(MSG_PRECISA_INTERNET);
       }
-      if (resp.status === 401 && podeFila) { estado.sessaoExpirada = true; await enfileirarExclusao(colecaoChave, id); return; }
+      if (resp.status === 401 && podeFila) { marcarSessaoExpirada(); await enfileirarExclusao(colecaoChave, id); return; }
       if (!resp.ok && resp.status !== 204) throw new Error(await corpoDeErro(resp));
       if (colecaoChave === "cliente") {
         // V 1.54 (Alexandre): excluir empresa vai para a LIXEIRA (soft delete, rápido
@@ -1267,6 +1277,8 @@
     concluirRedefinicaoSenha,
     pedirRecuperacaoSenha,
     sairDaConta,
+    // V 1.64: app.js registra aqui o aviso de sessão expirada (re-login).
+    aoSessaoExpirada: (fn) => { _onSessaoExpirada = fn; },
     criarUsuario,
     reenviarConvite,
     // V 1.27: recarrega colecoes da API (ex.: o modulo Riscos Psicossociais

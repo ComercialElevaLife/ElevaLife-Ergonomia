@@ -8604,6 +8604,23 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     el.appendChild(texto);
   }
 
+  // V 1.64 (Alexandre): aviso de sessão expirada - banner fixo no topo com botão de entrar de novo.
+  // Disparado por js/db.js (BI.DB.aoSessaoExpirada) quando o servidor responde 401.
+  function mostrarAvisoSessaoExpirada() {
+    if (document.getElementById("aviso-sessao")) return;
+    const el = document.createElement("div");
+    el.id = "aviso-sessao";
+    el.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:9999;background:#8B3A42;color:#fff;padding:12px 18px;display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.25);font-size:14px";
+    const txt = document.createElement("span");
+    txt.textContent = "Sua sessão expirou. Entre novamente (e-mail e senha) para continuar — seus lançamentos pendentes serão enviados após o login.";
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.textContent = "Entrar novamente";
+    btn.style.cssText = "background:#fff;color:#8B3A42;border:none;border-radius:999px;padding:7px 16px;font:inherit;font-weight:700;cursor:pointer";
+    btn.addEventListener("click", () => { try { window.BI.DB.sairDaConta(); } catch (e) { window.location.href = window.location.pathname; } });
+    el.appendChild(txt); el.appendChild(btn);
+    document.body.appendChild(el);
+  }
+
   // ------------------------------------------------------------------
   // Orquestracao
   // ------------------------------------------------------------------
@@ -9701,6 +9718,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       configurarAbsenteismo();
       renderizarTudo();
 
+      // V 1.64 (Alexandre): quando a sessão expira (servidor responde 401 "Não autenticado",
+      // ex.: ao enviar foto na AET), mostra um aviso claro no topo com o botão de entrar de novo,
+      // em vez do erro cru. Os lançamentos pendentes ficam guardados e sobem após o novo login.
+      try { window.BI.DB.aoSessaoExpirada(mostrarAvisoSessaoExpirada); } catch (e) { /* */ }
       const disponivel = await window.BI.DB.iniciar(aoAtualizarColecaoDB);
       atualizarBotoesSomenteLeitura();
       if (!disponivel) {

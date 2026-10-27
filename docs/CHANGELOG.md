@@ -2,6 +2,10 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.64 — 27/10/2026
+
+- **Aviso claro quando a sessão expira (Alexandre).** Ao tentar enviar foto na AET (ou outra ação) com a sessão vencida, o servidor responde `401` e antes aparecia o erro cru "Não foi possível enviar … : Não autenticado", sem dizer o que fazer. Agora: a mensagem de erro explica que a sessão expirou e, principalmente, aparece um **aviso fixo no topo** com o botão **"Entrar novamente"**. Os lançamentos pendentes continuam guardados no aparelho e são enviados assim que o usuário entra de novo. *(Causa do erro relatado: a sessão de login — cookie — não valia mais; o upload de foto não pode ir para a fila offline, então falhava de imediato enquanto as gravações de texto iam para a fila silenciosamente.)* Service worker subiu para `sige-v79`. *(Arquivos: `js/db.js`, `js/app.js`.)*
+
 ## V 1.63 — 27/10/2026
 
 - **Cadastro de Cliente simplificado + dados cadastrais na Unidade (Alexandre).** O cadastro do **Cliente** passou a ter só o essencial: **Nome, Matriz de Risco, Serviços contratados e Logotipo**. Todos os dados cadastrais (CNPJ, Inscrição Estadual, CNAE, Grau de Risco NR-4, telefone e endereço completo) foram para o cadastro de **Unidade** — cada unidade tem o seu CNPJ e endereço. A consulta automática de CNPJ (BrasilAPI, que preenche CNAE/endereço) também passou para a tela de Unidade. *Migração automática:* para empresas com **uma única unidade**, os dados cadastrais antigos do cliente são copiados para a unidade (empresas com várias unidades ficam manuais); e o laudo usa o dado antigo do cliente como reserva, então nada se perde. *(Arquivos: `js/app.js`.)*
