@@ -2,6 +2,13 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.67 — 27/10/2026
+
+- **Laudo AET — "Memorial de cálculo" não se separa mais da tabela (Alexandre).**
+  - O rótulo **"Memorial de cálculo"** ficava em uma página e a tabela da ferramenta (ex.: Equação de NIOSH com todos os dados preenchidos) pulava inteira para a página seguinte, deixando um grande vão em branco.
+  - Agora, quando a tabela da ferramenta é alta (NIOSH preenchida, etc.), ela **flui na página** em vez de pular inteira; a primeira linha (título da ferramenta) **se repete no topo** quando a tabela quebra para a próxima página. As tabelas curtas continuam viajando juntas, sem quebra.
+  Service worker subiu para `sige-v82`. *(Arquivo: `js/laudo-aet.js`.)*
+
 ## V 1.66 — 27/10/2026
 
 - **Laudos AEP e AET — ajustes de conteúdo e formatação (Alexandre).**

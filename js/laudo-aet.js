@@ -205,7 +205,7 @@
         // memorial de calculo
         const usos = (at.fatores || []).flatMap((fa) => (fa.ferramentas || []).map((it) => ({ fa, it })));
         if (usos.length) {
-          P("**Memorial de cálculo**", { keepNext: true, keepNextH: 190, sa: 3, sb: 4 });
+          P("**Memorial de cálculo**", { keepNext: true, keepNextH: 70, sa: 3, sb: 4 });
           usos.forEach(({ fa, it }) => {
             const def = BI.Ferramentas.porId(it.id); if (!def) return; const r = BI.Ferramentas.calcular(it.id, it.valores || {});
             const nv = r.ok && r.nivel != null ? r.nivel : (it.nivelManual !== "" && it.nivelManual != null ? Number(it.nivelManual) : null);
@@ -227,7 +227,10 @@
               ? `${r.pontuacao} – ${r.classe}${nv != null ? " (nível " + BI.Ferramentas.NIVEIS[nv].toLowerCase() + ")" : ""} · ${BI.AET.comExposicao(it) ? "considera o tempo de exposição: define o risco" : "cruzado com a probabilidade (exposição)"}`
               : (nv != null ? `Nível ${BI.Ferramentas.NIVEIS[nv].toLowerCase()} atribuído pelo ergonomista` : "Ferramenta não concluída — faltam dados para calcular a pontuação.");
             linhas.push([cell("Resultado", { bold: true, size: 7.8 }), cell(resultadoFerr, { size: 7.8 })]);
-            table(linhas, [4300, 5054], { header: false, va: "t", keep: linhas.length <= 24 });
+            // V 1.67: tabela de memorial só "fica junta" quando é curta; a alta (ex.: NIOSH com todos os
+            // dados) flui na página em vez de pular inteira para a próxima e deixar um vão em branco.
+            // header:true faz a 1ª linha (título "Equação de NIOSH…") se repetir no topo quando a tabela quebra.
+            table(linhas, [4300, 5054], { header: true, va: "t", keep: linhas.length <= 8 });
           });
         }
       }
