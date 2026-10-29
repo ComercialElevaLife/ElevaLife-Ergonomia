@@ -665,6 +665,27 @@
     return base.concat([{ nivel: SEM_RISCO, qtd: semRisco, pct: total ? (semRisco / total) * 100 : 0, semRisco: true }]);
   }
 
+  // V 1.75 (Alexandre): "Riscos ergonômicos globais" - conta cada ANÁLISE (AEP/AET), não o posto
+  // distinto, e dá a cada análise o maior risco do seu posto (ou "Sem risco" se não houver fator).
+  // Assim o total do gráfico bate com a quantidade de análises existentes (ex.: 317).
+  function mapaRiscoDasAnalises(analises, fatores) {
+    const riscoPorChave = {};
+    (fatores || []).forEach((f) => {
+      if (!riscoAtivo(f)) return;
+      const k = chavePostoCargo(f); const n = f["Graduacao Risco"];
+      if (!(k in riscoPorChave) || NIVEIS_RISCO.indexOf(nivelCanonico(n)) > NIVEIS_RISCO.indexOf(nivelCanonico(riscoPorChave[k]))) riscoPorChave[k] = n;
+    });
+    const porNivel = {}; NIVEIS_RISCO.forEach((n) => (porNivel[n] = 0)); let semRisco = 0;
+    (analises || []).forEach((a) => {
+      const n = riscoPorChave[chavePostoCargo(a)];
+      const canon = n ? nivelCanonico(n) : null;
+      if (canon && canon in porNivel) porNivel[canon] += 1; else semRisco += 1;
+    });
+    const total = (analises || []).length;
+    const base = NIVEIS_RISCO.map((n) => ({ nivel: n, qtd: porNivel[n], pct: total ? (porNivel[n] / total) * 100 : 0 }));
+    return base.concat([{ nivel: SEM_RISCO, qtd: semRisco, pct: total ? (semRisco / total) * 100 : 0, semRisco: true }]);
+  }
+
   function topSetores(mapaRiscoF, n) {
     const porSetor = {};
     mapaRiscoF.forEach((l) => {
@@ -1203,6 +1224,7 @@
     FAIXAS_IDADE,
     mapaRiscoGlobal,
     mapaRiscoGlobalSemRisco,
+    mapaRiscoDasAnalises,
     SEM_RISCO,
     topSetores,
     distribuicaoPorNivelRisco,

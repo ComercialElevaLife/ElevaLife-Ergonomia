@@ -158,8 +158,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // fatia), mostra % do total da rosca; num grafico com varias series na
     // mesma categoria (barra empilhada, por ex.), soma e mostra o Total.
     const ehFatiaUnica = dataPoints.length === 1 && ["pie", "doughnut"].includes(dataPoints[0].chart.config.type);
+    // V 1.75: quando a rosca usa tamanho mínimo de fatia (_reais), o tooltip mostra o número real.
+    const reaisDe = (ds) => (ds && Array.isArray(ds._reais)) ? ds._reais : (ds && ds.data) || [];
     const totalFatias = ehFatiaUnica
-      ? (dataPoints[0].dataset.data || []).reduce((soma, v) => soma + (Number(v) || 0), 0)
+      ? reaisDe(dataPoints[0].dataset).reduce((soma, v) => soma + (Number(v) || 0), 0)
       : 0;
     const totalSerie = dataPoints.reduce((soma, dp) => soma + (Number(dp.raw) || 0), 0);
 
@@ -179,9 +181,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
       const valor = document.createElement("span");
       valor.className = "tt-valor";
-      valor.textContent = dp.formattedValue;
+      const valReal = (dp.dataset && Array.isArray(dp.dataset._reais)) ? dp.dataset._reais[dp.dataIndex] : Number(dp.raw);
+      valor.textContent = ehFatiaUnica ? String(valReal) : dp.formattedValue;
       if (ehFatiaUnica && totalFatias > 0) {
-        valor.textContent += ` (${((Number(dp.raw) / totalFatias) * 100).toFixed(1)}%)`;
+        valor.textContent += ` (${((Number(valReal) / totalFatias) * 100).toFixed(1)}%)`;
       }
 
       linha.appendChild(chave);
@@ -966,7 +969,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     id: "totalCentro",
     afterDraw(chart, _a, opts) {
       const meta = chart.getDatasetMeta(0); if (!meta || !meta.data || !meta.data.length) return;
-      const { x, y } = meta.data[0]; const ctx = chart.ctx; const total = (chart.data.datasets[0].data || []).reduce((a, b) => a + (Number(b) || 0), 0);
+      const ds0 = chart.data.datasets[0] || {};
+      const { x, y } = meta.data[0]; const ctx = chart.ctx;
+      // V 1.75: usa o total real passado em opts.total (quando a rosca usa tamanho mínimo de fatia).
+      const total = (opts && typeof opts.total === "number") ? opts.total : (Array.isArray(ds0._reais) ? ds0._reais : (ds0.data || [])).reduce((a, b) => a + (Number(b) || 0), 0);
       ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillStyle = window.BI.Calc.resolverCorCSS("var(--texto)") || "#3a2b2b"; ctx.font = "700 26px Montserrat, sans-serif"; ctx.fillText(String(total), x, y - 7);
       ctx.fillStyle = window.BI.Calc.resolverCorCSS("var(--texto-secundario)") || "#8a7a78"; ctx.font = "600 10.5px Montserrat, sans-serif"; ctx.fillText((opts && opts.rotulo) || "total", x, y + 14);
@@ -979,14 +985,19 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const corDoNivel = (n) => (n.semRisco || n.nivel === C.SEM_RISCO) ? "#B8ADA9" : C.corStatus(n.nivel);
     const itens = niveis.filter((n) => n.qtd > 0);
     const labels = itens.map((n) => C.rotuloNivel(n.nivel)); const valores = itens.map((n) => n.qtd); const cores = itens.map((n) => corDoNivel(n));
+    const total = valores.reduce((a, b) => a + b, 0);
+    // V 1.75: fatias pequenas (ex.: 3 fatores "Alto" em 991 ≈ 0,3%) ficavam invisíveis. Para risco,
+    // toda fatia não-nula recebe um tamanho MÍNIMO visível no desenho; os números reais seguem em
+    // _reais (usado no tooltip, na legenda e no total do centro).
+    const MIN = total * 0.03;
+    const valoresVis = valores.map((v) => v > 0 ? Math.max(v, MIN) : 0);
     criarOuAtualizarGrafico(canvasId, {
       type: "doughnut",
-      data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
+      data: { labels, datasets: [{ data: valoresVis, _reais: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
       plugins: [pluginTotalCentro],
-      options: comCliqueDrillDown({ cutout: "64%", interaction: { mode: "nearest", intersect: true }, plugins: { totalCentro: { rotulo: rotuloCentro }, tooltip: { enabled: false, external: tooltipExterno } } },
+      options: comCliqueDrillDown({ cutout: "64%", interaction: { mode: "nearest", intersect: true }, plugins: { totalCentro: { rotulo: rotuloCentro, total: total }, tooltip: { enabled: false, external: tooltipExterno } } },
         (el) => aoClicar(itens[el.index])),
     });
-    const total = valores.reduce((a, b) => a + b, 0);
     renderizarLegenda(legendaId, niveis.map((n) => ({ label: `${C.rotuloNivel(n.nivel)}: ${n.qtd} ${unidade}${total ? " (" + ((n.qtd / total) * 100).toFixed(0) + "%)" : ""}`, cor: corDoNivel(n) })));
   }
 
@@ -1025,6 +1036,72 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     abrirDrillDownSecoes(`Evolução dos riscos - ${C.formatarMesLabel(s.mes)}`, `${total} fator(es) vigente(s) no fim do mês · ${s.reduzidos} reduzido(s) · ${s.eliminados} eliminado(s)`, secoes);
   }
 
+  // V 1.76 (Alexandre): clicar num risco do Inventário abre a análise completa, o histórico
+  // (graduação inicial, reavaliações, ações do plano) e as fotos do fator/posto.
+  function abrirDetalheRisco(l) {
+    const Calc = window.BI.Calc;
+    const atual = (window.BI.dados.fatorRisco || []).find((f) => (f._id || f.id) === (l._id || l.id)) || l;
+    if (!(window.BI.Historico && window.BI.Historico.abrirPainel)) {
+      abrirDrillDown(atual.Fator || "Fator de risco", `${Calc.origemDe(atual)} · ${localFator(atual)}`, "fatorRisco", [atual]); return;
+    }
+    window.BI.Historico.abrirPainel(`${atual.Fator || "Fator de risco"}`, (corpo, h) => {
+      const { el } = h;
+      const secao = (titulo) => { const d = el("div", "aep-det-secao"); d.appendChild(el("div", "aep-det-secao-titulo", titulo)); corpo.appendChild(d); return d; };
+      const grade = (pai, pares) => {
+        const g = el("div", "aep-det-grade");
+        pares.forEach(([rot, val, largo]) => {
+          if (val == null || val === "") return;
+          const c = el("div", "aep-det-item" + (largo ? " aep-det-largo" : ""));
+          c.appendChild(el("div", "aep-det-rot", rot));
+          const v = el("div", "aep-det-val"); if (val instanceof Node) v.appendChild(val); else v.textContent = String(val); c.appendChild(v);
+          g.appendChild(c);
+        });
+        if (!g.children.length) g.appendChild(el("div", "aep-det-vazio", "Não informado."));
+        pai.appendChild(g);
+      };
+      grade(secao("Análise do risco"), [
+        ["Origem", Calc.origemDe(atual)], ["Cliente", atual.Cliente], ["Unidade", atual.Unidade], ["Setor", atual.Setor],
+        ["Posto de trabalho", atual["Posto Trabalho"]], ["Cargo", atual.Cargo],
+        ["Fator de risco", atual.Fator, true], ["Consequência / fonte geradora", atual.Consequencia, true], ["Segmento acometido", atual["Segmento Corporal"]],
+        ["Metodologia", atual["Metodologia AET"]], ["Criticidade (severidade)", atual.Criticidade], ["Probabilidade", atual.Probabilidade], ["Pontuação", atual["Pontuacao Risco"]],
+        ["Risco atual", pilulaNivelGestao(atual["Risco Eliminado"] === "Sim" ? "Eliminado" : atual["Graduacao Risco"])],
+        ["Medidas de controle existentes", atual["Medidas Controle"] || atual["Medida Controle Existente"], true],
+      ]);
+      const sHist = secao("Histórico do risco");
+      grade(sHist, [["Graduação inicial", pilulaNivelGestao(Calc.graduacaoInicial(atual))], ["Evolução", Calc.textoEvolucaoRisco(atual) || "sem reavaliações", true]]);
+      const hist = Array.isArray(atual["Historico Risco"]) ? atual["Historico Risco"] : [];
+      if (hist.length) {
+        const tl = el("div"); tl.style.cssText = "display:flex;flex-direction:column;gap:6px;margin-top:4px";
+        hist.forEach((ev) => {
+          const li = el("div"); li.style.cssText = "display:flex;gap:10px;align-items:baseline;font-size:13px;border-left:3px solid #A34E56;padding:2px 0 2px 10px";
+          li.appendChild(Object.assign(el("span", null, ev.data ? formatarDataBR(ev.data) : "-"), { style: "color:#8a7a78;min-width:84px" }));
+          li.appendChild(el("span", null, `${Calc.rotuloNivel(ev.de) || ev.de || "?"} → ${Calc.rotuloNivel(ev.para) || ev.para || "?"}${ev.motivo ? " · " + ev.motivo : ""}`));
+          tl.appendChild(li);
+        });
+        sHist.appendChild(tl);
+      }
+      const acoes = (window.BI.dados.planoAcao || []).filter((a) => a["Fator Risco Id"] === (atual._id || atual.id));
+      if (acoes.length) {
+        const sA = secao("Ações do plano (" + acoes.length + ")"); const hoje = hojeMeiaNoite();
+        acoes.forEach((a) => { const c = el("div", "aep-det-item aep-det-largo"); c.appendChild(el("div", "aep-det-rot", `A-${String(a["Nr Acao"] != null ? a["Nr Acao"] : "").padStart ? String(a["Nr Acao"]).padStart(2, "0") : a["Nr Acao"]} · ${Calc.statusDaLinhaAcao(a, hoje)}`)); c.appendChild(el("div", "aep-det-val", a["Acao Recomendada"] || "-")); sA.appendChild(c); });
+      }
+      const sF = secao("Fotos");
+      const fotosFator = [].concat(atual["Foto Fator"] || []);
+      const avalDoPosto = (window.BI.dados.avaliacaoErgonomica || []).find((av) => mesmoPostoAEP(atual, av));
+      const fotosPosto = avalDoPosto ? (avalDoPosto.Fotos || []) : [];
+      const todasFotos = fotosFator.concat(fotosPosto).filter((x) => x && x.chave);
+      if (todasFotos.length) {
+        const gal = el("div"); gal.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;margin-top:4px";
+        todasFotos.forEach((ft) => {
+          const a = document.createElement("a"); a.href = window.BI.DB.urlArquivo(ft.chave); a.target = "_blank"; a.rel = "noopener";
+          const img = document.createElement("img"); img.loading = "lazy"; img.src = window.BI.DB.urlArquivo(ft.chave); img.alt = "Foto"; img.style.cssText = "width:130px;height:130px;object-fit:cover;border-radius:8px;border:1px solid #e0d6d6";
+          a.appendChild(img); gal.appendChild(a);
+        });
+        sF.appendChild(gal);
+      } else sF.appendChild(el("div", "aep-det-vazio", "Sem fotos anexadas a este fator/posto."));
+    });
+  }
+
   // Tabela do Inventario de Riscos na Gestao de Riscos (V 1.35 - a sub-aba da AEP saiu).
   let inventarioLinhasAtuais = [];
   function renderTabelaInventario(fatores) {
@@ -1044,7 +1121,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     linhas.slice(0, 500).forEach((l) => {
       const tr = document.createElement("tr"); tr.className = "linha-clicavel";
       cols.forEach(([, fn]) => { const td = document.createElement("td"); const v = fn(l); if (v instanceof Node) td.appendChild(v); else td.textContent = v; tr.appendChild(td); });
-      tr.addEventListener("click", (ev) => abrirDrillDown(`${l.Fator || "Fator de risco"}`, `${C.origemDe(l)} · ${localFator(l)}`, "fatorRisco", [l], ev));
+      tr.addEventListener("click", () => { try { abrirDetalheRisco(l); } catch (e) { console.error("detalhe do risco", e); abrirDrillDown(`${l.Fator || "Fator de risco"}`, `${C.origemDe(l)} · ${localFator(l)}`, "fatorRisco", [l]); } });
       tbody.appendChild(tr);
     });
   }
@@ -3754,7 +3831,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
             ? `Evidência pendente até ${BI.Datas.isoParaBR(ini._dispensa.prazo)} (concluída sem evidência por ${ini._dispensa.por}). Anexe a foto ou o PDF aqui.`
             : legado ? "Ação concluída antes da exigência de evidência. Você pode anexar a evidência quando tiver."
             : ehAdmin ? "Anexe a evidência (foto ou PDF). Como Administrador, você pode concluir sem evidência informando a justificativa e a data-limite abaixo."
-            : "Para concluir é obrigatório anexar a evidência (foto ou PDF). Somente um Administrador pode concluir sem evidência.";
+            : "Anexe a evidência (foto ou PDF). Se concluir sem evidência, a ação fica aguardando a aprovação de um Administrador.";
         }
       } else if (aviso) aviso.remove();
     }
@@ -3765,7 +3842,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     form._validarEvidencia = () => {
       if (!concluida() || temEvidencia()) return null;
       if (eraConcluida && !tinhaEvidencia) return null; // legado ou dispensa ja concedida: o servidor mantem
-      if (!ehAdmin) return "Para concluir a ação é obrigatório anexar a evidência (foto ou PDF). Somente um Administrador pode concluir sem evidência.";
+      // V 1.78 (Alexandre): o ergonomista (nao-admin) pode concluir sem evidencia -
+      // a acao e salva como "Aguardando aprovacao" do Administrador (aoPrepararDados
+      // marca "Aprovacao Pendente"). Nao bloqueia mais a conclusao.
+      if (!ehAdmin) return null;
       if (String(C["Justificativa Sem Evidencia"].value || "").trim().length < 10) return "Para concluir sem evidência, informe a justificativa (mínimo de 10 caracteres).";
       if (!C["Prazo Evidencia"].value) return "Para concluir sem evidência, informe a data-limite para anexá-la.";
       return null;
@@ -4128,7 +4208,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     });
   }
   // Grava a reavaliacao no fator (historico do risco) e registra a atualizacao da AEP do posto.
-  async function aplicarReavaliacaoRisco(acao, r) {
+  async function aplicarReavaliacaoRisco(acao, r, foto) {
     const fator = (window.BI.dados.fatorRisco || []).find((f) => f._id === acao["Fator Risco Id"]);
     if (!fator || !r) return;
     const nr = acao["Nr Acao"] != null ? "A-" + String(acao["Nr Acao"]).padStart(2, "0") : "ação";
@@ -4139,6 +4219,20 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     dados["Historico Risco"] = (fator["Historico Risco"] || []).concat([evento]);
     if (r.eliminado) { dados["Risco Eliminado"] = "Sim"; dados["Eliminado Em"] = r.data; }
     else { Object.assign(dados, { Probabilidade: r.probabilidade, Criticidade: r.severidade, "Graduacao Risco": r.graduacao, "Pontuacao Risco": r.pontuacao, "Risco Eliminado": null, "Eliminado Em": null }); }
+    // V 1.78 (Alexandre): a nova foto do fator (anexada na conclusao da acao) vira a foto
+    // da situacao apos a acao no Inventario - atualiza a analise automaticamente.
+    if (foto && foto.chave) {
+      try {
+        const dtBR = window.BI.Datas.isoParaBR(r.data || window.BI.Datas.hojeISO());
+        const legenda = `Situação após a ação ${nr} (${dtBR})`;
+        let nova = { chave: foto.chave, nomeArquivo: foto.nomeArquivo || foto.chave, legenda, aposAcao: true };
+        if (window.BI.DB.enviarArquivo && window.BI.DB.urlArquivo) {
+          const r0 = await fetch(window.BI.DB.urlArquivo(foto.chave), { credentials: "same-origin" });
+          if (r0.ok) { const b = await r0.blob(); const env = await window.BI.DB.enviarArquivo("fatorRisco", fator.EmpresaId, new File([b], foto.nomeArquivo || "apos-acao.jpg", { type: b.type || "image/jpeg" })); nova = { chave: env.chave, nomeArquivo: env.nomeArquivo || foto.nomeArquivo, legenda, aposAcao: true }; }
+        }
+        dados["Foto Fator"] = [nova].concat([].concat(fator["Foto Fator"] || []).map((f) => Object.assign({}, f, f.antes ? {} : { antes: true, legenda: f.legenda ? "Antes: " + f.legenda : "Antes da ação" })));
+      } catch (e) { console.error("foto do fator (reavaliacao)", e); }
+    }
     await window.BI.DB.salvar("fatorRisco", fator._id, dados);
     const aval = (window.BI.dados.avaliacaoErgonomica || []).find((a) => ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].every((c) => (a[c] || "") === (fator[c] || "")));
     if (aval) await registrarAtualizacaoAEP(aval, `Risco reavaliado após a ação ${nr} (${fator.Fator}: ${r.eliminado ? "risco eliminado" : r.graduacao})`);
@@ -4726,16 +4820,27 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // V 1.31: ao concluir uma acao da AEP/AET que reduz ou elimina o risco, o ergonomista reavalia o fator
       // (nova probabilidade e severidade, ou risco eliminado) - a evolucao fica no historico do risco.
       aoConfirmarAntes: async (form, dados) => {
-        form._reavaliacao = null; form._fotoEliminacao = null;
+        form._reavaliacao = null; form._fotoEliminacao = null; form._fotoReav = null;
         const ini = estadoCadastro.planoAcao.valoresForm || {};
         const concluiAgora = !!(dados["Dt Conclusao"] || dados["Status Execucao"] === "Concluida") && !(ini["Dt Conclusao"] || ini["Status Execucao"] === "Concluida");
-        // V 1.38: acao de ELIMINACAO da AET - a foto da nova situacao e obrigatoria; ao concluir ela passa a ser a foto da atividade
-        if (concluiAgora && ini.Origem === "AET" && ini["Tipo Acao"] === "Eliminacao") {
-          const foto = (Array.isArray(dados.Evidencias) ? dados.Evidencias : []).find((e) => /^image\//.test(e.tipoConteudo || "") || /\.(jpe?g|png)$/i.test(e.nomeArquivo || e.chave || ""));
-          if (!foto) { form._erroEl.hidden = false; form._erroEl.textContent = "Ação de eliminação da AET: anexe nas evidências a foto da nova situação (após a eliminação do risco). Ela passa a ser a foto da atividade na AET."; return false; }
-          form._fotoEliminacao = foto;
+        const acharFoto = () => (Array.isArray(dados.Evidencias) ? dados.Evidencias : []).find((e) => /^image\//.test(e.tipoConteudo || "") || /\.(jpe?g|png)$/i.test(e.nomeArquivo || e.chave || ""));
+        const ehElimAET = concluiAgora && ini.Origem === "AET" && ini["Tipo Acao"] === "Eliminacao";
+        // V 1.78 (Alexandre): toda acao que REDUZ/ELIMINA o risco exige, ao concluir, uma nova
+        // foto do fator de risco (situacao apos a acao). Ela atualiza a analise automaticamente
+        // (fatorRisco.Foto Fator) e, na eliminacao da AET, vira a foto da atividade.
+        const reduzComFator = concluiAgora && window.BI.Acoes.reduzRisco(ini) && !/psicoss/i.test(String(ini.Origem || "")) && !!ini["Fator Risco Id"];
+        if (ehElimAET || reduzComFator) {
+          const foto = acharFoto();
+          if (!foto) {
+            form._erroEl.hidden = false;
+            form._erroEl.textContent = ehElimAET
+              ? "Ação de eliminação da AET: anexe nas evidências a foto da nova situação (após a eliminação do risco). Ela passa a ser a foto da atividade na AET."
+              : "Esta ação vai reduzir o risco: anexe nas evidências a nova foto do fator de risco (situação após a ação). Ela atualiza automaticamente a análise.";
+            return false;
+          }
+          if (ehElimAET) form._fotoEliminacao = foto; else form._fotoReav = foto;
         }
-        if (!concluiAgora || !window.BI.Acoes.reduzRisco(ini) || /psicoss/i.test(String(ini.Origem || "")) || !ini["Fator Risco Id"]) return true;
+        if (!reduzComFator) return true;
         const fator = (window.BI.dados.fatorRisco || []).find((f) => f._id === ini["Fator Risco Id"]);
         if (!fator) return true;
         const r = await abrirReavaliacaoRisco(ini, fator, dados["Dt Conclusao"] || BI.Datas.hojeISO());
@@ -4747,16 +4852,42 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         const ini = estadoCadastro.planoAcao.valoresForm || {};
         if (form._fotoEliminacao) { try { await atualizarFotoAtividadeAET(Object.assign({}, ini, dados, { _id: idSalvo }), form._fotoEliminacao); } catch (e) { console.error("foto da eliminacao", e); mostrarErro("A ação foi concluída, mas a foto da atividade na AET não pôde ser atualizada: " + (e && e.message ? e.message : e)); } }
         if (!form._reavaliacao) return;
-        await aplicarReavaliacaoRisco(Object.assign({}, ini, dados, { _id: idSalvo }), form._reavaliacao);
+        // V 1.78: a nova foto do fator (form._fotoReav) e anexada ao fator ("Foto Fator") junto da reavaliacao.
+        await aplicarReavaliacaoRisco(Object.assign({}, ini, dados, { _id: idSalvo }), form._reavaliacao, form._fotoReav);
       },
       // Excecao do Administrador so vale na hora em que ele conclui: nos demais
       // casos os dois campos seguem como estavam (sem apagar a dispensa).
       aoPrepararDados: (form, dados) => {
         const papel = (window.BI.DB.estado.identidade && window.BI.DB.estado.identidade.papel) || "";
+        const email = (window.BI.DB.estado.identidade && window.BI.DB.estado.identidade.email) || "";
+        const ini = estadoCadastro.planoAcao.valoresForm || {};
+        const concluida = !!(dados["Dt Conclusao"] || dados["Status Execucao"] === "Concluida");
+        const temEvid = Array.isArray(dados.Evidencias) && dados.Evidencias.length > 0;
         if (papel !== "Administrador") {
-          const ini = estadoCadastro.planoAcao.valoresForm || {};
           dados["Justificativa Sem Evidencia"] = ini["Justificativa Sem Evidencia"] || null;
           dados["Prazo Evidencia"] = ini["Prazo Evidencia"] || null;
+          // V 1.78 (Alexandre): conclusao do ergonomista sem evidencia -> fica "Aguardando
+          // aprovacao" do Administrador. Com evidencia (ou nao concluida), nao fica pendente.
+          if (concluida && !temEvid) {
+            if (ini["Aprovacao Pendente"] !== "Sim") {
+              dados["Aprovacao Pendente"] = "Sim";
+              dados["Aprovacao Solicitada Por"] = email || ini["Aprovacao Solicitada Por"] || null;
+              dados["Aprovacao Solicitada Em"] = new Date().toISOString();
+            } else {
+              dados["Aprovacao Pendente"] = "Sim";
+              dados["Aprovacao Solicitada Por"] = ini["Aprovacao Solicitada Por"] || null;
+              dados["Aprovacao Solicitada Em"] = ini["Aprovacao Solicitada Em"] || null;
+            }
+          } else {
+            dados["Aprovacao Pendente"] = null;
+          }
+        } else {
+          // Administrador concluindo/editando = aprovacao: limpa a pendencia.
+          if (ini["Aprovacao Pendente"] === "Sim") {
+            dados["Aprovacao Pendente"] = null;
+            dados["Aprovado Por"] = email || null;
+            dados["Aprovado Em"] = new Date().toISOString();
+          }
         }
         if (form._reavaliacao) dados["Reavaliacao Risco"] = form._reavaliacao;
       },
@@ -8505,6 +8636,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           painel.appendChild(nova);
         }
       }
+      // V 1.75 (Alexandre): cabeçalho do serviço (os painéis agora aparecem empilhados, todos de uma vez).
+      const hdr = document.createElement("div"); hdr.className = "dash-painel-titulo titulo-secao-grade"; hdr.textContent = cfg.rotulo;
+      painel.insertBefore(hdr, painel.firstChild);
       paineis.appendChild(painel);
       if (cfg.esconderNav) {
         const btn = document.querySelector('#nav-abas button[data-aba="' + cfg.aba + '"]');
@@ -8515,20 +8649,35 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     dashMontado = true;
   }
 
+  // V 1.75 (Alexandre): o seletor por serviço (chips) foi removido - a aba Dashboard mostra TODOS
+  // os gráficos dos serviços contratados de uma vez e o filtro do topo faz o detalhamento.
   function montarSeletorDashboard() {
     const sel = document.getElementById("dash-seletor");
     if (!sel) return;
-    sel.innerHTML = "";
-    DASH_SERVICOS.forEach((cfg) => {
-      const b = document.createElement("button"); b.type = "button";
-      b.className = "chip-dash" + (cfg.chave === dashAtual ? " ativa" : "");
-      b.textContent = cfg.rotulo; b.dataset.dash = cfg.chave;
-      b.addEventListener("click", () => mostrarDash(cfg.chave));
-      sel.appendChild(b);
-    });
+    sel.innerHTML = ""; sel.hidden = true; sel.style.display = "none";
+  }
+
+  // Um serviço aparece no Dashboard quando o(s) cliente(s) do filtro o contratam (Gestão de Riscos e
+  // Plano de Ação valem para todos). Sem cliente no filtro, mostra todos os que existem.
+  function servicoNoDashboard(chave) {
+    if (chave === "geral" || chave === "ergo" || chave === "registro") return true;
+    const clientes = (window.BI.dados && window.BI.dados.cliente) || [];
+    const fc = (window.BI.filtros && window.BI.filtros.Cliente) || [];
+    const esc = fc.length ? clientes.filter((c) => fc.indexOf(c.Cliente) >= 0) : clientes;
+    return !esc.length || esc.some((c) => empresaTemServico(c, chave));
   }
 
   function mostrarDash(chave) {
+    // V 1.75: mostra TODOS os painéis dos serviços contratados. 'chave' (quando vier de um botão
+    // "ver detalhes") só rola a página até a seção correspondente.
+    document.querySelectorAll("#dash-paineis .dash-painel").forEach((p) => { p.hidden = !servicoNoDashboard(p.dataset.dash); });
+    try { renderDashGeral(); } catch (e) { console.error(e); }
+    try { renderizarTudo(); } catch (e) { console.error(e); }
+    if (chave && chave !== "geral") { const alvo = document.querySelector('#dash-paineis .dash-painel[data-dash="' + chave + '"]'); if (alvo && alvo.scrollIntoView) setTimeout(() => { try { alvo.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (e) {} }, 50); }
+    return;
+  }
+
+  function mostrarDashLegado(chave) {
     dashAtual = chave;
     document.querySelectorAll("#dash-seletor button").forEach((b) => b.classList.toggle("ativa", b.dataset.dash === chave));
     document.querySelectorAll("#dash-paineis .dash-painel").forEach((p) => { p.hidden = p.dataset.dash !== chave; });
@@ -8562,7 +8711,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
     const avaliacaoArr = F(dados.avaliacaoErgonomica || [], ["Data Avaliacao"]);
     const aeps = avaliacaoArr.length;
-    const aets = F(dados.aet || [], ["Data Analise"]).length;
+    const aetArr = F(dados.aet || [], ["Data Analise"]);
+    const aets = aetArr.length;
 
     const planos = F(dados.planoAcao || [], ["Dt Programada", "Dt Conclusao"]);
     const planoConcl = planos.filter((a) => a["Dt Conclusao"] || a["Status Execucao"] === "Concluida").length;
@@ -8595,19 +8745,22 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const temGraficos = (postos.length || fatoresArr.length || planos.length || avaliacaoArr.length || atest.length);
     if (temGraficos) {
       grade.appendChild(hc("div", "col-12 titulo-secao-grade", "Visão geral"));
-      addGraf(4, "Risco Global dos Postos", "Postos por nível de risco (todos os serviços)", "dgeral-risco-global", "dgeral-risco-global-leg");
+      addGraf(4, "Riscos ergonômicos globais", "Cada análise (AEP/AET) no maior risco do seu posto", "dgeral-risco-global", "dgeral-risco-global-leg");
       addGraf(4, "Inventário de Riscos", "Fatores de risco vigentes, por nível", "dgeral-inventario", "dgeral-inventario-leg");
       addGraf(4, "Plano de Ação", "Todas as ações, por status", "dgeral-plano", "dgeral-plano-leg");
       addGraf(6, "AEPs realizadas (mês a mês)", "Avaliações Ergonômicas Preliminares", "dgeral-aep", null, true);
       addGraf(6, "Atestados (mês a mês)", "Absenteísmo — quantidade de atestados", "dgeral-absent", null, true);
       // render (canvas já no DOM); cada um tolerante a erro
       try {
-        // V 1.72: inclui a fatia "Sem risco" = postos cadastrados sem fator (total bate com a cobertura).
+        // V 1.75 (Alexandre): "Riscos ergonômicos globais" = uma entrada por ANÁLISE (AEP + AET),
+        // cada uma no maior risco do seu posto; sem fator = "Sem risco". O total bate com a
+        // quantidade de análises (ex.: 317), não com os postos distintos.
         const kP = (l) => ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].map((d) => l[d] || "").join("||");
-        const universoCargoG = F(dados.cargo, []);
-        const comRiscoG = new Set(postos.map(kP));
-        const semRiscoLinhasG = universoCargoG.filter((c) => !comRiscoG.has(kP(c))).map((c) => ({ Cliente: c.Cliente, Unidade: c.Unidade, Setor: c.Setor, "Posto Trabalho": c["Posto Trabalho"], Cargo: c.Cargo, "Risco Global": "Sem risco", "Fator Mais Grave": "-", Fatores: 0 }));
-        renderDonutNiveis("dgeral-risco-global", "dgeral-risco-global-leg", Calc.mapaRiscoGlobalSemRisco(postos, universoCargoG), "postos", "posto(s)", (n) => ({ titulo: `Risco Global dos Postos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} posto(s)`, chave: "riscoPosto", linhas: n.semRisco ? semRiscoLinhasG : postos.filter((l) => l["Risco Global"] === n.nivel) }));
+        const analises = avaliacaoArr.concat(aetArr);
+        const riscoPorChave = {};
+        postos.forEach((pp) => { const k = kP(pp); const n = pp["Risco Global"]; if (!(k in riscoPorChave) || Calc.ordemNivel(n) > Calc.ordemNivel(riscoPorChave[k])) riscoPorChave[k] = n; });
+        const linhasDoNivel = (nv, sem) => analises.filter((a) => { const n = riscoPorChave[kP(a)]; const canon = n ? Calc.nivelCanonico(n) : null; return sem ? !canon : (canon === nv); }).map((a) => ({ Cliente: a.Cliente, Unidade: a.Unidade, Setor: a.Setor, "Posto Trabalho": a["Posto Trabalho"], Cargo: a.Cargo, "Risco Global": sem ? "Sem risco" : (riscoPorChave[kP(a)] || "-"), "Fator Mais Grave": "-" }));
+        renderDonutNiveis("dgeral-risco-global", "dgeral-risco-global-leg", Calc.mapaRiscoDasAnalises(analises, fatoresArr), "análises", "análise(s)", (n) => ({ titulo: `Riscos ergonômicos globais - ${n.semRisco ? "Sem risco" : Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} análise(s)`, chave: "riscoPosto", linhas: linhasDoNivel(n.nivel, !!n.semRisco) }));
       } catch (e) { console.error(e); }
       try { renderDonutNiveis("dgeral-inventario", "dgeral-inventario-leg", Calc.distribuicaoPorNivelRisco(fatoresArr, "Graduacao Risco"), "fatores", "fator(es)", (n) => ({ titulo: `Inventário de Riscos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} fator(es)`, chave: "fatorRisco", linhas: fatoresArr.filter((l) => Calc.nivelCanonico(l["Graduacao Risco"]) === n.nivel) })); } catch (e) { console.error(e); }
       try { renderDonutStatus("dgeral-plano", "dgeral-plano-leg", Calc.statusPlanoAcao(planos, hoje), planos, hoje); } catch (e) { console.error(e); }
@@ -8922,10 +9075,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // sem e-mail, o responsavel nao recebe mais nada. Concluir (com evidencia e, na AEP/AET, reavaliacao
   // do risco) abre o formulario da acao.
   // ------------------------------------------------------------------
-  const estadoPlanoLista = { u: "", g: "", o: "", st: "", q: "" };
+  const estadoPlanoLista = { cl: "", u: "", g: "", o: "", st: "", q: "" };
   function filtroListaPlano(lista) {
     const f = estadoPlanoLista; const hoje = hojeMeiaNoite();
-    return (lista || []).filter((a) => (!f.u || a.Unidade === f.u) && (!f.g || a.Setor === f.g) && (!f.st || window.BI.Calc.statusDaLinhaAcao(a, hoje) === f.st)
+    return (lista || []).filter((a) => (!f.cl || a.Cliente === f.cl) && (!f.u || a.Unidade === f.u) && (!f.g || a.Setor === f.g) && (!f.st || window.BI.Calc.statusDaLinhaAcao(a, hoje) === f.st)
       && (!f.q || [a["Nr Acao"], a["Acao Recomendada"], a["Fator Risco Nome"], a["Responsavel Acao"], a["E-mail Responsavel"], a["Posto Trabalho"], a.Setor].join(" ").toLowerCase().includes(f.q.toLowerCase())));
   }
   const EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -8950,9 +9103,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const todas = porOrigemAba(Calc.filtrar(window.BI.dados.planoAcao || [], window.BI.filtros, cfg.camposData || []), "registro");
     const f = estadoPlanoLista;
     const stDe = (a) => Calc.statusDaLinhaAcao(a, hoje);
-    const unidades = Array.from(new Set(todas.map((a) => a.Unidade).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
-    const setores = Array.from(new Set(todas.filter((a) => !f.u || a.Unidade === f.u).map((a) => a.Setor).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
-    const vis = todas.filter((a) => (!f.u || a.Unidade === f.u) && (!f.g || a.Setor === f.g) && (!f.st || stDe(a) === f.st)
+    // V 1.75 (Alexandre): filtro por Cliente no Plano de Ação (igual ao filtro geral). Unidade e
+    // Setor passam a respeitar o cliente escolhido.
+    const clientes = Array.from(new Set(todas.map((a) => a.Cliente).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const baseCl = todas.filter((a) => !f.cl || a.Cliente === f.cl);
+    const unidades = Array.from(new Set(baseCl.map((a) => a.Unidade).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const setores = Array.from(new Set(baseCl.filter((a) => !f.u || a.Unidade === f.u).map((a) => a.Setor).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const vis = todas.filter((a) => (!f.cl || a.Cliente === f.cl) && (!f.u || a.Unidade === f.u) && (!f.g || a.Setor === f.g) && (!f.st || stDe(a) === f.st)
       && (!f.q || [a["Nr Acao"], a["Acao Recomendada"], a["Fator Risco Nome"], a["Responsavel Acao"], a["E-mail Responsavel"], a["Posto Trabalho"], a.Setor].join(" ").toLowerCase().includes(f.q.toLowerCase())))
       .sort((a, b) => (a.Cliente || "").localeCompare(b.Cliente || "", "pt-BR") || (a.Unidade || "").localeCompare(b.Unidade || "", "pt-BR") || (a.Setor || "").localeCompare(b.Setor || "", "pt-BR") || (a["Posto Trabalho"] || "").localeCompare(b["Posto Trabalho"] || "", "pt-BR") || String(a["Dt Programada"] || "9").localeCompare(String(b["Dt Programada"] || "9")));
     const somenteLeitura = ehUsuarioCliente() || !!window.BI.DB.estado.somenteLeitura;
@@ -8966,9 +9123,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const s = document.createElement("select"); s.dataset.plf = chave;
       const o0 = document.createElement("option"); o0.value = ""; o0.textContent = todosTxt; s.appendChild(o0);
       opcoes.forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; s.appendChild(o); });
-      s.value = f[chave]; s.addEventListener("change", () => { f[chave] = s.value; if (chave === "u") f.g = ""; renderizarTudo(); renderPlanoLista(true); });
+      s.value = f[chave]; s.addEventListener("change", () => { f[chave] = s.value; if (chave === "cl") { f.u = ""; f.g = ""; } if (chave === "u") f.g = ""; renderizarTudo(); renderPlanoLista(true); });
       l.appendChild(s); barra.appendChild(l);
     };
+    if (clientes.length > 1) sel("Cliente", "cl", clientes.map((c) => [c, c]), "Todos");
     sel("Unidade", "u", unidades.map((u) => [u, u]), "Todas");
     sel("Setor / GHE", "g", setores.map((x) => [x, x]), "Todos");
     sel("Status", "st", Calc.STATUS_ACAO_ORDEM.map((x) => [x, T(x)]), "Todos");
@@ -8989,7 +9147,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       resumo.appendChild(k);
     });
     raiz.appendChild(resumo);
-    raiz.appendChild(h("p", "plano-nota", "Defina o prazo (previsão de conclusão), o responsável e o e-mail de cada ação. O e-mail só é liberado depois do prazo e, ao ser informado, o responsável recebe o aviso automaticamente, além dos lembretes do prazo; apagando o e-mail, o responsável deixa de receber. Ação com prazo vencido e não concluída aparece como Atrasada. Para concluir, use “Concluir”: a conclusão exige a evidência e, nas ações da AEP e da AET marcadas para reduzir o risco, a reavaliação do risco."));
+    raiz.appendChild(h("p", "plano-nota", "Defina o prazo (previsão de conclusão), o responsável e o e-mail de cada ação. O e-mail só é liberado depois do prazo e, ao ser informado, o responsável recebe o aviso automaticamente, além dos lembretes do prazo; apagando o e-mail, o responsável deixa de receber. Ação com prazo vencido e não concluída aparece como Atrasada. Para concluir, use “Concluir”: anexe a evidência (se o ergonomista concluir sem evidência, a ação fica “Aguardando aprovação” de um Administrador) e, nas ações da AEP e da AET marcadas para reduzir o risco, anexe a nova foto do fator e faça a reavaliação do risco (a análise é atualizada automaticamente)."));
 
     if (!vis.length) { raiz.appendChild(h("div", "plano-vazio", todas.length ? "Nenhuma ação neste filtro." : "Nenhuma ação no plano. As ações nascem no Inventário de Riscos da AEP, na Análise de risco do Psicossocial e na AET.")); return; }
     raiz.appendChild(h("div", "plano-contagem", `${vis.length} ação(ões)` + (vis.length !== todas.length ? ` de ${todas.length}` : "")));
@@ -9045,6 +9203,17 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const tdS = h("td", "plano-status");
       const hx = Calc.corStatusAcaoHex(st); const pS = h("span", "plano-pilula", T(st)); if (hx) { pS.style.background = "#" + hx; pS.style.color = "#" + Calc.textoSobreHex(hx); } tdS.appendChild(pS);
       if (concluida && a["Dt Conclusao"]) tdS.appendChild(h("div", "plano-status-data", "em " + window.BI.Datas.isoParaBR(a["Dt Conclusao"])));
+      // V 1.78 (Alexandre): acao concluida pelo ergonomista sem evidencia -> aguarda aprovacao do ADM.
+      if (a["Aprovacao Pendente"] === "Sim") {
+        const pA = h("span", "plano-pilula plano-pilula--pendente", "Aguardando aprovação"); pA.style.background = "#c77700"; pA.style.color = "#fff"; pA.title = "Concluída sem evidência" + (a["Aprovacao Solicitada Por"] ? " por " + a["Aprovacao Solicitada Por"] : "") + " — precisa da aprovação de um Administrador.";
+        tdS.appendChild(pA);
+        if (ehAdministradorAtual() && !somenteLeitura) {
+          const bA = h("button", "btn-cad-primario plano-btn", "Aprovar"); bA.type = "button";
+          bA.title = "Aprovar a conclusão desta ação (concluída sem evidência).";
+          bA.addEventListener("click", () => { if (window.confirm("Aprovar a conclusão desta ação, mesmo sem evidência anexada?")) aprovarConclusaoAcao(a); });
+          tdS.appendChild(bA);
+        }
+      }
       const bt = h("button", "btn-cad-secundario plano-btn", concluida || somenteLeitura ? "Ver" : "Concluir"); bt.type = "button";
       bt.addEventListener("click", () => { abrirFormEditar("planoAcao", a._id); const fc = document.getElementById("form-container-planoAcao"); if (fc && fc.scrollIntoView) fc.scrollIntoView({ behavior: "smooth", block: "start" }); });
       if (!ehUsuarioCliente()) tdS.appendChild(bt);
@@ -9063,6 +9232,19 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     let el = raiz.querySelector(".plano-aviso");
     if (!el) { el = document.createElement("div"); el.className = "plano-aviso"; el.setAttribute("role", "status"); raiz.insertBefore(el, raiz.firstChild); }
     el.textContent = msg; clearTimeout(mostrarAvisoPlano._t); mostrarAvisoPlano._t = setTimeout(() => { if (el.parentNode) el.remove(); }, 6000);
+  }
+  // V 1.78 (Alexandre): o Administrador aprova a conclusao de uma acao concluida sem
+  // evidencia pelo ergonomista (tira o "Aguardando aprovacao" e registra quem/quando).
+  async function aprovarConclusaoAcao(a) {
+    if (!ehAdministradorAtual()) return;
+    const dados = semInternos(a);
+    dados["Aprovacao Pendente"] = null;
+    dados["Aprovado Por"] = (window.BI.DB.estado.identidade && window.BI.DB.estado.identidade.email) || null;
+    dados["Aprovado Em"] = new Date().toISOString();
+    let msg;
+    try { await window.BI.DB.salvar("planoAcao", a._id, dados); msg = "Conclusão aprovada."; }
+    catch (e) { msg = "Não foi possível aprovar: " + (e && e.message ? e.message : String(e)); }
+    renderizarTudo(); renderPlanoLista(true); mostrarAvisoPlano(msg);
   }
   async function salvarCampoPlano(a, campo, valor) {
     const dados = semInternos(a);
