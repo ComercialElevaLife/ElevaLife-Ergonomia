@@ -35,9 +35,6 @@ async function tratar(request, context) {
       email: identidade.email,
       papel: identidade.papel,
       empresasVinculadas: identidade.empresasVinculadas,
-      sigeVinculo: identidade.sigeVinculo || "marcadas",
-      psicoVinculo: identidade.psicoVinculo || "marcadas",
-      empresasPsico: identidade.empresasPsico || [],
       acessoLiberado: Boolean(identidade.papel),
     },
   };
