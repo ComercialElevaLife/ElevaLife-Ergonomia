@@ -2,6 +2,34 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.78 — 29/10/2026
+
+- **Conclusão de ação — evidência, aprovação do ADM e foto do fator ao reduzir risco (Alexandre).**
+  - **Conclusão sem evidência vai para o Administrador aprovar:** antes, o ergonomista (Consultor) era **bloqueado** ao concluir uma ação sem anexar a evidência. Agora ele **pode** concluir sem evidência, e a ação fica marcada **"Aguardando aprovação"**. No Plano de Ação, essas ações mostram a etiqueta e, para o **Administrador**, um botão **"Aprovar"** que confirma a conclusão (registra quem aprovou e quando). Ação com evidência não fica pendente.
+  - **Reduzir o risco exige a nova foto do fator + atualiza a análise:** ao concluir **qualquer** ação marcada para reduzir/eliminar o risco (antes isso só valia para a eliminação da AET), é obrigatório anexar nas evidências a **nova foto do fator de risco** (situação após a ação). Essa foto passa a ser a foto "após a ação" no Inventário (a anterior vira "Antes:") e a **reavaliação** (nova probabilidade/severidade ou risco eliminado) atualiza a análise automaticamente, como já acontecia.
+  Service worker subiu para `sige-v93`. *(Arquivo: `js/app.js`.)*
+
+## V 1.77 — 29/10/2026
+
+- **Gestão de Riscos — clicar no risco abre a análise, o histórico e as fotos (Alexandre).**
+  - Ao clicar em um fator no Inventário de Riscos, abre um painel com: a **análise completa** (origem, posto, consequência/fonte geradora, segmento, metodologia, criticidade, probabilidade, pontuação e risco atual); o **histórico do risco** (graduação inicial, cada reavaliação com data e motivo, e as ações do plano ligadas ao fator); e as **fotos** do fator e do posto.
+  Service worker subiu para `sige-v92`. *(Arquivo: `js/app.js`.)*
+
+## V 1.76 — 29/10/2026
+
+- **Dashboard — todos os serviços de uma vez, sem o seletor por serviço (Alexandre).**
+  - A aba Dashboard passa a mostrar **todos os gráficos de todos os serviços contratados** empilhados (Visão geral + Gestão de Riscos + Plano de Ação + Absenteísmo + Restritos), cada bloco com seu título. O **seletor por serviço (chips) foi removido** — o filtro do topo faz o detalhamento por serviço.
+  - Cada serviço só aparece quando o(s) cliente(s) do filtro o contratam (Gestão de Riscos e Plano valem para todos). Sem cliente no filtro, aparecem todos os que existem.
+  Service worker subiu para `sige-v91`. *(Arquivo: `js/app.js`.)*
+
+## V 1.75 — 29/10/2026
+
+- **Dashboard e Plano de Ação — ajustes (Alexandre).**
+  - **Fatias pequenas aparecem nos gráficos de risco:** um risco com poucos fatores (ex.: 3 "Alto" em 991) ficava invisível na rosca. Agora toda fatia não-nula tem um tamanho mínimo visível; os números reais seguem corretos na legenda, no tooltip e no centro.
+  - **"Riscos ergonômicos globais"** (antes "Risco Global dos Postos", no dashboard Geral): passa a contar **cada análise** (AEP + AET) no maior risco do seu posto — o total bate com a quantidade de análises existentes (ex.: 317), não com os postos distintos. Postos/análises sem fator entram em "Sem risco".
+  - **Plano de Ação — filtro por Cliente:** além de Unidade, Setor/GHE, Status e Buscar, o Plano ganhou o filtro **Cliente** (aparece quando há mais de um cliente). Unidade e Setor passam a respeitar o cliente escolhido.
+  Service worker subiu para `sige-v90`. *(Arquivos: `js/app.js`, `js/calc.js`.)*
+
 ## V 1.74 — 29/10/2026
 
 - **Vincular unidade a outra empresa — mover unidade (e seus dados) entre empresas (Alexandre).**
