@@ -2,6 +2,22 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.80 — 29/10/2026
+
+- **Filtros muito mais rápidos em todos os serviços (Alexandre).**
+  - A cada mudança de filtro, o sistema reconstruía TODAS as tabelas de cadastro (de todos os grupos) e a lista do Plano de Ação — inclusive quando elas nem estavam na tela (ex.: no Dashboard). Com bases grandes isso deixava cada clique de filtro lento (~1,2–1,5 s de reprocessamento).
+  - Agora cada filtro reprocessa **só o que está visível**: no Dashboard, apenas os gráficos; nas abas de cadastro, só as tabelas daquele grupo; a lista do Plano de Ação só na própria aba. As tabelas das outras abas são montadas quando você abre aquela aba, sempre respeitando o filtro atual. Em testes com base grande, o tempo de cada filtro caiu de ~1,25 s para ~0,24 s (cerca de **5× mais rápido**).
+  - A lista do Plano de Ação, que antes era montada **duas vezes** a cada filtro, passou a ser montada uma vez só.
+  - O filtro continua valendo em todos os serviços (Gestão de Riscos, Plano de Ação, Absenteísmo, Restritos e Cadastros) — só ficou mais leve.
+  Service worker subiu para `sige-v95`. *(Arquivo: `js/app.js`.)*
+
+## V 1.79 — 29/10/2026
+
+- **Dashboard — fim do "Resumo por serviço" e filtro de Origem no topo da página (Alexandre).**
+  - **Removido o bloco "Resumo por serviço"** (os cartões com KPIs e os botões "Ver dashboard →"): como a aba Dashboard já mostra todos os gráficos de todos os serviços de uma vez, o resumo era redundante.
+  - **Filtro de Origem (Todas / Riscos AEP / Riscos AET / Psicossocial) foi para o começo da página**, acima de todos os painéis, em vez de ficar dentro da seção "Gestão de Riscos".
+  Service worker subiu para `sige-v94`. *(Arquivo: `js/app.js`.)*
+
 ## V 1.78 — 29/10/2026
 
 - **Conclusão de ação — evidência, aprovação do ADM e foto do fator ao reduzir risco (Alexandre).**

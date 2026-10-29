@@ -7621,8 +7621,16 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     atualizarBarraSelecao(chave, linhas, paginaAtual);
   }
 
-  function renderizarTodosCadastros() {
-    Object.keys(CADASTROS_CONFIG).filter((c) => GRUPOS_CADASTRO[CADASTROS_CONFIG[c].grupo]).forEach(renderizarListaCadastro);
+  // V 1.80 (Alexandre - desempenho): só renderiza os cadastros do GRUPO da aba
+  // ativa (ou de um grupo específico passado). Antes, qualquer mudança de filtro
+  // reconstruía TODAS as tabelas de cadastro de todos os grupos (lento). As tabelas
+  // de outros grupos são reconstruídas quando a pessoa abre aquela aba (ativarAba).
+  function renderizarTodosCadastros(grupoForcado) {
+    const grupo = grupoForcado || GRUPO_DA_ABA[abaAtualChave()];
+    if (!grupo) return; // aba atual não é de cadastro (ex.: Dashboard, Gestão de Riscos): nada a renderizar
+    Object.keys(CADASTROS_CONFIG)
+      .filter((c) => CADASTROS_CONFIG[c].grupo === grupo && GRUPOS_CADASTRO[CADASTROS_CONFIG[c].grupo])
+      .forEach(renderizarListaCadastro);
   }
 
   // Sincroniza a barra de selecao em bloco (contador, botao "Excluir
@@ -7810,6 +7818,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (aba === "coordenacao" && window.BI.Coordenacao) { try { window.BI.Coordenacao.render(); } catch (e) { console.error(e); } }
     if (aba === "notificacoes") { try { renderNotificacoes(); } catch (e) { console.error(e); } }
     if (aba === "dashboard") { try { montarDashboard(); mostrarDash(dashAtual); } catch (e) { console.error(e); } }
+    // V 1.80 (Alexandre - desempenho): as tabelas de cadastro (e a lista do Plano de Ação) não são
+    // reconstruídas a cada filtro quando a aba delas está fechada. Ao ABRIR uma aba de cadastro,
+    // renderiza o grupo dela com os filtros atuais (assim o filtro "vale" em todos os serviços).
+    if (GRUPO_DA_ABA[aba]) { try { renderizarTodosCadastros(GRUPO_DA_ABA[aba]); } catch (e) { console.error(e); } }
     // V 1.35: a sub-aba atual de tela propria (AET, laudos, importacao) se atualiza ao abrir a aba
     const grupoAba = GRUPO_DA_ABA[aba]; const subAtual = grupoAba && estadoSubAbaCadastro[grupoAba];
     if (subAtual && SUBABAS_EXTRAS[subAtual] && SUBABAS_EXTRAS[subAtual].aoAbrir) { try { SUBABAS_EXTRAS[subAtual].aoAbrir(); } catch (e) { console.error(e); } }
@@ -8611,7 +8623,15 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // 1) barra de origem / filtros de página: move a original para o dashboard
       const barra = sec.querySelector(".barra-origem-aba, .barra-filtros-pagina");
       if (barra) {
-        painel.appendChild(barra);
+        // V 1.79 (Alexandre): a barra de ORIGEM da Gestão de Riscos vai para o TOPO da página
+        // (antes de todos os painéis), em vez de ficar dentro do painel abaixo do título.
+        if (cfg.chave === "ergo") {
+          let topo = document.getElementById("dash-filtros-topo");
+          if (!topo) { topo = document.createElement("div"); topo.id = "dash-filtros-topo"; paineis.insertBefore(topo, paineis.firstChild); }
+          topo.appendChild(barra);
+        } else {
+          painel.appendChild(barra);
+        }
         // se algo fica na aba de serviço e depende do filtro de origem, deixa um clone lá
         if (cfg.origemClone) {
           const clone = document.createElement("div");
@@ -8766,55 +8786,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       try { renderDonutStatus("dgeral-plano", "dgeral-plano-leg", Calc.statusPlanoAcao(planos, hoje), planos, hoje); } catch (e) { console.error(e); }
       try { renderLinhaMensal("dgeral-aep", Calc.serieMensal(avaliacaoArr, "Data Avaliacao"), "AEPs realizadas", Calc.resolverCorCSS("var(--teal)"), avaliacaoArr, "Data Avaliacao", "avaliacaoErgonomica"); } catch (e) { console.error(e); }
       try { renderLinhaMensal("dgeral-absent", Calc.serieMensal(atest, "Dt Afastamento"), "Atestados", Calc.resolverCorCSS("var(--vinho-medio)"), atest, "Dt Afastamento"); } catch (e) { console.error(e); }
-      grade.appendChild(hc("div", "col-12 titulo-secao-grade", "Resumo por serviço"));
     }
-
-    const grupos = [
-      { tit: "Gestão de Riscos", abrir: "ergo", kpis: [
-        { num: postos.length, rot: "Postos avaliados" },
-        { num: postosCriticos, rot: "Postos críticos", sub: "Alto / Muito Alto" },
-        { num: fatores, rot: "Fatores de risco vigentes" },
-      ] },
-      { tit: "Avaliações", abrir: "ergo", kpis: [
-        { num: aeps, rot: "AEPs" },
-        { num: aets, rot: "AETs" },
-      ] },
-      { tit: "Plano de Ação", abrir: "registro", kpis: [
-        { num: planoAbertas, rot: "Ações abertas" },
-        { num: planoConcl, rot: "Ações concluídas" },
-        { num: pctConcl + "%", rot: "Conclusão" },
-      ] },
-      { tit: "Absenteísmo", abrir: "medocup", kpis: [
-        { num: atest.length, rot: "Atestados" },
-        { num: diasPerdidos, rot: "Dias perdidos" },
-      ] },
-      { tit: "Restritos", abrir: "compativeis", kpis: [
-        { num: restritos, rot: "Em restrição / acompanhamento" },
-      ] },
-    ];
-
-    grupos.forEach((g) => {
-      if (g.kpis.every((k) => !k.num || k.num === 0 || k.num === "0%")) return; // some grupo sem dados
-      const card = document.createElement("div");
-      card.className = "cartao col-12 dash-geral-cartao";
-      const cab = document.createElement("div"); cab.className = "cadastro-cabecalho";
-      const tit = document.createElement("div"); tit.className = "cartao-titulo"; tit.textContent = g.tit; cab.appendChild(tit);
-      if (g.abrir) {
-        const bt = document.createElement("button"); bt.type = "button"; bt.className = "btn-novo-registro"; bt.textContent = "Ver dashboard →";
-        bt.addEventListener("click", () => mostrarDash(g.abrir)); cab.appendChild(bt);
-      }
-      card.appendChild(cab);
-      const kpis = document.createElement("div"); kpis.className = "dash-kpis";
-      g.kpis.forEach((k) => {
-        const kp = document.createElement("div"); kp.className = "dash-kpi";
-        const n = document.createElement("div"); n.className = "dash-kpi-num"; n.textContent = (k.num == null ? "—" : k.num); kp.appendChild(n);
-        const r = document.createElement("div"); r.className = "dash-kpi-rot"; r.textContent = k.rot; kp.appendChild(r);
-        if (k.sub) { const s = document.createElement("div"); s.className = "dash-kpi-sub"; s.textContent = k.sub; kp.appendChild(s); }
-        kpis.appendChild(kp);
-      });
-      card.appendChild(kpis);
-      grade.appendChild(card);
-    });
+    // V 1.79 (Alexandre): o bloco "Resumo por serviço" (cartões com KPIs + "Ver dashboard →") foi
+    // removido - a aba Dashboard já mostra todos os gráficos de todos os serviços de uma vez.
 
     if (!grade.children.length) {
       const vazio = document.createElement("p"); vazio.className = "aet-nota";
@@ -9360,7 +9334,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     renderLinhaMensal("chart-aet-mensal", Calc.serieMensal(aetF, "Data Analise"), "AETs realizadas", Calc.resolverCorCSS("var(--vinho-medio)"), aetF, "Data Analise", "aet");
 
     try { if (window.BI.AET) window.BI.AET.renderPainel(); } catch (e) { console.error("AET", e); }
-    renderPlanoLista();
+    // V 1.80 (Alexandre - desempenho): a lista do Plano de Ação (pesada) é reconstruída só
+    // quando a aba Plano de Ação está aberta - pelo renderizarTodosCadastros do grupo "registro"
+    // (mais abaixo), que chama renderPlanoLista. No Dashboard e nas demais abas ela é pulada.
+    // (Antes ela era renderizada DUAS vezes por filtro: aqui e no renderizarTodosCadastros.)
     if (estadoSubAbaCadastro.aep === "modeloLaudo") abrirEditorTextoDireto();
 
     const diasUteisF = Calc.filtrar(window.BI.dados.diasUteis, filtros, ["Ano/Mes Uteis"]);
