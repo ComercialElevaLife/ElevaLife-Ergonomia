@@ -200,7 +200,7 @@
     acoesTopo.appendChild(bFechar); acoesTopo.appendChild(bSalvar); topo.appendChild(acoesTopo);
     caixa.appendChild(topo); caixa.appendChild(msg);
     if (rascunho && opcAbrir && opcAbrir.duplicada) { const av = h("div", "aet-msg"); av.textContent = `Cópia da ${rascunho["Duplicada De"] || "AET"}. Escolha a empresa, a unidade, o setor, o posto e o cargo da nova AET, revise e clique em Salvar AET. As ações propostas foram copiadas (sem responsável e prazo).`; caixa.appendChild(av); }
-    else if (rascunho && opcAbrir && opcAbrir.daAEP) { const av = h("div", "aet-msg"); av.textContent = "AET gerada a partir da AEP deste posto. Os fatores selecionados foram trazidos com a consequência, o segmento, a fonte e a graduação da AEP. Revise, descreva a atividade, anexe as fotos, aplique as ferramentas e complete o que faltar; depois clique em Salvar AET. A AEP de origem não é alterada."; caixa.appendChild(av); }
+    else if (rascunho && opcAbrir && opcAbrir.daAEP) { const av = h("div", "aet-msg"); av.textContent = "AET gerada a partir da AEP deste posto. Os fatores selecionados foram trazidos com a fonte geradora, o segmento, a observação e a graduação da AEP. Revise, descreva a atividade, anexe as fotos, aplique as ferramentas e complete o que faltar; depois clique em Salvar AET. A AEP de origem não é alterada."; caixa.appendChild(av); }
     else if (rascunho) { const av = h("div", "aet-msg"); av.textContent = `AET importada de “${rascunho["Arquivo Importado"] || "arquivo"}”. Confira os dados, complete o que faltar (ferramentas, severidade e probabilidade, ações) e clique em Salvar AET.`; caixa.appendChild(av); }
     const corpo = h("div", "aet-corpo"); const nav = h("nav", "aet-nav"); const area = h("div", "aet-area"); corpo.appendChild(nav); corpo.appendChild(area); caixa.appendChild(corpo);
     document.body.appendChild(fundo); document.body.classList.add("aet-aberta");
@@ -396,10 +396,10 @@
         if (fa.fator === "__outro") g.appendChild(campoTexto(fa, "outro", "Qual fator? *", { aoMudar: pintar }));
       }
       const conseq = fa.fator && fa.fator !== "__outro" ? C.consequenciasDoFator(fa.fator) : [];
-      const cC = campoTexto(fa, "consequencia", "Consequência (ex.: biomecânica – coluna lombar) *", { largo: true }); g.appendChild(cC);
+      const cC = campoTexto(fa, "consequencia", "Fonte geradora (ex.: elevação dos membros superiores; aplicação de força) *", { largo: true }); g.appendChild(cC); // V 1.69 (Alexandre): "Consequência" renomeado para "Fonte geradora"
       if (conseq.length && editar) { const s = h("select", "aet-sugestao"); const o0 = h("option", null, "Sugestões da lista padrão…"); o0.value = ""; s.appendChild(o0); conseq.forEach((c) => { const o = h("option", null, c); o.value = c; s.appendChild(o); }); s.addEventListener("change", () => { if (!s.value) return; const inp = cC.querySelector("input"); inp.value = inp.value ? inp.value + "; " + s.value : s.value; fa.consequencia = inp.value; s.value = ""; marcar(); }); cC.appendChild(s); }
       g.appendChild(campoSelect(fa, "segmento", "Segmento acometido *", (BI.Acoes ? BI.Acoes.segmentosDisponiveis() : [])));
-      g.appendChild(campoTexto(fa, "fonte", "Fonte geradora / observação", { largo: true }));
+      g.appendChild(campoTexto(fa, "fonte", "Observação", { largo: true })); // V 1.69: era "Fonte geradora / observação"; evita duplicar o rótulo renomeado acima
       // ferramentas
       const blocoF = h("div", "aet-ferramentas"); blocoF.appendChild(h("div", "aet-subtitulo", "Ferramentas ergonômicas (metodologia de estudo)"));
       const listaF = h("div", "aet-ferr-lista"); blocoF.appendChild(listaF);
@@ -548,7 +548,7 @@
         for (const fa of at.fatores) {
           const nome = fa.fator === "__outro" ? fa.outro : fa.fator;
           if (!nome) return `Atividade “${at.nome}”: escolha o fator de risco.`;
-          if (!fa.consequencia) return `Atividade “${at.nome}”, fator “${nome}”: informe a consequência.`;
+          if (!fa.consequencia) return `Atividade “${at.nome}”, fator “${nome}”: informe a fonte geradora.`;
           if (!fa.segmento) return `Atividade “${at.nome}”, fator “${nome}”: informe o segmento acometido.`;
           const r = avaliarFator(fa, mz); if (!r.graduacao && !fa.semGraduacaoImportada) return `Atividade “${at.nome}”, fator “${nome}”: ${r.pendente}.`;
           const ed = editores.get(fa.uid); const e = ed && ed.validar(); if (e) return `Atividade “${at.nome}”, fator “${nome}”: ${e}`;

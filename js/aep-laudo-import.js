@@ -145,9 +145,13 @@
         // tem Criticidade e Probabilidade marca o inicio; os fragmentos sao ignorados.
         if (/criticidade/.test(n) && /probabilidade/.test(n)) { esperandoRisco = true; campoF = null; continue; }
         if (/^(graduacao( do)?( risco)?|risco|pontuacao( risco)?|criticidade|probabilidade)$/.test(n) && (esperandoRisco || campoF === "Medida Controle Existente")) continue; // fragmento do cabecalho
-        // linha de valores da tabela de risco: a 1a linha apos o cabecalho que comeca por uma escala.
+        // linha de valores da tabela de risco: a 1a linha apos o cabecalho.
         // Colunas sempre nesta ordem: Criticidade, Probabilidade, Pontuacao Risco, Graduacao do Risco.
-        if (esperandoRisco && /^(muito baixa|muito alta|muito baixo|muito alto|baixa|baixo|moderad[ao]|medi[ao]|alta|alto)\b/.test(n)) {
+        // V 1.73 (Alexandre): detecta a linha de valores pela ESTRUTURA (tem a pontuação numérica)
+        // e não só por começar com baixa/alta. Antes, laudos cuja criticidade é "Leve" (ex.: OPELLA)
+        // não tinham criticidade/probabilidade/graduação importadas, pois "Leve" não casava a regex.
+        const temPontuacao = (l.cells || []).some((x) => /^\d+([.,]\d+)?$/.test(String(x).trim()));
+        if (esperandoRisco && (temPontuacao || /^(muito baixa|muito alta|muito baixo|muito alto|baixa|baixo|moderad[ao]|medi[ao]|alta|alto|leve|grave|grav[ií]ssim[ao]|s[eé]ri[ao]|cr[ií]tic[ao]|toler[aá]vel|intoler[aá]vel|irrelevante|trivial)\b/.test(n))) {
           const c = l.cells.slice();
           fator._crit = c[0] || ""; if (c.length > 1) fator._prob = c[1];
           const num = c.find((x) => /^\d+([.,]\d+)?$/.test(String(x).trim())); if (num) fator["Pontuacao Risco"] = num;
@@ -197,7 +201,7 @@
     let melhor = "", nota = 0; lista.forEach((f) => { const tb = tok(f); let c = 0; ta.forEach((w) => { if (tb.has(w)) c++; }); const s = c / Math.max(ta.size, tb.size, 1); if (s > nota) { nota = s; melhor = f; } });
     return nota >= 0.6 ? melhor : txt; // sem correspondencia: mantem o texto do laudo (como a planilha faz)
   }
-  const SIN_ESCALA = { leve: "Baixa", baixo: "Baixa", baixa: "Baixa", "muito baixo": "Muito Baixa", "muito baixa": "Muito Baixa", medio: "Media", media: "Media", moderado: "Media", moderada: "Media", alto: "Alta", alta: "Alta", "muito alto": "Muito Alta", "muito alta": "Muito Alta" };
+  const SIN_ESCALA = { leve: "Baixa", baixo: "Baixa", baixa: "Baixa", trivial: "Muito Baixa", irrelevante: "Muito Baixa", "muito baixo": "Muito Baixa", "muito baixa": "Muito Baixa", toleravel: "Baixa", medio: "Media", media: "Media", moderado: "Media", moderada: "Media", serio: "Alta", seria: "Alta", alto: "Alta", alta: "Alta", grave: "Alta", critico: "Muito Alta", critica: "Muito Alta", gravissimo: "Muito Alta", gravissima: "Muito Alta", intoleravel: "Muito Alta", "muito alto": "Muito Alta", "muito alta": "Muito Alta" };
   function escalaSige(mz, txt) {
     const esc = Calc().escalaDaMatriz(mz); const v = SIN_ESCALA[norm(txt)] || ""; if (!v) return "";
     if (esc.includes(v)) return v;

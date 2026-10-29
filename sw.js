@@ -20,7 +20,7 @@
 
 "use strict";
 
-const VERSAO = "sige-v82";
+const VERSAO = "sige-v89";
 const CACHE_SITE = `${VERSAO}-site`;
 const CACHE_EXTERNO = `${VERSAO}-externo`;
 

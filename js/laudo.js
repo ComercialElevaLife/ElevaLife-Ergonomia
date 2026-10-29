@@ -771,6 +771,12 @@
       paragrafos("Matriz Intro");
       desenharMatriz();
       {
+        // V 1.69 (Alexandre): logo após a matriz, legenda das graduações e o impacto de cada uma
+        // (nomes conforme a matriz do cliente; impacto por cor, via Calc.impactoRisco).
+        const niveisImp = []; escala.forEach((p) => escala.forEach((g) => { const nn = Calc.nivelDaMatriz(nomeMatriz, p, g); if (nn && !niveisImp.includes(nn)) niveisImp.push(nn); }));
+        tabela(["Graduação", "Impacto"], niveisImp.sort((a, b) => ordemNivel(b) - ordemNivel(a)).map((n) => [{ t: n, pilula: corNivel(n) }, Calc.impactoRisco(n)]), [24, 76]);
+      }
+      {
         const niveis = []; escala.forEach((p) => escala.forEach((g) => { const n = Calc.nivelDaMatriz(nomeMatriz, p, g); if (n && !niveis.includes(n)) niveis.push(n); }));
         tabela(["Pontuações (P × S)", "Graduação", "Descrição do risco e conduta"], niveis.sort((a, b) => ordemNivel(a) - ordemNivel(b)).map((n) => [pontuacoesDoNivel(n), { t: n, pilula: corNivel(n) }, defNivel[n] || ""]), [16, 18, 66]);
         legenda(NOTA_MATRIZ);

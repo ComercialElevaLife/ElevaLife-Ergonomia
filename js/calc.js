@@ -392,6 +392,19 @@
     if (/^baix|^leve|^toler/.test(n)) return CORES_RISCO_HEX.baixo;
     return null;
   }
+  // V 1.69 (Alexandre): descricao do impacto de cada graduacao de risco (legenda que sai logo
+  // apos a matriz nos laudos AEP, AET e psicossocial). Mapeada pelos mesmos buckets de cor de
+  // corRiscoHex, para funcionar com qualquer matriz (os nomes mudam, o impacto por cor nao).
+  function impactoRisco(nivel) {
+    const n = semAcentoMin(nivel);
+    if (!n || n === "-") return "";
+    if (/muito baix|trivial|desprez|irrelev/.test(n)) return "Sem inadequações ou riscos.";
+    if (/muito alt|altissim|critic|intoler/.test(n)) return "Iminente probabilidade de ocorrência de problemas.";
+    if (/^alt/.test(n)) return "Inadequações importantes e alta probabilidade de ocorrência de problemas.";
+    if (/moder|^medi/.test(n)) return "Inadequações de menor importância e baixa probabilidade de problemas.";
+    if (/^baix|^leve|^toler/.test(n)) return "Inadequações inexistentes ou mínimas, com mínima probabilidade de problemas.";
+    return "";
+  }
   // Cor de um status de acao (aceita as chaves internas e os rotulos exibidos).
   function corStatusAcaoHex(st) {
     const n = semAcentoMin(st);
@@ -571,9 +584,17 @@
   // no filtro depois de ja ter pelo menos 1 posto de trabalho lancado no
   // Mapa de Risco. Agora cada nivel aparece no filtro assim que e
   // CADASTRADO, independente de ja ter registro operacional ou nao.
+  // V 1.70 (Alexandre): cascata ESTRITA dos filtros de hierarquia. Cada nível só
+  // oferece opções depois que o nível-pai tem alguma seleção: Unidade só com um
+  // Cliente escolhido, Setor só com Unidade, Posto só com Setor, Cargo só com Posto,
+  // Atividade só com Cargo. Assim a Unidade nunca aparece "solta" (sem empresa) e
+  // deixa de misturar unidades de clientes diferentes / registros órfãos.
+  const PAI_FILTRO = { "Unidade": "Cliente", "Setor": "Unidade", "Posto Trabalho": "Setor", "Cargo": "Posto Trabalho", "Atividade": "Cargo" };
   function opcoesDeFiltro(dadosPorNivel, filtros) {
     const resultado = {};
     for (const dim of DIMENSOES) {
+      const pai = PAI_FILTRO[dim];
+      if (pai && !((filtros[pai] || []).length)) { resultado[dim] = []; continue; }
       const tabela = (dadosPorNivel && dadosPorNivel[dim]) || [];
       const filtrosSemEssaDim = Object.assign({}, filtros, { [dim]: [] });
       const linhas = filtrar(tabela, filtrosSemEssaDim, []);
@@ -610,6 +631,38 @@
       qtd: porNivel[n],
       pct: total ? (porNivel[n] / total) * 100 : 0,
     }));
+  }
+
+  // V 1.72 (Alexandre): distribuição de risco dos postos INCLUINDO os postos cadastrados
+  // que não têm nenhum fator de risco - entram numa fatia à parte "Sem risco", para o total
+  // do gráfico bater com a contagem de postos cadastrados (cobertura). `universoCargo` é a
+  // lista de postos cadastrados (coleção "cargo") já filtrada; `postosComRisco` é a saída de
+  // riscoDosPostos (um por posto com fator). A chave de um posto é Cliente…Cargo.
+  const SEM_RISCO = "Sem risco";
+  function chavePostoCargo(l) { return ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].map((d) => l[d] || "").join("||"); }
+  function mapaRiscoGlobalSemRisco(postosComRisco, universoCargo) {
+    // Percorre o UNIVERSO de postos cadastrados (coleção "cargo") e dá a cada um a sua
+    // graduação (o maior risco entre os seus fatores, de riscoDosPostos); o posto sem
+    // nenhum fator cai em "Sem risco". Assim o total do gráfico = nº de postos cadastrados
+    // (bate com a cobertura), inclusive quando um posto aparece repetido no cadastro.
+    const riscoPorChave = {};
+    (postosComRisco || []).forEach((l) => {
+      const k = chavePostoCargo(l); const n = l["Risco Global"];
+      if (!(k in riscoPorChave) || NIVEIS_RISCO.indexOf(nivelCanonico(n)) > NIVEIS_RISCO.indexOf(nivelCanonico(riscoPorChave[k]))) riscoPorChave[k] = n;
+    });
+    // Universo = postos cadastrados (cargo) + quaisquer postos com risco (nenhum posto com
+    // risco é perdido, mesmo que não tenha cadastro próprio). Chaves DISTINTAS, igual à cobertura.
+    const chaves = new Set(Object.keys(riscoPorChave));
+    (universoCargo || []).forEach((c) => chaves.add(chavePostoCargo(c)));
+    const porNivel = {}; NIVEIS_RISCO.forEach((n) => (porNivel[n] = 0)); let semRisco = 0;
+    chaves.forEach((k) => {
+      const n = riscoPorChave[k];
+      const canon = n ? nivelCanonico(n) : null;
+      if (canon && canon in porNivel) porNivel[canon] += 1; else semRisco += 1;
+    });
+    const total = chaves.size;
+    const base = NIVEIS_RISCO.map((n) => ({ nivel: n, qtd: porNivel[n], pct: total ? (porNivel[n] / total) * 100 : 0 }));
+    return base.concat([{ nivel: SEM_RISCO, qtd: semRisco, pct: total ? (semRisco / total) * 100 : 0, semRisco: true }]);
   }
 
   function topSetores(mapaRiscoF, n) {
@@ -1096,6 +1149,7 @@
     CORES_RISCO_HEX,
     CORES_STATUS_HEX,
     corRiscoHex,
+    impactoRisco,
     corStatusAcaoHex,
     textoSobreHex,
     hexParaRGB,
@@ -1148,6 +1202,8 @@
     rotuloMes,
     FAIXAS_IDADE,
     mapaRiscoGlobal,
+    mapaRiscoGlobalSemRisco,
+    SEM_RISCO,
     topSetores,
     distribuicaoPorNivelRisco,
     distribuicaoPorStatus,

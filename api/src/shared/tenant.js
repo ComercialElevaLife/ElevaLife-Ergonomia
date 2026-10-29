@@ -100,7 +100,11 @@ function podeVerUnidadeDoc(identidade, colecao, doc) {
   if (!restritoPorUnidade(identidade)) return true;
   const empresaId = empresaIdDoDocumento(colecao, doc);
   const minhas = unidadesDaEmpresa(identidade, empresaId);
-  if (!minhas.length) return false; // obrigatório marcar: sem unidade nessa empresa => não vê nada
+  // V 1.73 (Alexandre): se o usuário está vinculado à EMPRESA mas não marcou nenhuma
+  // UNIDADE nela, passa a ter acesso no nível da empresa (vê todas as unidades dela).
+  // Antes isso devolvia false e o usuário (ex.: Ergonomista vinculado só à empresa) não
+  // via NADA no dashboard. A restrição por unidade só vale quando ele marca unidades.
+  if (!minhas.length) return true;
   if (colecao === "cliente") return true; // a empresa aparece porque o usuário tem ≥1 unidade nela
   if (colecao === "unidade") return minhas.indexOf(doc.Unidade) !== -1;
   const u = doc.Unidade;

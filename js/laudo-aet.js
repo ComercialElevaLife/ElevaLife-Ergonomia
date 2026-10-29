@@ -134,6 +134,11 @@
     const linhasM = [[cell("Probabilidade \\ Severidade", { fill: COR.wine, bold: true, color: "FFFFFF", size: 7.5 })].concat(esc.map((v) => cell(C.rotuloEscala(mz, v, "severidade"), { fill: COR.wine, bold: true, color: "FFFFFF", align: "c", size: 7.5 })))];
     esc.slice().reverse().forEach((p) => linhasM.push([cell(C.rotuloEscala(mz, p), { bold: true, fill: COR.tint, color: COR.deep, size: 7.5 })].concat(esc.map((s) => { const nv = C.nivelDaMatriz(mz, p, s); const hx = corNivel(nv); return cell(`${C.pontuacaoDaMatriz(mz, p, s)} · ${nv}`, { fill: hx, bold: true, align: "c", color: C.textoSobreHex(hx), size: 7.5 }); }))));
     table(linhasM, [1900].concat(esc.map(() => Math.floor(7454 / n))), { keep: true, header: false });
+    // V 1.69 (Alexandre): logo apos a matriz, legenda das graduacoes de risco e o impacto de cada uma
+    // (nomes conforme a matriz do cliente; impacto por cor de corRiscoHex/impactoRisco).
+    const niveisLeg = C.niveisDaMatriz(mz).slice().sort((a, b) => C.ordemNivel(b) - C.ordemNivel(a));
+    P("**Graduações de risco e seus impactos:**", { keepNext: true, keepNextH: 60, sa: 3, sb: 4 });
+    table([hdr(["Graduação", "Impacto"])].concat(niveisLeg.map((nv) => { const hx = corNivel(nv); return [cell(nv, { fill: hx, bold: true, color: C.textoSobreHex(hx), size: 8, align: "c" }), cell(C.impactoRisco(nv), { size: 8 })]; })), [2600, 6754], { keep: true });
     // 6 recomendacoes e conduta
     H("Recomendações e sugestões", 0, { pb: true }); paras("AET Recomendacoes");
     H("Conduta administrativa para a gestão dos riscos ergonômicos", 1);
@@ -185,7 +190,7 @@
         if (fts.length) { P("**Registro fotográfico**", { keepNext: true, sa: 3 }); blocos.push({ t: "fotos", itens: fts, alt: 140 }); }
         const linhasF = (at.fatores || []).map((fa) => ({ fa, row: op.linhaFator(a, fa) }));
         if (linhasF.length) {
-          table([hdr(["Fator de risco", "Consequência", "Segmento", "Metodologia de estudo", "Severidade", "Probabilidade", "Grau de risco"])].concat(linhasF.map(({ fa, row }) => {
+          table([hdr(["Fator de risco", "Fonte geradora", "Segmento", "Metodologia de estudo", "Severidade", "Probabilidade", "Grau de risco"])].concat(linhasF.map(({ fa, row }) => {
             const nome = (row && row.Fator) || (fa.fator === "__outro" ? fa.outro : fa.fator);
             const sev = row && row.Criticidade ? `${C.rotuloEscala(mz, row.Criticidade, "severidade")} (${esc.indexOf(row.Criticidade) + 1})` : row && row["Graduacao Risco"] ? "Pela ferramenta" : "—";
             const prob = row && row.Probabilidade ? `${C.rotuloEscala(mz, row.Probabilidade)} (${esc.indexOf(row.Probabilidade) + 1})` : row && row["Graduacao Risco"] ? "Pela ferramenta" : "—";
@@ -273,7 +278,7 @@
     if (op.instrumentos.length) {
       H("Certificados de calibração dos instrumentos", 0, { pb: true });
       for (let i = 0; i < op.instrumentos.length; i++) {
-        const c = op.instrumentos[i]; H(`${c.Nome}${c.Validade ? " (validade " + dataBR(c.Validade) + ")" : ""}`, 1);
+        const c = op.instrumentos[i]; H(`${c.Nome}`, 1); // V 1.68 (Alexandre): no laudo final sai só o nome do certificado (sem a validade)
         const arq = Array.isArray(c["Arquivo Imagem"]) ? c["Arquivo Imagem"][0] : c["Arquivo Imagem"];
         const pags = arq && arq.chave ? await BI.LaudoPadrao.paginasDoArquivo(arq.chave) : []; // V 1.35: imagem ou PDF (uma pagina cada)
         for (let k = 0; k < pags.length; k++) { const d = pags[k]; if (k > 0) blocos.push({ t: "pb" }); const im = await new Promise((ok) => { const i2 = new Image(); i2.onload = () => ok([i2.naturalWidth, i2.naturalHeight]); i2.onerror = () => ok([1000, 1414]); i2.src = d; }); const w = 480, hh = Math.min(640, w * im[1] / im[0]); blocos.push({ t: "img", d, w: hh < 640 ? w : 640 * im[0] / im[1], h: hh }); }

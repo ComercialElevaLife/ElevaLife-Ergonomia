@@ -2,6 +2,55 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.74 — 29/10/2026
+
+- **Vincular unidade a outra empresa — mover unidade (e seus dados) entre empresas (Alexandre).**
+  - No Cadastro de Unidades, cada linha ganhou (para o Administrador) o botão **"Vincular a outra empresa"**: escolhe a empresa de destino e move a unidade e **todos os dados dela** (avaliações, fatores de risco, AET, plano de ação, colaboradores, etc.) para lá.
+  - A operação é feita **no servidor** (`POST /api/mover-unidade`), de forma atômica: mantém os **ids** de todos os registros (as referências cruzadas — plano → fator → AET — continuam válidas) e só troca a empresa (EmpresaId) e o nome do cliente; cria na empresa de destino e remove da origem, sem duplicar nem perder nada. Recusa se a empresa de destino já tiver uma unidade com o mesmo nome.
+  Service worker subiu para `sige-v89`. *(Arquivos: `api/src/functions/entidades.js`, `js/db.js`, `js/app.js`.)*
+
+## V 1.73 — 29/10/2026
+
+- **Import de laudo AEP puxa criticidade/probabilidade/graduação/ações + dashboard do Ergonomista vinculado (Alexandre).**
+  - **Import AEP (ex.: OPELLA):** a importação do laudo em PDF já trazia os fatores, as fotos, a circunstância geradora e a consequência, mas **não trazia a criticidade (severidade), a probabilidade, a graduação do risco nem as ações**. A causa: a linha de valores da tabela de risco só era reconhecida quando começava por "baixa/alta/..." — laudos cuja criticidade é **"Leve"** (como o OPELLA) ficavam sem esses dados. Agora a linha de valores é detectada pela estrutura (tem a pontuação numérica), então **criticidade, probabilidade, pontuação, graduação e a ação para eliminação** passam a ser importadas. Mapeamento de escala ampliado (Leve, Grave, Crítico, Tolerável, Intolerável, Irrelevante, Trivial, etc.).
+  - **Dashboard do Ergonomista/Consultor vinculado só à empresa:** quem estava vinculado a uma **empresa** mas não tinha nenhuma **unidade** marcada nela não via NADA (dashboard vazio — caso da Jackeline na AGCO). Agora, sem unidade marcada, o acesso é no **nível da empresa** (vê todas as unidades dela); a restrição por unidade só vale quando o usuário marca unidades.
+  Service worker subiu para `sige-v88`. *(Arquivos: `js/aep-laudo-import.js`, `api/src/shared/tenant.js`.)*
+
+## V 1.72 — 29/10/2026
+
+- **Dashboard — "Risco Global dos Postos" passa a bater com a cobertura (Alexandre).**
+  - O gráfico de rosca contava só os postos COM fator de risco (ex.: 165) enquanto a cobertura mostrava todos os postos cadastrados (ex.: 309). Agora o gráfico conta TODOS os postos: cada um na sua graduação (o maior risco entre os seus fatores) e os postos sem nenhum fator entram numa fatia à parte **"Sem risco"** (cinza). O total do gráfico passa a bater com a contagem de postos cadastrados. Vale para o dashboard Geral e para a Gestão de Riscos.
+  Service worker subiu para `sige-v87`. *(Arquivos: `js/calc.js`, `js/app.js`.)*
+
+## V 1.71 — 29/10/2026
+
+- **Usuários (HTTP 500) — diagnóstico e provisionamento (Alexandre).**
+  - A lista de usuários passa a **garantir o container** (`createIfNotExists`) antes de consultar — se a base de usuários não existir no ambiente, ela é criada em vez de estourar 500.
+  - Quando ainda assim houver erro, o backend devolve o **motivo real** (campo `detalhe`) e a tela de Usuários mostra esse motivo, em vez de só "tente novamente" — para identificar a causa de uma vez.
+  Service worker subiu para `sige-v86`. *(Arquivos: `api/src/functions/usuarios.js`, `js/app.js`.)*
+
+## V 1.70 — 29/10/2026
+
+- **Renomear cliente/unidade não orfana mais os dados + exclusão em cascata + filtro hierárquico estrito (Alexandre).**
+  - **Renomear mantém tudo ligado:** editar o nome de um Cliente (ou Unidade/Setor/Posto/Cargo) agora mantém o `id` e o `EmpresaId` estáveis e propaga o novo nome para TODOS os registros abaixo (unidades, avaliações, fatores, AET, plano de ação, colaboradores...). Nada é movido de partição nem excluído — as informações prévias continuam alocadas na edição. (Antes, renomear o cliente "soltava" as unidades/avaliações, que só apareciam filtrando pela unidade com o cliente em branco.)
+  - **Excluir unidade/cliente leva os dados junto:** excluir uma Unidade (ou Setor/Posto/Cargo) agora apaga em cascata todas as avaliações, fatores, AET, plano e demais cadastros abaixo dela. O Cliente continua indo para a Lixeira (que já apaga tudo).
+  - **Filtro em cascata estrito:** a Unidade só oferece opções depois de escolher a Empresa; o Setor só depois da Unidade; o Posto só depois do Setor; o Cargo só depois do Posto. Assim a Unidade nunca aparece "solta" e não mistura unidades de clientes diferentes.
+  Service worker subiu para `sige-v85`. *(Arquivos: `js/app.js`, `js/calc.js`.)*
+
+## V 1.69 — 27/10/2026
+
+- **Legenda de riscos e impactos após a matriz (AEP, AET e psicossocial) + "Consequência" → "Fonte geradora" na AET (Alexandre).**
+  - **Legenda de graduações × impacto:** logo após a matriz de risco, os três laudos passam a trazer uma tabela com cada graduação (na cor e com o nome que a matriz do cliente produz) e o impacto correspondente: Altíssimo/Muito Alto/Intolerável – iminente probabilidade de problemas; Alto – inadequações importantes e alta probabilidade; Moderado – inadequações de menor importância e baixa probabilidade; Baixo/Tolerável – inadequações inexistentes ou mínimas; Muito Baixo/Trivial/Irrelevante – sem inadequações ou riscos. (Helper central `Calc.impactoRisco`, por cor, para funcionar com qualquer matriz.)
+  - **AET — "Consequência" renomeado para "Fonte geradora"** na tabela de fatores do laudo e no cadastro (campo e validação). O antigo campo "Fonte geradora / observação" passou a se chamar apenas "Observação", para não duplicar o rótulo.
+  Service worker subiu para `sige-v84`. *(Arquivos: `js/calc.js`, `js/laudo.js`, `js/laudo-aet.js`, `js/aet.js`, `psicossocial.html`.)*
+
+## V 1.68 — 27/10/2026
+
+- **Laudo AET — certificado sem a validade e menos espaço em branco (Alexandre).**
+  - **Certificados de calibração:** o título de cada certificado no laudo passa a mostrar **somente o nome** (ex.: "10.1 THDL 400"), sem o "(validade dd/mm/aaaa)". A validade continua aparecendo só na tela de seleção.
+  - **Menos espaço em branco:** as reservas de quebra de página (introduzidas na V1.66 para evitar títulos órfãos) eram grandes demais (130/150 pt) e deixavam vãos no rodapé quando um título/rótulo caía perto do fim da página. Reduzidas para valores moderados (60–72 pt) — ainda evitam o título órfão, mas sem desperdiçar espaço.
+  Service worker subiu para `sige-v83`. *(Arquivos: `js/laudo-aet.js`, `js/laudo-blocos.js`.)*
+
 ## V 1.67 — 27/10/2026
 
 - **Laudo AET — "Memorial de cálculo" não se separa mais da tabela (Alexandre).**

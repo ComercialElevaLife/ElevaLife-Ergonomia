@@ -2487,6 +2487,11 @@ async function gerarRelatorio(btn){
     { const n=m.P.length, w0=2000, wc=Math.floor((CW-w0)/m.S.length), w=[w0,...Array(m.S.length).fill(wc)];
       C.push(table([[cell("Probabilidade \\ Severidade",{fill:COR.deep,bold:true}),...m.S.map((s,j)=>cell(`${j+1} – ${s}`,{fill:COR.wine,bold:true,align:"c"}))],
         ...Array.from({length:n},(_,k)=>n-k).map(p=>[cell(`${p} – ${nomeP(p)}`,{fill:COR.tint,bold:true,color:COR.deep}),...m.S.map((_,j)=>{const c=m.M[p-1][j];return cell(`${m.NV[p-1][j]} (${m.PT[p-1][j]})`,{fill:corCat(c),bold:true,align:"c"})})])],w,{keep:true})); C.push(gap()); }
+    { // V 1.69 (Alexandre): logo após a matriz, legenda das graduações e o impacto de cada uma (nomes conforme a matriz do cliente)
+      const w=[2400,6954]; const nomeDaCat={}; m.M.forEach((row,p)=>row.forEach((c,s)=>{ if(c!=null&&nomeDaCat[c]==null) nomeDaCat[c]=m.NV[p][s]; }));
+      const imp=(BI.Calc&&BI.Calc.impactoRisco)?BI.Calc.impactoRisco:(()=> "");
+      C.push(P("**Graduações de risco e seus impactos:**",{keep:true,sa:2}));
+      C.push(table([hdr(["Graduação","Impacto"],w),...m.cats.slice().sort((a,b)=>b-a).map(c=>{const nm=nomeDaCat[c]||CAT[c].n; return [cell(nm,{fill:corCat(c),bold:true,align:"c"}),cell(imp(nm),{})];})],w,{keep:true})); C.push(gap()); }
     { const w=[1800,7554]; C.push(table([[cell("Conduta administrativa para os riscos psicossociais",{span:2,fill:COR.wine,bold:true})],...m.cats.map(i=>CAT[i]).map((c,ix)=>{const i=m.cats[ix]; return [cell(c.n,{fill:corCat(i),bold:true,align:"c"}),cell(c.conduta+(i>=3?" A execução do plano deve ser monitorada e avaliada até a eliminação ou minimização do risco.":""),{})];})],w,{keep:true})); C.push(gap()); }
     C.push(...paras("recomendacoes"));
 

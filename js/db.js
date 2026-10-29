@@ -1251,6 +1251,23 @@
     return { falhas };
   }
 
+  // V 1.74 (Alexandre): move uma unidade (e todos os dados dela) para outra empresa.
+  // Operação atômica no servidor (/api/mover-unidade) - mantém os ids/vínculos. Depois
+  // recarrega tudo para a tela refletir o novo dono.
+  async function moverUnidade(empresaIdOrigem, unidade, empresaIdDestino) {
+    if (!estado.modoApi) throw new Error("Mover unidade só funciona na versão publicada (com servidor).");
+    if (semInternetAgora()) throw new Error(MSG_PRECISA_INTERNET);
+    const resp = await fetch("/api/mover-unidade", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ EmpresaIdOrigem: empresaIdOrigem, Unidade: unidade, EmpresaIdDestino: empresaIdDestino }),
+    });
+    if (!resp.ok) throw new Error(await corpoDeErro(resp));
+    const r = await resp.json().catch(() => ({}));
+    await carregarTudoOuCopia();
+    return r;
+  }
+
   global.BI = global.BI || {};
   global.BI.DB = {
     estado,
@@ -1270,6 +1287,7 @@
     excluir,
     recarregarTudo: carregarTudoOuCopia, // V 1.37
     excluirEmLote,
+    moverUnidade, // V 1.74
     enviarArquivo,
     urlArquivo,
     fazerLogin,

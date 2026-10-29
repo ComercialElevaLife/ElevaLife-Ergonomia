@@ -19,8 +19,8 @@
 
 "use strict";
 
-const { obterContainer } = require("../shared/cosmos");
-const { resolverIdentidade, PAPEIS, vinculosDoDoc, vinculosDoCorpo } = require("../shared/tenant");
+const { obterContainer, garantirContainer } = require("../shared/cosmos");
+const { resolverIdentidade, PAPEIS } = require("../shared/tenant");
 const { criarOuConvidarUsuario } = require("./auth");
 
 const PAPEIS_VALIDOS = new Set(Object.values(PAPEIS));
@@ -39,7 +39,18 @@ async function tratar(request, context) {
     return { status: 403, jsonBody: { erro: "Só Administradores ou Consultores podem gerenciar usuários." } };
   }
 
-  const container = obterContainer("usuarios");
+  // V 1.71 (Alexandre): "usuarios" é particionado por /id. Em alguns ambientes o
+  // container pode não ter sido provisionado ainda (ex.: banco recriado) e o GET
+  // estourava 500 "Erro interno." sem pista. garantirContainer cria se faltar
+  // (createIfNotExists, sem custo no Serverless) e abaixo o erro real é registrado
+  // e devolvido no corpo (rota só de Administrador/Consultor) para diagnóstico.
+  let container;
+  try {
+    container = await garantirContainer("usuarios");
+  } catch (erro) {
+    context.error("Falha ao obter/garantir o container de usuarios", erro);
+    return { status: 500, jsonBody: { erro: "Falha ao acessar a base de usuários.", detalhe: String(erro && erro.message ? erro.message : erro) } };
+  }
   const id = request.params.id;
 
   try {
@@ -48,14 +59,10 @@ async function tratar(request, context) {
         const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
         // Nunca devolver os hashes/tokens pro frontend - so o necessario pra
         // tela de Usuarios (e-mail, papel, empresas, status da conta).
-        const semSegredos = resources.map((u) => {
-          const v = vinculosDoDoc(u);
-          return {
-            id: u.id, Email: u.Email, Papel: u.Papel, EmpresasVinculadas: v.sigeVinculo === "nenhuma" ? [] : (u.EmpresasVinculadas || []),
-            SigeVinculo: v.sigeVinculo, PsicoVinculo: v.psicoVinculo, EmpresasPsico: v.empresasPsico,
-            StatusConta: u.StatusConta || (u.SenhaHash ? "Ativo" : "Convidado"),
-          };
-        });
+        const semSegredos = resources.map((u) => ({
+          id: u.id, Email: u.Email, Papel: u.Papel, EmpresasVinculadas: u.EmpresasVinculadas,
+          StatusConta: u.StatusConta || (u.SenhaHash ? "Ativo" : "Convidado"),
+        }));
         return { jsonBody: semSegredos };
       }
 
@@ -64,7 +71,7 @@ async function tratar(request, context) {
         const resultado = await criarOuConvidarUsuario(request, container, corpo, identidade);
         if (resultado.erro) return resultado.erro;
         const { doc, link, avisoEmail } = resultado;
-        return { status: 201, jsonBody: { id: doc.id, Email: doc.Email, Papel: doc.Papel, EmpresasVinculadas: doc.EmpresasVinculadas, SigeVinculo: doc.SigeVinculo, PsicoVinculo: doc.PsicoVinculo, EmpresasPsico: doc.EmpresasPsico, StatusConta: doc.StatusConta, linkConvite: link, avisoEmail } };
+        return { status: 201, jsonBody: { id: doc.id, Email: doc.Email, Papel: doc.Papel, EmpresasVinculadas: doc.EmpresasVinculadas, StatusConta: doc.StatusConta, linkConvite: link, avisoEmail } };
       }
 
       case "PUT": {
@@ -80,16 +87,9 @@ async function tratar(request, context) {
         if (!existente) return { status: 404, jsonBody: { erro: "Não encontrado." } };
         // Nunca deixar o corpo da requisicao sobrescrever SenhaHash/tokens -
         // essa rota so mexe em Papel/EmpresasVinculadas.
-        const papelNovo = corpo.Papel || existente.Papel;
-        const doc = Object.assign({}, existente, { Papel: papelNovo, EmpresasVinculadas: Array.isArray(corpo.EmpresasVinculadas) ? corpo.EmpresasVinculadas : existente.EmpresasVinculadas, id });
-        // V 1.26: vinculos por modulo (SIGE / Riscos Psicossociais). So mexe
-        // se a tela mandou os campos (chamadas antigas continuam valendo).
-        if ("SigeVinculo" in corpo || "PsicoVinculo" in corpo || "EmpresasPsico" in corpo) {
-          Object.assign(doc, vinculosDoCorpo(Object.assign({ SigeVinculo: existente.SigeVinculo, PsicoVinculo: existente.PsicoVinculo, EmpresasPsico: existente.EmpresasPsico }, corpo), papelNovo));
-          if (doc.SigeVinculo === "nenhuma") doc.EmpresasVinculadas = [];
-        }
+        const doc = Object.assign({}, existente, { Papel: corpo.Papel || existente.Papel, EmpresasVinculadas: Array.isArray(corpo.EmpresasVinculadas) ? corpo.EmpresasVinculadas : existente.EmpresasVinculadas, id });
         const { resource } = await container.item(id, id).replace(doc);
-        return { jsonBody: { id: resource.id, Email: resource.Email, Papel: resource.Papel, EmpresasVinculadas: resource.EmpresasVinculadas, SigeVinculo: resource.SigeVinculo, PsicoVinculo: resource.PsicoVinculo, EmpresasPsico: resource.EmpresasPsico, StatusConta: resource.StatusConta } };
+        return { jsonBody: { id: resource.id, Email: resource.Email, Papel: resource.Papel, EmpresasVinculadas: resource.EmpresasVinculadas, StatusConta: resource.StatusConta } };
       }
 
       case "DELETE": {
@@ -106,7 +106,9 @@ async function tratar(request, context) {
     }
   } catch (erro) {
     context.error("Erro em /api/usuarios", erro);
-    return { status: 500, jsonBody: { erro: "Erro interno." } };
+    // V 1.71: devolve o motivo real (rota restrita a Administrador/Consultor) para
+    // diagnóstico - antes só dizia "Erro interno." e não dava para saber a causa.
+    return { status: 500, jsonBody: { erro: "Erro ao carregar usuários.", detalhe: String(erro && erro.message ? erro.message : erro) } };
   }
 }
 

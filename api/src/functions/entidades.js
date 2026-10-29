@@ -128,6 +128,8 @@ const ROTAS_ESPECIAIS = {
   psicopub: rotaPsicossocial.tratarPublico,
   // V 1.37: GET/POST /api/manutencao/orfaos - dados de empresas ja excluidas (so Administrador).
   manutencao: tratarManutencao,
+  // V 1.74: POST /api/mover-unidade - move uma unidade (e seus dados) para outra empresa (so Administrador).
+  "mover-unidade": tratarMoverUnidade,
 };
 
 // V 1.37: colecoes com dados por empresa (tudo o que sai junto quando a empresa-cliente e excluida).
@@ -168,6 +170,52 @@ async function tratarManutencao(request, context) {
   } catch (erro) {
     context.error("Erro em /api/manutencao", erro);
     return { status: 500, jsonBody: { erro: "Erro interno." } };
+  }
+}
+
+// V 1.74 (Alexandre): mover uma UNIDADE (e todos os dados dela) de uma empresa para outra.
+// POST /api/mover-unidade { EmpresaIdOrigem, Unidade, EmpresaIdDestino }. Só Administrador.
+// Mantém os ids de todos os registros (as referências cruzadas - plano→fator→AET - continuam
+// válidas) e só troca EmpresaId + Cliente: cria o registro na partição de destino (upsert, mesmo
+// id) e apaga o da partição de origem (chave de partição explícita). Nada é duplicado nem perdido.
+async function tratarMoverUnidade(request, context) {
+  let identidade;
+  try { identidade = await resolverIdentidade(request); } catch (e) { return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissões." } }; }
+  if (!identidade) return { status: 401, jsonBody: { erro: "Não autenticado." } };
+  if (identidade.papel !== "Administrador") return { status: 403, jsonBody: { erro: "Só Administrador pode mover uma unidade entre empresas." } };
+  if (request.method !== "POST") return { status: 405, jsonBody: { erro: "Use POST." } };
+  const corpo = await request.json().catch(() => ({}));
+  const origem = String(corpo.EmpresaIdOrigem || "").trim();
+  const unidade = String(corpo.Unidade || "").trim();
+  const destino = String(corpo.EmpresaIdDestino || "").trim();
+  if (!origem || !unidade || !destino) return { status: 400, jsonBody: { erro: "Informe a empresa de origem, a unidade e a empresa de destino." } };
+  if (origem === destino) return { status: 400, jsonBody: { erro: "A empresa de destino é a mesma da origem." } };
+  try {
+    const cliCont = obterContainer("cliente");
+    const dest = await lerPorId(cliCont, destino);
+    if (!dest || dest.Excluida) return { status: 404, jsonBody: { erro: "Empresa de destino não encontrada." } };
+    const clienteDestino = dest.Cliente;
+    // Colisão: a empresa de destino já tem uma unidade com esse nome?
+    const uCont = await garantirContainer("unidade");
+    const q = { query: "SELECT * FROM c WHERE c.EmpresaId = @e AND c.Unidade = @u", parameters: [{ name: "@e", value: destino }, { name: "@u", value: unidade }] };
+    const { resources: jaTem } = await uCont.items.query(q).fetchAll();
+    if (jaTem.length) return { status: 409, jsonBody: { erro: `A empresa de destino já tem uma unidade chamada "${unidade}". Renomeie uma delas antes de mover.` } };
+    let movidos = 0;
+    for (const col of colecoesDaEmpresa()) {
+      const container = await garantirContainer(col);
+      const consulta = { query: "SELECT * FROM c WHERE c.EmpresaId = @e AND c.Unidade = @u", parameters: [{ name: "@e", value: origem }, { name: "@u", value: unidade }] };
+      const { resources } = await container.items.query(consulta).fetchAll();
+      for (const doc of resources) {
+        const novo = Object.assign({}, doc, { EmpresaId: destino, Cliente: clienteDestino });
+        await container.items.upsert(novo);                 // cria na partição de destino (mesmo id)
+        try { await container.item(doc.id, origem).delete(); } catch (e) { /* modelos sem partição: upsert já atualizou no lugar */ }
+        movidos++;
+      }
+    }
+    return { status: 200, jsonBody: { movidos, clienteDestino } };
+  } catch (erro) {
+    context.error("Erro em /api/mover-unidade", erro);
+    return { status: 500, jsonBody: { erro: "Erro ao mover a unidade.", detalhe: String(erro && erro.message ? erro.message : erro) } };
   }
 }
 

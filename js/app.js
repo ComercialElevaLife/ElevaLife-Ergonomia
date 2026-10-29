@@ -975,8 +975,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   };
   function renderDonutNiveis(canvasId, legendaId, niveis, rotuloCentro, unidade, aoClicar) {
     const C = window.BI.Calc;
+    // V 1.72: fatia "Sem risco" (postos avaliados/cadastrados sem fator) em cinza.
+    const corDoNivel = (n) => (n.semRisco || n.nivel === C.SEM_RISCO) ? "#B8ADA9" : C.corStatus(n.nivel);
     const itens = niveis.filter((n) => n.qtd > 0);
-    const labels = itens.map((n) => C.rotuloNivel(n.nivel)); const valores = itens.map((n) => n.qtd); const cores = itens.map((n) => C.corStatus(n.nivel));
+    const labels = itens.map((n) => C.rotuloNivel(n.nivel)); const valores = itens.map((n) => n.qtd); const cores = itens.map((n) => corDoNivel(n));
     criarOuAtualizarGrafico(canvasId, {
       type: "doughnut",
       data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
@@ -985,7 +987,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         (el) => aoClicar(itens[el.index])),
     });
     const total = valores.reduce((a, b) => a + b, 0);
-    renderizarLegenda(legendaId, niveis.map((n) => ({ label: `${C.rotuloNivel(n.nivel)}: ${n.qtd} ${unidade}${total ? " (" + ((n.qtd / total) * 100).toFixed(0) + "%)" : ""}`, cor: C.corStatus(n.nivel) })));
+    renderizarLegenda(legendaId, niveis.map((n) => ({ label: `${C.rotuloNivel(n.nivel)}: ${n.qtd} ${unidade}${total ? " (" + ((n.qtd / total) * 100).toFixed(0) + "%)" : ""}`, cor: corDoNivel(n) })));
   }
 
   // Drill-down em secoes (V 1.35: composicao de um mes da evolucao dos riscos).
@@ -6490,15 +6492,28 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         const geradorId = chave === "mapaRisco" ? window.BI.DB.idMapaRisco : window.BI.DB.idCadastroMestre[chave];
         if (geradorId) {
           const novoId = geradorId(dados);
-          // Registro novo OU edicao que mudou campo-chave (ex.: renomeou o
-          // Cliente) - o id calculado ainda nao existe no banco, entao tem
-          // que CRIAR (POST), nunca atualizar (PUT) um id inexistente (ver
-          // comentario em js/db.js/salvar - bug "Erro ao salvar: Nao
-          // encontrado" reportado pelo Leo 02/10/2026 ao cadastrar empresa nova).
-          const ehRegistroNovo = !idAtual || idAtual !== novoId;
-          await window.BI.DB.salvar(chave, novoId, dados, ehRegistroNovo);
-          if (idAtual && idAtual !== novoId) await window.BI.DB.excluir(chave, idAtual);
-          idSalvo = novoId;
+          // V 1.70 (Alexandre): RENOMEAR um nível da hierarquia (Cliente, Unidade, Setor,
+          // Posto, Cargo, Atividade) - editar o nome mudaria o id derivado do nome e orfanaria
+          // tudo abaixo. Agora o registro MANTÉM o id e o EmpresaId (PUT no mesmo id) e o novo
+          // nome é propagado para todos os descendentes (cascataRenomearHierarquia). Nada é
+          // movido de partição nem excluído: as informações prévias continuam alocadas na edição.
+          if (idAtual && idAtual !== novoId && NIVEL_CAMPO[chave]) {
+            const registroAntigo = (colecaoEmMemoria(chave) || []).find((r) => idDoRegistro(r) === idAtual) || {};
+            const dadosPut = chave === "cliente" ? Object.assign({}, dados, { EmpresaId: registroAntigo.EmpresaId || idAtual }) : dados;
+            await window.BI.DB.salvar(chave, idAtual, dadosPut);
+            await cascataRenomearHierarquia(chave, registroAntigo, dados);
+            idSalvo = idAtual;
+          } else {
+            // Registro novo OU edicao que mudou campo-chave (ex.: renomeou o
+            // Cliente) - o id calculado ainda nao existe no banco, entao tem
+            // que CRIAR (POST), nunca atualizar (PUT) um id inexistente (ver
+            // comentario em js/db.js/salvar - bug "Erro ao salvar: Nao
+            // encontrado" reportado pelo Leo 02/10/2026 ao cadastrar empresa nova).
+            const ehRegistroNovo = !idAtual || idAtual !== novoId;
+            await window.BI.DB.salvar(chave, novoId, dados, ehRegistroNovo);
+            if (idAtual && idAtual !== novoId) await window.BI.DB.excluir(chave, idAtual);
+            idSalvo = novoId;
+          }
         } else if (cfg.gerarIdNovo && !idAtual) {
           // Registro novo com id escolhido AQUI (um so por formulario, mesmo se
           // o salvamento for repetido): as acoes ligadas ja nascem apontando
@@ -6524,6 +6539,117 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     container.appendChild(form);
   }
 
+  // V 1.70 (Alexandre): cascata da hierarquia (Cliente > Unidade > Setor > Posto > Cargo > Atividade).
+  // Usada para (a) renomear um nível sem orfanar os filhos e (b) excluir um nível levando junto
+  // tudo o que está abaixo dele (avaliações, fatores, AET, plano, etc.).
+  const CAMPOS_HIER = ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"];
+  const NIVEL_CAMPO = { cliente: "Cliente", unidade: "Unidade", setor: "Setor", posto: "Posto Trabalho", cargo: "Cargo", atividade: "Atividade" };
+  // Coleções POR-EMPRESA que carregam os campos da hierarquia (as GLOBAIS - certificado,
+  // modelo de laudo, configuração, ergonomista - e a própria "cliente" ficam de fora).
+  const COLECOES_HIER = ["mapaRisco", "planoAcao", "absenteismo", "compativeis", "unidade", "setor", "posto", "cargo", "atividade", "avaliacaoErgonomica", "fatorRisco", "laudo", "aet", "diasUteis", "colaborador", "tempoTrabalho", "acaoAbsenteismo", "psicoLaudo"];
+  const colecaoEmMemoria = (col) => (window.BI.DB.estado.colecoes[col] || window.BI.dados[col] || []);
+  const idDoRegistro = (r) => r._id || r.id;
+
+  // Renomeia um nível da hierarquia MANTENDO o id e o EmpresaId estáveis (PUT), e
+  // propaga o novo nome para TODOS os descendentes. Não move partição nem exclui nada
+  // (sem risco de perda de dados): só atualiza o campo do nome onde ele aparece.
+  async function cascataRenomearHierarquia(chave, registroAntigo, dadosNovos, progresso) {
+    const campo = NIVEL_CAMPO[chave];
+    if (!campo) return { atualizados: 0 };
+    const oldVal = registroAntigo[campo], newVal = dadosNovos[campo];
+    if (oldVal == null || String(oldVal) === String(newVal)) return { atualizados: 0 };
+    const empresaId = registroAntigo.EmpresaId || (chave === "cliente" ? idDoRegistro(registroAntigo) : null);
+    const ancestrais = CAMPOS_HIER.slice(0, CAMPOS_HIER.indexOf(campo)); // níveis acima do renomeado
+    let atualizados = 0;
+    for (const col of COLECOES_HIER) {
+      const itens = [];
+      for (const r of colecaoEmMemoria(col)) {
+        if (!(campo in r) || String(r[campo]) !== String(oldVal)) continue;
+        if (empresaId && r.EmpresaId && r.EmpresaId !== empresaId) continue;
+        let ok = true;
+        for (const a of ancestrais) { if (a in r && dadosNovos[a] != null && String(r[a]) !== String(dadosNovos[a])) { ok = false; break; } }
+        if (!ok) continue;
+        const novo = Object.assign({}, r, { [campo]: newVal }); delete novo._origem;
+        itens.push({ id: idDoRegistro(r), dados: novo, criar: false });
+      }
+      if (itens.length) { const res = await window.BI.DB.salvarEmLote(col, itens, progresso); atualizados += itens.length - ((res.falhas || []).length); }
+    }
+    return { atualizados };
+  }
+
+  // Exclui um nível da hierarquia e TODOS os seus descendentes (avaliações, fatores,
+  // AET, plano de ação, colaboradores, etc.). O próprio registro do nível também é
+  // apagado da sua coleção.
+  async function cascataExcluirHierarquia(chave, registro) {
+    const campo = NIVEL_CAMPO[chave];
+    if (!campo) return { excluidos: 0 };
+    const empresaId = registro.EmpresaId;
+    const ancestrais = CAMPOS_HIER.slice(0, CAMPOS_HIER.indexOf(campo) + 1); // inclui o próprio nível
+    let excluidos = 0;
+    const colecoes = COLECOES_HIER.indexOf(chave) === -1 ? COLECOES_HIER.concat([chave]) : COLECOES_HIER;
+    for (const col of colecoes) {
+      const ids = [];
+      for (const r of colecaoEmMemoria(col)) {
+        if (empresaId && r.EmpresaId && r.EmpresaId !== empresaId) continue;
+        let match = true;
+        for (const a of ancestrais) { if (!(a in r) || String(r[a]) !== String(registro[a])) { match = false; break; } }
+        if (match) ids.push(idDoRegistro(r));
+      }
+      if (ids.length) { const res = await window.BI.DB.excluirEmLote(col, ids); excluidos += ids.length - ((res && res.falhas) || 0); }
+    }
+    return { excluidos };
+  }
+
+  // Exposto para reuso (ex.: vincular unidades a outra empresa) e testes.
+  window.BI.cascataRenomearHierarquia = cascataRenomearHierarquia;
+  window.BI.cascataExcluirHierarquia = cascataExcluirHierarquia;
+
+  // V 1.74 (Alexandre): mover uma unidade (e todos os dados dela) para outra empresa.
+  function abrirMoverUnidade(linha) {
+    if (!ehAdministradorAtual()) return;
+    const empresaIdOrigem = linha.EmpresaId; const unidade = linha.Unidade;
+    if (!empresaIdOrigem || !unidade) { mostrarErro("Unidade sem empresa/nome identificados."); return; }
+    const outras = (window.BI.dados.cliente || []).filter((c) => (c.id || c._id) !== empresaIdOrigem && !c.Excluida);
+    if (!outras.length) { mostrarErro("Não há outra empresa cadastrada para vincular esta unidade."); return; }
+    const ov = document.createElement("div");
+    ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px";
+    const cx = document.createElement("div");
+    cx.style.cssText = "background:#fff;border-radius:12px;max-width:460px;width:100%;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.3);font-family:inherit;max-height:85vh;overflow:auto";
+    const nomeOrigem = (((window.BI.dados.cliente || []).find((c) => (c.id || c._id) === empresaIdOrigem) || {}).Cliente) || "";
+    const tit = document.createElement("h3"); tit.style.cssText = "margin:0 0 6px;color:#5E2A30;font-size:17px"; tit.textContent = "Vincular unidade a outra empresa"; cx.appendChild(tit);
+    const desc = document.createElement("p"); desc.style.cssText = "margin:0 0 14px;font-size:13px;color:#6b5b58";
+    desc.textContent = 'Mover "' + unidade + '"' + (nomeOrigem ? ' (de "' + nomeOrigem + '")' : '') + ' e todos os dados dela (avaliações, fatores, AET, plano de ação) para:';
+    cx.appendChild(desc);
+    const sel = document.createElement("select");
+    sel.style.cssText = "width:100%;padding:9px;border:1px solid #d8cfcf;border-radius:8px;font-size:14px;margin-bottom:16px";
+    sel.appendChild(new Option("Selecione a empresa de destino…", ""));
+    outras.sort((a, b) => String(a.Cliente || "").localeCompare(String(b.Cliente || ""), "pt-BR")).forEach((c) => sel.appendChild(new Option(c.Cliente, c.id || c._id)));
+    cx.appendChild(sel);
+    const linhaBtn = document.createElement("div"); linhaBtn.style.cssText = "display:flex;gap:10px;justify-content:flex-end";
+    const bCancel = document.createElement("button"); bCancel.type = "button"; bCancel.textContent = "Cancelar"; bCancel.className = "btn-cad-secundario";
+    const bOk = document.createElement("button"); bOk.type = "button"; bOk.textContent = "Mover unidade"; bOk.className = "btn-cad-primario";
+    const fechar = () => { try { document.body.removeChild(ov); } catch (e) {} };
+    bCancel.addEventListener("click", fechar);
+    bOk.addEventListener("click", async () => {
+      const destino = sel.value; if (!destino) { sel.focus(); return; }
+      const nomeDestino = (outras.find((c) => (c.id || c._id) === destino) || {}).Cliente || "";
+      if (!window.confirm('Mover a unidade "' + unidade + '" e TODOS os dados dela para "' + nomeDestino + '"? Essa ação reorganiza os dados entre as empresas.')) return;
+      bOk.disabled = true; bCancel.disabled = true; bOk.textContent = "Movendo…";
+      try {
+        const r = await window.BI.DB.moverUnidade(empresaIdOrigem, unidade, destino);
+        fechar();
+        try { window.alert('Unidade "' + unidade + '" movida para "' + nomeDestino + '" (' + ((r && r.movidos) || 0) + ' registros).'); } catch (e) {}
+        try { renderizarTudo(); } catch (e) {}
+      } catch (e) {
+        bOk.disabled = false; bCancel.disabled = false; bOk.textContent = "Mover unidade";
+        mostrarErro("Não foi possível mover a unidade: " + (e && e.message ? e.message : String(e)));
+      }
+    });
+    linhaBtn.appendChild(bCancel); linhaBtn.appendChild(bOk); cx.appendChild(linhaBtn);
+    ov.appendChild(cx); ov.addEventListener("click", (ev) => { if (ev.target === ov) fechar(); });
+    document.body.appendChild(ov); sel.focus();
+  }
+
   function excluirRegistro(chave, id) {
     if (ehUsuarioCliente()) return;
     if (!window.BI.DB.estado.disponivel) return;
@@ -6531,10 +6657,24 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // V 1.54 (Alexandre): excluir empresa manda para a LIXEIRA (rápido e restaurável);
     // a exclusão definitiva é feita depois, dentro da Lixeira. Os demais cadastros
     // continuam com exclusão direta.
+    // V 1.70 (Alexandre): excluir um nível da hierarquia (Unidade/Setor/Posto/Cargo/Atividade)
+    // leva junto TODOS os dados abaixo dele (avaliações, fatores, AET, plano, colaboradores...).
+    // O Cliente continua indo para a Lixeira (exclusão completa já tratada pelo backend).
+    const registro = (colecaoEmMemoria(chave) || []).find((r) => idDoRegistro(r) === id);
+    const ehNivelComFilhos = !!NIVEL_CAMPO[chave] && chave !== "cliente" && chave !== "atividade";
+    const campoNivel = NIVEL_CAMPO[chave];
     const msg = chave === "cliente"
       ? "Enviar esta empresa para a lixeira? Ela e os dados dela somem das telas, mas podem ser restaurados depois (a exclusão definitiva é feita dentro da Lixeira)."
-      : "Excluir este registro definitivamente? Essa ação não pode ser desfeita.";
+      : ehNivelComFilhos
+        ? `Excluir ${campoNivel === "Unidade" ? "esta unidade" : "este " + String(campoNivel).toLowerCase()} e TODOS os dados ligados a ela (avaliações, fatores de risco, AET, plano de ação e demais cadastros abaixo)? Essa ação não pode ser desfeita.`
+        : "Excluir este registro definitivamente? Essa ação não pode ser desfeita.";
     if (!window.confirm(msg)) return;
+    if (ehNivelComFilhos && registro) {
+      cascataExcluirHierarquia(chave, registro).catch((e) => {
+        mostrarErro("Erro ao excluir em cascata: " + (e && e.message ? e.message : String(e)));
+      });
+      return;
+    }
     window.BI.DB.excluir(chave, id).catch((e) => {
       mostrarErro("Erro ao excluir registro: " + (e && e.message ? e.message : String(e)));
     });
@@ -7313,6 +7453,15 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         btnDetalhes.addEventListener("click", () => (chave === "avaliacaoErgonomica" ? abrirDetalhesAEP(linha) : BI.Historico.abrir(cfg, linha)));
         tdAcoes.appendChild(btnDetalhes);
         if (!cfg.semEditar) tdAcoes.appendChild(btnEditar);
+        // V 1.74 (Alexandre): mover uma unidade (e seus dados) para outra empresa (só Administrador).
+        if (chave === "unidade" && ehAdministradorAtual()) {
+          const btnMover = document.createElement("button");
+          btnMover.type = "button"; btnMover.className = "btn-acao-linha btn-acao-mover"; btnMover.textContent = "Vincular a outra empresa";
+          btnMover.disabled = !podeEditar;
+          btnMover.title = "Mover esta unidade e todos os dados dela (avaliações, fatores, AET, plano) para outra empresa";
+          btnMover.addEventListener("click", () => abrirMoverUnidade(linha));
+          tdAcoes.appendChild(btnMover);
+        }
         tdAcoes.appendChild(btnExcluir);
         tr.appendChild(tdAcoes);
         tbody.appendChild(tr);
@@ -8452,7 +8601,14 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       addGraf(6, "AEPs realizadas (mês a mês)", "Avaliações Ergonômicas Preliminares", "dgeral-aep", null, true);
       addGraf(6, "Atestados (mês a mês)", "Absenteísmo — quantidade de atestados", "dgeral-absent", null, true);
       // render (canvas já no DOM); cada um tolerante a erro
-      try { renderDonutNiveis("dgeral-risco-global", "dgeral-risco-global-leg", Calc.mapaRiscoGlobal(postos), "postos", "posto(s)", (n) => ({ titulo: `Risco Global dos Postos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} posto(s)`, chave: "riscoPosto", linhas: postos.filter((l) => l["Risco Global"] === n.nivel) })); } catch (e) { console.error(e); }
+      try {
+        // V 1.72: inclui a fatia "Sem risco" = postos cadastrados sem fator (total bate com a cobertura).
+        const kP = (l) => ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].map((d) => l[d] || "").join("||");
+        const universoCargoG = F(dados.cargo, []);
+        const comRiscoG = new Set(postos.map(kP));
+        const semRiscoLinhasG = universoCargoG.filter((c) => !comRiscoG.has(kP(c))).map((c) => ({ Cliente: c.Cliente, Unidade: c.Unidade, Setor: c.Setor, "Posto Trabalho": c["Posto Trabalho"], Cargo: c.Cargo, "Risco Global": "Sem risco", "Fator Mais Grave": "-", Fatores: 0 }));
+        renderDonutNiveis("dgeral-risco-global", "dgeral-risco-global-leg", Calc.mapaRiscoGlobalSemRisco(postos, universoCargoG), "postos", "posto(s)", (n) => ({ titulo: `Risco Global dos Postos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} posto(s)`, chave: "riscoPosto", linhas: n.semRisco ? semRiscoLinhasG : postos.filter((l) => l["Risco Global"] === n.nivel) }));
+      } catch (e) { console.error(e); }
       try { renderDonutNiveis("dgeral-inventario", "dgeral-inventario-leg", Calc.distribuicaoPorNivelRisco(fatoresArr, "Graduacao Risco"), "fatores", "fator(es)", (n) => ({ titulo: `Inventário de Riscos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} fator(es)`, chave: "fatorRisco", linhas: fatoresArr.filter((l) => Calc.nivelCanonico(l["Graduacao Risco"]) === n.nivel) })); } catch (e) { console.error(e); }
       try { renderDonutStatus("dgeral-plano", "dgeral-plano-leg", Calc.statusPlanoAcao(planos, hoje), planos, hoje); } catch (e) { console.error(e); }
       try { renderLinhaMensal("dgeral-aep", Calc.serieMensal(avaliacaoArr, "Data Avaliacao"), "AEPs realizadas", Calc.resolverCorCSS("var(--teal)"), avaliacaoArr, "Data Avaliacao", "avaliacaoErgonomica"); } catch (e) { console.error(e); }
@@ -8980,8 +9136,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const planoAcaoFCriticos = planoAcaoFComRisco.filter((a) => a["Risco Global"] === "Alto" || a["Risco Global"] === "Muito Alto");
 
     renderCoberturaPostos(estadoOrigemAba.ergo, filtros);
-    renderDonutNiveis("chart-risco-global", "legenda-risco-global", Calc.mapaRiscoGlobal(mapaRiscoF), "postos", "posto(s)", (n) => ({
-      titulo: `Risco Global dos Postos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} posto(s) de trabalho`, chave: "riscoPosto", linhas: mapaRiscoF.filter((l) => l["Risco Global"] === n.nivel) }));
+    // V 1.72: fatia "Sem risco" = postos cadastrados (filtrados) sem fator de risco - total bate com a cobertura.
+    const kPG = (l) => ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].map((d) => l[d] || "").join("||");
+    const universoCargoR = Calc.filtrar(window.BI.dados.cargo || [], filtros, []);
+    const comRiscoR = new Set(mapaRiscoF.map(kPG));
+    const semRiscoLinhasR = universoCargoR.filter((c) => !comRiscoR.has(kPG(c))).map((c) => ({ Cliente: c.Cliente, Unidade: c.Unidade, Setor: c.Setor, "Posto Trabalho": c["Posto Trabalho"], Cargo: c.Cargo, "Risco Global": "Sem risco", "Fator Mais Grave": "-", Fatores: 0 }));
+    renderDonutNiveis("chart-risco-global", "legenda-risco-global", Calc.mapaRiscoGlobalSemRisco(mapaRiscoF, universoCargoR), "postos", "posto(s)", (n) => ({
+      titulo: `Risco Global dos Postos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} posto(s) de trabalho`, chave: "riscoPosto", linhas: n.semRisco ? semRiscoLinhasR : mapaRiscoF.filter((l) => l["Risco Global"] === n.nivel) }));
     renderTopSetores(Calc.topSetores(mapaRiscoF, 3), mapaRiscoF);
     renderDonutStatus("chart-plano-global", "legenda-plano-global", Calc.statusPlanoAcao(planoAcaoF, hoje), planoAcaoF, hoje);
     renderDonutStatus("chart-plano-criticos", "legenda-plano-criticos", Calc.planoAcaoPostosCriticos(planoAcaoFComRisco, hoje), planoAcaoFCriticos, hoje);
@@ -9147,7 +9308,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     renderizarListaUsuarios();
     try {
       const resp = await fetch("/api/usuarios", { credentials: "same-origin" });
-      if (!resp.ok) throw new Error("Falha ao carregar usuários (HTTP " + resp.status + ").");
+      if (!resp.ok) {
+        // V 1.71 (Alexandre): mostra o motivo real que o backend devolve (campo "detalhe"),
+        // para diagnosticar o HTTP 500 em vez de só "tente novamente".
+        let detalhe = ""; try { const j = await resp.json(); detalhe = j && (j.detalhe || j.erro) ? " – " + (j.detalhe || j.erro) : ""; } catch (e2) { /* corpo não-JSON */ }
+        throw new Error("Falha ao carregar usuários (HTTP " + resp.status + ")" + detalhe + ".");
+      }
       estadoUsuarios.lista = await resp.json();
     } catch (e) {
       // V 1.60 (Alexandre): falha ao listar usuários é de um recurso só do
