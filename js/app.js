@@ -8620,18 +8620,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       painel.className = "dash-painel"; painel.dataset.dash = cfg.chave; painel.hidden = true;
       const sec = document.getElementById("aba-" + cfg.aba);
       if (!sec) { paineis.appendChild(painel); return; }
-      // 1) barra de origem / filtros de página: move a original para o dashboard
+      // 1) barra de origem / filtros de página: move a original para o painel do serviço.
+      // V 1.81 (Alexandre): com a navegação por serviço (um dashboard por vez), a barra de
+      // ORIGEM volta a ficar DENTRO do painel do serviço (só aparece quando aquele serviço
+      // está selecionado) - não faz sentido no topo da Visão Geral nem dos outros serviços.
       const barra = sec.querySelector(".barra-origem-aba, .barra-filtros-pagina");
       if (barra) {
-        // V 1.79 (Alexandre): a barra de ORIGEM da Gestão de Riscos vai para o TOPO da página
-        // (antes de todos os painéis), em vez de ficar dentro do painel abaixo do título.
-        if (cfg.chave === "ergo") {
-          let topo = document.getElementById("dash-filtros-topo");
-          if (!topo) { topo = document.createElement("div"); topo.id = "dash-filtros-topo"; paineis.insertBefore(topo, paineis.firstChild); }
-          topo.appendChild(barra);
-        } else {
-          painel.appendChild(barra);
-        }
+        painel.appendChild(barra);
         // se algo fica na aba de serviço e depende do filtro de origem, deixa um clone lá
         if (cfg.origemClone) {
           const clone = document.createElement("div");
@@ -8669,12 +8664,25 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     dashMontado = true;
   }
 
-  // V 1.75 (Alexandre): o seletor por serviço (chips) foi removido - a aba Dashboard mostra TODOS
-  // os gráficos dos serviços contratados de uma vez e o filtro do topo faz o detalhamento.
+  // V 1.81 (Alexandre): voltam os botões de navegação por serviço no topo do Dashboard.
+  // "Visão Geral" (resumo de todos os serviços) + um botão por serviço contratado. Clicar
+  // troca a visão (um dashboard por vez). Reconstruído a cada render para refletir o filtro
+  // (um serviço só aparece quando o(s) cliente(s) filtrado(s) o contratam).
   function montarSeletorDashboard() {
     const sel = document.getElementById("dash-seletor");
     if (!sel) return;
-    sel.innerHTML = ""; sel.hidden = true; sel.style.display = "none";
+    sel.hidden = false; sel.style.display = "";
+    sel.innerHTML = "";
+    DASH_SERVICOS.forEach((cfg) => {
+      if (cfg.chave !== "geral" && !servicoNoDashboard(cfg.chave)) return;
+      const b = document.createElement("button");
+      b.type = "button"; b.dataset.dash = cfg.chave; b.setAttribute("role", "tab");
+      b.textContent = cfg.chave === "geral" ? "Visão Geral" : cfg.rotulo;
+      b.classList.toggle("ativa", cfg.chave === dashAtual);
+      b.setAttribute("aria-selected", cfg.chave === dashAtual ? "true" : "false");
+      b.addEventListener("click", () => mostrarDash(cfg.chave));
+      sel.appendChild(b);
+    });
   }
 
   // Um serviço aparece no Dashboard quando o(s) cliente(s) do filtro o contratam (Gestão de Riscos e
@@ -8687,14 +8695,18 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     return !esc.length || esc.some((c) => empresaTemServico(c, chave));
   }
 
+  // V 1.81 (Alexandre): navegação por serviço (um dashboard por vez). 'geral' é a Visão Geral
+  // (resumo de cada serviço); os demais mostram o dashboard completo daquele serviço.
   function mostrarDash(chave) {
-    // V 1.75: mostra TODOS os painéis dos serviços contratados. 'chave' (quando vier de um botão
-    // "ver detalhes") só rola a página até a seção correspondente.
-    document.querySelectorAll("#dash-paineis .dash-painel").forEach((p) => { p.hidden = !servicoNoDashboard(p.dataset.dash); });
-    try { renderDashGeral(); } catch (e) { console.error(e); }
-    try { renderizarTudo(); } catch (e) { console.error(e); }
-    if (chave && chave !== "geral") { const alvo = document.querySelector('#dash-paineis .dash-painel[data-dash="' + chave + '"]'); if (alvo && alvo.scrollIntoView) setTimeout(() => { try { alvo.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (e) {} }, 50); }
-    return;
+    chave = chave || "geral";
+    // serviço não contratado/indisponível no filtro atual: cai na Visão Geral
+    if (chave !== "geral" && !servicoNoDashboard(chave)) chave = "geral";
+    dashAtual = chave;
+    montarSeletorDashboard();
+    document.querySelectorAll("#dash-paineis .dash-painel").forEach((p) => { p.hidden = p.dataset.dash !== chave; });
+    if (chave === "geral") { try { renderDashGeral(); } catch (e) { console.error(e); } }
+    else { try { renderizarTudo(); } catch (e) { console.error(e); } }
+    try { const sec = document.getElementById("aba-dashboard"); if (sec && sec.scrollIntoView) sec.scrollIntoView({ block: "start" }); } catch (e) {}
   }
 
   function mostrarDashLegado(chave) {
@@ -8742,53 +8754,97 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const atest = F(dados.absenteismo || [], ["Dt Afastamento"]);
     const diasPerdidos = atest.reduce((s, a) => s + (Number(a["Qtd Dias"]) || 0), 0);
 
-    const restritos = F(dados.compativeis || [], ["Inicio Restricao"]).length;
-
+    const compativeisArr = F(dados.compativeis || [], ["Inicio Restricao"]);
+    const restritos = compativeisArr.length;
 
     // ---------------------------------------------------------------
-    // V 1.61 (Alexandre): gráficos gerais (visão consolidada de todos os
-    // serviços) no topo da aba Geral. Reaproveitam os mesmos renderizadores
-    // dos dashboards de serviço, com canvas próprios (prefixo "dgeral-").
-    // Usam o filtro global (todas as origens).
+    // V 1.81 (Alexandre): Visão Geral = um CARTÃO-RESUMO por serviço (números-chave em
+    // destaque + um mini-gráfico), estilo executivo. Cada cartão tem "Abrir →" que leva ao
+    // dashboard completo daquele serviço. Reaproveita os renderizadores de gráfico de sempre.
     // ---------------------------------------------------------------
     const hc = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
-    const addGraf = (col, titulo, sub, canvasId, legendaId, alta) => {
-      const card = hc("div", "cartao col-" + col);
-      card.appendChild(hc("div", "cartao-titulo", titulo));
-      if (sub) card.appendChild(hc("div", "cartao-sub", sub));
-      const box = hc("div", "altura-chart" + (alta ? " alta" : ""));
-      const cv = document.createElement("canvas"); cv.id = canvasId; box.appendChild(cv);
-      card.appendChild(box);
-      if (legendaId) card.appendChild(hc("div", "legenda")).id = legendaId;
+    const nBR = (n) => (typeof n === "number" ? n.toLocaleString("pt-BR") : n);
+
+    // monta um cartão-resumo (cabeçalho + "Abrir →" + KPIs + mini-gráfico) e devolve a função
+    // que desenha o gráfico (chamada depois que o canvas já está no DOM).
+    const pendentes = [];
+    function cardServico(cfg) {
+      const card = hc("div", "cartao col-6 vg-card");
+      const cab = hc("div", "vg-card-cab");
+      cab.appendChild(hc("h3", "vg-card-titulo", cfg.titulo));
+      if (cfg.abrir) {
+        const bt = hc("button", "vg-abrir", "Abrir dashboard →"); bt.type = "button";
+        bt.addEventListener("click", () => mostrarDash(cfg.abrir));
+        cab.appendChild(bt);
+      }
+      card.appendChild(cab);
+      const kps = hc("div", "vg-kpis");
+      (cfg.kpis || []).forEach((k) => {
+        const d = hc("div", "vg-kpi" + (k.alerta ? " vg-kpi--alerta" : ""));
+        d.appendChild(hc("div", "vg-kpi-num", nBR(k.num)));
+        d.appendChild(hc("div", "vg-kpi-rot", k.rot));
+        kps.appendChild(d);
+      });
+      card.appendChild(kps);
+      if (cfg.canvasId) {
+        const box = hc("div", "vg-chart");
+        const cv = document.createElement("canvas"); cv.id = cfg.canvasId; box.appendChild(cv);
+        card.appendChild(box);
+        if (cfg.legendaId) { const lg = hc("div", "legenda vg-legenda"); lg.id = cfg.legendaId; card.appendChild(lg); }
+      }
       grade.appendChild(card);
-    };
-    const temGraficos = (postos.length || fatoresArr.length || planos.length || avaliacaoArr.length || atest.length);
-    if (temGraficos) {
-      grade.appendChild(hc("div", "col-12 titulo-secao-grade", "Visão geral"));
-      addGraf(4, "Riscos ergonômicos globais", "Cada análise (AEP/AET) no maior risco do seu posto", "dgeral-risco-global", "dgeral-risco-global-leg");
-      addGraf(4, "Inventário de Riscos", "Fatores de risco vigentes, por nível", "dgeral-inventario", "dgeral-inventario-leg");
-      addGraf(4, "Plano de Ação", "Todas as ações, por status", "dgeral-plano", "dgeral-plano-leg");
-      addGraf(6, "AEPs realizadas (mês a mês)", "Avaliações Ergonômicas Preliminares", "dgeral-aep", null, true);
-      addGraf(6, "Atestados (mês a mês)", "Absenteísmo — quantidade de atestados", "dgeral-absent", null, true);
-      // render (canvas já no DOM); cada um tolerante a erro
-      try {
-        // V 1.75 (Alexandre): "Riscos ergonômicos globais" = uma entrada por ANÁLISE (AEP + AET),
-        // cada uma no maior risco do seu posto; sem fator = "Sem risco". O total bate com a
-        // quantidade de análises (ex.: 317), não com os postos distintos.
-        const kP = (l) => ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].map((d) => l[d] || "").join("||");
-        const analises = avaliacaoArr.concat(aetArr);
-        const riscoPorChave = {};
-        postos.forEach((pp) => { const k = kP(pp); const n = pp["Risco Global"]; if (!(k in riscoPorChave) || Calc.ordemNivel(n) > Calc.ordemNivel(riscoPorChave[k])) riscoPorChave[k] = n; });
-        const linhasDoNivel = (nv, sem) => analises.filter((a) => { const n = riscoPorChave[kP(a)]; const canon = n ? Calc.nivelCanonico(n) : null; return sem ? !canon : (canon === nv); }).map((a) => ({ Cliente: a.Cliente, Unidade: a.Unidade, Setor: a.Setor, "Posto Trabalho": a["Posto Trabalho"], Cargo: a.Cargo, "Risco Global": sem ? "Sem risco" : (riscoPorChave[kP(a)] || "-"), "Fator Mais Grave": "-" }));
-        renderDonutNiveis("dgeral-risco-global", "dgeral-risco-global-leg", Calc.mapaRiscoDasAnalises(analises, fatoresArr), "análises", "análise(s)", (n) => ({ titulo: `Riscos ergonômicos globais - ${n.semRisco ? "Sem risco" : Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} análise(s)`, chave: "riscoPosto", linhas: linhasDoNivel(n.nivel, !!n.semRisco) }));
-      } catch (e) { console.error(e); }
-      try { renderDonutNiveis("dgeral-inventario", "dgeral-inventario-leg", Calc.distribuicaoPorNivelRisco(fatoresArr, "Graduacao Risco"), "fatores", "fator(es)", (n) => ({ titulo: `Inventário de Riscos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} fator(es)`, chave: "fatorRisco", linhas: fatoresArr.filter((l) => Calc.nivelCanonico(l["Graduacao Risco"]) === n.nivel) })); } catch (e) { console.error(e); }
-      try { renderDonutStatus("dgeral-plano", "dgeral-plano-leg", Calc.statusPlanoAcao(planos, hoje), planos, hoje); } catch (e) { console.error(e); }
-      try { renderLinhaMensal("dgeral-aep", Calc.serieMensal(avaliacaoArr, "Data Avaliacao"), "AEPs realizadas", Calc.resolverCorCSS("var(--teal)"), avaliacaoArr, "Data Avaliacao", "avaliacaoErgonomica"); } catch (e) { console.error(e); }
-      try { renderLinhaMensal("dgeral-absent", Calc.serieMensal(atest, "Dt Afastamento"), "Atestados", Calc.resolverCorCSS("var(--vinho-medio)"), atest, "Dt Afastamento"); } catch (e) { console.error(e); }
+      if (cfg.render) pendentes.push(cfg.render);
     }
-    // V 1.79 (Alexandre): o bloco "Resumo por serviço" (cartões com KPIs + "Ver dashboard →") foi
-    // removido - a aba Dashboard já mostra todos os gráficos de todos os serviços de uma vez.
+
+    const temDados = (postos.length || fatoresArr.length || planos.length || avaliacaoArr.length || atest.length || restritos);
+    if (temDados) {
+      const teal = Calc.resolverCorCSS("var(--teal)");
+      const vinho = Calc.resolverCorCSS("var(--vinho-medio)");
+
+      // 1) Gestão de Riscos
+      cardServico({
+        titulo: "Gestão de Riscos", abrir: "ergo",
+        kpis: [{ num: postos.length, rot: "Postos avaliados" }, { num: postosCriticos, rot: "Postos críticos", alerta: postosCriticos > 0 }, { num: fatores, rot: "Fatores vigentes" }],
+        canvasId: "vg-riscos", legendaId: "vg-riscos-leg",
+        render: () => renderDonutNiveis("vg-riscos", "vg-riscos-leg", Calc.distribuicaoPorNivelRisco(fatoresArr, "Graduacao Risco"), "fatores", "fator(es)",
+          (n) => ({ titulo: `Inventário de Riscos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} fator(es)`, chave: "fatorRisco", linhas: fatoresArr.filter((l) => Calc.nivelCanonico(l["Graduacao Risco"]) === n.nivel) })),
+      });
+
+      // 2) Plano de Ação
+      cardServico({
+        titulo: "Plano de Ação", abrir: "registro",
+        kpis: [{ num: planoAbertas, rot: "Ações abertas" }, { num: planoConcl, rot: "Concluídas" }, { num: pctConcl + "%", rot: "Conclusão" }],
+        canvasId: "vg-acoes", legendaId: "vg-acoes-leg",
+        render: () => renderDonutStatus("vg-acoes", "vg-acoes-leg", Calc.statusPlanoAcao(planos, hoje), planos, hoje),
+      });
+
+      // 3) Avaliações (AEP / AET)
+      cardServico({
+        titulo: "Avaliações (AEP / AET)", abrir: "ergo",
+        kpis: [{ num: aeps, rot: "AEPs realizadas" }, { num: aets, rot: "AETs realizadas" }],
+        canvasId: "vg-aval",
+        render: () => renderLinhaMensal("vg-aval", Calc.serieMensal(avaliacaoArr, "Data Avaliacao"), "AEPs realizadas", teal, avaliacaoArr, "Data Avaliacao", "avaliacaoErgonomica"),
+      });
+
+      // 4) Restritos
+      if (servicoNoDashboard("compativeis")) cardServico({
+        titulo: "Restritos", abrir: "compativeis",
+        kpis: [{ num: restritos, rot: "Em restrição / acompanhamento" }],
+        canvasId: "vg-restr",
+        render: () => renderLinhaMensal("vg-restr", Calc.serieMensal(compativeisArr, "Inicio Restricao"), "Restrições iniciadas", teal, compativeisArr, "Inicio Restricao"),
+      });
+
+      // 5) Absenteísmo
+      if (servicoNoDashboard("medocup")) cardServico({
+        titulo: "Absenteísmo", abrir: "medocup",
+        kpis: [{ num: atest.length, rot: "Atestados" }, { num: diasPerdidos, rot: "Dias perdidos" }],
+        canvasId: "vg-absent",
+        render: () => renderLinhaMensal("vg-absent", Calc.serieMensal(atest, "Dt Afastamento"), "Atestados", vinho, atest, "Dt Afastamento"),
+      });
+
+      // desenha os mini-gráficos (canvas já no DOM)
+      pendentes.forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
+    }
 
     if (!grade.children.length) {
       const vazio = document.createElement("p"); vazio.className = "aet-nota";
@@ -9254,6 +9310,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       try { atualizarBadgeAbaNotificacoes(); } catch (e) { /* */ }
       const secNotif = document.getElementById("aba-notificacoes");
       if (secNotif && !secNotif.hidden) { try { renderNotificacoes(); } catch (e) { console.error(e); } }
+      // V 1.81 (Alexandre): com o Dashboard aberto, o filtro atualiza também os botões de
+      // serviço (um serviço pode entrar/sair conforme o cliente) e a Visão Geral (resumo).
+      const secDash = document.getElementById("aba-dashboard");
+      if (secDash && !secDash.hidden) {
+        try { montarSeletorDashboard(); } catch (e) { console.error(e); }
+        if (dashAtual === "geral") { try { renderDashGeral(); } catch (e) { console.error(e); } }
+      }
     } catch (erro) {
       console.error("BI Ergonomia - erro ao renderizar:", erro);
       mostrarErro(erro && erro.message ? erro.message : String(erro));

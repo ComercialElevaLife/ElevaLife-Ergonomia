@@ -2,6 +2,21 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.81 — 03/11/2026
+
+- **Dashboard mais corporativa: Visão Geral com resumo por serviço + navegação por serviço (Alexandre).**
+  - **Botões de serviço no topo** (voltaram): uma barra com **Visão Geral · Gestão de Riscos · Plano de Ação · Absenteísmo · Restritos**. Clicar **troca a visão** e mostra o dashboard completo daquele serviço (um por vez). Cada serviço só aparece quando o(s) cliente(s) do filtro o contratam.
+  - **Visão Geral = resumo de cada serviço:** um cartão executivo por serviço com os números-chave em destaque **e um mini-gráfico**:
+    - Gestão de Riscos — postos avaliados, postos críticos (em destaque vermelho) e fatores vigentes + rosca do Inventário por nível;
+    - Plano de Ação — ações abertas, concluídas e % de conclusão + rosca por status;
+    - Avaliações (AEP/AET) — AEPs e AETs realizadas + evolução mensal;
+    - Restritos — em restrição/acompanhamento + evolução mensal;
+    - Absenteísmo — atestados e dias perdidos + evolução mensal.
+    Cada cartão tem **"Abrir dashboard →"** que leva ao serviço correspondente.
+  - Visual **sóbrio/executivo** na paleta ElevaLife (cartões brancos, KPIs em destaque, mini-gráficos). A Visão Geral e os botões acompanham o filtro geral em tempo real.
+  - A barra de **Origem** (Todas/AEP/AET/Psicossocial) voltou a ficar **dentro do painel da Gestão de Riscos** (só aparece quando esse serviço está selecionado), em vez de no topo da página.
+  Service worker subiu para `sige-v96`. *(Arquivos: `js/app.js`, `css/style.css`.)*
+
 ## V 1.80 — 29/10/2026
 
 - **Filtros muito mais rápidos em todos os serviços (Alexandre).**
