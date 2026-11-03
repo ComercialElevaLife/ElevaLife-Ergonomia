@@ -2,6 +2,14 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.82 — 03/11/2026
+
+- **Gráficos de barras empilhadas: valores pequenos agora aparecem (Alexandre).**
+  - Nos gráficos **"Evolução mensal dos riscos"** e **"Risco dos Postos por Setor / GHE"** (e nos demais de barras empilhadas: ações por responsável/por setor, restritos por setor/turno), os segmentos pequenos ficavam **invisíveis** quando havia um nível ou setor muito maior que os outros (ex.: muitos "Baixo"/"Moderado" e poucos "Alto"/"Muito Alto"; ou um setor com muito mais postos esticando a escala e sumindo com os demais). Era o caso do gráfico "por Setor" aparecer **em branco** em "Todas"/"Riscos AEP".
+  - Agora todo segmento com valor **maior que zero recebe um tamanho mínimo visível** (mesma lógica que já existia nas roscas) e o zero não desenha barra. Os números na dica (tooltip), nas legendas e nos totais continuam exatos.
+- **Clicar em qualquer gráfico abre os detalhes (Alexandre).** Completado o padrão de *drill-down* para os gráficos que ainda não tinham: **Cobertura das avaliações** (abre os postos avaliados/pendentes), **Atestados por mês** e **Ações de absenteísmo (propostas/concluídas) por mês**. Todos os gráficos do sistema agora respondem ao clique mostrando as informações por trás do número.
+  Service worker subiu para `sige-v97`. *(Arquivo: `js/app.js`.)*
+
 ## V 1.81 — 03/11/2026
 
 - **Dashboard mais corporativa: Visão Geral com resumo por serviço + navegação por serviço (Alexandre).**

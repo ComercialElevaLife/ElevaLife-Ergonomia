@@ -1210,10 +1210,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const labels = linhas.map((l) => l.responsavel);
     const datasets = window.BI.Calc.STATUS_ACAO_ORDEM.map((status) => ({
       label: status,
-      data: linhas.map((l) => l[status] || 0),
+      data: linhas.map((l) => l[status] || null),
       backgroundColor: window.BI.Calc.corStatus(status),
-      borderColor: corSurfaceCard(), borderWidth: 2,
-      maxBarThickness: 20, borderRadius: 3, borderSkipped: false,
+      borderColor: corSurfaceCard(), borderWidth: 1,
+      maxBarThickness: 20, borderRadius: 3, borderSkipped: false, minBarLength: 6,
       stack: "st",
     }));
     criarOuAtualizarGrafico("chart-por-responsavel", {
@@ -1234,10 +1234,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const labels = linhas.map((l) => l.setor);
     const datasets = window.BI.Calc.STATUS_ACAO_ORDEM.map((status) => ({
       label: status,
-      data: linhas.map((l) => l[status] || 0),
+      data: linhas.map((l) => l[status] || null),
       backgroundColor: window.BI.Calc.corStatus(status),
-      borderColor: corSurfaceCard(), borderWidth: 2,
-      maxBarThickness: 20, borderRadius: 3, borderSkipped: false,
+      borderColor: corSurfaceCard(), borderWidth: 1,
+      maxBarThickness: 20, borderRadius: 3, borderSkipped: false, minBarLength: 6,
       stack: "st",
     }));
     criarOuAtualizarGrafico("chart-status-por-setor", {
@@ -1258,10 +1258,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const labels = linhas.map((l) => l.setor);
     const datasets = window.BI.Calc.NIVEIS_RISCO.map((nivel) => ({
       label: window.BI.Calc.rotuloNivel(nivel),
-      data: linhas.map((l) => l[nivel] || 0),
+      // V 1.82 (Alexandre): 0 vira null (sem barra fantasma) e minBarLength garante que
+      // segmentos pequenos (ex.: poucos "Alto"/"Muito Alto" diante de muitos "Baixo", ou
+      // um setor com muito mais postos que os demais) fiquem VISÍVEIS, não viram um sliver.
+      data: linhas.map((l) => l[nivel] || null),
       backgroundColor: window.BI.Calc.corStatus(nivel),
-      borderColor: corSurfaceCard(), borderWidth: 2,
-      maxBarThickness: 22, borderRadius: 3, borderSkipped: false,
+      borderColor: corSurfaceCard(), borderWidth: 1,
+      maxBarThickness: 22, borderRadius: 3, borderSkipped: false, minBarLength: 6,
       stack: "st",
     }));
     criarOuAtualizarGrafico("chart-risco-por-setor", {
@@ -1284,8 +1287,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const labels = serie.map((s) => C.formatarMesLabel(s.mes));
     const corElim = "#3E7B7E"; const corRed = "#2F6F9F";
     const datasets = C.NIVEIS_RISCO.map((nivel) => ({
-      type: "bar", label: C.rotuloNivel(nivel), data: serie.map((s) => s.porNivel[nivel] || 0),
-      backgroundColor: C.corStatus(nivel), borderColor: corSurfaceCard(), borderWidth: 2, maxBarThickness: 34, borderRadius: 3, borderSkipped: false, stack: "st", order: 2,
+      // V 1.82 (Alexandre): 0 vira null (sem barra fantasma) e minBarLength deixa VISÍVEIS os
+      // segmentos pequenos (ex.: Alto/Muito Alto com poucos casos diante de muitos Baixo/Moderado).
+      type: "bar", label: C.rotuloNivel(nivel), data: serie.map((s) => s.porNivel[nivel] || null),
+      backgroundColor: C.corStatus(nivel), borderColor: corSurfaceCard(), borderWidth: 1, maxBarThickness: 34, borderRadius: 3, borderSkipped: false, minBarLength: 5, stack: "st", order: 2,
     })).concat([
       { type: "line", label: "Eliminados (acumulado)", data: serie.map((s) => s.eliminados), borderColor: corElim, backgroundColor: corElim, borderWidth: 2.5, tension: 0.25, pointRadius: 3, order: 1 },
       { type: "line", label: "Reduzidos (abaixo do nível inicial)", data: serie.map((s) => s.reduzidos), borderColor: corRed, backgroundColor: corRed, borderDash: [6, 4], borderWidth: 2, tension: 0.25, pointRadius: 3, order: 1 },
@@ -1411,17 +1416,36 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     }
     const corAval = Calc.resolverCorCSS("var(--teal)");
     const corPend = Calc.resolverCorCSS("var(--vinho-suave-2)");
+    // V 1.82 (Alexandre): clicar em "Avaliados"/"Pendentes" abre a lista de postos (ou GHEs no
+    // Psicossocial) daquele grupo.
+    const ehPsico = origem === "Psicossocial";
+    const chaveP = (l) => (ehPsico ? ["Cliente", "Unidade", "Setor"] : ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"]).map((d) => l[d] || "").join("||");
+    const comAEP = new Set((dados.avaliacaoErgonomica || []).map(chaveP));
+    const comAET = new Set((dados.aet || []).filter((a) => a["Tipo Registro"] === "AET").map(chaveP));
+    let avalSet;
+    if (ehPsico) avalSet = new Set((dados.fatorRisco || []).filter((f) => Calc.origemDe(f) === "Psicossocial" && Calc.riscoAtivo(f)).map(chaveP));
+    else if (origem === "AEP") avalSet = comAEP;
+    else if (origem === "AET") avalSet = comAET;
+    else { avalSet = new Set(comAEP); comAET.forEach((k) => avalSet.add(k)); }
+    const universoLinhas = ehPsico ? (dados.setor || []).filter((s) => s["Tipo Setor"] === "GHE") : (dados.cargo || []);
+    const avaliadosLinhas = universoLinhas.filter((c) => avalSet.has(chaveP(c)));
+    const pendentesLinhas = universoLinhas.filter((c) => !avalSet.has(chaveP(c)));
+    const chaveDrillCob = ehPsico ? "setor" : "cargo";
     criarOuAtualizarGrafico("chart-cobertura", {
       type: "bar",
       data: { labels: [cob.rotulo], datasets: [
         { label: "Avaliados", data: [cob.avaliados], backgroundColor: corAval, borderRadius: 6, barThickness: 34 },
         { label: "Pendentes", data: [pendentes], backgroundColor: corPend, borderRadius: 6, barThickness: 34 },
       ] },
-      options: {
+      options: comCliqueDrillDown({
         indexAxis: "y", responsive: true, maintainAspectRatio: false,
         scales: { x: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: Calc.resolverCorCSS("var(--grid)") } }, y: { stacked: true, grid: { display: false } } },
         plugins: { legend: { display: true, position: "bottom" }, tooltip: { enabled: true, external: null } },
-      },
+      }, (el) => {
+        const ehPend = el.datasetIndex === 1;
+        const linhas = ehPend ? pendentesLinhas : avaliadosLinhas;
+        return { titulo: ehPend ? (cob.rotulo + " pendentes de avaliação") : (cob.rotulo + " avaliados"), subtitulo: `${linhas.length} ${cob.unidadeRotulo || "registro(s)"}`, chave: chaveDrillCob, linhas };
+      }),
     });
   }
 
@@ -1576,7 +1600,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         { label: "Atestados", data: serie.map((s) => s.qtdAtestados), backgroundColor: corAt, borderRadius: 4 },
         { label: "Dias perdidos", data: serie.map((s) => s.qtdDiasPerdidos), backgroundColor: corDias, borderRadius: 4 },
       ] },
-      options: { plugins: { legend: { display: true, position: "bottom" } }, scales: { x: { grid: { display: false }, border: { display: false } }, y: { beginAtZero: true, grid: { color: corGrid() }, border: { display: false } } } },
+      // V 1.82 (Alexandre): clicar numa barra do mês abre os atestados daquele mês.
+      options: comCliqueDrillDown({ plugins: { legend: { display: true, position: "bottom" } }, scales: { x: { grid: { display: false }, border: { display: false } }, y: { beginAtZero: true, grid: { color: corGrid() }, border: { display: false } } } }, (el) => {
+        const mes = serie[el.index] && serie[el.index].mes;
+        return { titulo: `Absenteísmo - ${window.BI.Calc.formatarMesLabel(mes)}`, subtitulo: "Atestados do mês", chave: "absenteismo",
+          linhas: (absenteismoF || []).filter((l) => l["Dt Afastamento"] && String(l["Dt Afastamento"]).slice(0, 7) === mes) };
+      }),
     });
   }
 
@@ -1598,7 +1627,18 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         { label: "Propostas", data: prop, borderColor: C.resolverCorCSS("var(--teal)"), backgroundColor: hexParaRgba(C.resolverCorCSS("var(--teal)"), 0.12), fill: true, tension: 0.25, borderWidth: 2, pointRadius: 3 },
         { label: "Concluídas", data: concl, borderColor: C.resolverCorCSS("var(--vinho-medio)"), backgroundColor: "transparent", fill: false, tension: 0.25, borderWidth: 2, pointRadius: 3 },
       ] },
-      options: { plugins: { legend: { display: true, position: "bottom" } }, scales: { x: { grid: { display: false }, border: { display: false } }, y: { beginAtZero: true, grid: { color: corGrid() }, border: { display: false } } } },
+      // V 1.82 (Alexandre): clicar num ponto abre as ações de absenteísmo daquele mês (propostas ou concluídas).
+      options: comCliqueDrillDown({ plugins: { legend: { display: true, position: "bottom" } }, scales: { x: { grid: { display: false }, border: { display: false } }, y: { beginAtZero: true, grid: { color: corGrid() }, border: { display: false } } } }, (el) => {
+        const m = labelsM[el.index]; const ehConcl = el.datasetIndex === 1;
+        const linhas = ehConcl ? lista.filter((a) => String(a["Dt Conclusao"] || "").slice(0, 7) === m) : lista.filter((a) => (a["Dt Programada"] || a["Mes Referencia"] || "").slice(0, 7) === m);
+        return { abrir: () => abrirDrillDownSecoes(`Ações de absenteísmo - ${C.formatarMesLabel(m)}`, `${linhas.length} ação(ões) ${ehConcl ? "concluída(s)" : "proposta(s)"}`, [{
+          titulo: ehConcl ? "Concluídas" : "Propostas", linhas, colunas: [
+            ["Mês ref.", (a) => a["Mes Referencia"] ? C.formatarMesLabel(a["Mes Referencia"]) : "—"],
+            ["Setor", (a) => a.Setor || "—"], ["Ação", (a) => a["Acao Recomendada"] || "—"], ["Responsável", (a) => a.Responsavel || "—"],
+            ["Status", (a) => a.Status || "—"], ["Prazo", (a) => formatarDataBR(a["Dt Programada"]) || "—"], ["Conclusão", (a) => formatarDataBR(a["Dt Conclusao"]) || "—"],
+          ],
+        }]) };
+      }),
     });
   }
   function renderPlanoAbsenteismo() {
@@ -1888,10 +1928,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const labels = linhas.map((l) => l.setor);
     const datasets = window.BI.Calc.STATUS_RESTRICAO_ORDEM.map((status) => ({
       label: status,
-      data: linhas.map((l) => l[status] || 0),
+      data: linhas.map((l) => l[status] || null),
       backgroundColor: window.BI.Calc.corStatus(status),
-      borderColor: corSurfaceCard(), borderWidth: 2,
-      maxBarThickness: 20, borderRadius: 3, borderSkipped: false,
+      borderColor: corSurfaceCard(), borderWidth: 1,
+      maxBarThickness: 20, borderRadius: 3, borderSkipped: false, minBarLength: 6,
       stack: "st",
     }));
     criarOuAtualizarGrafico("chart-compat-status-setor", {
@@ -1912,10 +1952,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const labels = linhas.map((l) => l.turno);
     const datasets = window.BI.Calc.STATUS_RESTRICAO_ORDEM.map((status) => ({
       label: status,
-      data: linhas.map((l) => l[status] || 0),
+      data: linhas.map((l) => l[status] || null),
       backgroundColor: window.BI.Calc.corStatus(status),
-      borderColor: corSurfaceCard(), borderWidth: 2,
-      maxBarThickness: 20, borderRadius: 3, borderSkipped: false,
+      borderColor: corSurfaceCard(), borderWidth: 1,
+      maxBarThickness: 20, borderRadius: 3, borderSkipped: false, minBarLength: 6,
       stack: "st",
     }));
     criarOuAtualizarGrafico("chart-compat-restricao-turno", {
@@ -8831,7 +8871,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         titulo: "Restritos", abrir: "compativeis",
         kpis: [{ num: restritos, rot: "Em restrição / acompanhamento" }],
         canvasId: "vg-restr",
-        render: () => renderLinhaMensal("vg-restr", Calc.serieMensal(compativeisArr, "Inicio Restricao"), "Restrições iniciadas", teal, compativeisArr, "Inicio Restricao"),
+        render: () => renderLinhaMensal("vg-restr", Calc.serieMensal(compativeisArr, "Inicio Restricao"), "Restrições iniciadas", teal, compativeisArr, "Inicio Restricao", "compativeis"),
       });
 
       // 5) Absenteísmo
@@ -8839,7 +8879,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         titulo: "Absenteísmo", abrir: "medocup",
         kpis: [{ num: atest.length, rot: "Atestados" }, { num: diasPerdidos, rot: "Dias perdidos" }],
         canvasId: "vg-absent",
-        render: () => renderLinhaMensal("vg-absent", Calc.serieMensal(atest, "Dt Afastamento"), "Atestados", vinho, atest, "Dt Afastamento"),
+        render: () => renderLinhaMensal("vg-absent", Calc.serieMensal(atest, "Dt Afastamento"), "Atestados", vinho, atest, "Dt Afastamento", "absenteismo"),
       });
 
       // desenha os mini-gráficos (canvas já no DOM)
