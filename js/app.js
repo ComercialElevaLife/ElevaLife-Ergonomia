@@ -8347,7 +8347,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     (window.BI.dados.avaliacaoErgonomica || []).forEach((a) => {
       const semFoto = !(Array.isArray(a.Fotos) && a.Fotos.length);
       const semInfo = !String(a["Descricao Atividade Observada"] || "").trim();
-      if (semFoto || semInfo) out.push({ tipo: "AEP", id: a._id || a.id, nr: Number(a["Nr Avaliacao"]) || null, cliente: a.Cliente || "-", local: [a.Setor, a["Posto Trabalho"], a.Cargo].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", semInfo ? "sem descrição da atividade" : ""].filter(Boolean) });
+      if (semFoto || semInfo) out.push({ tipo: "AEP", id: a._id || a.id, nr: Number(a["Nr Avaliacao"]) || null, cliente: a.Cliente || "-", unidade: a.Unidade || "-", local: [a.Setor, a["Posto Trabalho"], a.Cargo].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", semInfo ? "sem descrição da atividade" : ""].filter(Boolean) });
     });
     (window.BI.dados.aet || []).forEach((a) => {
       const ats = a.Atividades || [];
@@ -8355,7 +8355,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const semFotoAtiv = !ats.some((at) => Array.isArray(at.fotos) && at.fotos.length);
       const semFoto = semFotoGeral && semFotoAtiv;
       const semInfo = !ats.length || !String(a["Diagnostico Global"] || "").trim();
-      if (semFoto || semInfo) out.push({ tipo: "AET", id: a._id || a.id, nr: Number(a["Nr AET"]) || null, cliente: a.Cliente || "-", local: [a.Setor, a["Posto Trabalho"], a.Cargo].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", !ats.length ? "sem atividades" : (!String(a["Diagnostico Global"] || "").trim() ? "sem diagnóstico" : "")].filter(Boolean) });
+      if (semFoto || semInfo) out.push({ tipo: "AET", id: a._id || a.id, nr: Number(a["Nr AET"]) || null, cliente: a.Cliente || "-", unidade: a.Unidade || "-", local: [a.Setor, a["Posto Trabalho"], a.Cargo].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", !ats.length ? "sem atividades" : (!String(a["Diagnostico Global"] || "").trim() ? "sem diagnóstico" : "")].filter(Boolean) });
     });
     return out;
   }
@@ -8366,7 +8366,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const out = [];
     [["absenteismo", "Absenteísmo"], ["compativeis", "Restritos"]].forEach(([col, rot]) => {
       (window.BI.dados[col] || []).forEach((r) => {
-        if (r && r["Pendencia Importacao"]) out.push({ colecao: col, tipo: rot, id: r._id || r.id, cliente: r.Cliente || "-", local: [r.Setor, r["Posto Trabalho"], r.Cargo].filter(Boolean).join(" › "), falta: r["Pendencia Importacao"] });
+        if (r && r["Pendencia Importacao"]) out.push({ colecao: col, tipo: rot, id: r._id || r.id, cliente: r.Cliente || "-", unidade: r.Unidade || "-", local: [r.Setor, r["Posto Trabalho"], r.Cargo].filter(Boolean).join(" › "), falta: r["Pendencia Importacao"] });
       });
     });
     return out;
@@ -8407,7 +8407,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         el.appendChild(h("p", "aet-nota", "Nenhuma AEP/AET dos seus clientes está com informações ou fotos faltando. 👍"));
       } else {
         const wrap = h("div", "tabela-scroll"); const tb = h("table", "tabela-dados");
-        const thead = h("thead"); const tr0 = h("tr"); ["Tipo", "Nº", "Empresa", "Setor › posto › cargo", "O que falta", ""].forEach((t) => tr0.appendChild(h("th", null, t))); thead.appendChild(tr0); tb.appendChild(thead);
+        const thead = h("thead"); const tr0 = h("tr"); ["Tipo", "Nº", "Empresa", "Unidade", "Setor › posto › cargo", "O que falta", ""].forEach((t) => tr0.appendChild(h("th", null, t))); thead.appendChild(tr0); tb.appendChild(thead);
         const tbody = h("tbody");
         // V 1.49 (Alexandre): mostra o Nº da AEP e o botão "Abrir" leva direto ao
         // registro exato que precisa de ajuste (não só à aba).
@@ -8427,6 +8427,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           tr.appendChild(h("td", null, x.tipo));
           tr.appendChild(h("td", null, nrTexto(x)));
           tr.appendChild(h("td", null, x.cliente));
+          tr.appendChild(h("td", null, x.unidade || "-"));
           tr.appendChild(h("td", null, x.local || "-"));
           tr.appendChild(h("td", null, x.faltas.join(" · ")));
           const td = h("td"); const b = h("button", "btn-cad-secundario", "Abrir"); b.type = "button";
@@ -8444,12 +8445,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         el.appendChild(h("p", "aet-nota", "Nenhuma linha importada está pendente de correção. 👍"));
       } else {
         const wrapP = h("div", "tabela-scroll"); const tbP = h("table", "tabela-dados");
-        const thP = h("thead"); const trP0 = h("tr"); ["Tipo", "Empresa", "Setor › posto › cargo", "O que falta", ""].forEach((t) => trP0.appendChild(h("th", null, t))); thP.appendChild(trP0); tbP.appendChild(thP);
+        const thP = h("thead"); const trP0 = h("tr"); ["Tipo", "Empresa", "Unidade", "Setor › posto › cargo", "O que falta", ""].forEach((t) => trP0.appendChild(h("th", null, t))); thP.appendChild(trP0); tbP.appendChild(thP);
         const tbodyP = h("tbody");
         pend.slice(0, 300).forEach((x) => {
           const tr = h("tr");
           tr.appendChild(h("td", null, x.tipo));
           tr.appendChild(h("td", null, x.cliente));
+          tr.appendChild(h("td", null, x.unidade || "-"));
           tr.appendChild(h("td", null, x.local || "-"));
           tr.appendChild(h("td", null, x.falta || "-"));
           const td = h("td"); const b = h("button", "btn-cad-secundario", "Abrir"); b.type = "button";

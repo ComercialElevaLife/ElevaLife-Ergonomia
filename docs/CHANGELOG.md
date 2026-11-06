@@ -2,6 +2,10 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.86 — 06/11/2026
+
+- **Notificações: coluna "Unidade" nas análises pendentes (Alexandre).** Na aba **Notificações**, na lista **"Análises faltando informações ou fotos"**, foi adicionada a coluna **Unidade** (entre Empresa e "Setor › posto › cargo"), para identificar de qual unidade é cada AEP/AET pendente. A mesma coluna foi incluída na lista **"Importações com pendência para corrigir"**. *(Arquivo: `js/app.js`.)* Service worker subiu para `sige-v101`.
+
 ## V 1.85 — 05/11/2026
 
 - **Novo modelo de laudo de AET: "Unimed" (SOU – Saúde Ocupacional Unimed), por cliente (Alexandre).**
