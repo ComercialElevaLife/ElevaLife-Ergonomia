@@ -86,6 +86,13 @@
   // Graduacao do fator a partir das ferramentas / escolhas do ergonomista.
   function avaliarFator(fa, mz) {
     const C = Calc(); const esc = C.escalaDaMatriz(mz);
+    // V 1.85 (Alexandre): modo Unimed — o risco é escolhido pelo ergonomista a partir
+    // do print do resultado OCRA (sem matriz, sem cruzar probabilidade × severidade).
+    if (fa.modoUnimed) {
+      return { graduacao: fa.riscoManual || "", criticidade: "", probabilidade: "", pontuacao: null, metodo: "ocra",
+        detalhe: fa.pontuacaoOcra ? "Resultado OCRA: " + fa.pontuacaoOcra : "Resultado da ferramenta OCRA (print anexado)",
+        pendente: fa.riscoManual ? "" : "escolha o grau de risco a partir do print do OCRA" };
+    }
     const itens = (fa.ferramentas || []).map((it) => ({ it, nivel: nivelDaFerramenta(it), exp: comExposicao(it) })).filter((x) => x.nivel != null);
     const comExp = itens.filter((x) => x.exp), semExp = itens.filter((x) => !x.exp);
     const cand = []; let crit = null, prob = null, pont = null; const partes = [];
@@ -103,8 +110,11 @@
     const pendente = !graduacao ? (itens.length ? (semExp.length || !comExp.length ? "informe a probabilidade (exposição)" : "") : "informe a severidade e a probabilidade (exposição) ou aplique uma ferramenta") : "";
     return { graduacao, criticidade: crit, probabilidade: prob, pontuacao: pont, metodo: comExp.length && !semExp.length ? "ferramenta" : itens.length ? "ferramenta x exposicao" : "matriz", detalhe: partes.join(" · "), pendente };
   }
-  const assinaturaFator = (fa) => JSON.stringify([fa.ferramentas || [], fa.exposicao == null ? "" : fa.exposicao, fa.severidade || "", fa.grauImportado || ""]);
+  const assinaturaFator = (fa) => JSON.stringify([fa.ferramentas || [], fa.exposicao == null ? "" : fa.exposicao, fa.severidade || "", fa.grauImportado || "", fa.riscoManual || "", fa.pontuacaoOcra || ""]);
   const idFatorRow = (aetId, fa) => "aet-" + aetId + "-" + fa.uid;
+  // V 1.84 (Alexandre): o segmento corporal passa a aceitar vários segmentos.
+  // Normaliza para array (compatível com AETs antigas que salvaram texto único).
+  const segArr = (fa) => (Array.isArray(fa.segmento) ? fa.segmento.filter(Boolean) : (fa.segmento ? [fa.segmento] : []));
 
   // ------------------------------------------------------------------ painel da aba AET
   function podeEditar() { const i = BI.DB && BI.DB.estado.identidade; return !(i && i.papel === "UsuarioCliente") && !(BI.DB && BI.DB.estado.somenteLeitura); }
@@ -181,7 +191,7 @@
     return d;
   }
   function novaAtividade(n) { return { uid: uid(), nome: "Atividade " + String(n).padStart(2, "0"), descricao: "", fotos: [], fatores: [], recomendacoes: "" }; }
-  function novoFator() { return { uid: uid(), grupo: "", fator: "", outro: "", consequencia: "", segmento: "", fonte: "", ferramentas: [], exposicao: "", severidade: "" }; }
+  function novoFator() { return { uid: uid(), grupo: "", fator: "", outro: "", consequencia: "", segmento: [], fonte: "", ferramentas: [], exposicao: "", severidade: "", demanda: "", riscoManual: "", pontuacaoOcra: "", printsOcra: [] }; }
 
   // V 1.35: "rascunho" = AET montada pela importacao (Word/PDF), aberta como nova para conferir e salvar.
   function abrirEditor(aet, rascunho, opcAbrir) {
@@ -200,7 +210,7 @@
     acoesTopo.appendChild(bFechar); acoesTopo.appendChild(bSalvar); topo.appendChild(acoesTopo);
     caixa.appendChild(topo); caixa.appendChild(msg);
     if (rascunho && opcAbrir && opcAbrir.duplicada) { const av = h("div", "aet-msg"); av.textContent = `Cópia da ${rascunho["Duplicada De"] || "AET"}. Escolha a empresa, a unidade, o setor, o posto e o cargo da nova AET, revise e clique em Salvar AET. As ações propostas foram copiadas (sem responsável e prazo).`; caixa.appendChild(av); }
-    else if (rascunho && opcAbrir && opcAbrir.daAEP) { const av = h("div", "aet-msg"); av.textContent = "AET gerada a partir da AEP deste posto. Os fatores selecionados foram trazidos com a fonte geradora, o segmento, a observação e a graduação da AEP. Revise, descreva a atividade, anexe as fotos, aplique as ferramentas e complete o que faltar; depois clique em Salvar AET. A AEP de origem não é alterada."; caixa.appendChild(av); }
+    else if (rascunho && opcAbrir && opcAbrir.daAEP) { const av = h("div", "aet-msg"); av.textContent = "AET gerada a partir da AEP deste posto. Os fatores selecionados foram trazidos com a fonte geradora, as consequências, o segmento e a graduação da AEP. Revise, descreva a atividade, anexe as fotos, aplique as ferramentas e complete o que faltar; depois clique em Salvar AET. A AEP de origem não é alterada."; caixa.appendChild(av); }
     else if (rascunho) { const av = h("div", "aet-msg"); av.textContent = `AET importada de “${rascunho["Arquivo Importado"] || "arquivo"}”. Confira os dados, complete o que faltar (ferramentas, severidade e probabilidade, ações) e clique em Salvar AET.`; caixa.appendChild(av); }
     const corpo = h("div", "aet-corpo"); const nav = h("nav", "aet-nav"); const area = h("div", "aet-area"); corpo.appendChild(nav); corpo.appendChild(area); caixa.appendChild(corpo);
     document.body.appendChild(fundo); document.body.classList.add("aet-aberta");
@@ -363,6 +373,9 @@
 
     function cartaoFator(at, fa, fi, mz) {
       const C = Calc(); const card = h("div", "aet-fator");
+      // V 1.85 (Alexandre): modelo Unimed (cliente sem matriz, só OCRA). O flag fica no
+      // fator para a avaliação/salvamento (avaliarFator) seguirem o modo correto.
+      const uni = C.ehModeloUnimed(BI.dados.cliente || [], st.Cliente); fa.modoUnimed = uni;
       const cab = h("div", "aet-fator-cab"); const tit = h("strong", null, `Fator ${fi + 1}`); cab.appendChild(tit);
       const pill = h("span", "plano-pilula aet-grau"); cab.appendChild(pill);
       if (editar) { const x = h("button", "btn-excluir", "Excluir fator"); x.type = "button"; x.addEventListener("click", () => { if (!window.confirm("Excluir este fator de risco (e as ações dele ainda não trabalhadas)?")) return; at.fatores.splice(fi, 1); editores.delete(fa.uid); marcar(); desenhar(); }); cab.appendChild(x); }
@@ -370,7 +383,7 @@
       const detalhe = h("div", "aet-grau-detalhe");
       const pintar = () => {
         const r = avaliarFator(fa, mz); fa._av = r; if (r.graduacao && fa.semGraduacaoImportada) delete fa.semGraduacaoImportada;
-        pill.textContent = r.graduacao || "sem graduação"; const hx = r.graduacao ? C.corRiscoHex(r.graduacao) : null; pill.style.background = hx ? "#" + hx : ""; pill.style.color = hx ? "#" + C.textoSobreHex(hx) : "";
+        pill.textContent = r.graduacao || "sem graduação"; const hx = r.graduacao ? (fa.modoUnimed && C.corRiscoOcra ? C.corRiscoOcra(r.graduacao) : C.corRiscoHex(r.graduacao)) : null; pill.style.background = hx ? "#" + hx : ""; pill.style.color = hx ? "#" + C.textoSobreHex(hx) : "";
         detalhe.textContent = r.graduacao ? `Risco do fator: ${r.graduacao}${r.pontuacao != null ? " (pontuação " + r.pontuacao + ")" : ""} · ${r.detalhe}` : "Pendente: " + r.pendente;
         const ed = editores.get(fa.uid); if (ed) ed.atualizarNivel();
         tit.textContent = `Fator ${fi + 1}${fa.fator ? " · " + (fa.fator === "__outro" ? fa.outro || "outro" : fa.fator) : ""}`;
@@ -395,11 +408,36 @@
         g.appendChild(campoSelect(fa, "fator", "Fator de risco *", fsGrupo.map((x) => [x, x]).concat([["__outro", "Outro (digitar)"]]), () => desenhar(), { largo: true }));
         if (fa.fator === "__outro") g.appendChild(campoTexto(fa, "outro", "Qual fator? *", { aoMudar: pintar }));
       }
+      // V 1.83 (Alexandre): "Fonte geradora" (o que gera o risco → vai para "Circunstancia Geradora"
+      // no laudo) e "Consequências" (efeito à saúde, com a lista de textos recomendados por fator)
+      // voltam a ser campos DISTINTOS. Antes (V 1.69) a consequência aparecia rotulada como "Fonte
+      // geradora" e a fonte geradora ficava escondida no campo "Observação".
+      g.appendChild(campoTexto(fa, "fonte", "Fonte geradora (ex.: elevação dos membros superiores; aplicação de força)", { largo: true }));
       const conseq = fa.fator && fa.fator !== "__outro" ? C.consequenciasDoFator(fa.fator) : [];
-      const cC = campoTexto(fa, "consequencia", "Fonte geradora (ex.: elevação dos membros superiores; aplicação de força) *", { largo: true }); g.appendChild(cC); // V 1.69 (Alexandre): "Consequência" renomeado para "Fonte geradora"
+      const cC = campoTexto(fa, "consequencia", "Consequências *", { largo: true }); g.appendChild(cC);
       if (conseq.length && editar) { const s = h("select", "aet-sugestao"); const o0 = h("option", null, "Sugestões da lista padrão…"); o0.value = ""; s.appendChild(o0); conseq.forEach((c) => { const o = h("option", null, c); o.value = c; s.appendChild(o); }); s.addEventListener("change", () => { if (!s.value) return; const inp = cC.querySelector("input"); inp.value = inp.value ? inp.value + "; " + s.value : s.value; fa.consequencia = inp.value; s.value = ""; marcar(); }); cC.appendChild(s); }
-      g.appendChild(campoSelect(fa, "segmento", "Segmento acometido *", (BI.Acoes ? BI.Acoes.segmentosDisponiveis() : [])));
-      g.appendChild(campoTexto(fa, "fonte", "Observação", { largo: true })); // V 1.69: era "Fonte geradora / observação"; evita duplicar o rótulo renomeado acima
+      // V 1.84 (Alexandre): seleção de um ou mais segmentos corporais.
+      { const segInicial = segArr(fa); fa.segmento = segInicial;
+        const wSeg = BI.Acoes && BI.Acoes.criarSeletorSegmentos
+          ? BI.Acoes.criarSeletorSegmentos(segInicial, (vals) => { fa.segmento = vals; marcar(); })
+          : (function () { const s = campoSelect(fa, "segmento", "", (BI.Acoes ? BI.Acoes.segmentosDisponiveis() : [])); return s; })();
+        if (!editar && wSeg.setDisabled) wSeg.setDisabled(true);
+        const lab = h("div", "aet-campo aet-campo--largo"); lab.appendChild(h("span", "aet-rot", "Segmento(s) acometido(s) * — escolha um ou mais")); lab.appendChild(wSeg);
+        g.appendChild(lab); }
+      // V 1.85 (Alexandre): modelo Unimed — campo livre "Demanda", print do OCRA e grau de
+      // risco escolhido pelo ergonomista (sem ferramentas calculadas, sem severidade×probabilidade).
+      if (uni) {
+        g.appendChild(campoTexto(fa, "demanda", "Demanda (ex.: Biomecânica / Coluna lombar e membros inferiores)", { largo: true }));
+        if (!Array.isArray(fa.printsOcra)) fa.printsOcra = [];
+        const blocoU = h("div", "aet-ferramentas");
+        blocoU.appendChild(h("div", "aet-subtitulo", "Metodologia de estudo: Checklist OCRA"));
+        blocoU.appendChild(h("p", "aet-nota", "Anexe o print do resultado final do OCRA (vale como o risco da atividade) e escolha o grau de risco abaixo. Não é necessário cruzar probabilidade × severidade."));
+        blocoU.appendChild(blocoFotos(fa.printsOcra, Infinity, "Print do resultado OCRA"));
+        card.appendChild(blocoU);
+        const gradeU = grade(card);
+        gradeU.appendChild(campoSelect(fa, "riscoManual", "Grau de risco (OCRA) *", (C.NIVEIS_OCRA_UNIMED || []).map((x) => [x, x]), pintar));
+        gradeU.appendChild(campoTexto(fa, "pontuacaoOcra", "Pontuação / índice OCRA (opcional)", {}));
+      } else {
       // ferramentas
       const blocoF = h("div", "aet-ferramentas"); blocoF.appendChild(h("div", "aet-subtitulo", "Ferramentas ergonômicas (metodologia de estudo)"));
       const listaF = h("div", "aet-ferr-lista"); blocoF.appendChild(listaF);
@@ -467,6 +505,7 @@
         if (precisaProb) blocoExp.appendChild(campoSelect(fa, "exposicao", "Probabilidade – exposição na jornada *", exposicaoDe(mz).map((t, i) => [String(i), t]), pintar, { largo: true }));
       };
       desenharFerr(); desenharExp();
+      }
       card.appendChild(detalhe);
       // acoes
       card.appendChild(h("div", "aet-subtitulo", "Ações / recomendações para o fator"));
@@ -477,7 +516,7 @@
           fatorId: rowId, podeEditar: editar, origem: "AET",
           contexto: () => ({ Cliente: st.Cliente, Unidade: st.Unidade, Setor: st.Setor, Cargo: st.Cargo, "Posto Trabalho": st["Posto Trabalho"], Atividade: at.nome }),
           nivelAtual: () => (fa._av && fa._av.graduacao) || "", matriz: () => matrizDe(st.Cliente),
-          nomeFator: () => (fa.fator === "__outro" ? fa.outro : fa.fator) || "", segmento: () => fa.segmento,
+          nomeFator: () => (fa.fator === "__outro" ? fa.outro : fa.fator) || "", segmento: () => segArr(fa)[0] || "",
           aoMudar: marcar, acoesIniciais: fa._acoesCopia || null, comImagens: true,
         });
         editores.set(fa.uid, ed);
@@ -543,13 +582,15 @@
       if (falta.length) return "Identificação: preencha " + falta.map((k) => T(k).replace("Posto Trabalho", "Posto de trabalho").replace("Data Analise", "Data da análise")).join(", ") + ".";
       if (!st.Atividades.length) return "Cadastre ao menos uma atividade.";
       const mz = matrizDe(st.Cliente);
+      const uni = Calc().ehModeloUnimed(BI.dados.cliente || [], st.Cliente);
       for (const at of st.Atividades) {
         if (!String(at.nome || "").trim()) return "Há atividade sem nome.";
         for (const fa of at.fatores) {
+          fa.modoUnimed = uni;
           const nome = fa.fator === "__outro" ? fa.outro : fa.fator;
           if (!nome) return `Atividade “${at.nome}”: escolha o fator de risco.`;
-          if (!fa.consequencia) return `Atividade “${at.nome}”, fator “${nome}”: informe a fonte geradora.`;
-          if (!fa.segmento) return `Atividade “${at.nome}”, fator “${nome}”: informe o segmento acometido.`;
+          if (!fa.consequencia) return `Atividade “${at.nome}”, fator “${nome}”: informe as consequências.`;
+          if (!segArr(fa).length) return `Atividade “${at.nome}”, fator “${nome}”: informe ao menos um segmento acometido.`;
           const r = avaliarFator(fa, mz); if (!r.graduacao && !fa.semGraduacaoImportada) return `Atividade “${at.nome}”, fator “${nome}”: ${r.pendente}.`;
           const ed = editores.get(fa.uid); const e = ed && ed.validar(); if (e) return `Atividade “${at.nome}”, fator “${nome}”: ${e}`;
         }
@@ -589,26 +630,37 @@
         await BI.DB.salvar("aet", id, doc, novo);
         // Inventario de riscos
         const existentes = (BI.dados.fatorRisco || []).filter((f) => f["AET Id"] === id); const vistos = new Set();
+        const uniSalvar = Calc().ehModeloUnimed(BI.dados.cliente || [], st.Cliente);
         for (const at of st.Atividades) {
           for (const fa of at.fatores) {
-            const rid = idFatorRow(id, fa); vistos.add(rid); const r = avaliarFator(fa, mz); const ex = existentes.find((f) => f._id === rid);
+            fa.modoUnimed = uniSalvar;
+            const r = avaliarFator(fa, mz);
             const nome = fa.fator === "__outro" ? fa.outro : fa.fator; const sig = assinaturaFator(fa);
-            const base = { Cliente: st.Cliente, EmpresaId: doc.EmpresaId, Unidade: st.Unidade, Setor: st.Setor, "Posto Trabalho": st["Posto Trabalho"], Cargo: st.Cargo, Atividade: at.nome, Origem: "AET", "AET Id": id, "AET Fator": fa.uid,
-              "Atualizar Informacoes": fa.semGraduacaoImportada && !r.graduacao ? "Sim" : null,
-              Grupo: fa.grupo || ((Calc().GRUPOS_FATOR_RISCO || []).find((g0) => (Calc().fatoresDoGrupo(g0) || []).includes(fa.fator))) || "Outros", Fator: nome, "Existe Fator Risco": "Sim", Consequencia: fa.consequencia, "Circunstancia Geradora": fa.fonte || at.nome, "Segmento Corporal": fa.segmento,
-              "Metodologia AET": (fa.ferramentas || []).map((it) => (F().porId(it.id) || {}).sigla).filter(Boolean).join(", ") || "Matriz de risco", Matriz: mz, "Dt Identificacao": st["Data Analise"], "Assinatura AET": sig };
-            let dados;
-            if (ex) {
-              dados = {}; Object.keys(ex).forEach((k) => { if (k[0] !== "_" && k !== "id") dados[k] = ex[k]; }); Object.assign(dados, base);
-              if (ex["Assinatura AET"] !== sig) { // entradas mudaram: a AET recalcula o risco (e registra no historico)
-                if (ex["Graduacao Risco"] && (ex["Graduacao Risco"] !== r.graduacao || ex["Risco Eliminado"] === "Sim")) dados["Historico Risco"] = (ex["Historico Risco"] || []).concat([{ data: hojeISO(), de: ex["Risco Eliminado"] === "Sim" ? "Eliminado" : ex["Graduacao Risco"], para: r.graduacao, probabilidade: r.probabilidade, severidade: r.criticidade, motivo: "Reavaliação na AET" }]);
-                Object.assign(dados, { Criticidade: r.criticidade, Probabilidade: r.probabilidade, "Graduacao Risco": r.graduacao, "Pontuacao Risco": r.pontuacao, "Risco Eliminado": null, "Eliminado Em": null });
+            // V 1.84 (Alexandre): um fator pode acometer vários segmentos. Gera um
+            // registro no Inventário por segmento. O 1º mantém o id padrão (laudo e
+            // Plano de Ação ligam a ele); os demais recebem sufixo "-s<i>".
+            const segList = segArr(fa); const segs = segList.length ? segList : [null];
+            for (let si = 0; si < segs.length; si++) {
+              const rid = si === 0 ? idFatorRow(id, fa) : idFatorRow(id, fa) + "-s" + si; vistos.add(rid);
+              const ex = existentes.find((f) => f._id === rid);
+              const base = { Cliente: st.Cliente, EmpresaId: doc.EmpresaId, Unidade: st.Unidade, Setor: st.Setor, "Posto Trabalho": st["Posto Trabalho"], Cargo: st.Cargo, Atividade: at.nome, Origem: "AET", "AET Id": id, "AET Fator": fa.uid,
+                "Atualizar Informacoes": fa.semGraduacaoImportada && !r.graduacao ? "Sim" : null,
+                Grupo: fa.grupo || ((Calc().GRUPOS_FATOR_RISCO || []).find((g0) => (Calc().fatoresDoGrupo(g0) || []).includes(fa.fator))) || "Outros", Fator: nome, "Existe Fator Risco": "Sim", Consequencia: fa.consequencia, "Circunstancia Geradora": fa.fonte || at.nome, "Segmento Corporal": segs[si],
+                Demanda: fa.modoUnimed ? (fa.demanda || null) : null,
+                "Metodologia AET": fa.modoUnimed ? "Checklist OCRA" : ((fa.ferramentas || []).map((it) => (F().porId(it.id) || {}).sigla).filter(Boolean).join(", ") || "Matriz de risco"), Matriz: fa.modoUnimed ? null : mz, "Dt Identificacao": st["Data Analise"], "Assinatura AET": sig };
+              let dados;
+              if (ex) {
+                dados = {}; Object.keys(ex).forEach((k) => { if (k[0] !== "_" && k !== "id") dados[k] = ex[k]; }); Object.assign(dados, base);
+                if (ex["Assinatura AET"] !== sig) { // entradas mudaram: a AET recalcula o risco (e registra no historico)
+                  if (ex["Graduacao Risco"] && (ex["Graduacao Risco"] !== r.graduacao || ex["Risco Eliminado"] === "Sim")) dados["Historico Risco"] = (ex["Historico Risco"] || []).concat([{ data: hojeISO(), de: ex["Risco Eliminado"] === "Sim" ? "Eliminado" : ex["Graduacao Risco"], para: r.graduacao, probabilidade: r.probabilidade, severidade: r.criticidade, motivo: "Reavaliação na AET" }]);
+                  Object.assign(dados, { Criticidade: r.criticidade, Probabilidade: r.probabilidade, "Graduacao Risco": r.graduacao, "Pontuacao Risco": r.pontuacao, "Risco Eliminado": null, "Eliminado Em": null });
+                }
+              } else {
+                dados = Object.assign({}, base, { Criticidade: r.criticidade, Probabilidade: r.probabilidade, "Graduacao Risco": r.graduacao, "Graduacao Inicial": r.graduacao, "Pontuacao Risco": r.pontuacao, Status: "Em andamento" });
               }
-            } else {
-              dados = Object.assign({}, base, { Criticidade: r.criticidade, Probabilidade: r.probabilidade, "Graduacao Risco": r.graduacao, "Graduacao Inicial": r.graduacao, "Pontuacao Risco": r.pontuacao, Status: "Em andamento" });
+              await BI.DB.salvar("fatorRisco", rid, dados, !ex);
+              if (si === 0) { const ed = editores.get(fa.uid); if (ed) await ed.salvar(rid); }
             }
-            await BI.DB.salvar("fatorRisco", rid, dados, !ex);
-            const ed = editores.get(fa.uid); if (ed) await ed.salvar(rid);
           }
         }
         for (const f of existentes) {
@@ -670,7 +722,7 @@
       fator: conhecido ? fr.Fator : "__outro",
       outro: conhecido ? "" : (fr.Fator || ""),
       consequencia: fr.Consequencia || "",
-      segmento: fr["Segmento Corporal"] || "",
+      segmento: fr["Segmento Corporal"] ? [fr["Segmento Corporal"]] : [],
       fonte: fr["Circunstancia Geradora"] || "",
       ferramentas: [],
       exposicao: idxExp >= 0 ? String(idxExp) : "",

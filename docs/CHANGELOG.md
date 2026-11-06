@@ -2,6 +2,34 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.85 — 05/11/2026
+
+- **Novo modelo de laudo de AET: "Unimed" (SOU – Saúde Ocupacional Unimed), por cliente (Alexandre).**
+  - No **Cadastro de Cliente** há um campo novo, **"Modelo do laudo da AET"** (Padrão ElevaLife / Unimed). Quando marcado como **Unimed**, todas as AETs daquele cliente passam a usar o modelo Unimed. Vale só para o cliente escolhido.
+  - **Confecção (modo Unimed):** a análise usa somente a ferramenta **Checklist OCRA**. Em cada fator, o ergonomista **anexa o print do resultado final do OCRA** (que vale como o risco da atividade) e **escolhe o grau de risco** numa lista própria (Risco Ausente · Aceitável · Risco no Limite · Baixo · Médio · Alto), já pintado pela cor da graduação. **Não é cruzado probabilidade × severidade** (o cliente Unimed não usa matriz). Há também um campo livre **"Demanda"** (ex.: "Biomecânica / Membros superiores"), que só aparece no modelo Unimed. O restante da confecção da AET é igual ao padrão atual.
+  - **Laudo (modo Unimed):** marca **UNIMED – Saúde Ocupacional (SOU)** na capa, cabeçalho e rodapé (banner oficial), paleta **verde Unimed**, apresentação "desenvolvido pela UNIMED". A tabela de fatores por atividade passa a ter **4 colunas — Fator de Risco · Demanda · Metodologia de estudo · Grau de Risco**. O **print do OCRA** sai logo após a tabela (no lugar do memorial de cálculo). As seções de severidade/probabilidade/matriz saem do documento; entra a escala de graduações do OCRA. Sai em **PDF e Word**.
+  Service worker subiu para `sige-v100`. *(Arquivos: `js/app.js`, `js/aet.js`, `js/calc.js`, `js/laudo-aet.js`, `js/logo-unimed.js` (novo), `index.html`.)*
+
+## V 1.84 — 05/11/2026
+
+- **Cadastro de Restritos: só o Cliente é obrigatório (Alexandre).** No cadastro de Restritos, todos os campos deixaram de ser obrigatórios para salvar — exceto o **Cliente**, que continua obrigatório para o registro ser alocado à empresa e aparecer nos filtros. Assim dá para salvar uma restrição com as informações que já se tem e completar o resto depois. *(Arquivo: `js/app.js`.)*
+- **Segmento corporal: pode escolher mais de um segmento na AEP e na AET (Alexandre).**
+  - Na **AEP (Inventário de Riscos / checklist)** e na **AET**, o campo de segmento acometido deixou de ser uma escolha única e virou um **seletor de múltiplos segmentos** ("escolha um ou mais").
+  - Ao salvar, cada segmento escolhido gera **um registro no Inventário de Riscos** (um por segmento), mantendo o modelo de dados de um segmento por registro — então os diagramas corporais, gráficos por segmento e demais relatórios continuam funcionando sem mudança. É o mesmo comportamento do antigo "+ Repetir este fator (outro segmento)", agora em um único passo.
+  - Na AET, o primeiro segmento mantém o vínculo com o Plano de Ação e o laudo; os demais são registros adicionais no Inventário. Compatível com AETs/AEPs antigas (segmento em texto único continua aparecendo marcado).
+- **Fatores de risco na AEP: vários fatores no mesmo grupo macro / repetição (Alexandre).** Confirmado que o **checklist do Inventário de Riscos** já permite marcar **quantos fatores quiser dentro de um mesmo grupo macro** (cada fator tem seu próprio seletor, sem exclusão mútua) e **repetir o mesmo fator** (botão "+ Repetir este fator"). Nenhuma trava existe no código atual — se na sua tela só dá para escolher um fator por grupo, é porque a versão publicada está desatualizada; esta atualização garante o comportamento correto.
+  Service worker subiu para `sige-v99`. *(Arquivos: `js/app.js`, `js/aet.js`, `js/acoes.js`, `js/laudo-aet.js`, `css/style.css`.)*
+
+## V 1.83 — 05/11/2026
+
+- **AET — campos "Consequências" e "Fonte geradora" separados (Alexandre).**
+  - No fator da AET, o campo que estava rotulado como **"Fonte geradora"** (mas que, na prática, guardava a *consequência* à saúde) voltou a se chamar **"Consequências"**, mantendo a lista de **textos recomendados** por fator.
+  - Foi criado um campo próprio de **"Fonte geradora"** (ex.: elevação dos membros superiores; aplicação de força) — é o que gera o risco. Ele alimenta a "Circunstância Geradora" no laudo. (Era o antigo campo "Observação", que a V 1.69 havia renomeado; voltou a ter o nome correto.)
+  - Ordem dos campos: **Fonte geradora → Consequências → Segmento** (causa → efeito → região).
+  - Ao gerar a AET a partir da AEP, os dois campos já vêm preenchidos da AEP (consequência e fonte geradora).
+  - **Laudo da AET:** a tabela de fatores passou a ter **duas colunas distintas — "Fonte geradora" e "Consequências"** — em vez de uma só rotulada errado.
+  Service worker subiu para `sige-v98`. *(Arquivos: `js/aet.js`, `js/laudo-aet.js`.)*
+
 ## V 1.82 — 03/11/2026
 
 - **Gráficos de barras empilhadas: valores pequenos agora aparecem (Alexandre).**

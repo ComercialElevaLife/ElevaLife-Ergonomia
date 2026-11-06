@@ -2218,6 +2218,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         // V 1.27: servicos contratados (abas do menu).
         { campo: "Servicos", rotulo: "Serviços contratados", tipo: "checklist", colunas: true, opcoes: SERVICOS_SIGE,
           nota: "Os serviços não marcados continuam aparecendo no menu, com o aviso de que a empresa não possui o serviço." },
+        // V 1.85 (Alexandre): modelo de laudo da AET por cliente. "Unimed" usa o
+        // padrão Unimed (SOU - Saúde Ocupacional Unimed): só ferramenta OCRA, com
+        // upload do print do resultado e risco escolhido pelo ergonomista (sem matriz).
+        { campo: "Modelo Laudo AET", rotulo: "Modelo do laudo da AET", tipo: "select", opcoes: ["Padrão (ElevaLife)", "Unimed"],
+          nota: "No modelo Unimed, a AET usa somente a ferramenta OCRA (o ergonomista anexa o print do resultado e escolhe o grau de risco)." },
       ], "Identificação"),
       // V 1.63 (Alexandre): o cadastro do CLIENTE tem só nome, matriz, serviços e
       // logotipo. Todos os dados cadastrais (CNPJ, Inscrição Estadual, CNAE, Grau de
@@ -4475,13 +4480,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
             tConseq.div.insertBefore(sel, tConseq.el);
           }
           const tMedida = area("Medidas de controle existentes", "Medida Controle Existente", "O que já é feito hoje (se não houver, escreva \"Não há\")");
-          // V 1.31: segmento acometido e do risco (cada repeticao do fator = um segmento)
-          inst.selSegmento = document.createElement("select");
-          { const o0 = document.createElement("option"); o0.value = ""; o0.textContent = "-"; inst.selSegmento.appendChild(o0); }
-          window.BI.Acoes.segmentosDisponiveis().forEach((sg) => { const o = document.createElement("option"); o.value = sg; o.textContent = sg; inst.selSegmento.appendChild(o); });
-          { const sv = reg["Segmento Corporal"] || (window.BI.Acoes.acoesDoFator(reg._id).map((a) => a["Segmento Corporal"]).filter(Boolean)[0]) || ""; if (sv && !Array.from(inst.selSegmento.options).some((o) => o.value === sv)) { const o = document.createElement("option"); o.value = o.textContent = sv; inst.selSegmento.appendChild(o); } inst.selSegmento.value = sv; }
-          if (!podeEditar) inst.selSegmento.disabled = true;
-          campoDetalhe("Segmento acometido *", caixa).appendChild(inst.selSegmento);
+          // V 1.31: segmento acometido e do risco. V 1.84 (Alexandre): agora aceita VÁRIOS segmentos -
+          // ao salvar, cada segmento escolhido vira um registro de fator próprio (1 segmento por registro).
+          { const sv = reg["Segmento Corporal"] || (window.BI.Acoes.acoesDoFator(reg._id).map((a) => a["Segmento Corporal"]).filter(Boolean)[0]) || ""; inst.selSegmentos = window.BI.Acoes.criarSeletorSegmentos(sv ? [sv] : []); }
+          if (!podeEditar) inst.selSegmentos.setDisabled(true);
+          campoDetalhe("Segmento(s) acometido(s) * — escolha um ou mais", caixa).appendChild(inst.selSegmentos);
           // V 1.38: as ferramentas ergonomicas ficam so na AET (sairam da AEP)
           titulinho("Classificação atual", caixa);
           const selecaoEscala = (valorAtual, eixo) => {
@@ -4511,7 +4514,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
             nivelAtual: inst.nivel,
             matriz: () => nomeMatriz,
             nomeFator: () => fator,
-            segmento: () => inst.selSegmento.value,
+            segmento: () => (inst.selSegmentos.valores()[0] || ""),
             legado: { eliminacao: reg["Acao Eliminacao"], organizacional: reg["Controles Administrativos"] },
           });
           slot.appendChild(inst.editor.el);
@@ -4571,7 +4574,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           const nomes = { "Circunstancia Geradora": "a fonte geradora", Consequencia: "a consequência", "Medida Controle Existente": "as medidas de controle existentes" };
           const vazio = Object.keys(x.campos).find((k) => !String(x.campos[k].value || "").trim());
           if (vazio) { mostrarErroFator(l, `preencha ${nomes[vazio]}.`, x.caixa); x.campos[vazio].focus(); return; }
-          if (!x.selSegmento.value) { mostrarErroFator(l, "informe o segmento acometido.", x.caixa); x.selSegmento.focus(); return; }
+          if (!x.selSegmentos.valores().length) { mostrarErroFator(l, "informe pelo menos um segmento acometido.", x.caixa); return; }
           if (!x.selCriticidade.value || !x.selProbabilidade.value) { mostrarErroFator(l, "preencha Severidade e Probabilidade.", x.caixa); return; }
           const erroAcao = x.editor.validar();
           if (erroAcao) { mostrarErroFator(l, erroAcao, x.caixa); return; }
@@ -4585,7 +4588,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         const ativos = marcado ? l.ativasInst() : [];
         ativos.forEach((x) => {
           const r = x.registro;
-          const mudou = !r || r["Existe Fator Risco"] !== "Sim" || r.Criticidade !== x.selCriticidade.value || r.Probabilidade !== x.selProbabilidade.value || (r["Segmento Corporal"] || "") !== x.selSegmento.value ||
+          const segsAgora = x.selSegmentos.valores();
+          const mudou = !r || r["Existe Fator Risco"] !== "Sim" || r.Criticidade !== x.selCriticidade.value || r.Probabilidade !== x.selProbabilidade.value || (r["Segmento Corporal"] || "") !== (segsAgora[0] || "") || segsAgora.length > 1 ||
             Object.keys(x.campos).some((k) => (r[k] || "") !== (x.campos[k].value || "")) || x.editor.temAlteracoes();
           if (mudou) tarefas.push({ l, x, marcar: true });
         });
@@ -4624,7 +4628,6 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
             "Pontuacao Risco": pontuacao, "Graduacao Risco": nivel || null, Matriz: nomeMatriz,
           });
           Object.keys(x.campos).forEach((k) => { dados[k] = String(x.campos[k].value || "").trim(); });
-          dados["Segmento Corporal"] = x.selSegmento.value || null;
           // V 1.31: historico do risco - mudanca de graduacao no inventario fica registrada (evolucao do risco);
           // um risco eliminado volta a valer se o ergonomista o reclassificar aqui.
           if (x.registro && x.registro["Graduacao Risco"] && (x.registro["Graduacao Risco"] !== dados["Graduacao Risco"] || x.registro["Risco Eliminado"] === "Sim")) {
@@ -4635,9 +4638,23 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           if (x.editor.total() > 0) dados["Propor Acao"] = "Sim";
           if (!dados["Dt Identificacao"]) dados["Dt Identificacao"] = BI.Datas.hojeISO();
           delete dados._id;
-          if (x.registro) await window.BI.DB.salvar("fatorRisco", x.registro._id, dados);
-          else await window.BI.DB.salvar("fatorRisco", x.idFator, dados, true); // id escolhido aqui: as acoes nascem ligadas a ele
-          if (x.editor.temAlteracoes()) await x.editor.salvar(x.idFator);
+          // V 1.84 (Alexandre): um registro de fator por segmento escolhido. O 1º segmento fica no
+          // registro principal (mantém histórico e ações); os demais viram novos registros (1 segmento cada).
+          const segsSalvar = x.selSegmentos.valores(); const segList = segsSalvar.length ? segsSalvar : [null];
+          for (let si = 0; si < segList.length; si++) {
+            if (si === 0) {
+              const d0 = Object.assign({}, dados, { "Segmento Corporal": segList[0] || null });
+              if (x.registro) await window.BI.DB.salvar("fatorRisco", x.registro._id, d0);
+              else await window.BI.DB.salvar("fatorRisco", x.idFator, d0, true); // id escolhido aqui: as acoes nascem ligadas a ele
+              if (x.editor.temAlteracoes()) await x.editor.salvar(x.idFator);
+            } else {
+              // segmento adicional: registro novo e independente (sem herdar histórico/ações do principal)
+              const dN = Object.assign({}, dados, { "Segmento Corporal": segList[si] || null });
+              delete dN["Historico Risco"]; delete dN["Risco Eliminado"]; delete dN["Eliminado Em"];
+              dN["Graduacao Inicial"] = dN["Graduacao Risco"]; dN["Propor Acao"] = null;
+              await window.BI.DB.salvar("fatorRisco", novoIdRegistro(), dN, true);
+            }
+          }
           alterados++;
         }
         // V 1.28: a AEP registra a atualizacao (data e ergonomista entram no historico e no laudo)
@@ -5036,11 +5053,20 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       colunasTabela: ["Cliente", "Setor", "Funcionario", "Status Restricao", "Turno Trabalho", "Segmento Corporal", "Inicio Restricao"],
       colunasData: ["Inicio Restricao"],
       camposData: ["Inicio Restricao"],
-      campos: camposChave().concat([
-        { campo: "Status Restricao", rotulo: "Status Restricao", tipo: "select", obrigatorio: true, opcoes: STATUS_RESTRICAO_POOL },
-        { campo: "Matricula", rotulo: "Matricula", tipo: "texto", obrigatorio: true },
-        { campo: "Funcionario", rotulo: "Funcionario", tipo: "texto", obrigatorio: true },
-        { campo: "Turno Trabalho", rotulo: "Turno Trabalho", tipo: "select", obrigatorio: true, opcoes: TURNOS_POOL },
+      // V 1.84 (Alexandre): no cadastro de Restritos, só o Cliente é obrigatório (para o registro
+      // ser alocado à empresa). Todos os demais campos passam a ser opcionais para salvar.
+      campos: [
+        { campo: "Cliente", rotulo: "Cliente", tipo: "cascata", obrigatorio: true },
+        { campo: "Unidade", rotulo: "Unidade", tipo: "cascata" },
+        { campo: "Setor", rotulo: "Setor", tipo: "cascata" },
+        { campo: "Posto Trabalho", rotulo: "Posto de Trabalho", tipo: "cascata" },
+        { campo: "Cargo", rotulo: "Cargo", tipo: "cascata" },
+        { campo: "Atividade", rotulo: "Atividade", tipo: "cascata" },
+      ].concat([
+        { campo: "Status Restricao", rotulo: "Status Restricao", tipo: "select", opcoes: STATUS_RESTRICAO_POOL },
+        { campo: "Matricula", rotulo: "Matricula", tipo: "texto" },
+        { campo: "Funcionario", rotulo: "Funcionario", tipo: "texto" },
+        { campo: "Turno Trabalho", rotulo: "Turno Trabalho", tipo: "select", opcoes: TURNOS_POOL },
         { campo: "Genero", rotulo: "Genero", tipo: "select", opcoes: GENEROS_POOL },
         { campo: "Idade", rotulo: "Idade", tipo: "numero", min: 14, max: 90 },
         { campo: "Tempo Empresa (meses)", rotulo: "Tempo Empresa (meses)", tipo: "numero", min: 0 },
@@ -5049,7 +5075,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         { campo: "Queixa Principal", rotulo: "Queixa Principal", tipo: "texto", sugestoesDe: "Queixa Principal" },
         { campo: "Segmento Corporal", rotulo: "Segmento Corporal", tipo: "select", opcoes: () => regioesCorporais().concat(window.BI.Calc.SEGMENTOS_GERAIS), normalizarImport: (v) => window.BI.Calc.normalizarSegmento(v) },
         { campo: "Restricao Medica", rotulo: "Restricao Medica", tipo: "texto", sugestoesDe: "Restricao Medica" },
-        { campo: "Inicio Restricao", rotulo: "Inicio Restricao", tipo: "data", obrigatorio: true },
+        { campo: "Inicio Restricao", rotulo: "Inicio Restricao", tipo: "data" },
         { campo: "Fim Restricao", rotulo: "Fim Restricao", tipo: "data" },
         { campo: "Historico Restricao", rotulo: "Historico Restricao", tipo: "select", opcoes: SIM_NAO },
         { campo: "Doc Atividade Compativel", rotulo: "Doc Atividade Compativel", tipo: "select", opcoes: SIM_NAO },

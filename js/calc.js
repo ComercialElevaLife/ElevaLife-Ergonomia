@@ -256,6 +256,30 @@
     const doc = (linhasCliente || []).find((c) => c.Cliente === nomeCliente);
     return (doc && doc["Matriz Risco"]) || MATRIZ_PADRAO;
   }
+  // V 1.85 (Alexandre): modelo de laudo da AET por cliente (campo "Modelo Laudo AET"
+  // no cadastro do cliente). "Unimed" ativa o padrão Unimed (só OCRA, sem matriz).
+  function modeloLaudoAET(linhasCliente, nomeCliente) {
+    const doc = (linhasCliente || []).find((c) => c.Cliente === nomeCliente);
+    return /unimed/i.test(String(doc && doc["Modelo Laudo AET"] || "")) ? "Unimed" : "Padrão";
+  }
+  function ehModeloUnimed(linhasCliente, nomeCliente) { return modeloLaudoAET(linhasCliente, nomeCliente) === "Unimed"; }
+  // Escala de risco OCRA do modelo Unimed (cliente sem matriz). O ergonomista
+  // escolhe o grau a partir do print do resultado OCRA; a cor segue esta ordem.
+  const NIVEIS_OCRA_UNIMED = ["Risco Ausente", "Aceitável", "Risco no Limite", "Baixo", "Médio", "Alto"];
+  // Cores da escala OCRA do modelo Unimed, na ordem de severidade (verde → vermelho).
+  // Usada só no laudo/editor do modelo Unimed (não afeta as matrizes dos demais clientes).
+  const CORES_OCRA_UNIMED = { "risco ausente": "2E7D32", "aceitavel": "66BB6A", "risco no limite": "F2C230", "baixo": "F2A33A", "medio": "E8731A", "alto": "C62828" };
+  function corRiscoOcra(nivel) {
+    const n = String(nivel == null ? "" : nivel).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+    if (!n || n === "-") return null;
+    if (CORES_OCRA_UNIMED[n]) return CORES_OCRA_UNIMED[n];
+    if (/ausente|aceit/.test(n)) return CORES_OCRA_UNIMED["aceitavel"];
+    if (/limite|limitrof/.test(n)) return CORES_OCRA_UNIMED["risco no limite"];
+    if (/^alt|elevad/.test(n)) return CORES_OCRA_UNIMED["alto"];
+    if (/^medi|moder/.test(n)) return CORES_OCRA_UNIMED["medio"];
+    if (/^baix|^leve/.test(n)) return CORES_OCRA_UNIMED["baixo"];
+    return corRiscoHex(nivel);
+  }
 
   // ------------------------------------------------------------------
   // AET (Analise Ergonomica do Trabalho) - classificacao de arquivo por
@@ -390,6 +414,9 @@
     if (/^alt/.test(n)) return CORES_RISCO_HEX.alto;
     if (/moder|^medi/.test(n)) return CORES_RISCO_HEX.moderado;
     if (/^baix|^leve|^toler/.test(n)) return CORES_RISCO_HEX.baixo;
+    // V 1.85 (Alexandre): escala OCRA do modelo Unimed (sem matriz).
+    if (/ausente|aceit/.test(n)) return CORES_RISCO_HEX.baixo;
+    if (/limite|limitrof/.test(n)) return CORES_RISCO_HEX.moderado;
     return null;
   }
   // V 1.69 (Alexandre): descricao do impacto de cada graduacao de risco (legenda que sai logo
@@ -403,6 +430,8 @@
     if (/^alt/.test(n)) return "Inadequações importantes e alta probabilidade de ocorrência de problemas.";
     if (/moder|^medi/.test(n)) return "Inadequações de menor importância e baixa probabilidade de problemas.";
     if (/^baix|^leve|^toler/.test(n)) return "Inadequações inexistentes ou mínimas, com mínima probabilidade de problemas.";
+    if (/ausente|aceit/.test(n)) return "Inadequações inexistentes ou mínimas, com mínima probabilidade de problemas.";
+    if (/limite|limitrof/.test(n)) return "Inadequações de menor importância e baixa probabilidade de problemas.";
     return "";
   }
   // Cor de um status de acao (aceita as chaves internas e os rotulos exibidos).
@@ -1202,6 +1231,7 @@
     nivelDaMatriz,
     pontuacaoDaMatriz,
     matrizDoCliente,
+    modeloLaudoAET, ehModeloUnimed, NIVEIS_OCRA_UNIMED, corRiscoOcra,
     STATUS_ACAO_ORDEM,
     STATUS_RESTRICAO_ORDEM,
     resolverCorCSS,

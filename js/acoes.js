@@ -196,6 +196,33 @@
     const m = (BI.dados && BI.dados._meta) || {};
     return [].concat(m.regioes_frente || [], m.regioes_tras || [], SEGMENTOS_EXTRA, SEGMENTOS_GERAIS);
   }
+  // V 1.84 (Alexandre): seletor de MÚLTIPLOS segmentos corporais (AEP e AET). Dropdown com caixas
+  // de marcar. `.valores()` devolve o array selecionado; `.setDisabled(bool)` trava a edição.
+  // Ao salvar, cada segmento escolhido vira um registro de fator próprio (modelo de dados
+  // inalterado: 1 segmento por registro), então os gráficos/diagramas/laudo seguem funcionando.
+  function criarSeletorSegmentos(valoresIniciais, aoMudar) {
+    const d = document;
+    const sel = new Set((Array.isArray(valoresIniciais) ? valoresIniciais : (valoresIniciais ? [valoresIniciais] : [])).filter(Boolean));
+    const wrap = d.createElement("div"); wrap.className = "seg-multi";
+    const botao = d.createElement("button"); botao.type = "button"; botao.className = "seg-multi-botao";
+    const painel = d.createElement("div"); painel.className = "seg-multi-painel"; painel.hidden = true;
+    const atualizarBotao = () => { const n = sel.size; botao.textContent = n === 0 ? "Selecionar segmento(s)…" : n === 1 ? [...sel][0] : n + " segmentos selecionados"; };
+    segmentosDisponiveis().forEach((sg) => {
+      const lb = d.createElement("label"); lb.className = "seg-multi-item";
+      const cb = d.createElement("input"); cb.type = "checkbox"; cb.value = sg; cb.checked = sel.has(sg);
+      cb.addEventListener("change", () => { if (cb.checked) sel.add(sg); else sel.delete(sg); atualizarBotao(); if (aoMudar) aoMudar([...sel]); });
+      lb.appendChild(cb); lb.appendChild(d.createTextNode(" " + sg)); painel.appendChild(lb);
+    });
+    // valor inicial que não está na lista padrão (ex.: segmento antigo) entra como opção marcada
+    [...sel].forEach((sg) => { if (![...painel.querySelectorAll("input")].some((i) => i.value === sg)) { const lb = d.createElement("label"); lb.className = "seg-multi-item"; const cb = d.createElement("input"); cb.type = "checkbox"; cb.value = sg; cb.checked = true; cb.addEventListener("change", () => { if (cb.checked) sel.add(sg); else sel.delete(sg); atualizarBotao(); if (aoMudar) aoMudar([...sel]); }); lb.appendChild(cb); lb.appendChild(d.createTextNode(" " + sg)); painel.appendChild(lb); } });
+    botao.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); painel.hidden = !painel.hidden; });
+    d.addEventListener("click", (e) => { if (!wrap.contains(e.target)) painel.hidden = true; });
+    atualizarBotao();
+    wrap.appendChild(botao); wrap.appendChild(painel);
+    wrap.valores = () => [...sel];
+    wrap.setDisabled = (dis) => { botao.disabled = dis; painel.querySelectorAll("input").forEach((i) => (i.disabled = dis)); };
+    return wrap;
+  }
   const EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
   // ---- Editor de acoes de um fator -------------------------------------------
@@ -639,6 +666,6 @@
 
   BI.Acoes = {
     TIPOS_PADRAO, COMPLEXIDADES, SUGESTOES, SEGMENTOS_GERAIS, ELIMINADO, reduzRisco, tipos, rotuloTipo, categoriaDoTipo, niveisAbaixo, acoesDoFator, resumoRisco,
-    estaConcluida, criarEditor, montarTelaConfiguracoes, segmentosDisponiveis,
+    estaConcluida, criarEditor, montarTelaConfiguracoes, segmentosDisponiveis, criarSeletorSegmentos,
   };
 })(window);
