@@ -338,7 +338,11 @@
       s5.appendChild(blocoFotos(st["Foto Geral"], Infinity, "Visão geral do posto de trabalho (fotos gerais)"));
       // 6. Ambiente
       const s6 = secao("amb", "6. Análise do ambiente (conforto)"); const g6 = grade(s6);
-      AMBIENTE.forEach(([k, r]) => g6.appendChild(campoTexto(st, k, r, { linhas: 2, largo: true })));
+      // V 1.88 (Alexandre): os campos de texto de ambiente (iluminação, ruído, temperatura)
+      // foram unidos em um só "Descrição do ambiente". As medições quantitativas continuam
+      // na tabela abaixo. Dados antigos (Iluminacao/Ruido/Temperatura) ficam preservados no
+      // registro e seguem saindo no laudo de AETs já preenchidas.
+      g6.appendChild(campoTexto(st, "Descricao Ambiente", "Descrição do ambiente (iluminação, ruído, temperatura, ventilação, piso, cores, etc.)", { linhas: 6, largo: true }));
       s6.appendChild(tabelaEditavel(st.Medicoes, [["fator", "Fator"], ["local", "Local / medição"], ["medicao", "Medição"], ["parametro", "Parâmetro"], ["condicao", "Condição"]], "Medições ambientais (NR-17, item 17.8, e NHO 11)", () => ({ fator: "", local: "", medicao: "", parametro: "", condicao: "" })));
       const g6b = grade(s6); g6b.appendChild(campoTexto(st, "Consideracoes Ambiente", "Considerações técnicas e observações (ex.: avaliação qualitativa do ruído)", { linhas: 3, largo: true }));
       // 7. Manifestacoes, ciclo e cargas

@@ -2,6 +2,10 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.88 — 11/11/2026
+
+- **AET › Análise do ambiente: campos de texto unidos em um só (Alexandre).** Na seção "6. Análise do ambiente (conforto)", os campos de texto separados **Descrição do ambiente, Iluminação, Ruído e Temperatura** viraram um único campo **"Descrição do ambiente"** (maior), onde o ergonomista descreve tudo junto. A **tabela de medições ambientais** (iluminação/ruído/temperatura com medição, parâmetro e condição) e as **considerações técnicas** continuam como estavam. Dados antigos (AETs já preenchidas com os campos separados) ficam preservados e seguem saindo no laudo. *(Arquivo: `js/aet.js`.)* Service worker subiu para `sige-v103`.
+
 ## V 1.87 — 11/11/2026
 
 - **AET: voltou a dar para cadastrar setor/GHE, posto e cargo direto na aba de Identificação (Alexandre).** Com o cliente escolhido, os campos **Unidade, Setor/GHE, Posto de trabalho e Cargo/função** já oferecem a opção **"+ Cadastrar novo…"** — antes só liberava o cadastro de um nível depois de preencher o nível de cima. As opções já existentes continuam em cascata e a hierarquia é montada ao salvar a AET. *(Arquivo: `js/aet.js`.)*
