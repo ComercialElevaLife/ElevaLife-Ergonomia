@@ -2,6 +2,16 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.90 — 11/11/2026
+
+- **Cadastro de Unidade: edição voltou a mostrar os dados já salvos (Alexandre).** Ao clicar em **Editar** uma unidade, o formulário abria apagando o Cliente/Unidade (e o usuário não conseguia corrigir). A função de construção do formulário da Unidade não repassava os valores iniciais à cascata, que então repopulava os campos vazios. Corrigido: a edição agora preenche Cliente, Nome da Unidade, CNPJ, CNAE, Grau de Risco, endereço e demais campos salvos. *(Arquivo: `js/app.js`.)* Service worker subiu para `sige-v105`.
+
+## V 1.89 — 11/11/2026
+
+- **Usuários: vínculo de UNIDADES agora é salvo (Alexandre).** Ao editar/convidar um usuário, as **Unidades vinculadas** não estavam sendo gravadas (só o papel e as empresas). O backend passou a persistir e devolver `UnidadesVinculadas` no criar (convite), no editar (PUT) e na listagem (GET). Agora clientes e unidades vinculados a um usuário ficam salvos corretamente. *(Arquivos: `api/src/functions/auth.js`, `api/src/functions/usuarios.js`.)*
+- **Dashboard: filtros que apareciam "sem dados" corrigidos (Alexandre).** Alguns filtros (ex.: cliente "Gerdau HANA", setor "Escritório") deixavam a dashboard como se não houvesse dados, mesmo havendo. A comparação do filtro era exata (sensível a maiúsculas/minúsculas, acentos e espaços); passou a ser **normalizada** (sem acento, minúsculas, sem espaços nas pontas), então o filtro casa com os registros mesmo com pequenas diferenças de digitação entre cadastros/coleções. *(Arquivo: `js/calc.js`.)*
+  Service worker subiu para `sige-v104`.
+
 ## V 1.88 — 11/11/2026
 
 - **AET › Análise do ambiente: campos de texto unidos em um só (Alexandre).** Na seção "6. Análise do ambiente (conforto)", os campos de texto separados **Descrição do ambiente, Iluminação, Ruído e Temperatura** viraram um único campo **"Descrição do ambiente"** (maior), onde o ergonomista descreve tudo junto. A **tabela de medições ambientais** (iluminação/ruído/temperatura com medição, parâmetro e condição) e as **considerações técnicas** continuam como estavam. Dados antigos (AETs já preenchidas com os campos separados) ficam preservados e seguem saindo no laudo. *(Arquivo: `js/aet.js`.)* Service worker subiu para `sige-v103`.

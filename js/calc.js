@@ -571,7 +571,14 @@
   function linhaPassaFiltros(linha, filtros, camposData) {
     for (const dim of DIMENSOES) {
       const v = filtros[dim];
-      if (!vazio(v) && dim in linha && !v.includes(linha[dim])) return false;
+      // V 1.89 (Alexandre): comparação normalizada (sem acento, minúsculas, sem espaços nas
+      // pontas). Antes era igualdade exata de string, então um cliente/unidade/setor com
+      // diferença de caixa, acento (ex.: "escritório") ou espaço extra não casava com o filtro
+      // e a dashboard aparecia "sem dados" mesmo havendo registros.
+      if (!vazio(v) && dim in linha) {
+        const alvo = semAcentoMin(linha[dim]);
+        if (!v.some((x) => semAcentoMin(x) === alvo)) return false;
+      }
     }
     // V 1.29: filtro Origem (AEP/AET/Psicossocial) so vale para registros que tem origem
     // (o app marca _origem em fatores, acoes, avaliacoes, laudos, AET e risco dos postos).

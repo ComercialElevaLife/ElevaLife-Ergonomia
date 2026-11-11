@@ -4757,7 +4757,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       campos: camposCadastroUnidade(),
       // V 1.63: a Unidade agora tem CNPJ e dados cadastrais; a consulta automática de CNPJ
       // (BrasilAPI) que preenchia o cliente passou para cá.
-      aoConstruir: (form) => { comCascata(null)(form); try { ligarConsultaCNPJ(form); } catch (e) { /* */ } },
+      // V 1.90 (Alexandre): repassar os valoresIniciais ao comCascata — sem isso, ao EDITAR
+      // uma unidade o Cliente/Unidade era repopulado vazio (apagava os dados salvos na tela).
+      aoConstruir: (form, valoresIniciais) => { comCascata(null)(form, valoresIniciais); try { ligarConsultaCNPJ(form); } catch (e) { /* */ } },
     },
     setor: {
       grupo: "mestre", icone: "🗂️", tituloMenu: "Setor / GHE",

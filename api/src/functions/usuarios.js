@@ -60,7 +60,7 @@ async function tratar(request, context) {
         // Nunca devolver os hashes/tokens pro frontend - so o necessario pra
         // tela de Usuarios (e-mail, papel, empresas, status da conta).
         const semSegredos = resources.map((u) => ({
-          id: u.id, Email: u.Email, Papel: u.Papel, EmpresasVinculadas: u.EmpresasVinculadas,
+          id: u.id, Email: u.Email, Papel: u.Papel, EmpresasVinculadas: u.EmpresasVinculadas, UnidadesVinculadas: u.UnidadesVinculadas,
           StatusConta: u.StatusConta || (u.SenhaHash ? "Ativo" : "Convidado"),
         }));
         return { jsonBody: semSegredos };
@@ -71,7 +71,7 @@ async function tratar(request, context) {
         const resultado = await criarOuConvidarUsuario(request, container, corpo, identidade);
         if (resultado.erro) return resultado.erro;
         const { doc, link, avisoEmail } = resultado;
-        return { status: 201, jsonBody: { id: doc.id, Email: doc.Email, Papel: doc.Papel, EmpresasVinculadas: doc.EmpresasVinculadas, StatusConta: doc.StatusConta, linkConvite: link, avisoEmail } };
+        return { status: 201, jsonBody: { id: doc.id, Email: doc.Email, Papel: doc.Papel, EmpresasVinculadas: doc.EmpresasVinculadas, UnidadesVinculadas: doc.UnidadesVinculadas, StatusConta: doc.StatusConta, linkConvite: link, avisoEmail } };
       }
 
       case "PUT": {
@@ -87,9 +87,16 @@ async function tratar(request, context) {
         if (!existente) return { status: 404, jsonBody: { erro: "Não encontrado." } };
         // Nunca deixar o corpo da requisicao sobrescrever SenhaHash/tokens -
         // essa rota so mexe em Papel/EmpresasVinculadas.
-        const doc = Object.assign({}, existente, { Papel: corpo.Papel || existente.Papel, EmpresasVinculadas: Array.isArray(corpo.EmpresasVinculadas) ? corpo.EmpresasVinculadas : existente.EmpresasVinculadas, id });
+        // V 1.89 (Alexandre): o PUT passa a persistir também UnidadesVinculadas (antes só
+        // Papel/EmpresasVinculadas — por isso o vínculo de unidades não ficava salvo).
+        const doc = Object.assign({}, existente, {
+          Papel: corpo.Papel || existente.Papel,
+          EmpresasVinculadas: Array.isArray(corpo.EmpresasVinculadas) ? corpo.EmpresasVinculadas : existente.EmpresasVinculadas,
+          UnidadesVinculadas: Array.isArray(corpo.UnidadesVinculadas) ? corpo.UnidadesVinculadas : existente.UnidadesVinculadas,
+          id,
+        });
         const { resource } = await container.item(id, id).replace(doc);
-        return { jsonBody: { id: resource.id, Email: resource.Email, Papel: resource.Papel, EmpresasVinculadas: resource.EmpresasVinculadas, StatusConta: resource.StatusConta } };
+        return { jsonBody: { id: resource.id, Email: resource.Email, Papel: resource.Papel, EmpresasVinculadas: resource.EmpresasVinculadas, UnidadesVinculadas: resource.UnidadesVinculadas, StatusConta: resource.StatusConta } };
       }
 
       case "DELETE": {

@@ -118,7 +118,7 @@ async function enviarConvite(request, container, doc, { reenvio }) {
 // SEMPRE dispara um convite por e-mail agora, nao existe mais "criar sem
 // convidar" (pedido do Leo: toda pessoa nova tem que receber o convite).
 // Faz upsert pelo e-mail (nunca cria um segundo documento pro mesmo e-mail).
-async function criarOuConvidarUsuario(request, container, { Email, Papel, EmpresasVinculadas, id }, identidade) {
+async function criarOuConvidarUsuario(request, container, { Email, Papel, EmpresasVinculadas, UnidadesVinculadas, id }, identidade) {
   const crypto = require("crypto");
   const email = normalizarEmail(Email);
   if (!email) return { erro: { status: 400, jsonBody: { erro: "E-mail é obrigatório." } } };
@@ -126,6 +126,9 @@ async function criarOuConvidarUsuario(request, container, { Email, Papel, Empres
     return { erro: { status: 400, jsonBody: { erro: `Papel inválido. Use um de: ${Array.from(PAPEIS_VALIDOS).join(", ")}.` } } };
   }
   const empresas = Array.isArray(EmpresasVinculadas) ? EmpresasVinculadas.filter((e) => typeof e === "string" && e) : [];
+  // V 1.89 (Alexandre): vínculo por UNIDADE também é persistido (antes era ignorado no
+  // convite/criação). Cada item vem como "<EmpresaId>::<Unidade>" (ver camposUsuario no app.js).
+  const unidades = Array.isArray(UnidadesVinculadas) ? UnidadesVinculadas.filter((e) => typeof e === "string" && e) : [];
 
   // V 1.7 (revisao de seguranca): so o Administrador define papeis altos e
   // vincula empresas livremente. Um Consultor so convida UsuarioCliente e
@@ -157,6 +160,7 @@ async function criarOuConvidarUsuario(request, container, { Email, Papel, Empres
   const doc = existente || { id: id || crypto.randomUUID(), Email: email };
   doc.Papel = Papel;
   doc.EmpresasVinculadas = empresas;
+  doc.UnidadesVinculadas = unidades;
 
   const { link, avisoEmail } = await enviarConvite(request, container, doc, { reenvio: Boolean(existente) });
   return { doc, link, avisoEmail };
