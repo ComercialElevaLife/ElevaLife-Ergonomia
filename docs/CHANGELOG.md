@@ -2,6 +2,12 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.87 — 11/11/2026
+
+- **AET: voltou a dar para cadastrar setor/GHE, posto e cargo direto na aba de Identificação (Alexandre).** Com o cliente escolhido, os campos **Unidade, Setor/GHE, Posto de trabalho e Cargo/função** já oferecem a opção **"+ Cadastrar novo…"** — antes só liberava o cadastro de um nível depois de preencher o nível de cima. As opções já existentes continuam em cascata e a hierarquia é montada ao salvar a AET. *(Arquivo: `js/aet.js`.)*
+- **Correção do seletor de "Segmento(s) acometido(s)" (Alexandre).** O menu de múltiplos segmentos (AEP/AET) estava com o layout quebrado em instalações sem o CSS novo. Agora o widget tem estilos próprios embutidos e aparece sempre como um menu suspenso correto (lista compacta, rolável), independente do CSS. *(Arquivo: `js/acoes.js`.)*
+  Service worker subiu para `sige-v102`.
+
 ## V 1.86 — 06/11/2026
 
 - **Notificações: coluna "Unidade" nas análises pendentes (Alexandre).** Na aba **Notificações**, na lista **"Análises faltando informações ou fotos"**, foi adicionada a coluna **Unidade** (entre Empresa e "Setor › posto › cargo"), para identificar de qual unidade é cada AEP/AET pendente. A mesma coluna foi incluída na lista **"Importações com pendência para corrigir"**. *(Arquivo: `js/app.js`.)* Service worker subiu para `sige-v101`.

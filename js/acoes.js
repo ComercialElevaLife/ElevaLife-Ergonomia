@@ -203,18 +203,20 @@
   function criarSeletorSegmentos(valoresIniciais, aoMudar) {
     const d = document;
     const sel = new Set((Array.isArray(valoresIniciais) ? valoresIniciais : (valoresIniciais ? [valoresIniciais] : [])).filter(Boolean));
-    const wrap = d.createElement("div"); wrap.className = "seg-multi";
+    const wrap = d.createElement("div"); wrap.className = "seg-multi"; wrap.style.cssText = "position:relative";
     const botao = d.createElement("button"); botao.type = "button"; botao.className = "seg-multi-botao";
+    botao.style.cssText = "width:100%;text-align:left;background:#fff;border:1px solid #e5d8d8;border-radius:8px;padding:8px 12px;font:inherit;font-size:13.5px;color:#3d2e30;cursor:pointer";
     const painel = d.createElement("div"); painel.className = "seg-multi-painel"; painel.hidden = true;
+    painel.style.cssText = "position:absolute;z-index:40;top:calc(100% + 4px);left:0;right:0;max-height:240px;overflow:auto;background:#fff;border:1px solid #e5d8d8;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);padding:6px";
     const atualizarBotao = () => { const n = sel.size; botao.textContent = n === 0 ? "Selecionar segmento(s)…" : n === 1 ? [...sel][0] : n + " segmentos selecionados"; };
     segmentosDisponiveis().forEach((sg) => {
-      const lb = d.createElement("label"); lb.className = "seg-multi-item";
-      const cb = d.createElement("input"); cb.type = "checkbox"; cb.value = sg; cb.checked = sel.has(sg);
+      const lb = d.createElement("label"); lb.className = "seg-multi-item"; lb.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer";
+      const cb = d.createElement("input"); cb.type = "checkbox"; cb.value = sg; cb.checked = sel.has(sg); cb.style.margin = "0";
       cb.addEventListener("change", () => { if (cb.checked) sel.add(sg); else sel.delete(sg); atualizarBotao(); if (aoMudar) aoMudar([...sel]); });
       lb.appendChild(cb); lb.appendChild(d.createTextNode(" " + sg)); painel.appendChild(lb);
     });
     // valor inicial que não está na lista padrão (ex.: segmento antigo) entra como opção marcada
-    [...sel].forEach((sg) => { if (![...painel.querySelectorAll("input")].some((i) => i.value === sg)) { const lb = d.createElement("label"); lb.className = "seg-multi-item"; const cb = d.createElement("input"); cb.type = "checkbox"; cb.value = sg; cb.checked = true; cb.addEventListener("change", () => { if (cb.checked) sel.add(sg); else sel.delete(sg); atualizarBotao(); if (aoMudar) aoMudar([...sel]); }); lb.appendChild(cb); lb.appendChild(d.createTextNode(" " + sg)); painel.appendChild(lb); } });
+    [...sel].forEach((sg) => { if (![...painel.querySelectorAll("input")].some((i) => i.value === sg)) { const lb = d.createElement("label"); lb.className = "seg-multi-item"; lb.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer"; const cb = d.createElement("input"); cb.type = "checkbox"; cb.value = sg; cb.checked = true; cb.style.margin = "0"; cb.addEventListener("change", () => { if (cb.checked) sel.add(sg); else sel.delete(sg); atualizarBotao(); if (aoMudar) aoMudar([...sel]); }); lb.appendChild(cb); lb.appendChild(d.createTextNode(" " + sg)); painel.appendChild(lb); } });
     botao.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); painel.hidden = !painel.hidden; });
     d.addEventListener("click", (e) => { if (!wrap.contains(e.target)) painel.hidden = true; });
     atualizarBotao();

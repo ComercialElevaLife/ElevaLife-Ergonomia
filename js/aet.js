@@ -309,10 +309,13 @@
       g1.appendChild(campoSelect(st, "Cliente", "Cliente *", clientes, casc("Cliente", 0), { desabilitado: !!idAET }));
       // V 1.38: unidade/setor/posto/cargo vem das tabelas proprias (nao so dos cargos ja cadastrados) e aceitam "+ Cadastrar novo…"
       const de = (col, campo, d) => uniq(filtroC(d).map((c) => c[campo]).concat((BI.dados[col] || []).filter((x) => (!st.Cliente || x.Cliente === st.Cliente) && (d < 1 || !st.Unidade || x.Unidade === st.Unidade) && (d < 2 || !st.Setor || x.Setor === st.Setor) && (d < 3 || !st["Posto Trabalho"] || x["Posto Trabalho"] === st["Posto Trabalho"])).map((x) => x[campo])));
+      // V 1.87 (Alexandre): com o cliente escolhido, já dá para cadastrar unidade, setor/GHE,
+      // posto e cargo direto aqui (antes só liberava o "+ Cadastrar novo…" do nível depois de
+      // preencher o pai). As opções existentes continuam em cascata; a hierarquia é montada ao salvar.
       g1.appendChild(campoSelect(st, "Unidade", "Unidade *", st.Cliente ? de("unidade", "Unidade", 0) : [], casc("Unidade", 1), { novo: st.Cliente ? "unidade" : "" }));
-      g1.appendChild(campoSelect(st, "Setor", "Setor / GHE *", st.Unidade ? de("setor", "Setor", 1) : [], casc("Setor", 2), { novo: st.Unidade ? "setor / GHE" : "" }));
-      g1.appendChild(campoSelect(st, "Posto Trabalho", "Posto de trabalho *", st.Setor ? de("posto", "Posto Trabalho", 2) : [], casc("Posto Trabalho", 3), { novo: st.Setor ? "posto de trabalho" : "" }));
-      g1.appendChild(campoSelect(st, "Cargo", "Cargo / função *", st["Posto Trabalho"] ? de("cargo", "Cargo", 3) : [], atualizarTitulo, { novo: st["Posto Trabalho"] ? "cargo / função" : "" }));
+      g1.appendChild(campoSelect(st, "Setor", "Setor / GHE *", st.Unidade ? de("setor", "Setor", 1) : [], casc("Setor", 2), { novo: st.Cliente ? "setor / GHE" : "" }));
+      g1.appendChild(campoSelect(st, "Posto Trabalho", "Posto de trabalho *", st.Setor ? de("posto", "Posto Trabalho", 2) : [], casc("Posto Trabalho", 3), { novo: st.Cliente ? "posto de trabalho" : "" }));
+      g1.appendChild(campoSelect(st, "Cargo", "Cargo / função *", st["Posto Trabalho"] ? de("cargo", "Cargo", 3) : [], atualizarTitulo, { novo: st.Cliente ? "cargo / função" : "" }));
       g1.appendChild(campoTexto(st, "Data Analise", "Data da análise *", { tipo: "date" }));
       g1.appendChild(campoSelect(st, "Ergonomista", "Ergonomista responsável pela análise", uniq((BI.dados.ergonomista || []).map((e) => e.Nome))));
       s1.appendChild(h("p", "aet-nota", `Matriz de risco do cliente: ${mz}. O cadastro de unidade, setor/GHE, posto e cargo é o do Cadastro Cliente.`));
