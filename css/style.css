@@ -2546,4 +2546,4 @@ body.perfil-admin .sidebar-nav button.nav-so-admin { display: flex; }
 .seg-multi-painel { position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0; max-height: 240px; overflow: auto; background: var(--card, #fff); border: 1px solid var(--linha, #e5d8d8); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.12); padding: 6px; }
 .seg-multi-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; font-size: 13px; cursor: pointer; }
 .seg-multi-item:hover { background: var(--fundo-suave, #f5efea); }
-.seg-multi-item input { margin: 0; }
+.seg-multi-item input { margin: 0; width: auto; min-width: 0; flex: 0 0 auto; padding: 0; height: auto; }

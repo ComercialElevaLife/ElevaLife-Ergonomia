@@ -2,6 +2,11 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.91 — 12/11/2026
+
+- **Seletor de "Segmento(s) acometido(s)" corrigido de vez (Alexandre).** O checkbox do seletor herdava `width:100%` da regra geral dos campos da AET, esticando a caixa e jogando o rótulo para a direita (lista torta). Agora o checkbox tem largura própria (inline + CSS), então a lista aparece certinha (checkbox à esquerda, rótulo ao lado). *(Arquivos: `js/acoes.js`, `css/style.css`.)*
+- **Perfil do UsuarioCliente revisado (Alexandre).** Confirmado e ajustado: o Cliente vê apenas os clientes/unidades vinculados (filtro por empresa e unidade no backend), vê AEP, AET, Gestão de Riscos, Absenteísmo e Restritos, **não edita nada** e **não vê** Cadastro Empresa, Cadastro Interno nem Coordenação. Ajuste: o Cliente agora consegue **abrir o Inventário de Riscos da AEP em modo somente leitura** (antes ficava totalmente bloqueado). *(Arquivo: `js/app.js`.)* Service worker subiu para `sige-v106`.
+
 ## V 1.90 — 11/11/2026
 
 - **Cadastro de Unidade: edição voltou a mostrar os dados já salvos (Alexandre).** Ao clicar em **Editar** uma unidade, o formulário abria apagando o Cliente/Unidade (e o usuário não conseguia corrigir). A função de construção do formulário da Unidade não repassava os valores iniciais à cascata, que então repopulava os campos vazios. Corrigido: a edição agora preenche Cliente, Nome da Unidade, CNPJ, CNAE, Grau de Risco, endereço e demais campos salvos. *(Arquivo: `js/app.js`.)* Service worker subiu para `sige-v105`.

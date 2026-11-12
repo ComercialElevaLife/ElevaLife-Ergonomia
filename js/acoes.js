@@ -211,12 +211,12 @@
     const atualizarBotao = () => { const n = sel.size; botao.textContent = n === 0 ? "Selecionar segmento(s)…" : n === 1 ? [...sel][0] : n + " segmentos selecionados"; };
     segmentosDisponiveis().forEach((sg) => {
       const lb = d.createElement("label"); lb.className = "seg-multi-item"; lb.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer";
-      const cb = d.createElement("input"); cb.type = "checkbox"; cb.value = sg; cb.checked = sel.has(sg); cb.style.margin = "0";
+      const cb = d.createElement("input"); cb.type = "checkbox"; cb.value = sg; cb.checked = sel.has(sg); cb.style.cssText = "margin:0;width:auto;min-width:0;flex:0 0 auto;padding:0;height:auto";
       cb.addEventListener("change", () => { if (cb.checked) sel.add(sg); else sel.delete(sg); atualizarBotao(); if (aoMudar) aoMudar([...sel]); });
       lb.appendChild(cb); lb.appendChild(d.createTextNode(" " + sg)); painel.appendChild(lb);
     });
     // valor inicial que não está na lista padrão (ex.: segmento antigo) entra como opção marcada
-    [...sel].forEach((sg) => { if (![...painel.querySelectorAll("input")].some((i) => i.value === sg)) { const lb = d.createElement("label"); lb.className = "seg-multi-item"; lb.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer"; const cb = d.createElement("input"); cb.type = "checkbox"; cb.value = sg; cb.checked = true; cb.style.margin = "0"; cb.addEventListener("change", () => { if (cb.checked) sel.add(sg); else sel.delete(sg); atualizarBotao(); if (aoMudar) aoMudar([...sel]); }); lb.appendChild(cb); lb.appendChild(d.createTextNode(" " + sg)); painel.appendChild(lb); } });
+    [...sel].forEach((sg) => { if (![...painel.querySelectorAll("input")].some((i) => i.value === sg)) { const lb = d.createElement("label"); lb.className = "seg-multi-item"; lb.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer"; const cb = d.createElement("input"); cb.type = "checkbox"; cb.value = sg; cb.checked = true; cb.style.cssText = "margin:0;width:auto;min-width:0;flex:0 0 auto;padding:0;height:auto"; cb.addEventListener("change", () => { if (cb.checked) sel.add(sg); else sel.delete(sg); atualizarBotao(); if (aoMudar) aoMudar([...sel]); }); lb.appendChild(cb); lb.appendChild(d.createTextNode(" " + sg)); painel.appendChild(lb); } });
     botao.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); painel.hidden = !painel.hidden; });
     d.addEventListener("click", (e) => { if (!wrap.contains(e.target)) painel.hidden = true; });
     atualizarBotao();

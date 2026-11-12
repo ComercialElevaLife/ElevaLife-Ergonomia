@@ -4304,10 +4304,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function abrirInventarioChecklist(linhaAval) {
-    if (ehUsuarioCliente()) return;
     const Calc = window.BI.Calc;
     const painel = obterPainelChecklist();
-    const podeEditar = window.BI.DB.estado.disponivel;
+    // V 1.91 (Alexandre): o UsuarioCliente pode ABRIR o Inventário de Riscos da AEP, mas
+    // somente para VER (read-only) — antes ficava totalmente bloqueado e ele não via os
+    // riscos. Todo o checklist respeita `podeEditar` (campos/botões desabilitados).
+    const podeEditar = window.BI.DB.estado.disponivel && !ehUsuarioCliente();
     // V 1.40: contabilidade de tempo (aba Coordenacao) - sessao do Inventario (AEP).
     if (podeEditar && window.BI.Tempo) window.BI.Tempo.iniciar("aep:inv", { Categoria: "AEP", Tipo: "avaliacaoErgonomica", Acao: "editar", RefId: linhaAval._id || "", Cliente: linhaAval.Cliente, Unidade: linhaAval.Unidade, Setor: linhaAval.Setor, "Posto Trabalho": linhaAval["Posto Trabalho"], Cargo: linhaAval.Cargo });
 
