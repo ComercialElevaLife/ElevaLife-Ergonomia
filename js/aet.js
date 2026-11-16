@@ -140,7 +140,7 @@
     const th = h("thead"); th.appendChild(trh); tb.appendChild(th); const tbody = h("tbody");
     lista.forEach((a) => {
       const tr = h("tr");
-      [a["Nr AET"] ? "AET-" + String(a["Nr AET"]).padStart(3, "0") : "-", a.Cliente, a.Setor, a["Posto Trabalho"], a.Cargo, dataBR(a["Data Analise"]), String((a.Atividades || []).length)].forEach((x) => tr.appendChild(h("td", null, x || "-")));
+      [a["Nr AET"] ? "AET-" + String(a["Nr AET"]).padStart(3, "0") : "-", a.Cliente, a.Setor, a["Posto Trabalho"], Calc().rotuloCargos(a), dataBR(a["Data Analise"]), String((a.Atividades || []).length)].forEach((x) => tr.appendChild(h("td", null, x || "-")));
       const r = riscoDaAET(a); const tdR = h("td"); if (r) { const p = h("span", "plano-pilula", r); const hx = Calc().corRiscoHex(r); if (hx) { p.style.background = "#" + hx; p.style.color = "#" + Calc().textoSobreHex(hx); } tdR.appendChild(p); } else tdR.textContent = "-"; tr.appendChild(tdR);
       const tdA = h("td", "aet-acoes-linha");
       const bA = h("button", "btn-cad-secundario", podeEditar() ? "Abrir" : "Ver"); bA.type = "button"; bA.addEventListener("click", () => abrirEditor(a)); tdA.appendChild(bA);
@@ -218,7 +218,7 @@
     if (editar && BI.Tempo) BI.Tempo.iniciar("aet:editor", { Categoria: "AET", Tipo: "aet", Acao: idAET ? "editar" : "criar", RefId: idAET || "", Cliente: st.Cliente, Unidade: st.Unidade, Setor: st.Setor, "Posto Trabalho": st["Posto Trabalho"], Cargo: st.Cargo });
     const fechar = () => { if (sujo && editar && !window.confirm("Há alterações não salvas na AET. Fechar mesmo assim?")) return; if (BI.Tempo) BI.Tempo.descartar("aet:editor"); fundo.remove(); document.body.classList.remove("aet-aberta"); };
     bFechar.addEventListener("click", fechar);
-    const atualizarTitulo = () => { titulo.textContent = `AET${st["Nr AET"] ? " " + String(st["Nr AET"]).padStart(3, "0") : " (nova)"} · ${[st.Setor, st["Posto Trabalho"], st.Cargo].filter(Boolean).join(" › ") || "posto não definido"}`; };
+    const atualizarTitulo = () => { titulo.textContent = `AET${st["Nr AET"] ? " " + String(st["Nr AET"]).padStart(3, "0") : " (nova)"} · ${[st.Setor, st["Posto Trabalho"], Calc().rotuloCargos(st)].filter(Boolean).join(" › ") || "posto não definido"}`; };
 
     // -------- helpers de campo
     const campoTexto = (obj, chave, rot, opc) => {
@@ -316,6 +316,12 @@
       g1.appendChild(campoSelect(st, "Setor", "Setor / GHE *", st.Unidade ? de("setor", "Setor", 1) : [], casc("Setor", 2), { novo: st.Cliente ? "setor / GHE" : "" }));
       g1.appendChild(campoSelect(st, "Posto Trabalho", "Posto de trabalho *", st.Setor ? de("posto", "Posto Trabalho", 2) : [], casc("Posto Trabalho", 3), { novo: st.Cliente ? "posto de trabalho" : "" }));
       g1.appendChild(campoSelect(st, "Cargo", "Cargo / função *", st["Posto Trabalho"] ? de("cargo", "Cargo", 3) : [], atualizarTitulo, { novo: st.Cliente ? "cargo / função" : "" }));
+      // V 1.93 (Alexandre): a AET pode cobrir vários cargos (o "Cargo" acima é o principal). Os
+      // cargos adicionais vão para st.Cargos e aparecem em todo lugar (lista, cabeçalho, laudo, inventário).
+      { if (!Array.isArray(st._cargosExtras)) st._cargosExtras = C.cargosDe(st).filter((c) => c && c !== st.Cargo);
+        const opcoesCargos = () => de("cargo", "Cargo", 3).filter((c) => c && c !== st.Cargo);
+        const wCargos = BI.Acoes && BI.Acoes.criarSeletorMulti ? BI.Acoes.criarSeletorMulti(opcoesCargos, st._cargosExtras, (vals) => { st._cargosExtras = vals.slice(); }, { placeholder: "Nenhum (só o cargo principal)", plural: "cargos adicionais", vazio: "Escolha o posto e o cargo principal primeiro." }) : null;
+        if (wCargos) { if (!editar && wCargos.setDisabled) wCargos.setDisabled(true); const lab = h("div", "aet-campo aet-campo--largo"); lab.appendChild(h("span", "aet-rot", "Outros cargos desta AET (além do principal)")); lab.appendChild(wCargos); g1.appendChild(lab); } }
       g1.appendChild(campoTexto(st, "Data Analise", "Data da análise *", { tipo: "date" }));
       g1.appendChild(campoSelect(st, "Ergonomista", "Ergonomista responsável pela análise", uniq((BI.dados.ergonomista || []).map((e) => e.Nome))));
       s1.appendChild(h("p", "aet-nota", `Matriz de risco do cliente: ${mz}. O cadastro de unidade, setor/GHE, posto e cargo é o do Cadastro Cliente.`));
@@ -629,6 +635,8 @@
         await copiarFotosDuplicadas();
         if (!st["Nr AET"]) { const nrs = aetsNativas().filter((a) => a.Cliente === st.Cliente).map((a) => Number(a["Nr AET"]) || 0); st["Nr AET"] = (nrs.length ? Math.max(...nrs) : 0) + 1; }
         const emp = (BI.dados.cliente || []).find((c) => c.Cliente === st.Cliente);
+        // V 1.93 (Alexandre): lista completa de cargos (principal + adicionais) salva em "Cargos".
+        st.Cargos = Array.from(new Set([st.Cargo].concat(Array.isArray(st._cargosExtras) ? st._cargosExtras : []))).filter(Boolean);
         const doc = {}; Object.keys(st).forEach((k) => { if (k[0] !== "_" && k !== "id") doc[k] = st[k]; });
         doc.EmpresaId = emp ? (emp.id || emp._id) : doc.EmpresaId; doc["Tipo Registro"] = "AET";
         const mz = matrizDe(st.Cliente);
@@ -650,7 +658,7 @@
             for (let si = 0; si < segs.length; si++) {
               const rid = si === 0 ? idFatorRow(id, fa) : idFatorRow(id, fa) + "-s" + si; vistos.add(rid);
               const ex = existentes.find((f) => f._id === rid);
-              const base = { Cliente: st.Cliente, EmpresaId: doc.EmpresaId, Unidade: st.Unidade, Setor: st.Setor, "Posto Trabalho": st["Posto Trabalho"], Cargo: st.Cargo, Atividade: at.nome, Origem: "AET", "AET Id": id, "AET Fator": fa.uid,
+              const base = { Cliente: st.Cliente, EmpresaId: doc.EmpresaId, Unidade: st.Unidade, Setor: st.Setor, "Posto Trabalho": st["Posto Trabalho"], Cargo: st.Cargo, Cargos: st.Cargos, Atividade: at.nome, Origem: "AET", "AET Id": id, "AET Fator": fa.uid,
                 "Atualizar Informacoes": fa.semGraduacaoImportada && !r.graduacao ? "Sim" : null,
                 Grupo: fa.grupo || ((Calc().GRUPOS_FATOR_RISCO || []).find((g0) => (Calc().fatoresDoGrupo(g0) || []).includes(fa.fator))) || "Outros", Fator: nome, "Existe Fator Risco": "Sim", Consequencia: fa.consequencia, "Circunstancia Geradora": fa.fonte || at.nome, "Segmento Corporal": segs[si],
                 Demanda: fa.modoUnimed ? (fa.demanda || null) : null,

@@ -89,7 +89,7 @@
       if (a.Cliente !== opcoes.nomeCliente) return false;
       if (opcoes.unidade && a.Unidade !== opcoes.unidade) return false;
       if (opcoes.setor && a.Setor !== opcoes.setor) return false;
-      if (opcoes.cargo && a.Cargo !== opcoes.cargo) return false;
+      if (opcoes.cargo && BI.Calc.cargosDe(a).indexOf(opcoes.cargo) < 0) return false;
       if (opcoes.postoTrabalho && a["Posto Trabalho"] !== opcoes.postoTrabalho) return false;
       return true;
     }).map((a) => Object.assign({}, a, {
@@ -817,12 +817,12 @@
           if (sub) { doc.setFont("Montserrat", "normal"); doc.setFontSize(8); doc.text(sub, M + 10, y + 27); }
           y += (sub ? 44 : 36);
         }
-        registrar(chavePosto, `9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]} (${av.Cargo})`, opcoes.unidade ? 2 : 3);
+        registrar(chavePosto, `9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]} (${BI.Calc.rotuloCargos(av)})`, opcoes.unidade ? 2 : 3);
         preencher(PAL.vinhoE); doc.roundedRect(M, y, L, 26, 4, 4, "F");
         doc.setFont("MontserratAlternates", "bold"); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
-        doc.text(doc.splitTextToSize(`9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]} (${av.Cargo})`, L - 20)[0], M + 10, y + 17); y += 36;
+        doc.text(doc.splitTextToSize(`9.${i + 1} ${av.Setor} – ${av["Posto Trabalho"]} (${BI.Calc.rotuloCargos(av)})`, L - 20)[0], M + 10, y + 17); y += 36;
         // grade de identificacao
-        const campos = [["Avaliação", [av._nrTexto, av._atualizadaEm ? "última atualização em " + dataBR(av._atualizadaEm) : ""].filter(Boolean).join(" · ")], ["Unidade", av.Unidade], ["Setor", av.Setor], ["Cargo", av.Cargo], ["Posto de trabalho", av["Posto Trabalho"]], ["Risco do posto", riscoDoPosto(av) ? riscoDoPosto(av) + " (maior graduação dos fatores)" : ""], ["Jornada", av["Jornada de Trabalho"]], ["Pausas", av.Pausas], ["Rodízio", av.Rodizio], ["Histórico de acidentes e doenças", av["Historico Acidentes"]]].filter((c) => c[1]);
+        const campos = [["Avaliação", [av._nrTexto, av._atualizadaEm ? "última atualização em " + dataBR(av._atualizadaEm) : ""].filter(Boolean).join(" · ")], ["Unidade", av.Unidade], ["Setor", av.Setor], [BI.Calc.cargosDe(av).length > 1 ? "Cargos" : "Cargo", BI.Calc.rotuloCargos(av)], ["Posto de trabalho", av["Posto Trabalho"]], ["Risco do posto", riscoDoPosto(av) ? riscoDoPosto(av) + " (maior graduação dos fatores)" : ""], ["Jornada", av["Jornada de Trabalho"]], ["Pausas", av.Pausas], ["Rodízio", av.Rodizio], ["Histórico de acidentes e doenças", av["Historico Acidentes"]]].filter((c) => c[1]);
         const cw = (L - 10) / 2;
         for (let k = 0; k < campos.length; k += 2) {
           const par = campos.slice(k, k + 2);
@@ -965,7 +965,7 @@
         const rc = resumoConclusao();
         if (rc.postos.length) {
           paragrafo(rc.fraseP);
-          tabela(["Unidade", "Setor", "Posto (cargo)", "Fatores determinantes", "Risco do posto"], rc.postos.map((p) => [p.av.Unidade || "-", p.av.Setor || "-", `${p.av["Posto Trabalho"] || "-"}${p.av.Cargo ? ` (${p.av.Cargo})` : ""}`, p.determinantes.join("; ") || "Sem fator de risco identificado", p.risco ? { t: p.risco, pilula: corNivel(p.risco) } : { t: "–", cor: PAL.cinza }]), [16, 15, 20, 33, 16], { tam: 7.4 });
+          tabela(["Unidade", "Setor", "Posto (cargo)", "Fatores determinantes", "Risco do posto"], rc.postos.map((p) => [p.av.Unidade || "-", p.av.Setor || "-", `${p.av["Posto Trabalho"] || "-"}${BI.Calc.rotuloCargos(p.av) ? ` (${BI.Calc.rotuloCargos(p.av)})` : ""}`, p.determinantes.join("; ") || "Sem fator de risco identificado", p.risco ? { t: p.risco, pilula: corNivel(p.risco) } : { t: "–", cor: PAL.cinza }]), [16, 15, 20, 33, 16], { tam: 7.4 });
           if (todosFatores.length) {
             paragrafo("Quantidade de fatores por graduação em cada grupo de fatores da ISO/TS 20646, somando todos os postos deste documento:");
             tabela(["Grupo de fatores"].concat(niveisMz), rc.grupos.map((g) => [g.grupo].concat(g.cont.map((q) => ({ t: String(q), alinhar: "centro", negrito: q > 0, cor: q ? PAL.texto : PAL.cinza })))).concat([[{ t: "Total", negrito: true }].concat(rc.total.map((q) => ({ t: String(q), alinhar: "centro", negrito: true })))]), [40].concat(niveisMz.map(() => 60 / niveisMz.length)), { tam: 7.4 });

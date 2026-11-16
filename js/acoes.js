@@ -200,30 +200,47 @@
   // de marcar. `.valores()` devolve o array selecionado; `.setDisabled(bool)` trava a edição.
   // Ao salvar, cada segmento escolhido vira um registro de fator próprio (modelo de dados
   // inalterado: 1 segmento por registro), então os gráficos/diagramas/laudo seguem funcionando.
-  function criarSeletorSegmentos(valoresIniciais, aoMudar) {
+  // V 1.93 (Alexandre): seletor genérico de múltiplos valores (dropdown com caixas de marcar).
+  // opcoes: array ou função (reavaliada ao abrir o painel — permite listas que mudam, ex.: cargos
+  // do posto selecionado). opts: { placeholder, plural, vazio }.
+  function criarSeletorMulti(opcoes, valoresIniciais, aoMudar, opts) {
+    opts = opts || {};
     const d = document;
     const sel = new Set((Array.isArray(valoresIniciais) ? valoresIniciais : (valoresIniciais ? [valoresIniciais] : [])).filter(Boolean));
+    const placeholder = opts.placeholder || "Selecionar…";
+    const plural = opts.plural || "selecionados";
     const wrap = d.createElement("div"); wrap.className = "seg-multi"; wrap.style.cssText = "position:relative";
     const botao = d.createElement("button"); botao.type = "button"; botao.className = "seg-multi-botao";
     botao.style.cssText = "width:100%;text-align:left;background:#fff;border:1px solid #e5d8d8;border-radius:8px;padding:8px 12px;font:inherit;font-size:13.5px;color:#3d2e30;cursor:pointer";
     const painel = d.createElement("div"); painel.className = "seg-multi-painel"; painel.hidden = true;
     painel.style.cssText = "position:absolute;z-index:40;top:calc(100% + 4px);left:0;right:0;max-height:240px;overflow:auto;background:#fff;border:1px solid #e5d8d8;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);padding:6px";
-    const atualizarBotao = () => { const n = sel.size; botao.textContent = n === 0 ? "Selecionar segmento(s)…" : n === 1 ? [...sel][0] : n + " segmentos selecionados"; };
-    segmentosDisponiveis().forEach((sg) => {
-      const lb = d.createElement("label"); lb.className = "seg-multi-item"; lb.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer";
-      const cb = d.createElement("input"); cb.type = "checkbox"; cb.value = sg; cb.checked = sel.has(sg); cb.style.cssText = "margin:0;width:auto;min-width:0;flex:0 0 auto;padding:0;height:auto";
-      cb.addEventListener("change", () => { if (cb.checked) sel.add(sg); else sel.delete(sg); atualizarBotao(); if (aoMudar) aoMudar([...sel]); });
-      lb.appendChild(cb); lb.appendChild(d.createTextNode(" " + sg)); painel.appendChild(lb);
-    });
-    // valor inicial que não está na lista padrão (ex.: segmento antigo) entra como opção marcada
-    [...sel].forEach((sg) => { if (![...painel.querySelectorAll("input")].some((i) => i.value === sg)) { const lb = d.createElement("label"); lb.className = "seg-multi-item"; lb.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer"; const cb = d.createElement("input"); cb.type = "checkbox"; cb.value = sg; cb.checked = true; cb.style.cssText = "margin:0;width:auto;min-width:0;flex:0 0 auto;padding:0;height:auto"; cb.addEventListener("change", () => { if (cb.checked) sel.add(sg); else sel.delete(sg); atualizarBotao(); if (aoMudar) aoMudar([...sel]); }); lb.appendChild(cb); lb.appendChild(d.createTextNode(" " + sg)); painel.appendChild(lb); } });
-    botao.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); painel.hidden = !painel.hidden; });
+    let desabilitado = false;
+    const atualizarBotao = () => { const n = sel.size; botao.textContent = n === 0 ? placeholder : n === 1 ? [...sel][0] : n + " " + plural; };
+    function montarPainel() {
+      painel.innerHTML = "";
+      const base = (typeof opcoes === "function" ? (opcoes() || []) : (opcoes || [])).slice();
+      // inclui valores já marcados que não estão na lista atual (ex.: cargo não cadastrado / antigo)
+      [...sel].forEach((v) => { if (base.indexOf(v) < 0) base.push(v); });
+      if (!base.length) { const v = d.createElement("div"); v.style.cssText = "padding:8px 10px;color:#8a7a78;font-size:13px"; v.textContent = opts.vazio || "Nenhuma opção disponível."; painel.appendChild(v); return; }
+      base.forEach((op) => {
+        const lb = d.createElement("label"); lb.className = "seg-multi-item"; lb.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer";
+        const cb = d.createElement("input"); cb.type = "checkbox"; cb.value = op; cb.checked = sel.has(op); cb.disabled = desabilitado; cb.style.cssText = "margin:0;width:auto;min-width:0;flex:0 0 auto;padding:0;height:auto";
+        cb.addEventListener("change", () => { if (cb.checked) sel.add(op); else sel.delete(op); atualizarBotao(); if (aoMudar) aoMudar([...sel]); });
+        lb.appendChild(cb); lb.appendChild(d.createTextNode(" " + op)); painel.appendChild(lb);
+      });
+    }
+    botao.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); if (desabilitado) return; const abrir = painel.hidden; if (abrir) montarPainel(); painel.hidden = !abrir; });
     d.addEventListener("click", (e) => { if (!wrap.contains(e.target)) painel.hidden = true; });
     atualizarBotao();
     wrap.appendChild(botao); wrap.appendChild(painel);
     wrap.valores = () => [...sel];
-    wrap.setDisabled = (dis) => { botao.disabled = dis; painel.querySelectorAll("input").forEach((i) => (i.disabled = dis)); };
+    wrap.definir = (vals) => { sel.clear(); (Array.isArray(vals) ? vals : []).filter(Boolean).forEach((v) => sel.add(v)); atualizarBotao(); if (!painel.hidden) montarPainel(); };
+    wrap.recarregar = () => { if (!painel.hidden) montarPainel(); };
+    wrap.setDisabled = (dis) => { desabilitado = dis; botao.disabled = dis; };
     return wrap;
+  }
+  function criarSeletorSegmentos(valoresIniciais, aoMudar) {
+    return criarSeletorMulti(() => segmentosDisponiveis(), valoresIniciais, aoMudar, { placeholder: "Selecionar segmento(s)…", plural: "segmentos selecionados" });
   }
   const EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -668,6 +685,6 @@
 
   BI.Acoes = {
     TIPOS_PADRAO, COMPLEXIDADES, SUGESTOES, SEGMENTOS_GERAIS, ELIMINADO, reduzRisco, tipos, rotuloTipo, categoriaDoTipo, niveisAbaixo, acoesDoFator, resumoRisco,
-    estaConcluida, criarEditor, montarTelaConfiguracoes, segmentosDisponiveis, criarSeletorSegmentos,
+    estaConcluida, criarEditor, montarTelaConfiguracoes, segmentosDisponiveis, criarSeletorSegmentos, criarSeletorMulti,
   };
 })(window);

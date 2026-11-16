@@ -2,6 +2,15 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.93 — 16/11/2026
+
+- **AEP e AET podem ter mais de um cargo (Alexandre).** Uma avaliação (AEP ou AET) pode cobrir vários cargos do mesmo posto. No cadastro, além do **Cargo principal** (cascata), há o campo **"Outros cargos desta avaliação"** (multi-seleção, lista só os cargos do posto escolhido). A lista completa de cargos é salva em `Cargos` e **aparece em todo lugar onde a avaliação aparece**: tabela de Avaliações (AEP), lista e cabeçalho da AET, laudos (AEP e AET), notificações e nas tabelas do Inventário de Riscos. Ao **filtrar** por um cargo específico, a avaliação e os riscos dela aparecem se aquele cargo estiver na lista. Compatível com avaliações antigas (um cargo só). *(Arquivos: `js/app.js`, `js/aet.js`, `js/acoes.js`, `js/calc.js`, `js/laudo.js`, `js/laudo-aet.js`.)* Service worker subiu para `sige-v108`.
+
+## V 1.92 — 16/11/2026
+
+- **Vincular usuário: a lista de "Unidades vinculadas" mostra só as unidades das empresas marcadas (Alexandre).** Antes a lista trazia todas as unidades de todos os clientes. Agora ela reage às "Empresas vinculadas" selecionadas: aparecem apenas as unidades dos clientes marcados; ao desmarcar uma empresa, as unidades dela saem do vínculo. Sem empresa marcada, a lista mostra a dica para marcar uma empresa primeiro. *(Arquivo: `js/app.js`.)*
+- **Regra de acesso por unidade confirmada (Alexandre).** Ergonomista/Cliente vinculado a um cliente **sem** marcar unidade vê o cliente inteiro (todas as unidades); vinculado a uma ou mais **unidades**, vê só os dados dessas unidades. (Já implementado no backend — depende do deploy da API a partir da V1.89.) Service worker subiu para `sige-v107`.
+
 ## V 1.91 — 12/11/2026
 
 - **Seletor de "Segmento(s) acometido(s)" corrigido de vez (Alexandre).** O checkbox do seletor herdava `width:100%` da regra geral dos campos da AET, esticando a caixa e jogando o rótulo para a direita (lista torta). Agora o checkbox tem largura própria (inline + CSS), então a lista aparece certinha (checkbox à esquerda, rótulo ao lado). *(Arquivos: `js/acoes.js`, `css/style.css`.)*

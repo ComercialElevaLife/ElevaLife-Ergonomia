@@ -167,8 +167,8 @@
     // 7 analises por posto
     const aets = op.aets; let nFig = 0;
     for (const a of aets) {
-      H(`${a.Setor || "-"} – ${a["Posto Trabalho"] || "-"} – ${a.Cargo || "-"}`, 0, { pb: true });
-      kv([["AET", a["Nr AET"] ? "AET-" + String(a["Nr AET"]).padStart(3, "0") : "-"], ["Unidade", a.Unidade], ["Setor / GHE", a.Setor], ["Posto de trabalho", a["Posto Trabalho"]], ["Função / cargo", a.Cargo], ["Data da análise", dataBR(a["Data Analise"])], ["Ergonomista", a.Ergonomista], ["Risco do posto (maior graduação dos fatores)", op.riscoPosto(a) || "-"]]);
+      H(`${a.Setor || "-"} – ${a["Posto Trabalho"] || "-"} – ${C.rotuloCargos(a) || "-"}`, 0, { pb: true });
+      kv([["AET", a["Nr AET"] ? "AET-" + String(a["Nr AET"]).padStart(3, "0") : "-"], ["Unidade", a.Unidade], ["Setor / GHE", a.Setor], ["Posto de trabalho", a["Posto Trabalho"]], [C.cargosDe(a).length > 1 ? "Funções / cargos" : "Função / cargo", C.rotuloCargos(a)], ["Data da análise", dataBR(a["Data Analise"])], ["Ergonomista", a.Ergonomista], ["Risco do posto (maior graduação dos fatores)", op.riscoPosto(a) || "-"]]);
       if (limpoCampo(a["Descricao Setor"])) { H("Descrição do setor", 2); P(limpoCampo(a["Descricao Setor"])); }
       const pop = [a["Populacao Total"] ? `População de ${a["Populacao Total"]} colaboradores` : "", a["Populacao Masculina"] != null && a["Populacao Masculina"] !== "" ? `${a["Populacao Masculina"]} do sexo masculino` : "", a["Populacao Feminina"] != null && a["Populacao Feminina"] !== "" ? `${a["Populacao Feminina"]} do sexo feminino` : ""].filter(Boolean);
       if (pop.length) { H("Descrição da população trabalhadora", 2); P(pop.join("; ") + "."); }
@@ -307,7 +307,7 @@
       const semRisco = postosR.filter((p) => !p.risco).length;
       if (postosR.length) {
         P(`Foram analisados ${postosR.length} posto(s) de trabalho e ${nAtivTot} atividade(s), com ${vigentes.length} fator(es) de risco ergonômico vigente(s) e ${totalAcoes} ação(ões) no plano${dist.length ? ": " + lista(dist) : ""}${semRisco ? `; ${semRisco} posto(s) sem fator de risco identificado` : ""}. O risco de cada posto é a maior graduação entre os seus fatores. O quadro a seguir resume cada posto e os fatores que determinaram a graduação:`);
-        table([hdr(["Unidade", "Setor", "Posto (cargo)", "Fatores determinantes", "Risco do posto"])].concat(postosR.map((p) => [cell(p.a.Unidade || "-", { size: 7.6 }), cell(p.a.Setor || "-", { size: 7.6 }), cell(`${p.a["Posto Trabalho"] || "-"}${p.a.Cargo ? ` (${p.a.Cargo})` : ""}`, { size: 7.6 }), cell(p.determinantes.join("; ") || "Sem fator de risco identificado", { size: 7.6 }), pill(p.risco || "")])), [1500, 1400, 2100, 3100, 1254], { va: "t" });
+        table([hdr(["Unidade", "Setor", "Posto (cargo)", "Fatores determinantes", "Risco do posto"])].concat(postosR.map((p) => [cell(p.a.Unidade || "-", { size: 7.6 }), cell(p.a.Setor || "-", { size: 7.6 }), cell(`${p.a["Posto Trabalho"] || "-"}${C.rotuloCargos(p.a) ? ` (${C.rotuloCargos(p.a)})` : ""}`, { size: 7.6 }), cell(p.determinantes.join("; ") || "Sem fator de risco identificado", { size: 7.6 }), pill(p.risco || "")])), [1500, 1400, 2100, 3100, 1254], { va: "t" });
         if (vigentes.length) {
           P("Distribuição dos fatores de risco vigentes por graduação (todos os postos deste documento):", { keepNext: true });
           // V 1.66: conta pela graduação exata da matriz (evita somar o mesmo fator em dois níveis vizinhos).
@@ -482,7 +482,7 @@
     const ex = o.executor, rt = o.responsavel;
     const vars = {
       cliente, unidade: unidades.length === 1 ? (/^unidade\b/i.test(unidades[0]) ? unidades[0] : "Unidade " + unidades[0]) : "unidades " + unidades.join(", "),
-      escopo: o.aets.length === 1 ? `o posto ${o.aets[0]["Posto Trabalho"]} (${o.aets[0].Cargo})` : `${o.aets.length} postos de trabalho analisados`,
+      escopo: o.aets.length === 1 ? `o posto ${o.aets[0]["Posto Trabalho"]} (${C.rotuloCargos(o.aets[0])})` : `${o.aets.length} postos de trabalho analisados`,
       executor: ex ? ex.Nome : (rt ? rt.Nome : "a equipe ElevaLife"), executorDados: ex && (ex.Titulo || ex.Registro) ? `, ${[ex.Titulo, ex.Registro].filter(Boolean).join(", ")}` : "",
       responsavelTxt: rt && (!ex || rt.Nome !== ex.Nome) ? `, sob a responsabilidade técnica de ${rt.Nome}${rt.Titulo || rt.Registro ? " (" + [rt.Titulo, rt.Registro].filter(Boolean).join(", ") + ")" : ""}` : "",
       matriz: mz, mesAno: `${MESES[dt.getMonth()]} de ${dt.getFullYear()}`, totalPaginas: "{totalPaginas}",

@@ -1024,7 +1024,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const C = window.BI.Calc; const sp = document.createElement("span"); sp.className = "plano-pilula"; sp.textContent = g === "Eliminado" ? "Eliminado" : C.rotuloNivel(g);
     const hx = g && g !== "Eliminado" ? C.corRiscoHex(g) : "3E7B7E"; if (hx) { sp.style.background = "#" + hx; sp.style.color = "#" + C.textoSobreHex(hx); } return sp;
   }
-  const localFator = (l) => [l.Setor, l["Posto Trabalho"], l.Cargo].filter(Boolean).join(" › ");
+  const localFator = (l) => [l.Setor, l["Posto Trabalho"], window.BI.Calc.rotuloCargos(l)].filter(Boolean).join(" › ");
   function abrirComposicaoMes(s) {
     const C = window.BI.Calc;
     const [aa, mm] = s.mes.split("-").map(Number); const dia = `${s.mes}-${String(new Date(aa, mm, 0).getDate()).padStart(2, "0")}`;
@@ -2372,8 +2372,32 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     return campos.map((c) => Object.assign({}, c, { secao }));
   }
 
+  // V 1.93 (Alexandre): cargos cadastrados para um posto (Cliente › Unidade › Setor › Posto).
+  function cargosDoPosto(cli, uni, setor, posto) {
+    const rows = (window.BI.dados.cargo || []).filter((c) =>
+      (!cli || c.Cliente === cli) && (!uni || c.Unidade === uni) && (!setor || c.Setor === setor) && (!posto || c["Posto Trabalho"] === posto));
+    return Array.from(new Set(rows.map((c) => c.Cargo).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+  }
+  // V 1.93: seletor de CARGOS ADICIONAIS da AEP (além do cargo principal da cascata). Uma AEP pode
+  // cobrir vários cargos; os extras ficam em "Cargos" (array). Reage ao posto/cargo principal.
+  function construirSeletorCargosAEP(form, valores, fake) {
+    const getVal = (k) => (form._campos[k] && typeof form._campos[k].value === "string") ? form._campos[k].value : "";
+    const principal = () => getVal("Cargo");
+    const opcoesFn = () => cargosDoPosto(getVal("Cliente"), getVal("Unidade"), getVal("Setor"), getVal("Posto Trabalho")).filter((c) => c && c !== principal());
+    const iniciais = (Array.isArray(valores.Cargos) ? valores.Cargos : []).filter((c) => c && c !== valores.Cargo);
+    const w = window.BI.Acoes.criarSeletorMulti(opcoesFn, iniciais, (vals) => { fake.value = vals.slice(); }, { placeholder: "Nenhum (só o cargo principal)", plural: "cargos adicionais", vazio: "Escolha o posto e o cargo principal (acima) primeiro." });
+    fake.value = iniciais.slice();
+    ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].forEach((k) => {
+      const el = form._campos[k];
+      if (el && el.addEventListener) el.addEventListener("change", () => { const m = principal(); const cur = w.valores().filter((c) => c !== m); if (cur.length !== w.valores().length) { w.definir(cur); } fake.value = cur; w.recarregar(); });
+    });
+    return w;
+  }
   function camposAvaliacaoErgonomica() {
     return comSecao(camposChaveAEP().concat([
+      // V 1.93 (Alexandre): a AEP pode cobrir mais de um cargo. O "Cargo" acima é o principal
+      // (hierarquia); aqui escolhe-se os cargos adicionais. A lista completa sai em todo lugar.
+      { campo: "Cargos", rotulo: "Outros cargos desta avaliação (além do principal)", tipo: "personalizado", construir: construirSeletorCargosAEP },
       { campo: "Data Avaliacao", rotulo: "Data da avaliação", tipo: "data", obrigatorio: true, padraoHoje: true },
       // V 1.48 (Alexandre): número da avaliação - atribuído automaticamente por
       // empresa ao cadastrar e fixo depois, mas editável manualmente. Define a
@@ -4623,7 +4647,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
             SLA: null, Observacao: null, "Valido Ate": null, Status: STATUS_FATOR_RISCO_POOL[0],
           }, x.registro || {}, {
             Cliente: linhaAval.Cliente, Unidade: linhaAval.Unidade, Setor: linhaAval.Setor,
-            Cargo: linhaAval.Cargo, "Posto Trabalho": linhaAval["Posto Trabalho"], Atividade: null,
+            Cargo: linhaAval.Cargo, Cargos: window.BI.Calc.cargosDe(linhaAval), "Posto Trabalho": linhaAval["Posto Trabalho"], Atividade: null,
             Grupo: l.grupo, Fator: l.fator,
             "Existe Fator Risco": "Sim",
             Criticidade: x.selCriticidade.value, Probabilidade: x.selProbabilidade.value,
@@ -5128,6 +5152,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       rotulosColunas: { "Nr Avaliacao": "Nº", "Cadastrado Em": "Data de cadastro", "Cadastrado Por": "Cadastrada por", "Atualizado Em": "Última atualização", "Atualizado Por": "Atualizada por" },
       colunasVirtuais: {
         "Nr Avaliacao": (l) => nrAvaliacaoTexto(l),
+        // V 1.93 (Alexandre): mostra todos os cargos da avaliação (não só o principal).
+        "Cargo": (l) => window.BI.Calc.rotuloCargos(l) || "-",
         "Cadastrado Em": (l) => dataCadastroAEP(l),
         "Cadastrado Por": (l) => nomeDoUsuario(l._criadoPor),
         "Atualizado Em": (l) => dataAtualizacaoAEP(l),
@@ -5137,6 +5163,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       campos: camposAvaliacaoErgonomica(),
       aoConstruir: comCascata(null, true), // V 1.38: "+ Cadastrar novo…" em unidade, setor, posto e cargo
       permiteNovoNaCascata: true,
+      // V 1.93 (Alexandre): monta a lista completa de cargos (principal + adicionais escolhidos no
+      // campo personalizado "Cargos"). "Cargo" continua o principal; "Cargos" é a lista para exibir/filtrar.
+      aoPrepararDados: (form, dados) => {
+        const extras = (form._campos["Cargos"] && Array.isArray(form._campos["Cargos"].value)) ? form._campos["Cargos"].value : [];
+        dados.Cargos = Array.from(new Set([dados.Cargo].concat(extras))).filter(Boolean);
+      },
       // Pedido do Leo (28/09/2026): "achei muito longa a tela, tem que
       // ficar rolando a tela... faz varias abas" - as 3 secoes do form (ver
       // camposAvaliacaoErgonomica) viram abas clicaveis em vez de ficarem
@@ -5871,7 +5903,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         campoDiv.className += " campo-form-largo";
         const campoFake = { value: Array.isArray(valorInicial) ? valorInicial.slice() : [] };
         form._campos[def.campo] = campoFake;
-        campoDiv.appendChild(construirChecklist(def, campoFake));
+        campoDiv.appendChild(construirChecklist(def, campoFake, form));
         grade.appendChild(campoDiv);
         return;
       } else if (def.tipo === "personalizado") {
@@ -5989,7 +6021,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   // V 1.27 - lista de caixas de marcar com busca opcional (ver tipo "checklist").
-  function construirChecklist(def, campoFake) {
+  function construirChecklist(def, campoFake, form) {
     const caixa = document.createElement("div");
     caixa.className = "checklist-form";
     const marcados = new Set(campoFake.value);
@@ -6004,8 +6036,14 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     lista.className = "checklist-lista" + (def.colunas ? " checklist-colunas" : "");
     caixa.appendChild(lista);
     if (def.nota) { const n = document.createElement("p"); n.className = "checklist-nota"; n.textContent = def.nota; caixa.appendChild(n); }
-    const itens = () => (typeof def.opcoes === "function" ? def.opcoes() : (def.opcoes || []))
-      .map((op) => (op && typeof op === "object" ? op : { valor: op, label: op }));
+    // V 1.92 (Alexandre): checklist pode depender de outro campo (def.dependeDe). Ex.: "Unidades
+    // vinculadas" lista só as unidades das empresas marcadas em "Empresas vinculadas". A função
+    // def.opcoes recebe o valor atual do campo do qual depende.
+    const itens = () => {
+      const extra = (def.dependeDe && form && form._campos[def.dependeDe]) ? (form._campos[def.dependeDe].value || []) : undefined;
+      return (typeof def.opcoes === "function" ? def.opcoes(extra) : (def.opcoes || []))
+        .map((op) => (op && typeof op === "object" ? op : { valor: op, label: op }));
+    };
     function desenhar() {
       const q = busca ? busca.value.trim().toLowerCase() : "";
       lista.innerHTML = "";
@@ -6018,13 +6056,25 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       vis.forEach((it) => {
         const l = document.createElement("label"); l.className = "checklist-item";
         const c = document.createElement("input"); c.type = "checkbox"; c.checked = marcados.has(it.valor);
-        c.addEventListener("change", () => { if (c.checked) marcados.add(it.valor); else marcados.delete(it.valor); sincronizar(); });
+        c.addEventListener("change", () => { if (c.checked) marcados.add(it.valor); else marcados.delete(it.valor); sincronizar(); if (form) { try { form.dispatchEvent(new CustomEvent("checklist-change", { detail: { campo: def.campo } })); } catch (e) { /* */ } } });
         const t = document.createElement("span"); t.textContent = T(it.label);
         if (it.sub) { const sm = document.createElement("small"); sm.textContent = it.sub; t.appendChild(sm); }
         l.appendChild(c); l.appendChild(t); lista.appendChild(l);
       });
     }
     if (busca) busca.addEventListener("input", desenhar);
+    // V 1.92: redesenha quando o campo do qual depende mudar; remove marcados que saíram das
+    // novas opções (ex.: desmarcou a empresa → tira as unidades dela do vínculo).
+    if (def.dependeDe && form) {
+      form.addEventListener("checklist-change", (e) => {
+        if (!e || !e.detail || e.detail.campo !== def.dependeDe) return;
+        const validos = new Set(itens().map((it) => it.valor));
+        let mudou = false;
+        Array.from(marcados).forEach((v) => { if (!validos.has(v)) { marcados.delete(v); mudou = true; } });
+        if (mudou) sincronizar();
+        desenhar();
+      });
+    }
     desenhar();
     caixa._redesenhar = desenhar;
     return caixa;
@@ -8351,7 +8401,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     (window.BI.dados.avaliacaoErgonomica || []).forEach((a) => {
       const semFoto = !(Array.isArray(a.Fotos) && a.Fotos.length);
       const semInfo = !String(a["Descricao Atividade Observada"] || "").trim();
-      if (semFoto || semInfo) out.push({ tipo: "AEP", id: a._id || a.id, nr: Number(a["Nr Avaliacao"]) || null, cliente: a.Cliente || "-", unidade: a.Unidade || "-", local: [a.Setor, a["Posto Trabalho"], a.Cargo].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", semInfo ? "sem descrição da atividade" : ""].filter(Boolean) });
+      if (semFoto || semInfo) out.push({ tipo: "AEP", id: a._id || a.id, nr: Number(a["Nr Avaliacao"]) || null, cliente: a.Cliente || "-", unidade: a.Unidade || "-", local: [a.Setor, a["Posto Trabalho"], window.BI.Calc.rotuloCargos(a)].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", semInfo ? "sem descrição da atividade" : ""].filter(Boolean) });
     });
     (window.BI.dados.aet || []).forEach((a) => {
       const ats = a.Atividades || [];
@@ -8359,7 +8409,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const semFotoAtiv = !ats.some((at) => Array.isArray(at.fotos) && at.fotos.length);
       const semFoto = semFotoGeral && semFotoAtiv;
       const semInfo = !ats.length || !String(a["Diagnostico Global"] || "").trim();
-      if (semFoto || semInfo) out.push({ tipo: "AET", id: a._id || a.id, nr: Number(a["Nr AET"]) || null, cliente: a.Cliente || "-", unidade: a.Unidade || "-", local: [a.Setor, a["Posto Trabalho"], a.Cargo].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", !ats.length ? "sem atividades" : (!String(a["Diagnostico Global"] || "").trim() ? "sem diagnóstico" : "")].filter(Boolean) });
+      if (semFoto || semInfo) out.push({ tipo: "AET", id: a._id || a.id, nr: Number(a["Nr AET"]) || null, cliente: a.Cliente || "-", unidade: a.Unidade || "-", local: [a.Setor, a["Posto Trabalho"], window.BI.Calc.rotuloCargos(a)].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", !ats.length ? "sem atividades" : (!String(a["Diagnostico Global"] || "").trim() ? "sem diagnóstico" : "")].filter(Boolean) });
     });
     return out;
   }
@@ -9576,21 +9626,28 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           .sort((a, b) => String(a.label).localeCompare(String(b.label), "pt-BR")),
         nota: "Ergonomista (Consultor) e cliente só acessam as empresas marcadas. O Administrador vê todas, independente desta lista.",
       },
-      // V 1.55 (Alexandre): vínculo por UNIDADE. Ergonomista e cliente só veem as
-      // unidades marcadas aqui (e as empresas dessas unidades). É OBRIGATÓRIO marcar:
-      // sem nenhuma unidade, o usuário (não-admin) não vê dados. O Administrador vê tudo.
+      // V 1.55 (Alexandre): vínculo por UNIDADE. Ergonomista e cliente só veem as unidades
+      // marcadas aqui. V 1.73: se marcar a empresa e NENHUMA unidade dela, o usuário vê a
+      // empresa inteira (todas as unidades). V 1.92: a lista só mostra as unidades das empresas
+      // marcadas em "Empresas vinculadas". O Administrador vê tudo.
       {
         campo: "UnidadesVinculadas",
         rotulo: "Unidades vinculadas",
         tipo: "checklist", busca: true, placeholderBusca: "Buscar unidade…",
-        opcoes: () => {
+        // V 1.92 (Alexandre): a lista mostra só as unidades das EMPRESAS marcadas acima.
+        dependeDe: "EmpresasVinculadas",
+        vazio: "Marque uma ou mais empresas acima para listar as unidades.",
+        opcoes: (empresasSel) => {
+          const sel = Array.isArray(empresasSel) ? empresasSel : [];
+          if (!sel.length) return [];
           const nomeEmp = {}; (window.BI.dados.cliente || []).forEach((c) => { nomeEmp[c.id || c._id] = c.Cliente; });
-          return (window.BI.dados.unidade || []).map((u) => {
-            const eid = u.EmpresaId || (window.BI.DB.idCliente ? window.BI.DB.idCliente(u) : "");
-            return { valor: eid + "::" + u.Unidade, label: u.Unidade, sub: nomeEmp[eid] || u.Cliente || eid };
-          }).sort((a, b) => String(a.sub).localeCompare(String(b.sub), "pt-BR") || String(a.label).localeCompare(String(b.label), "pt-BR"));
+          const eidDe = (u) => u.EmpresaId || (window.BI.DB.idCliente ? window.BI.DB.idCliente(u) : "");
+          return (window.BI.dados.unidade || [])
+            .filter((u) => sel.indexOf(eidDe(u)) >= 0)
+            .map((u) => { const eid = eidDe(u); return { valor: eid + "::" + u.Unidade, label: u.Unidade, sub: nomeEmp[eid] || u.Cliente || eid }; })
+            .sort((a, b) => String(a.sub).localeCompare(String(b.sub), "pt-BR") || String(a.label).localeCompare(String(b.label), "pt-BR"));
         },
-        nota: "Obrigatório para Ergonomista e Cliente: eles só veem as unidades marcadas (e os dados dessas unidades). O Administrador vê tudo, independente desta lista.",
+        nota: "Mostra só as unidades das empresas marcadas acima. Se você marcar a empresa mas NENHUMA unidade dela, o usuário vê a empresa inteira (todas as unidades). Se marcar unidades, ele vê só essas. O Administrador vê tudo, independente desta lista.",
       },
     ];
   }

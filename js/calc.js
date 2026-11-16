@@ -263,6 +263,14 @@
     return /unimed/i.test(String(doc && doc["Modelo Laudo AET"] || "")) ? "Unimed" : "Padrão";
   }
   function ehModeloUnimed(linhasCliente, nomeCliente) { return modeloLaudoAET(linhasCliente, nomeCliente) === "Unimed"; }
+  // V 1.93 (Alexandre): uma AEP/AET pode cobrir vários cargos. A lista completa fica em "Cargos"
+  // (array); "Cargo" continua sendo o cargo principal (1º) para a hierarquia/compatibilidade.
+  function cargosDe(l) {
+    if (!l) return [];
+    if (Array.isArray(l.Cargos) && l.Cargos.length) return l.Cargos.filter(Boolean);
+    return l.Cargo ? [l.Cargo] : [];
+  }
+  function rotuloCargos(l) { return cargosDe(l).join(" / "); }
   // Escala de risco OCRA do modelo Unimed (cliente sem matriz). O ergonomista
   // escolhe o grau a partir do print do resultado OCRA; a cor segue esta ordem.
   const NIVEIS_OCRA_UNIMED = ["Risco Ausente", "Aceitável", "Risco no Limite", "Baixo", "Médio", "Alto"];
@@ -571,11 +579,19 @@
   function linhaPassaFiltros(linha, filtros, camposData) {
     for (const dim of DIMENSOES) {
       const v = filtros[dim];
+      if (vazio(v)) continue;
+      // V 1.93 (Alexandre): o filtro de Cargo casa contra a LISTA de cargos da avaliação
+      // (uma AEP/AET pode cobrir vários cargos). Aparece ao filtrar por qualquer um deles.
+      if (dim === "Cargo") {
+        const alvos = cargosDe(linha).map(semAcentoMin);
+        if (alvos.length && !v.some((x) => alvos.indexOf(semAcentoMin(x)) >= 0)) return false;
+        continue;
+      }
       // V 1.89 (Alexandre): comparação normalizada (sem acento, minúsculas, sem espaços nas
       // pontas). Antes era igualdade exata de string, então um cliente/unidade/setor com
       // diferença de caixa, acento (ex.: "escritório") ou espaço extra não casava com o filtro
       // e a dashboard aparecia "sem dados" mesmo havendo registros.
-      if (!vazio(v) && dim in linha) {
+      if (dim in linha) {
         const alvo = semAcentoMin(linha[dim]);
         if (!v.some((x) => semAcentoMin(x) === alvo)) return false;
       }
@@ -634,7 +650,9 @@
       const tabela = (dadosPorNivel && dadosPorNivel[dim]) || [];
       const filtrosSemEssaDim = Object.assign({}, filtros, { [dim]: [] });
       const linhas = filtrar(tabela, filtrosSemEssaDim, []);
-      const valores = Array.from(new Set(linhas.map((l) => l[dim]))).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
+      // V 1.93 (Alexandre): o filtro de Cargo lista cada cargo individualmente (uma avaliação
+      // pode ter vários cargos na lista "Cargos").
+      const valores = Array.from(new Set(linhas.flatMap((l) => (dim === "Cargo" ? cargosDe(l) : [l[dim]])))).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
       resultado[dim] = valores;
     }
     return resultado;
@@ -1238,7 +1256,7 @@
     nivelDaMatriz,
     pontuacaoDaMatriz,
     matrizDoCliente,
-    modeloLaudoAET, ehModeloUnimed, NIVEIS_OCRA_UNIMED, corRiscoOcra,
+    modeloLaudoAET, ehModeloUnimed, NIVEIS_OCRA_UNIMED, corRiscoOcra, cargosDe, rotuloCargos,
     STATUS_ACAO_ORDEM,
     STATUS_RESTRICAO_ORDEM,
     resolverCorCSS,
