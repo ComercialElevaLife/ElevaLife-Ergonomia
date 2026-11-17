@@ -106,7 +106,7 @@
     { chave: "tempo", rotulo: "Contabilidade de tempo", montar: renderContabilidade, papeis: ["Administrador"] },
     { chave: "avaliacao", rotulo: "Avaliação de Ergonomistas", montar: renderAvalErgo, papeis: ["Administrador", "Consultor"] },
     { chave: "painel", rotulo: "Painel de avaliações", montar: renderPainelAvalErgo, papeis: ["Administrador"] },
-    { chave: "kpiop", rotulo: "KPI's operacionais", montar: renderKpiOp, papeis: ["Administrador"] },
+    { chave: "kpiop", rotulo: "KPI operacionais - recorrentes", montar: renderKpiOp, papeis: ["Administrador"] },
     { chave: "inconsistencias", rotulo: "Inconsistências Sólides", montar: renderKpiInc, papeis: ["Administrador"] },
   ];
 
