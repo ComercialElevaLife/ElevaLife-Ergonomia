@@ -87,15 +87,21 @@ const COLECOES = [
   // Ergonomistas). Coleção GLOBAL (não é de uma empresa-cliente): só o Administrador grava;
   // o ergonomista avaliado (Consultor) lê APENAS a avaliação com o e-mail dele. Container sob demanda.
   "avaliacaoErgonomista",
+  // V 1.99: KPIs operacionais e inconsistências sólides (aba Coordenação › KPIs).
+  // Coleções GLOBAIS, SÓ o Administrador (coordenador) vê e grava. Um doc por ano/mês
+  // (kpiOperacional) e um doc por ano (kpiInconsistencia). Containers sob demanda.
+  "kpiOperacional", "kpiInconsistencia",
 ];
 
 // Colecoes sem dono (nenhuma amarrada a uma empresa-cliente especifica) -
 // todo usuario autenticado com papel liberado ve e edita, independente de
 // quais empresas estao vinculadas a ele. Gravadas sempre com
 // EmpresaId=EMPRESA_GLOBAL (constante fixa, nunca uma empresa real).
-const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo", "configuracao", "ergonomista", "avaliacaoErgonomista"];
+const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo", "configuracao", "ergonomista", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia"];
 // Colecoes em que so o Administrador grava/exclui (todos podem ler).
-const COLECOES_SO_ADMIN_GRAVA = ["configuracao", "avaliacaoErgonomista"];
+const COLECOES_SO_ADMIN_GRAVA = ["configuracao", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia"];
+// V 1.99: colecoes que SO o Administrador pode ler (KPIs operacionais - restrito ao coordenador).
+const COLECOES_SO_ADMIN_LE = ["kpiOperacional", "kpiInconsistencia"];
 const EMPRESA_GLOBAL = "GLOBAL";
 // V 1.7 (revisao de seguranca): colecoes que o UsuarioCliente le mas NAO grava.
 // Laudo (documento emitido e seu codigo de verificacao publico), cadastro da
@@ -277,6 +283,12 @@ async function listarComFiltro(container, colecao, identidade) {
     const meu = String(identidade.email || "").toLowerCase();
     return (resources || []).filter((d) => String(d.EmailErgonomista || "").toLowerCase() === meu);
   }
+  // V 1.99: KPIs operacionais / inconsistências - SÓ o Administrador (coordenador) lê.
+  if (COLECOES_SO_ADMIN_LE.includes(colecao)) {
+    if (identidade.papel !== "Administrador") return [];
+    const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
+    return resources;
+  }
   if (COLECOES_GLOBAIS.includes(colecao)) {
     const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
     return resources;
@@ -420,7 +432,7 @@ async function tratar(request, context) {
     };
   }
 
-  const container = ["configuracao", "ergonomista", "colaborador", "tempoTrabalho", "acaoAbsenteismo", "psicoLaudo", "avaliacaoErgonomista"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
+  const container = ["configuracao", "ergonomista", "colaborador", "tempoTrabalho", "acaoAbsenteismo", "psicoLaudo", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
   const id = request.params.id;
   if (COLECOES_SO_ADMIN_GRAVA.includes(colecao) && request.method !== "GET" && identidade.papel !== "Administrador") {
     return { status: 403, jsonBody: { erro: "Só Administrador pode alterar as configurações do sistema." } };
@@ -441,7 +453,9 @@ async function tratar(request, context) {
           const visivelAvalErg = colecao === "avaliacaoErgonomista" && item
             ? (identidade.papel === "Administrador" || String(item.EmailErgonomista || "").toLowerCase() === String(identidade.email || "").toLowerCase())
             : null;
-          const visivel = item && (visivelAvalErg !== null ? visivelAvalErg : (COLECOES_GLOBAIS.includes(colecao) || podeVerDocumento(identidade, colecao, item)));
+          // V 1.99: KPIs - só o Administrador lê por id.
+          const visivelKpi = COLECOES_SO_ADMIN_LE.includes(colecao) && item ? (identidade.papel === "Administrador") : null;
+          const visivel = item && (visivelKpi !== null ? visivelKpi : (visivelAvalErg !== null ? visivelAvalErg : (COLECOES_GLOBAIS.includes(colecao) || podeVerDocumento(identidade, colecao, item))));
           if (!visivel) {
             return { status: 404, jsonBody: { erro: "Não encontrado." } };
           }

@@ -331,6 +331,111 @@
 
   function kvCampo(rot, val) { const d = h("label", "aet-campo"); d.appendChild(h("span", "aet-rot", rot)); const s = h("div"); s.style.cssText = "padding:8px 10px;background:var(--fundo-suave,#f5efea);border-radius:8px;font-size:13.5px"; s.textContent = val; d.appendChild(s); return d; }
 
+  // ------------------------------------------------------------------ Painel (dashboard)
+  // V 1.98 (Alexandre): dashboard das avaliações de ergonomistas, dentro da Coordenação.
+  // Resumo da avaliação mais recente de cada ergonomista + o catálogo do que é avaliado.
+  function latestPorErgo(lista) {
+    const mapa = new Map();
+    (lista || []).forEach((a) => {
+      const k = String(a.EmailErgonomista || "").toLowerCase();
+      const d = String(a["Data Avaliacao"] || "");
+      const cur = mapa.get(k);
+      if (!cur || String(cur["Data Avaliacao"] || "") <= d) mapa.set(k, a);
+    });
+    return Array.from(mapa.values());
+  }
+  function kpiTile(valor, rot, cor) {
+    const d = h("div", "coord-kpi");
+    const v = h("div", "coord-kpi-valor", valor); if (cor) v.style.color = cor; d.appendChild(v);
+    d.appendChild(h("div", "coord-kpi-rot", rot)); return d;
+  }
+  function barraLinha(rotulo, valor, cor, sufixo) {
+    const row = h("div"); row.style.cssText = "display:grid;grid-template-columns:minmax(120px,210px) 1fr 52px;gap:10px;align-items:center;margin:5px 0";
+    const r = h("span", null, rotulo); r.style.cssText = "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px";
+    row.appendChild(r);
+    const track = h("div"); track.style.cssText = "height:16px;background:var(--fundo-suave,#efe7e2);border-radius:8px;overflow:hidden";
+    const fill = h("div"); fill.style.cssText = `height:100%;width:${Math.max(0, Math.min(100, Number(valor) || 0))}%;background:${cor};border-radius:8px;min-width:2px`;
+    track.appendChild(fill); row.appendChild(track);
+    const v = h("span", null, valor == null ? "—" : (num1(valor) + (sufixo || ""))); v.style.cssText = "text-align:right;font-weight:600;font-size:13px";
+    row.appendChild(v); return row;
+  }
+  function estruturaAvaliada() {
+    const wrap = h("div"); wrap.style.marginTop = "16px";
+    wrap.appendChild(h("div", "aet-subtitulo", "O que é avaliado — catálogo " + VERSAO_CATALOGO));
+    wrap.appendChild(h("p", "aet-nota", "Estrutura usada na avaliação de cada ergonomista: dois blocos e doze eixos, com os respectivos pesos e número de itens."));
+    ["A", "B"].forEach((bl) => {
+      const tit = h("div", "aet-rot", `Bloco ${bl} — ${BLOCOS[bl].nome} (${Math.round(BLOCOS[bl].peso * 100)}% da nota)`); tit.style.marginTop = "8px"; wrap.appendChild(tit);
+      EIXOS.filter((e) => e.bloco === bl).forEach((e) => {
+        const li = h("div", null, `${e.cod} · ${e.nome} — peso ${Math.round(e.peso * 100)}% no bloco · ${e.itens.length} iten(s)`);
+        li.style.cssText = "font-size:12.5px;padding:2px 0 2px 10px;color:var(--texto-suave,#6b5b58)";
+        wrap.appendChild(li);
+      });
+    });
+    return wrap;
+  }
+  function renderPainel(area) {
+    area.innerHTML = "";
+    const admin = ehAdmin();
+    const todas = admin ? avaliacoes() : avaliacoes().filter((a) => String(a.EmailErgonomista || "").toLowerCase() === meuEmail());
+    const box = h("div", "cartao col-12");
+    box.appendChild(h("div", "cartao-titulo", "Painel de avaliações de ergonomistas"));
+    box.appendChild(h("p", "aet-nota", "Resumo das avaliações de desempenho (checklist " + VERSAO_CATALOGO + "). Cada ergonomista entra com a sua avaliação mais recente."));
+    const latest = latestPorErgo(todas);
+    const resultados = latest.map((a) => ({ a, r: calcular(a.Itens || {}) }));
+    const comNota = resultados.filter((x) => x.r.notaFinal != null);
+    const med = (arr) => (arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null);
+    const mediaGeral = med(comNota.map((x) => x.r.notaFinal));
+    const mediaA = med(comNota.map((x) => x.r.notaBloco.A.nota).filter((v) => v != null));
+    const mediaB = med(comNota.map((x) => x.r.notaBloco.B.nota).filter((v) => v != null));
+    // KPIs
+    const kg = h("div", "coord-kpis");
+    kg.appendChild(kpiTile(String(todas.length), "Avaliações registradas"));
+    kg.appendChild(kpiTile(String(latest.length), "Ergonomistas avaliados"));
+    kg.appendChild(kpiTile(mediaGeral == null ? "—" : num1(mediaGeral), "Nota média geral", corNota(mediaGeral)));
+    kg.appendChild(kpiTile(mediaA == null ? "—" : num1(mediaA), "Média Bloco A (técnico)", corNota(mediaA)));
+    kg.appendChild(kpiTile(mediaB == null ? "—" : num1(mediaB), "Média Bloco B (DNA 2.0)", corNota(mediaB)));
+    box.appendChild(kg);
+    if (!comNota.length) {
+      box.appendChild(h("div", "coord-vazio", "Nenhuma avaliação com nota ainda. Cadastre em “Avaliação de Ergonomistas”."));
+      box.appendChild(estruturaAvaliada());
+      area.appendChild(box); return;
+    }
+    // Nota por ergonomista (mais recente)
+    const sec1 = h("div"); sec1.style.marginTop = "14px";
+    sec1.appendChild(h("div", "aet-subtitulo", "Nota final por ergonomista (avaliação mais recente)"));
+    comNota.slice().sort((a, b) => (b.r.notaFinal || 0) - (a.r.notaFinal || 0)).forEach((x) => {
+      sec1.appendChild(barraLinha((x.a.Ergonomista || x.a.EmailErgonomista || "-") + (x.a.Ciclo ? " · " + x.a.Ciclo : ""), x.r.notaFinal, corNota(x.r.notaFinal)));
+    });
+    box.appendChild(sec1);
+    // Média por eixo (sobre as avaliações mais recentes)
+    const sec2 = h("div"); sec2.style.marginTop = "16px";
+    sec2.appendChild(h("div", "aet-subtitulo", "Média por eixo (todas as avaliações mais recentes)"));
+    EIXOS.forEach((e) => {
+      const vals = comNota.map((x) => { const ex = x.r.eixos.find((y) => y.cod === e.cod); return ex && ex.valido ? ex.media : null; }).filter((v) => v != null);
+      const m = med(vals);
+      sec2.appendChild(barraLinha(`${e.cod} · ${e.nome}`, m, corNota(m)));
+    });
+    box.appendChild(sec2);
+    // Alertas: travas de Respeito e dimensões < 60
+    const alertas = comNota.filter((x) => x.r.travaRespeito || x.r.dimsAbaixo60.length);
+    if (alertas.length) {
+      const sec3 = h("div"); sec3.style.marginTop = "16px";
+      sec3.appendChild(h("div", "aet-subtitulo", "Pontos de atenção"));
+      alertas.forEach((x) => {
+        const partes = [];
+        if (x.r.travaRespeito) partes.push("Respeito (B3) < 60 — trava promoção");
+        if (x.r.dimsAbaixo60.length) partes.push("dimensões < 60: " + x.r.dimsAbaixo60.join(", "));
+        const d = h("div", null, `⚠️ ${x.a.Ergonomista || x.a.EmailErgonomista} — ${partes.join("; ")}`);
+        d.style.cssText = "font-size:12.5px;color:#C0392B;padding:2px 0";
+        sec3.appendChild(d);
+      });
+      box.appendChild(sec3);
+    }
+    box.appendChild(estruturaAvaliada());
+    area.appendChild(box);
+  }
+
   BI.AvalErgo.render = render;
+  BI.AvalErgo.renderPainel = renderPainel;
   BI.AvalErgo.temAcesso = () => { const i = BI.DB && BI.DB.estado && BI.DB.estado.identidade; return !!(i && (i.papel === "Administrador" || i.papel === "Consultor")); };
 })(typeof window !== "undefined" ? window : this);

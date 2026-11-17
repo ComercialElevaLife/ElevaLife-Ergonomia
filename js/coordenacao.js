@@ -89,10 +89,25 @@
     if (BI.AvalErgo && BI.AvalErgo.render) BI.AvalErgo.render(area);
     else area.appendChild(cartao("Avaliação de Ergonomistas", null, h("div", "coord-vazio", "Módulo de avaliação indisponível.")));
   }
+  function renderPainelAvalErgo(area) {
+    if (BI.AvalErgo && BI.AvalErgo.renderPainel) BI.AvalErgo.renderPainel(area);
+    else area.appendChild(cartao("Painel de avaliações", null, h("div", "coord-vazio", "Módulo de avaliação indisponível.")));
+  }
+  function renderKpiOp(area) {
+    if (BI.KpiOp && BI.KpiOp.renderOperacional) BI.KpiOp.renderOperacional(area);
+    else area.appendChild(cartao("KPIs operacionais", null, h("div", "coord-vazio", "Módulo de KPIs indisponível.")));
+  }
+  function renderKpiInc(area) {
+    if (BI.KpiOp && BI.KpiOp.renderInconsistencias) BI.KpiOp.renderInconsistencias(area);
+    else area.appendChild(cartao("Inconsistências Sólides", null, h("div", "coord-vazio", "Módulo de KPIs indisponível.")));
+  }
   let subAtiva = "tempo";
   const SUBABAS = [
     { chave: "tempo", rotulo: "Contabilidade de tempo", montar: renderContabilidade, papeis: ["Administrador"] },
     { chave: "avaliacao", rotulo: "Avaliação de Ergonomistas", montar: renderAvalErgo, papeis: ["Administrador", "Consultor"] },
+    { chave: "painel", rotulo: "Painel de avaliações", montar: renderPainelAvalErgo, papeis: ["Administrador"] },
+    { chave: "kpiop", rotulo: "KPI's operacionais", montar: renderKpiOp, papeis: ["Administrador"] },
+    { chave: "inconsistencias", rotulo: "Inconsistências Sólides", montar: renderKpiInc, papeis: ["Administrador"] },
   ];
 
   function papelAtual() { const i = BI.DB && BI.DB.estado && BI.DB.estado.identidade; return i ? i.papel : "Administrador"; }
@@ -357,5 +372,12 @@
     render();
   }
 
-  BI.Coordenacao = { render };
+  // V 1.98 (Alexandre): expõe as sub-abas (já filtradas pelo perfil) e um atalho para
+  // abrir uma delas — usado pelo menu suspenso da Coordenação no sidebar (app.js).
+  BI.Coordenacao = {
+    render,
+    subabas: () => subabasVisiveis().map((s) => ({ chave: s.chave, rotulo: s.rotulo })),
+    subAtiva: () => subAtiva,
+    abrir: (chave) => { const vis = subabasVisiveis(); if (vis.some((s) => s.chave === chave)) subAtiva = chave; render(); },
+  };
 })(window);

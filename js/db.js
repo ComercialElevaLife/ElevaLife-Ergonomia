@@ -67,6 +67,9 @@
     // GLOBAL, so Administrador grava; o ergonomista avaliado le a propria
     // (filtro por EmailErgonomista no backend - ver entidades.js).
     "avaliacaoErgonomista",
+    // V 1.99: KPIs operacionais e inconsistencias solides (Coordenacao > KPIs).
+    // GLOBAIS e restritas ao Administrador (backend so devolve para o coordenador).
+    "kpiOperacional", "kpiInconsistencia",
   ];
 
   const estado = {

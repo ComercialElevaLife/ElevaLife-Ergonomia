@@ -2,6 +2,19 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.99 — 17/11/2026
+
+- **KPIs operacionais dentro do SIGE, substituindo a planilha (Alexandre).** Nova sub-aba **“KPI's operacionais”** na Coordenação (só o coordenador/Administrador vê e edita). Grade mensal por cliente, com **Análises, Validações, Ações Cliente e Ações ElevaLife** (previstas × realizadas, com % e totais automáticos) e os contadores **Jurídico, PCD/Restritos/Dem. médicas, DDS/Treinamento/Blitz, COERGO e Outras demandas**. A partir de outubro entrou o **controle de riscos do inventário** por cliente (Altíssimo, Alto, Moderado, Baixo, Trivial e Redução do risco) — as colunas aparecem em todos os meses, zeradas antes de outubro. O campo **Outras demandas** agora tem uma coluna **“Obs. outras demandas”** para descrever qual é a demanda. Seletor de **Ano e Mês** (guarda vários anos). Gráficos: evolução dos % no ano, realizadas por gestor e distribuição de risco do mês. Botão **“Importar 2026”** traz, de uma vez, os 12 meses e as inconsistências da planilha original.
+- **Inconsistências Sólides (Alexandre).** Nova sub-aba na Coordenação (só coordenador): grade por colaborador (+ coordenador) com uma contagem por mês (Jan–Dez), total por colaborador e por mês, **faixas de cor** por quantidade (0 · 1 · 2 a 4 · 5 · ≥ 6) e gráficos (por mês e por colaborador no ano). Multi-ano, com seletor.
+- Coleções novas **GLOBAIS e restritas ao Administrador**: `kpiOperacional` (1 doc por ano/mês) e `kpiInconsistencia` (1 doc por ano). *(Arquivos: `js/kpi-operacional.js` (novo), `js/kpi-dados-2026.js` (semente de importação), `js/coordenacao.js`, `js/app.js`, `css/style.css`, `index.html`, `api/src/functions/entidades.js`, `js/db.js`.)* Service worker subiu para `sige-v114`.
+
+## V 1.98 — 17/11/2026
+
+- **Dashboard › Gestão de Riscos: AEP e AET também escondem “Sem risco” (Alexandre).** Agora, ao escolher qualquer origem específica (AEP, AET ou Psicossocial), a rosca “Risco Global” e o detalhamento mostram só os avaliados com risco — sem a fatia “Sem risco” dos postos cadastrados, igual já era no psicossocial. Em “Todas” a visão geral continua com o “Sem risco”. *(`js/app.js`.)*
+- **Gráfico “Risco por Setor / GHE” que aparecia em branco (Alexandre).** Era uma corrida de layout: ao abrir uma dashboard, o gráfico era medido antes de o painel ganhar tamanho e saía vazio. Agora, ao trocar de dashboard, os gráficos são redimensionados no quadro seguinte (já com o painel visível). *(`js/app.js`.)*
+- **Coordenação vira menu suspenso no lateral (Alexandre).** A Coordenação passou a ser um grupo expansível no menu lateral (igual a Cadastro Empresa/Interno), abrindo direto as sub-abas: **Contabilidade de tempo**, **Avaliação de Ergonomistas** e o novo **Painel de avaliações**. O Consultor vê só a Avaliação (a própria). *(`index.html`, `js/app.js`, `js/coordenacao.js`, `css/style.css`.)*
+- **Novo “Painel de avaliações” na Coordenação (Alexandre).** Dashboard das avaliações de ergonomistas: KPIs (nº de avaliações, ergonomistas avaliados, nota média geral e por bloco A/B), **nota final por ergonomista**, **média por eixo** (12 eixos), **pontos de atenção** (Respeito B3 < 60 trava promoção; dimensões < 60) e o **catálogo do que é avaliado** (blocos, eixos, pesos e nº de itens). Só o Administrador. *(`js/aval-ergonomista.js`, `js/coordenacao.js`.)* Service worker subiu para `sige-v113`.
+
 ## V 1.97 — 17/11/2026
 
 Ajustes no **laudo da AET** (Alexandre):

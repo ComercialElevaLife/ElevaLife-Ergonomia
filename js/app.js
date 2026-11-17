@@ -6257,6 +6257,34 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     });
   }
 
+  // V 1.98 (Alexandre): menu suspenso da Coordenação no sidebar (igual aos grupos de
+  // Cadastro) — lista as sub-abas visíveis pelo perfil (Contabilidade de tempo, Avaliação
+  // de Ergonomistas e o Painel de avaliações) e abre cada uma direto pelo menu lateral.
+  function montarSidebarCoordenacao() {
+    const nav = document.getElementById("sidebar-sub-coordenacao");
+    if (!nav || !window.BI.Coordenacao || !window.BI.Coordenacao.subabas) return;
+    const subs = window.BI.Coordenacao.subabas();
+    const atual = window.BI.Coordenacao.subAtiva ? window.BI.Coordenacao.subAtiva() : null;
+    const ICON = { tempo: "⏱", avaliacao: "📋", painel: "📊", kpiop: "📈", inconsistencias: "⚠️" };
+    nav.innerHTML = "";
+    subs.forEach((s) => {
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.dataset.chave = s.chave;
+      const ic = document.createElement("span"); ic.className = "icone"; ic.textContent = ICON[s.chave] || "•";
+      const rot = document.createElement("span"); rot.className = "rotulo"; rot.textContent = s.rotulo;
+      btn.appendChild(ic); btn.appendChild(rot);
+      btn.classList.toggle("ativa", s.chave === atual);
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        ativarAba("coordenacao");
+        try { window.BI.Coordenacao.abrir(s.chave); } catch (e) { console.error(e); }
+        montarSidebarCoordenacao();
+        fecharSidebarMobile();
+      });
+      nav.appendChild(btn);
+    });
+  }
+
   function remontarSubAbas() {
     Object.keys(GRUPOS_CADASTRO).forEach((grupo) => {
       montarSubNavCadastro(grupo);
@@ -7912,11 +7940,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (btnRef) btnRef.textContent = "Ver tabelas de referência";
     if (window.BI.Indicadores) window.BI.Indicadores.fecharPopover();
     atualizarEstadoExportacao();
-    expandirGrupoSidebar(GRUPO_DA_ABA[aba] ? aba : null);
+    expandirGrupoSidebar((GRUPO_DA_ABA[aba] || aba === "coordenacao") ? aba : null);
     try { aplicarServicosContratados(); } catch (_) { /* dados ainda nao carregados */ }
     if (aba === "psicossocial") sincronizarFiltroPsico(true);
     if (aba === "aep" && estadoSubAbaCadastro.aep === "modeloLaudo") abrirEditorTextoDireto();
-    if (aba === "coordenacao" && window.BI.Coordenacao) { try { window.BI.Coordenacao.render(); } catch (e) { console.error(e); } }
+    if (aba === "coordenacao" && window.BI.Coordenacao) { try { montarSidebarCoordenacao(); window.BI.Coordenacao.render(); } catch (e) { console.error(e); } }
     if (aba === "notificacoes") { try { renderNotificacoes(); } catch (e) { console.error(e); } }
     if (aba === "dashboard") { try { montarDashboard(); mostrarDash(dashAtual); } catch (e) { console.error(e); } }
     // V 1.80 (Alexandre - desempenho): as tabelas de cadastro (e a lista do Plano de Ação) não são
@@ -8809,6 +8837,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     document.querySelectorAll("#dash-paineis .dash-painel").forEach((p) => { p.hidden = p.dataset.dash !== chave; });
     if (chave === "geral") { try { renderDashGeral(); } catch (e) { console.error(e); } }
     else { try { renderizarTudo(); } catch (e) { console.error(e); } }
+    // V 1.98 (Alexandre): no quadro seguinte, redimensiona os gráficos já com o painel
+    // exibido e o layout assentado — evita gráfico "em branco" (ex.: Risco por Setor/GHE)
+    // quando o canvas foi medido antes de o painel ganhar tamanho.
+    try { requestAnimationFrame(() => { Object.keys(registroGraficos).forEach((id) => { try { const g = registroGraficos[id]; if (g && g.canvas && g.canvas.offsetParent) g.resize(); } catch (e) {} }); }); } catch (e) {}
     try { const sec = document.getElementById("aba-dashboard"); if (sec && sec.scrollIntoView) sec.scrollIntoView({ block: "start" }); } catch (e) {}
   }
 
@@ -9465,11 +9497,15 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // avaliados (com risco) - sem a fatia/linhas "Sem risco" dos postos cadastrados, que não
     // fazem sentido no módulo (a cobertura, que é por GHE, continua no cartão de cobertura).
     const ehPsicoErgo = estadoOrigemAba.ergo === "Psicossocial";
-    const universoSemRiscoR = ehPsicoErgo ? [] : universoCargoR;
+    // V 1.98 (Alexandre): esconder a fatia/linhas "Sem risco" sempre que uma origem
+    // específica (AEP, AET ou Psicossocial) estiver selecionada — mostra só os avaliados
+    // com risco, igual ao psicossocial. Em "Todas" mantém a visão geral (com "Sem risco").
+    const ocultarSemRisco = !!estadoOrigemAba.ergo;
+    const universoSemRiscoR = ocultarSemRisco ? [] : universoCargoR;
     const comRiscoR = new Set(mapaRiscoF.map(kPG));
     const semRiscoLinhasR = universoSemRiscoR.filter((c) => !comRiscoR.has(kPG(c))).map((c) => ({ Cliente: c.Cliente, Unidade: c.Unidade, Setor: c.Setor, "Posto Trabalho": c["Posto Trabalho"], Cargo: c.Cargo, "Risco Global": "Sem risco", "Fator Mais Grave": "-", Fatores: 0 }));
     let distRiscoGlobalR = Calc.mapaRiscoGlobalSemRisco(mapaRiscoF, universoSemRiscoR);
-    if (ehPsicoErgo) distRiscoGlobalR = distRiscoGlobalR.filter((n) => !n.semRisco);
+    if (ocultarSemRisco) distRiscoGlobalR = distRiscoGlobalR.filter((n) => !n.semRisco);
     renderDonutNiveis("chart-risco-global", "legenda-risco-global", distRiscoGlobalR, ehPsicoErgo ? "GHEs" : "postos", ehPsicoErgo ? "GHE(s)" : "posto(s)", (n) => ({
       titulo: `Risco Global ${ehPsicoErgo ? "dos GHEs" : "dos Postos"} - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} ${ehPsicoErgo ? "GHE(s)" : "posto(s) de trabalho"}`, chave: "riscoPosto", linhas: n.semRisco ? semRiscoLinhasR : mapaRiscoF.filter((l) => l["Risco Global"] === n.nivel) }));
     renderTopSetores(Calc.topSetores(mapaRiscoF, 3), mapaRiscoF);
@@ -10209,6 +10245,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       montarAbaReferencia();
       montarCadastros();
       montarSidebarSubnav();
+      try { montarSidebarCoordenacao(); } catch (e) { /* Coordenação pode não estar disponível */ }
       configurarSidebar();
       configurarAbas();
       configurarToggleReferencia();
