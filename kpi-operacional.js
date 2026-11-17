@@ -117,10 +117,85 @@
     return [];
   }
 
+  // ================================================================= Abastecimento automático (Etapa 2)
+  // O abastecimento começa em novembro/2026 (os meses anteriores ficam com os dados
+  // já preenchidos/importados). Os registros do SIGE são casados com a linha do KPI
+  // pelo nome do cliente (KpiCliente, senão o próprio Cliente), comparado sem acento/
+  // maiúsculas. Os valores entram de forma ADITIVA e idempotente: cada métrica guarda
+  // quanto veio do SIGE (_auto_<campo>), então re-“puxar” nunca duplica e a parte
+  // digitada à mão (ou importada) é sempre preservada.
+  const ANO_INICIO_AUTO = 2026, MES_INICIO_AUTO = 10; // novembro/2026 (mês 0-indexado)
+  function autoAtivo(ano, mes) { return ano > ANO_INICIO_AUTO || (ano === ANO_INICIO_AUTO && mes >= MES_INICIO_AUTO); }
+  // Métricas abastecidas automaticamente e o campo da grade que recebem.
+  const AUTO_METRICAS = [
+    { campo: "analisesReal", tipo: "analises" },
+    { campo: "validReal", tipo: "valid" },
+    { campo: "acoesCliReal", tipo: "acoesCli" },
+    { campo: "pcd", tipo: "pcd" },
+    { campo: "outras", tipo: "outras" },
+  ];
+  const OBS_ABSENTEISMO = "lançamento de absenteísmos";
+  function normNome(s) { return String(s == null ? "" : s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+  function mesDe(v) { return String(v == null ? "" : v).slice(0, 7); }
+  function acaoConcluida(a) { if (BI.Acoes && BI.Acoes.estaConcluida) return BI.Acoes.estaConcluida(a); return !!(a && (a["Dt Conclusao"] || a["Status Execucao"] === "Concluida")); }
+  // Cliente usado no casamento com a linha do KPI: se o registro TEM o campo KpiCliente
+  // (definido na confirmação ao finalizar), usa-o — mesmo vazio (vazio = não abastece).
+  // Registros antigos, sem esse campo, continuam casando pelo próprio Cliente.
+  const clienteKpiDe = (r) => normNome(Object.prototype.hasOwnProperty.call(r, "KpiCliente") ? r.KpiCliente : r.Cliente);
+
+  // Agrega os registros do SIGE do mês escolhido por cliente (normalizado).
+  function autoKpiDoMes(ano, mes) {
+    const alvo = ano + "-" + String(mes + 1).padStart(2, "0");
+    const mapa = {};
+    const bucket = (r) => { const k = clienteKpiDe(r); if (!k) return null; return (mapa[k] = mapa[k] || { analises: 0, valid: 0, acoesCli: 0, pcd: 0, absent: 0 }); };
+    const D = (BI.dados) || {};
+    // AEP: criação (Data Avaliacao) → Análises; conclusão (Dt Conclusao Avaliacao) → Validações
+    (D.avaliacaoErgonomica || []).forEach((a) => {
+      if (mesDe(a["Data Avaliacao"]) === alvo) { const b = bucket(a); if (b) b.analises++; }
+      if (String(a["Status Avaliacao"] || "") === "Concluída" && mesDe(a["Dt Conclusao Avaliacao"]) === alvo) { const b = bucket(a); if (b) b.valid++; }
+    });
+    // AET: criação (Data Analise) → Análises; conclusão (Dt Conclusao Avaliacao) → Validações
+    (D.aet || []).forEach((a) => {
+      if (mesDe(a["Data Analise"]) === alvo) { const b = bucket(a); if (b) b.analises++; }
+      if (String(a["Status Avaliacao"] || "") === "Concluída" && mesDe(a["Dt Conclusao Avaliacao"]) === alvo) { const b = bucket(a); if (b) b.valid++; }
+    });
+    // Plano de Ação: TODA ação concluída no mês (Dt Conclusao) → Ações Cliente
+    (D.planoAcao || []).forEach((a) => { if (acaoConcluida(a) && mesDe(a["Dt Conclusao"]) === alvo) { const b = bucket(a); if (b) b.acoesCli++; } });
+    // Restritos (compativeis) iniciados no mês → coluna PCD/Restritos
+    (D.compativeis || []).forEach((r) => { if (mesDe(r["Inicio Restricao"]) === alvo) { const b = bucket(r); if (b) b.pcd++; } });
+    // Absenteísmo lançado no mês → 1 em Outras demandas (independe da quantidade)
+    (D.absenteismo || []).forEach((r) => { if (mesDe(r["Dt Afastamento"]) === alvo) { const b = bucket(r); if (b) b.absent++; } });
+    return mapa;
+  }
+
+  // Aplica o abastecimento às linhas do mês de forma idempotente (preserva o manual).
+  function aplicarAutoNasLinhas(linhas, ano, mes) {
+    if (!autoAtivo(ano, mes)) return;
+    const mapa = autoKpiDoMes(ano, mes);
+    linhas.forEach((l) => {
+      const auto = mapa[normNome(l.Cliente)] || { analises: 0, valid: 0, acoesCli: 0, pcd: 0, absent: 0 };
+      const novo = { analises: auto.analises, valid: auto.valid, acoesCli: auto.acoesCli, pcd: auto.pcd, outras: auto.absent ? 1 : 0 };
+      AUTO_METRICAS.forEach((m) => {
+        const chaveAuto = "_auto_" + m.campo;
+        const base = n0(l[m.campo]) - n0(l[chaveAuto]); // parte manual/importada
+        l[m.campo] = Math.max(0, base) + n0(novo[m.tipo]);
+        l[chaveAuto] = n0(novo[m.tipo]);
+      });
+      // Observação do absenteísmo: garante a nota quando há lançamento; remove quando não há.
+      const obs = String(l.outrasObs || "");
+      const temNota = obs.toLowerCase().indexOf(OBS_ABSENTEISMO) !== -1;
+      if (auto.absent && !temNota) l.outrasObs = (obs ? obs + "; " : "") + OBS_ABSENTEISMO;
+      else if (!auto.absent && temNota) l.outrasObs = obs.replace(new RegExp("\\s*;?\\s*" + OBS_ABSENTEISMO, "ig"), "").replace(/^[;\s]+|[;\s]+$/g, "");
+    });
+  }
+
   function renderOperacional(area) {
     area.innerHTML = "";
     if (!ehAdmin()) { area.appendChild(cartaoVazio("KPIs operacionais", "Área restrita ao coordenador (Administrador).")); return; }
     const st = { ano: anoOp, mes: mesOp, linhas: linhasDoMes(anoOp, mesOp) };
+    // V 2.02 (Alexandre): abastecimento automático (Etapa 2) — preenche o Real das linhas
+    // com o que foi feito no SIGE no mês (nov/2026+), de forma idempotente e editável.
+    aplicarAutoNasLinhas(st.linhas, st.ano, st.mes);
 
     const box = h("div", "cartao col-12");
     const cab = h("div", "cadastro-cabecalho");
@@ -139,6 +214,7 @@
     cab.appendChild(ctrls);
     box.appendChild(cab);
     box.appendChild(h("p", "aet-nota", "Grade por cliente. Os riscos do inventário vêm primeiro e são herdados do mês anterior (edite ao mudar). “Ações ElevaLife · Real.” é a soma de Jurídico + PCD + DDS + COERGO + Outras demandas. % e totais são automáticos — edite e clique em Salvar."));
+    if (autoAtivo(st.ano, st.mes)) box.appendChild(h("p", "aet-nota", "Abastecimento automático (a partir de nov/2026): Análises e Validações vêm da criação/conclusão das AEP/AET; Ações Cliente, das ações concluídas no mês; PCD/Restritos, dos restritos do mês; e Outras demandas recebe 1 quando houve lançamento de absenteísmo. O valor é somado ao que você digitou (sem duplicar) e continua editável — ajuste e Salve."));
 
     const cards = h("div", "coord-kpis"); box.appendChild(cards);
 
@@ -224,20 +300,22 @@
 
     const rodape = h("div"); rodape.style.cssText = "margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap";
     const bAdd = h("button", "btn-cad-secundario", "+ Cliente"); bAdd.type = "button"; bAdd.addEventListener("click", () => { st.linhas.push({ Cliente: "", Gestor: "" }); redesenhar(); });
+    const bSync = h("button", "btn-cad-secundario", "↻ Atualizar do SIGE"); bSync.type = "button"; bSync.title = "Relê os registros do SIGE e reaplica o abastecimento automático neste mês (sem duplicar).";
+    bSync.addEventListener("click", async () => { bSync.disabled = true; try { await DB().recarregar(["kpiOperacional", "kpiInconsistencia", "avaliacaoErgonomica", "aet", "planoAcao", "compativeis", "absenteismo"]); } catch (e) { console.error(e); } anoOp = st.ano; mesOp = st.mes; renderOperacional(area); if (BI.avisar) BI.avisar("KPIs atualizados com o que foi feito no SIGE."); });
     const bSalvar = h("button", "btn-cad-primario", "Salvar mês"); bSalvar.type = "button";
     const msg = h("span", "aet-nota"); msg.style.margin = "0";
     bSalvar.addEventListener("click", async () => {
       bSalvar.disabled = true; msg.textContent = "Salvando…"; msg.style.color = "";
       try {
         const limpas = st.linhas.filter((l) => String(l.Cliente || "").trim());
-        const doc = { EmpresaId: "GLOBAL", Ano: st.ano, Mes: st.mes, Linhas: limpas.map((l) => { const o = { Cliente: String(l.Cliente).trim(), Gestor: String(l.Gestor || "").trim() }; CAMPOS_NUM.forEach((c) => (o[c] = n0(l[c]))); o.acoesElevaReal = elevaReal(l); o.outrasObs = String(l.outrasObs || "").trim(); return o; }) };
+        const doc = { EmpresaId: "GLOBAL", Ano: st.ano, Mes: st.mes, Linhas: limpas.map((l) => { const o = { Cliente: String(l.Cliente).trim(), Gestor: String(l.Gestor || "").trim() }; CAMPOS_NUM.forEach((c) => (o[c] = n0(l[c]))); o.acoesElevaReal = elevaReal(l); o.outrasObs = String(l.outrasObs || "").trim(); AUTO_METRICAS.forEach((m) => { o["_auto_" + m.campo] = n0(l["_auto_" + m.campo]); }); return o; }) };
         const ex = acharOp(st.ano, st.mes);
         await DB().salvar("kpiOperacional", ex ? (ex._id || ex.id) : idOp(st.ano, st.mes), doc, !ex);
         await recarregar();
         anoOp = st.ano; mesOp = st.mes; renderOperacional(area);
       } catch (e) { msg.textContent = "Erro ao salvar: " + (e && e.message ? e.message : e); msg.style.color = "#C62828"; bSalvar.disabled = false; }
     });
-    rodape.appendChild(bAdd); rodape.appendChild(bSalvar);
+    rodape.appendChild(bAdd); rodape.appendChild(bSync); rodape.appendChild(bSalvar);
     const bImp = botaoImportar(area); if (bImp) rodape.appendChild(bImp);
     rodape.appendChild(msg);
     box.appendChild(rodape);

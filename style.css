@@ -2536,6 +2536,16 @@ table.kpi-grade tbody tr:hover { background: #fcf7f5; }
 .agenda-grafico-box { position: relative; height: 320px; }
 .agenda-grafico-doughnut { height: 340px; }
 
+/* V 2.03 — painel (na própria página) de confirmação do cliente do KPI ao finalizar AEP/AET. */
+.kpi-conf-overlay { position: fixed; inset: 0; background: rgba(40, 20, 24, .45); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 16px; }
+.kpi-conf-card { background: var(--card, #fff); border-radius: 14px; box-shadow: 0 18px 50px rgba(0,0,0,.28); width: 100%; max-width: 440px; padding: 20px 22px; }
+.kpi-conf-titulo { font-size: 17px; font-weight: 800; color: var(--vinho-escuro, #5a2a33); }
+.kpi-conf-texto { font-size: 13.5px; color: var(--texto-suave, #7a6a6c); margin: 8px 0 14px; line-height: 1.4; }
+.kpi-conf-label { display: block; font-size: 12.5px; font-weight: 700; color: var(--texto-suave, #7a6a6c); }
+.kpi-conf-input { display: block; width: 100%; margin-top: 5px; padding: 9px 11px; border: 1px solid var(--linha, #e5d8d8); border-radius: 9px; font: inherit; font-size: 14px; box-sizing: border-box; }
+.kpi-conf-input:focus { outline: 2px solid var(--teal, #2E7D5B); border-color: transparent; }
+.kpi-conf-acoes { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+
 /* ====================================================================
    V 1.41 — grupos recolhíveis no Inventário (AEP) e telas mais largas/
    legíveis (AEP, AET, Psicossocial): "primeiro o grupo, depois os fatores".

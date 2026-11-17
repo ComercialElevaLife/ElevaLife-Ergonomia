@@ -144,6 +144,7 @@
   // --------------------------------------------------- sub-abas
   let subAtiva = "minhaagenda";
   let dataAgenda = dataInicial();
+  let agendaAlvoEmail = null; // V 2.03: ergonomista cuja agenda o ADM está vendo (coordenador vê todas)
   let mesPainel = (hojeISO() >= INICIO_AGENDA) ? (new Date().getMonth()) : 11;
   let anoPainel = (hojeISO() >= INICIO_AGENDA) ? (new Date().getFullYear()) : 2026;
   let ergoPainel = "__todos__";
@@ -192,17 +193,31 @@
   }
 
   function renderMinhaAgenda(area) {
-    const email = renderMinhaagendaFallbackEmail();
+    const meu = emailAtual();
+    // V 2.03 (Alexandre): o coordenador (ADM) vê a agenda de QUALQUER ergonomista. Os demais
+    // veem apenas a própria. Ao ver a de outro, a tela fica somente leitura (visualização).
+    if (ehAdmin() && !agendaAlvoEmail) agendaAlvoEmail = meu;
+    const email = ehAdmin() ? agendaAlvoEmail : meu;
     if (!email) { area.appendChild(cartao("Minha agenda", null, h("div", "coord-vazio", "Não foi possível identificar o seu login."))); return; }
+    const soVista = ehAdmin() && email !== meu;
 
     const card = h("div", "cartao col-12");
     const cab = h("div", "coord-cab");
-    cab.appendChild(h("div", "cartao-titulo", "Minha agenda do dia"));
+    cab.appendChild(h("div", "cartao-titulo", soVista ? ("Agenda de " + nomeDe(email)) : "Minha agenda do dia"));
     card.appendChild(cab);
-    card.appendChild(h("div", "coord-sub", "Registre o que foi feito no dia, com horário (início e fim) e a quantidade. As atividades feitas no SIGE (montagem de AEP/AET) podem ser puxadas automaticamente — confira e ajuste. A agenda vale a partir de dezembro/2026."));
+    card.appendChild(h("div", "coord-sub", soVista ? ("Visualização da agenda de " + nomeDe(email) + " (coordenação). Para editar, cada ergonomista preenche a própria agenda.") : "Registre o que foi feito no dia, com horário (início e fim) e a quantidade. As atividades feitas no SIGE (montagem de AEP/AET) podem ser puxadas automaticamente — confira e ajuste. A agenda vale a partir de dezembro/2026."));
 
     // Linha de seleção de data + navegação.
     const barra = h("div", "agenda-barra");
+    // Seletor de ergonomista — só para o coordenador (vê a de todos, inclusive a própria).
+    if (ehAdmin()) {
+      const selErg = h("select", "agenda-inp");
+      const lista = [{ email: meu, nome: nomeDe(meu) + " (eu)" }].concat(ergonomistas().filter((e) => e.email !== meu));
+      lista.forEach((e) => { const o = h("option", null, e.nome); o.value = e.email; if (e.email === email) o.selected = true; selErg.appendChild(o); });
+      selErg.addEventListener("change", () => { agendaAlvoEmail = selErg.value; renderMinhaAgenda(area); });
+      const lbl = h("label", "agenda-dia-sem"); lbl.style.fontWeight = "600"; lbl.textContent = "Ergonomista:"; lbl.appendChild(selErg); lbl.style.display = "inline-flex"; lbl.style.gap = "6px"; lbl.style.alignItems = "center";
+      barra.appendChild(lbl);
+    }
     const bAnt = h("button", "btn-cad-secundario", "‹ Dia anterior"); bAnt.type = "button";
     const inpData = h("input"); inpData.type = "date"; inpData.className = "agenda-data"; inpData.value = dataAgenda; inpData.min = INICIO_AGENDA;
     const bProx = h("button", "btn-cad-secundario", "Próximo dia ›"); bProx.type = "button";
@@ -254,22 +269,22 @@
         const nomes = tipos.map((x) => x.nome);
         if (it.atividade && nomes.indexOf(it.atividade) === -1) nomes.unshift(it.atividade);
         nomes.forEach((nm) => { const o = h("option", null, nm); o.value = nm; if (nm === it.atividade) o.selected = true; sel.appendChild(o); });
-        sel.addEventListener("change", () => { it.atividade = sel.value; });
+        sel.addEventListener("change", () => { it.atividade = sel.value; }); sel.disabled = soVista;
         tdAt.appendChild(sel);
         if (it.auto) tdAt.appendChild(h("span", "agenda-badge", "automático"));
         tr.appendChild(tdAt);
         // Início / Fim
-        const mkHora = (campo) => { const i = h("input", "agenda-inp agenda-hora"); i.type = "time"; i.value = it[campo] || ""; i.addEventListener("change", () => { it[campo] = i.value; tdDur.textContent = fmtHoras(duracaoMin(it.horaInicio, it.horaFim)); recalcTotal(); }); return i; };
+        const mkHora = (campo) => { const i = h("input", "agenda-inp agenda-hora"); i.type = "time"; i.value = it[campo] || ""; i.disabled = soVista; i.addEventListener("change", () => { it[campo] = i.value; tdDur.textContent = fmtHoras(duracaoMin(it.horaInicio, it.horaFim)); recalcTotal(); }); return i; };
         const tdIni = h("td"); tdIni.appendChild(mkHora("horaInicio")); tr.appendChild(tdIni);
         const tdFim = h("td"); tdFim.appendChild(mkHora("horaFim")); tr.appendChild(tdFim);
         // Duração (calculada)
         const tdDur = h("td", "num", fmtHoras(duracaoMin(it.horaInicio, it.horaFim))); tr.appendChild(tdDur);
         // Quantidade
-        const tdQ = h("td", "num"); const iQ = h("input", "agenda-inp agenda-qtd"); iQ.type = "number"; iQ.min = "0"; iQ.value = (it.quantidade != null ? it.quantidade : ""); iQ.addEventListener("change", () => { it.quantidade = n0(iQ.value); }); tdQ.appendChild(iQ); tr.appendChild(tdQ);
+        const tdQ = h("td", "num"); const iQ = h("input", "agenda-inp agenda-qtd"); iQ.type = "number"; iQ.min = "0"; iQ.value = (it.quantidade != null ? it.quantidade : ""); iQ.disabled = soVista; iQ.addEventListener("change", () => { it.quantidade = n0(iQ.value); }); tdQ.appendChild(iQ); tr.appendChild(tdQ);
         // Observação
-        const tdO = h("td"); const iO = h("input", "agenda-inp agenda-obs"); iO.type = "text"; iO.value = it.obs || ""; iO.placeholder = "opcional"; iO.addEventListener("change", () => { it.obs = iO.value; }); tdO.appendChild(iO); tr.appendChild(tdO);
-        // Remover
-        const tdX = h("td"); const bx = h("button", "btn-excluir", "×"); bx.type = "button"; bx.title = "Remover atividade"; bx.addEventListener("click", () => { itens.splice(idx, 1); desenharLinhas(); recalcTotal(); }); tdX.appendChild(bx); tr.appendChild(tdX);
+        const tdO = h("td"); const iO = h("input", "agenda-inp agenda-obs"); iO.type = "text"; iO.value = it.obs || ""; iO.placeholder = "opcional"; iO.disabled = soVista; iO.addEventListener("change", () => { it.obs = iO.value; }); tdO.appendChild(iO); tr.appendChild(tdO);
+        // Remover (escondido na visualização do coordenador)
+        const tdX = h("td"); if (!soVista) { const bx = h("button", "btn-excluir", "×"); bx.type = "button"; bx.title = "Remover atividade"; bx.addEventListener("click", () => { itens.splice(idx, 1); desenharLinhas(); recalcTotal(); }); tdX.appendChild(bx); } tr.appendChild(tdX);
         tb.appendChild(tr);
       });
       if (!itens.length) { const tr = h("tr"); const td = h("td"); td.colSpan = 7; td.appendChild(h("div", "coord-vazio", "Nenhuma atividade lançada neste dia. Adicione uma ou puxe do SIGE.")); tr.appendChild(td); tb.appendChild(tr); }
@@ -305,7 +320,9 @@
         renderMinhaAgenda(area2);
       } catch (e) { console.error("agenda salvar", e); msg.textContent = "Erro ao salvar: " + (e && e.message ? e.message : e); msg.style.color = "#C62828"; bSalvar.disabled = false; }
     });
-    acoes.appendChild(bAdd); acoes.appendChild(bPuxar); acoes.appendChild(bSalvar); acoes.appendChild(totalEl);
+    // Na visualização do coordenador (outro ergonomista), só mostra o total — sem editar.
+    if (soVista) { acoes.appendChild(totalEl); }
+    else { acoes.appendChild(bAdd); acoes.appendChild(bPuxar); acoes.appendChild(bSalvar); acoes.appendChild(totalEl); }
     card.appendChild(acoes);
     const rod = h("div", "agenda-rodape"); rod.appendChild(msg); card.appendChild(rod);
 

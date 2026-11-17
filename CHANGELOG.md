@@ -2,6 +2,29 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.03 — 17/11/2026
+
+- **Atualização automática do app (Alexandre).** Antes, ao publicar uma versão nova, era preciso recarregar duas vezes para o sistema atualizar (“tem que atualizar duas vezes”). Agora, assim que a versão nova é publicada, a página **recarrega sozinha uma vez** e já abre atualizada (sem recarregar na primeiríssima instalação); o app também checa por atualização ao abrir e a cada 30 min. *(`index.html`.)* **Importante:** esse comportamento passa a valer **a partir desta versão** — para pegar a 2.03 nos aparelhos que ainda estão numa versão antiga, recarregue uma vez (no celular/tablet, feche e reabra o app). Service worker subiu para `sige-v118`.
+- **Confirmação do “Cliente no KPI” ao finalizar a análise (Alexandre).** Em vez de um campo fixo no cabeçalho, ao **Salvar** a AEP ou a AET abre um **painel na própria página** (não é uma janela do navegador) perguntando qual cliente do KPI aquela análise abastece — já sugerido pelo nome do cadastro. Confirme, edite (quando o nome no KPI for diferente) ou deixe em branco para não abastecer. “Voltar a editar” cancela o salvamento. *(`js/app.js`, `js/aet.js`, `js/kpi-operacional.js`, `css/style.css`.)*
+- **Coordenador vê a agenda de qualquer ergonomista (Alexandre).** Na aba **Ergonomista › Minha agenda**, o Administrador (coordenador) ganhou um **seletor de ergonomista** e passa a visualizar a agenda de cada um (somente leitura; cada ergonomista edita a própria). *(`js/agenda-ergo.js`.)*
+
+## V 2.02 — 17/11/2026
+
+Status das avaliações + indicador na dashboard + abastecimento automático dos KPIs (Alexandre).
+
+- **Status “A validar / Concluída” nas AEP e AET (Etapa 1).** Toda AEP e AET agora tem um **Status** (inicial “A validar”; “Concluída” = já validada) e um campo de **data de conclusão** (obrigatório ao concluir — define o mês no KPI). *(`js/app.js`, `js/aet.js`.)*
+- **Novo indicador na dashboard (Visão Geral › Avaliações).** Para AEP e AET: **criadas / a validar / concluídas** (criadas = a validar + concluídas). Registros antigos sem status contam como “a validar”. *(`js/app.js`.)*
+- **Plano de Ação.** A conclusão de uma ação continua exigindo a **data de conclusão** (preenchida ao concluir), que passa a alimentar o KPI de Ações Cliente no mês da conclusão.
+- **Abastecimento automático dos KPIs operacionais (Etapa 2), a partir de novembro/2026.** No módulo KPI (Coordenação › KPI operacionais), o **Real** é preenchido com o que foi feito no SIGE, por cliente e mês:
+  - Criação de **AEP/AET** → **Análises**; conclusão de **AEP/AET** → **Validações** (mês da conclusão).
+  - **Toda ação concluída** no mês → **Ações Cliente**.
+  - **Restritos** iniciados no mês → coluna **PCD/Restritos**.
+  - **Lançamento de absenteísmo** no mês → **1** em **Outras demandas**, com a observação “lançamento de absenteísmos” (independe de quantos atestados).
+  - O valor é **somado ao que foi digitado/importado, sem duplicar** (idempotente) e **continua editável** — ajuste e Salve. Botão **“↻ Atualizar do SIGE”** relê os dados a qualquer momento.
+- **Cliente no KPI (confirmação).** AEP e AET têm um campo **“Cliente no KPI”** já sugerido com o nome do cliente (edite quando o nome no KPI for diferente); é por ele que o abastecimento casa o registro com a linha do KPI. *(`js/kpi-operacional.js`, `js/app.js`, `js/aet.js`.)*
+
+*Observação: esta versão **não** mexe no backend — os novos campos são gravados junto do registro. Basta subir os arquivos ao GitHub.* Service worker subiu para `sige-v117`.
+
 ## V 2.01 — 17/11/2026
 
 - **Agenda diária do ergonomista — nova aba “Ergonomista” (Alexandre).** Nova aba no menu lateral (menu suspenso, como a Coordenação), visível para a equipe, com sub-abas por perfil:

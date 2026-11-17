@@ -768,9 +768,25 @@
 <script src="js/app.js"></script>
 <script>
   // App instalável (PWA): registra o service worker (ver sw.js).
+  // V 2.03 (Alexandre): atualização automática. Antes, quando uma nova versão era
+  // publicada, o service worker novo assumia mas a página continuava com os arquivos
+  // antigos até o usuário recarregar de novo ("tem que atualizar duas vezes"). Agora,
+  // assim que o novo service worker assume o controle, a página recarrega sozinha UMA
+  // vez (sem recarregar na primeiríssima instalação). Também checa por atualização ao
+  // abrir e a cada 30 min.
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("/sw.js").catch((e) => console.warn("Service worker não registrado:", e));
+      var tinhaControlador = !!navigator.serviceWorker.controller;
+      var recarregou = false;
+      navigator.serviceWorker.addEventListener("controllerchange", function () {
+        if (!tinhaControlador || recarregou) return; // 1ª instalação não recarrega
+        recarregou = true;
+        window.location.reload();
+      });
+      navigator.serviceWorker.register("/sw.js").then(function (reg) {
+        try { reg.update(); } catch (e) { /* */ }
+        setInterval(function () { try { reg.update(); } catch (e) { /* */ } }, 30 * 60 * 1000);
+      }).catch(function (e) { console.warn("Service worker não registrado:", e); });
     });
   }
 </script>
