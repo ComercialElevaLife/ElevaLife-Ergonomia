@@ -1,0 +1,124 @@
+/* ==========================================================================
+   BI Ergonomia - ElevaLife
+   Gestao de usuarios/papeis. Nao faz parte das 10 colecoes de negocio
+   (entidades.js) de proposito: aqui a regra de acesso e fixa, nao depende
+   de EmpresaId.
+
+   Desde 29/09/2026 (login por e-mail/senha, ver api/src/functions/auth.js):
+   Administrador OU Consultor podem listar/criar (convidar) - pedido do Leo
+   ("eu crio o usuario... ou o administrador, ou o consultor"); so
+   Administrador pode mudar o papel/empresas de alguem ou excluir o acesso
+   (evita um Consultor se promover a Administrador).
+
+   GET    /api/usuarios              -> lista todos os usuarios cadastrados
+   POST   /api/usuarios              -> cria/convida { Email, Papel, EmpresasVinculadas }
+                                         (sempre envia e-mail de convite - ver auth.js)
+   PUT    /api/usuarios/{id}         -> atualiza papel/empresas vinculadas (so Administrador)
+   DELETE /api/usuarios/{id}         -> remove o acesso de um usuario (so Administrador)
+   ========================================================================== */
+
+"use strict";
+
+const { obterContainer, garantirContainer } = require("../shared/cosmos");
+const { resolverIdentidade, PAPEIS } = require("../shared/tenant");
+const { criarOuConvidarUsuario } = require("./auth");
+
+const PAPEIS_VALIDOS = new Set(Object.values(PAPEIS));
+
+async function tratar(request, context) {
+  let identidade;
+  try {
+    identidade = await resolverIdentidade(request);
+  } catch (erro) {
+    context.error("Falha ao resolver identidade em /api/usuarios", erro);
+    return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissões." } };
+  }
+  if (!identidade) return { status: 401, jsonBody: { erro: "Não autenticado." } };
+  const podeGerenciar = identidade.papel === PAPEIS.ADMIN || identidade.papel === PAPEIS.CONSULTOR;
+  if (!podeGerenciar) {
+    return { status: 403, jsonBody: { erro: "Só Administradores ou Consultores podem gerenciar usuários." } };
+  }
+
+  // V 1.71 (Alexandre): "usuarios" é particionado por /id. Em alguns ambientes o
+  // container pode não ter sido provisionado ainda (ex.: banco recriado) e o GET
+  // estourava 500 "Erro interno." sem pista. garantirContainer cria se faltar
+  // (createIfNotExists, sem custo no Serverless) e abaixo o erro real é registrado
+  // e devolvido no corpo (rota só de Administrador/Consultor) para diagnóstico.
+  let container;
+  try {
+    container = await garantirContainer("usuarios");
+  } catch (erro) {
+    context.error("Falha ao obter/garantir o container de usuarios", erro);
+    return { status: 500, jsonBody: { erro: "Falha ao acessar a base de usuários.", detalhe: String(erro && erro.message ? erro.message : erro) } };
+  }
+  const id = request.params.id;
+
+  try {
+    switch (request.method) {
+      case "GET": {
+        const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
+        // Nunca devolver os hashes/tokens pro frontend - so o necessario pra
+        // tela de Usuarios (e-mail, papel, empresas, status da conta).
+        const semSegredos = resources.map((u) => ({
+          id: u.id, Email: u.Email, Papel: u.Papel, EmpresasVinculadas: u.EmpresasVinculadas, UnidadesVinculadas: u.UnidadesVinculadas,
+          StatusConta: u.StatusConta || (u.SenhaHash ? "Ativo" : "Convidado"),
+        }));
+        return { jsonBody: semSegredos };
+      }
+
+      case "POST": {
+        const corpo = await request.json();
+        const resultado = await criarOuConvidarUsuario(request, container, corpo, identidade);
+        if (resultado.erro) return resultado.erro;
+        const { doc, link, avisoEmail } = resultado;
+        return { status: 201, jsonBody: { id: doc.id, Email: doc.Email, Papel: doc.Papel, EmpresasVinculadas: doc.EmpresasVinculadas, UnidadesVinculadas: doc.UnidadesVinculadas, StatusConta: doc.StatusConta, linkConvite: link, avisoEmail } };
+      }
+
+      case "PUT": {
+        if (identidade.papel !== PAPEIS.ADMIN) {
+          return { status: 403, jsonBody: { erro: "Só Administrador pode alterar papel/empresas de um usuário." } };
+        }
+        if (!id) return { status: 400, jsonBody: { erro: "Id é obrigatório para atualizar." } };
+        const corpo = await request.json();
+        if (corpo.Papel && !PAPEIS_VALIDOS.has(corpo.Papel)) {
+          return { status: 400, jsonBody: { erro: `Papel inválido. Use um de: ${Array.from(PAPEIS_VALIDOS).join(", ")}.` } };
+        }
+        const { resource: existente } = await container.item(id, id).read();
+        if (!existente) return { status: 404, jsonBody: { erro: "Não encontrado." } };
+        // Nunca deixar o corpo da requisicao sobrescrever SenhaHash/tokens -
+        // essa rota so mexe em Papel/EmpresasVinculadas.
+        // V 1.89 (Alexandre): o PUT passa a persistir também UnidadesVinculadas (antes só
+        // Papel/EmpresasVinculadas — por isso o vínculo de unidades não ficava salvo).
+        const doc = Object.assign({}, existente, {
+          Papel: corpo.Papel || existente.Papel,
+          EmpresasVinculadas: Array.isArray(corpo.EmpresasVinculadas) ? corpo.EmpresasVinculadas : existente.EmpresasVinculadas,
+          UnidadesVinculadas: Array.isArray(corpo.UnidadesVinculadas) ? corpo.UnidadesVinculadas : existente.UnidadesVinculadas,
+          id,
+        });
+        const { resource } = await container.item(id, id).replace(doc);
+        return { jsonBody: { id: resource.id, Email: resource.Email, Papel: resource.Papel, EmpresasVinculadas: resource.EmpresasVinculadas, UnidadesVinculadas: resource.UnidadesVinculadas, StatusConta: resource.StatusConta } };
+      }
+
+      case "DELETE": {
+        if (identidade.papel !== PAPEIS.ADMIN) {
+          return { status: 403, jsonBody: { erro: "Só Administrador pode excluir o acesso de um usuário." } };
+        }
+        if (!id) return { status: 400, jsonBody: { erro: "Id é obrigatório para excluir." } };
+        await container.item(id, id).delete().catch(() => null);
+        return { status: 204 };
+      }
+
+      default:
+        return { status: 405, jsonBody: { erro: "Método não suportado." } };
+    }
+  } catch (erro) {
+    context.error("Erro em /api/usuarios", erro);
+    // V 1.71: devolve o motivo real (rota restrita a Administrador/Consultor) para
+    // diagnóstico - antes só dizia "Erro interno." e não dava para saber a causa.
+    return { status: 500, jsonBody: { erro: "Erro ao carregar usuários.", detalhe: String(erro && erro.message ? erro.message : erro) } };
+  }
+}
+
+// Exportado (nao registrado com app.http aqui) - ver comentario em me.js:
+// o dispatcher unico em entidades.js chama isso diretamente pra /api/usuarios.
+module.exports = { tratar };

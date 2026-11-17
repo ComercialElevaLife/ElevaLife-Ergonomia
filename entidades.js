@@ -1,0 +1,667 @@
+/* ==========================================================================
+   BI Ergonomia - ElevaLife
+   Rotas REST genericas para as 13 colecoes de negocio (6 do cadastro-mestre +
+   4 operacionais + 3 do pacote "Sistema de Gestao Integrada" - avaliacoes,
+   fatores de risco e laudos, ver docs/bi-ergonomia-manual.md). Uma unica
+   function cobre todas porque o CRUD e identico - so muda o nome da colecao
+   e, no caso de "cliente", duas regras extras (so Administrador cria/exclui
+   uma empresa-cliente nova).
+
+   GET    /api/{colecao}          -> lista, ja filtrada por EmpresaId/papel
+   GET    /api/{colecao}/{id}     -> um registro (404 se fora do escopo)
+   POST   /api/{colecao}          -> cria (corpo deve trazer EmpresaId, exceto
+                                      em "cliente", onde o EmpresaId e gerado)
+   PUT    /api/{colecao}/{id}     -> atualiza
+   DELETE /api/{colecao}/{id}     -> exclui
+   ========================================================================== */
+
+"use strict";
+
+const crypto = require("crypto");
+const { app } = require("@azure/functions");
+const { obterContainer, garantirContainer } = require("../shared/cosmos");
+const { resolverIdentidade, empresasVisiveis, podeVerEmpresa, podeVerDocumento, empresaIdDoDocumento, restritoPorUnidade, podeVerUnidadeDoc } = require("../shared/tenant");
+const rotaMe = require("./me");
+const rotaUsuarios = require("./usuarios");
+const rotaArquivos = require("./arquivos");
+const rotaApiKeysAdmin = require("./apiKeysAdmin");
+const rotaAuth = require("./auth");
+const rotaCnpj = require("./cnpj");
+const rotaJobs = require("./lembretesPlanoAcao");
+const rotaVerificar = require("./verificar");
+const rotaPsicossocial = require("./psicossocial");
+const { excluirArquivosRemovidos } = require("../shared/blob");
+const { aplicarAuditoria } = require("../shared/auditoria");
+const { enviarEmail, modeloPlanoAcao, ESTAGIOS_PLANO_ACAO } = require("../shared/email");
+const { avaliarPlanoAcao, precisaNotificarAtribuicao, evidenciasValidas } = require("../shared/planoAcaoRegras");
+const { obterContainerCliente } = require("../shared/blob");
+const { excluirDadosEmpresa, empresasOrfas, empresasCadastradas, empresasNaLixeira } = require("../shared/empresaExclusao");
+const { fotosDaAcaoAET } = require("../shared/fotosAET");
+
+const NOME_APP = "S.I.G.E";
+
+const COLECOES = [
+  "cliente", "unidade", "setor", "cargo", "posto", "atividade",
+  "mapaRisco", "planoAcao", "absenteismo", "compativeis",
+  "avaliacaoErgonomica", "fatorRisco", "laudo",
+  "aet",
+  // HHT/Dias Uteis (base de calculo da Taxa de Frequencia, NBR 14280) -
+  // ate 28/09/2026 era uma "tabela de referencia" ESTATICA (data/mock_data.json),
+  // igual a Lista CID, e por isso so existiam linhas pras 3 empresas
+  // fictícias originais - qualquer empresa nova ficava com Taxa de
+  // Frequencia zerada ate alguem commitar um novo JSON (pedido do Leo
+  // 28/09/2026: "isso nao pode ficar so pra essas 3 empresas... toda vez
+  // que subir empresa nova eu tenho que ficar commitando, ai nao faz
+  // sentido"). Virou uma colecao normal, por EmpresaId, como todas as
+  // outras - ver tela "HHT / Dias Uteis" em js/app.js/CADASTROS_CONFIG.
+  "diasUteis",
+  // Certificados de Calibracao e o Modelo de texto do Laudo (Emissor/Editor
+  // de Texto - ver docs/bi-ergonomia-manual.md, secao Laudos) sao GLOBAIS -
+  // compartilhados entre todas as empresas-cliente (a ElevaLife tem 1 so
+  // conjunto de certificados de instrumento e 1 modelo de texto reaproveitado
+  // em todo laudo que gera), nunca filtrados por EmpresaId - ver
+  // COLECOES_GLOBAIS abaixo.
+  "certificadoCalibracao", "modeloLaudo",
+  // V 1.2: configuracoes do sistema editaveis pelo Administrador (ex.: nomes
+  // dos tipos de acao do Plano de Acao) - GLOBAL, so Administrador grava.
+  "configuracao",
+  // V 1.3: cadastro GLOBAL de ergonomistas (nome, registro profissional,
+  // certificacao e imagem da assinatura) usado no Laudo (responsavel tecnico
+  // e ergonomista executor). Container criado sob demanda.
+  "ergonomista",
+  // V 1.27: colaboradores (Cliente, Unidade, Setor/GHE, Matricula, Nome) -
+  // base do questionario HSE-IT dos Riscos Psicossociais. Container criado
+  // sob demanda (particao /EmpresaId).
+  "colaborador",
+  // V 1.40: contabilidade de tempo (aba Coordenacao, so Administrador le a
+  // visao agregada). Um registro por sessao de trabalho salva (cadastro, AEP,
+  // AET): tempo ativo de edicao + abertura/salvamento, por login. Por
+  // EmpresaId; container criado sob demanda. So a equipe grava.
+  "tempoTrabalho",
+  // V 1.42: plano de acao do Absenteismo (separado do Plano geral), por EmpresaId.
+  "acaoAbsenteismo",
+  // V 1.58: laudo psicossocial importado (Word) - um registro por Unidade/Grupo
+  // Ocupacional (7 dimensoes HSE-IT + media). Por EmpresaId; container sob demanda.
+  "psicoLaudo",
+  // V 1.94: avaliação de desempenho dos ergonomistas (aba Coordenação › Avaliação de
+  // Ergonomistas). Coleção GLOBAL (não é de uma empresa-cliente): só o Administrador grava;
+  // o ergonomista avaliado (Consultor) lê APENAS a avaliação com o e-mail dele. Container sob demanda.
+  "avaliacaoErgonomista",
+  // V 1.99: KPIs operacionais e inconsistências sólides (aba Coordenação › KPIs).
+  // Coleções GLOBAIS, SÓ o Administrador (coordenador) vê e grava. Um doc por ano/mês
+  // (kpiOperacional) e um doc por ano (kpiInconsistencia). Containers sob demanda.
+  "kpiOperacional", "kpiInconsistencia",
+];
+
+// Colecoes sem dono (nenhuma amarrada a uma empresa-cliente especifica) -
+// todo usuario autenticado com papel liberado ve e edita, independente de
+// quais empresas estao vinculadas a ele. Gravadas sempre com
+// EmpresaId=EMPRESA_GLOBAL (constante fixa, nunca uma empresa real).
+const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo", "configuracao", "ergonomista", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia"];
+// Colecoes em que so o Administrador grava/exclui (todos podem ler).
+const COLECOES_SO_ADMIN_GRAVA = ["configuracao", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia"];
+// V 1.99: colecoes que SO o Administrador pode ler (KPIs operacionais - restrito ao coordenador).
+const COLECOES_SO_ADMIN_LE = ["kpiOperacional", "kpiInconsistencia"];
+const EMPRESA_GLOBAL = "GLOBAL";
+// V 1.7 (revisao de seguranca): colecoes que o UsuarioCliente le mas NAO grava.
+// Laudo (documento emitido e seu codigo de verificacao publico), cadastro da
+// empresa e as 3 bibliotecas globais (assinatura/registro do ergonomista,
+// modelo de texto do laudo, certificados de calibracao) alimentam documentos
+// de todas as empresas - antes qualquer usuario-cliente podia altera-las.
+const COLECOES_SO_EQUIPE_GRAVA = ["laudo", "cliente", "ergonomista", "modeloLaudo", "certificadoCalibracao", "tempoTrabalho", "acaoAbsenteismo"];
+
+// "me" e "usuarios" sao despachadas aqui dentro (em vez de cada uma ter seu
+// proprio app.http()) porque em producao a rota generica "{colecao}/{id?}"
+// sempre "ganhava" delas - ver comentario em src/functions/me.js.
+const ROTAS_ESPECIAIS = {
+  me: rotaMe.tratar,
+  usuarios: rotaUsuarios.tratar,
+  arquivos: rotaArquivos.tratar,
+  apiKeys: rotaApiKeysAdmin.tratar,
+  auth: rotaAuth.tratar,
+  // GET /api/cnpj/{numero} - consulta publica (BrasilAPI) usada pelo
+  // Cadastro de Cliente pra auto-preencher Razao Social/endereco/CNAE/
+  // telefone a partir do CNPJ (ver api/src/functions/cnpj.js).
+  cnpj: rotaCnpj.tratar,
+  // POST /api/jobs/lembretes-plano-acao - job diario de lembretes do Plano
+  // de Acao, chamado pelo GitHub Actions com cabecalho x-job-key (ver
+  // api/src/functions/lembretesPlanoAcao.js).
+  jobs: rotaJobs.tratar,
+  // GET /api/verificar/{codigo} - V 1.3: verificacao PUBLICA (sem login) de um
+  // laudo pelo codigo impresso no documento / QR Code (ver verificar.js).
+  verificar: rotaVerificar.tratar,
+  // V 1.14: modulo Riscos Psicossociais (psicossocial.html). "psico" e da
+  // equipe (sessao + papel Administrador/Consultor); "psicopub" e publico,
+  // usado pelas telas do QR code (HSE-IT e checklist ISO 45003) - ver
+  // api/src/functions/psicossocial.js.
+  psico: rotaPsicossocial.tratarEquipe,
+  psicopub: rotaPsicossocial.tratarPublico,
+  // V 1.37: GET/POST /api/manutencao/orfaos - dados de empresas ja excluidas (so Administrador).
+  manutencao: tratarManutencao,
+  // V 1.74: POST /api/mover-unidade - move uma unidade (e seus dados) para outra empresa (so Administrador).
+  "mover-unidade": tratarMoverUnidade,
+};
+
+// V 1.37: colecoes com dados por empresa (tudo o que sai junto quando a empresa-cliente e excluida).
+function colecoesDaEmpresa() { return COLECOES.filter((c) => c !== "cliente" && !COLECOES_GLOBAIS.includes(c)); }
+
+// V 1.39 (robustez sob carga): lê o corpo JSON com dois cuidados que faltavam:
+//  - tamanho máximo (o Cosmos rejeita documentos acima de ~2 MB; sem isto, um corpo gigante virava
+//    um erro 500 confuso lá no banco). 1,9 MB deixa margem; os documentos do SIGE guardam referências
+//    de arquivo (as fotos/PDFs vão para o Storage), então ficam muito abaixo disso.
+//  - JSON malformado vira 400 (requisição inválida), não 500 (erro interno).
+const CORPO_MAX_BYTES = 1900000;
+async function lerCorpoJson(request) {
+  let texto;
+  try { texto = await request.text(); } catch (e) { return { erro: { status: 400, jsonBody: { erro: "Corpo da requisição inválido." } } }; }
+  if (texto && Buffer.byteLength(texto, "utf8") > CORPO_MAX_BYTES) {
+    return { erro: { status: 413, jsonBody: { erro: "O registro é grande demais (acima de 1,9 MB). Anexos (fotos/PDF) devem ir pelo upload de arquivos, não dentro do registro." } } };
+  }
+  try { return { corpo: texto ? JSON.parse(texto) : {} }; }
+  catch (e) { return { erro: { status: 400, jsonBody: { erro: "Corpo da requisição não é um JSON válido." } } }; }
+}
+
+async function tratarManutencao(request, context) {
+  let identidade;
+  try { identidade = await resolverIdentidade(request); } catch (e) { return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissões." } }; }
+  if (!identidade) return { status: 401, jsonBody: { erro: "Não autenticado." } };
+  if (identidade.papel !== "Administrador") return { status: 403, jsonBody: { erro: "Só Administrador." } };
+  if (request.params.id !== "orfaos") return { status: 404, jsonBody: { erro: "Rota desconhecida." } };
+  try {
+    if (request.method === "GET") return { jsonBody: { empresas: await empresasOrfas(colecoesDaEmpresa()) } };
+    if (request.method === "POST") {
+      const corpo = await request.json().catch(() => ({}));
+      const eid = String((corpo && corpo.EmpresaId) || "");
+      if (!eid || eid === EMPRESA_GLOBAL) return { status: 400, jsonBody: { erro: "Empresa inválida." } };
+      if ((await empresasCadastradas()).has(eid)) return { status: 409, jsonBody: { erro: "Esta empresa ainda está cadastrada. Exclua pelo Cadastro Cliente." } };
+      return { jsonBody: await excluirDadosEmpresa(eid, colecoesDaEmpresa(), context) };
+    }
+    return { status: 405, jsonBody: { erro: "Método não suportado." } };
+  } catch (erro) {
+    context.error("Erro em /api/manutencao", erro);
+    return { status: 500, jsonBody: { erro: "Erro interno." } };
+  }
+}
+
+// V 1.74 (Alexandre): mover uma UNIDADE (e todos os dados dela) de uma empresa para outra.
+// POST /api/mover-unidade { EmpresaIdOrigem, Unidade, EmpresaIdDestino }. Só Administrador.
+// Mantém os ids de todos os registros (as referências cruzadas - plano→fator→AET - continuam
+// válidas) e só troca EmpresaId + Cliente: cria o registro na partição de destino (upsert, mesmo
+// id) e apaga o da partição de origem (chave de partição explícita). Nada é duplicado nem perdido.
+async function tratarMoverUnidade(request, context) {
+  let identidade;
+  try { identidade = await resolverIdentidade(request); } catch (e) { return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissões." } }; }
+  if (!identidade) return { status: 401, jsonBody: { erro: "Não autenticado." } };
+  if (identidade.papel !== "Administrador") return { status: 403, jsonBody: { erro: "Só Administrador pode mover uma unidade entre empresas." } };
+  if (request.method !== "POST") return { status: 405, jsonBody: { erro: "Use POST." } };
+  const corpo = await request.json().catch(() => ({}));
+  const origem = String(corpo.EmpresaIdOrigem || "").trim();
+  const unidade = String(corpo.Unidade || "").trim();
+  const destino = String(corpo.EmpresaIdDestino || "").trim();
+  if (!origem || !unidade || !destino) return { status: 400, jsonBody: { erro: "Informe a empresa de origem, a unidade e a empresa de destino." } };
+  if (origem === destino) return { status: 400, jsonBody: { erro: "A empresa de destino é a mesma da origem." } };
+  try {
+    const cliCont = obterContainer("cliente");
+    const dest = await lerPorId(cliCont, destino);
+    if (!dest || dest.Excluida) return { status: 404, jsonBody: { erro: "Empresa de destino não encontrada." } };
+    const clienteDestino = dest.Cliente;
+    // Colisão: a empresa de destino já tem uma unidade com esse nome?
+    const uCont = await garantirContainer("unidade");
+    const q = { query: "SELECT * FROM c WHERE c.EmpresaId = @e AND c.Unidade = @u", parameters: [{ name: "@e", value: destino }, { name: "@u", value: unidade }] };
+    const { resources: jaTem } = await uCont.items.query(q).fetchAll();
+    if (jaTem.length) return { status: 409, jsonBody: { erro: `A empresa de destino já tem uma unidade chamada "${unidade}". Renomeie uma delas antes de mover.` } };
+    let movidos = 0;
+    for (const col of colecoesDaEmpresa()) {
+      const container = await garantirContainer(col);
+      const consulta = { query: "SELECT * FROM c WHERE c.EmpresaId = @e AND c.Unidade = @u", parameters: [{ name: "@e", value: origem }, { name: "@u", value: unidade }] };
+      const { resources } = await container.items.query(consulta).fetchAll();
+      for (const doc of resources) {
+        const novo = Object.assign({}, doc, { EmpresaId: destino, Cliente: clienteDestino });
+        await container.items.upsert(novo);                 // cria na partição de destino (mesmo id)
+        try { await container.item(doc.id, origem).delete(); } catch (e) { /* modelos sem partição: upsert já atualizou no lugar */ }
+        movidos++;
+      }
+    }
+    return { status: 200, jsonBody: { movidos, clienteDestino } };
+  } catch (erro) {
+    context.error("Erro em /api/mover-unidade", erro);
+    return { status: 500, jsonBody: { erro: "Erro ao mover a unidade.", detalhe: String(erro && erro.message ? erro.message : erro) } };
+  }
+}
+
+async function lerPorId(container, id) {
+  const consulta = {
+    query: "SELECT * FROM c WHERE c.id = @id",
+    parameters: [{ name: "@id", value: id }],
+  };
+  const { resources } = await container.items.query(consulta).fetchAll();
+  return resources[0] || null;
+}
+
+// V 1.7: o "Codigo Verificacao" do laudo e publico (QR Code / pagina
+// /verificar) - tem que ser unico, senao um registro poderia "copiar" o codigo
+// de outro laudo e se passar por ele.
+async function codigoVerificacaoEmUso(container, codigo, idAtual) {
+  if (!codigo) return false;
+  const { resources } = await container.items
+    .query({
+      query: 'SELECT c.id FROM c WHERE c["Codigo Verificacao"] = @codigo AND c.id != @id',
+      parameters: [{ name: "@codigo", value: String(codigo) }, { name: "@id", value: String(idAtual || "") }],
+    })
+    .fetchAll();
+  return resources.length > 0;
+}
+
+// V 1.28: proximo numero de AEP da empresa (maior + 1).
+async function proximoNrAvaliacao(container, empresaId) {
+  const { resources } = await container.items.query({
+    query: 'SELECT VALUE MAX(c["Nr Avaliacao"]) FROM c WHERE c.EmpresaId = @e',
+    parameters: [{ name: "@e", value: empresaId }],
+  }).fetchAll();
+  return (Number(resources && resources[0]) || 0) + 1;
+}
+
+// V 1.37: dados de empresa ja excluida (sobra de exclusoes anteriores a esta versao) nao aparecem
+// nas listas. Cache curto dos ids cadastrados (renovado ao gravar/excluir uma empresa).
+let cacheEmpresas = null;
+async function idsEmpresasCadastradas() {
+  if (!cacheEmpresas || Date.now() - cacheEmpresas.em > 15000) cacheEmpresas = { em: Date.now(), ids: await empresasCadastradas() };
+  return cacheEmpresas.ids;
+}
+async function semEmpresaExcluida(colecao, docs) {
+  if (colecao === "cliente" || COLECOES_GLOBAIS.includes(colecao)) return docs;
+  const ids = await idsEmpresasCadastradas();
+  return (docs || []).filter((d) => !d.EmpresaId || ids.has(d.EmpresaId));
+}
+
+async function listarComFiltro(container, colecao, identidade) {
+  // V 1.94: avaliação de ergonomista — o Administrador vê todas; qualquer outro papel vê
+  // APENAS as avaliações com o e-mail dele (o ergonomista avaliado vê só a dele).
+  if (colecao === "avaliacaoErgonomista") {
+    const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
+    if (identidade.papel === "Administrador") return resources;
+    const meu = String(identidade.email || "").toLowerCase();
+    return (resources || []).filter((d) => String(d.EmailErgonomista || "").toLowerCase() === meu);
+  }
+  // V 1.99: KPIs operacionais / inconsistências - SÓ o Administrador (coordenador) lê.
+  if (COLECOES_SO_ADMIN_LE.includes(colecao)) {
+    if (identidade.papel !== "Administrador") return [];
+    const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
+    return resources;
+  }
+  if (COLECOES_GLOBAIS.includes(colecao)) {
+    const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
+    return resources;
+  }
+  const empresas = empresasVisiveis(identidade);
+  if (empresas === null) {
+    const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
+    return semEmpresaExcluida(colecao, resources);
+  }
+  if (empresas.length === 0) return [];
+  const campo = colecao === "cliente" ? "c.id" : "c.EmpresaId";
+  const consulta = {
+    query: `SELECT * FROM c WHERE ARRAY_CONTAINS(@empresas, ${campo})`,
+    parameters: [{ name: "@empresas", value: empresas }],
+  };
+  const { resources } = await container.items.query(consulta).fetchAll();
+  // V 1.55 (Alexandre): além da empresa, filtra por UNIDADE para ergo/cliente
+  // vinculados a unidades específicas (ver tenant.podeVerUnidadeDoc).
+  const porUnidade = restritoPorUnidade(identidade)
+    ? resources.filter((d) => podeVerUnidadeDoc(identidade, colecao, d))
+    : resources;
+  return semEmpresaExcluida(colecao, porUnidade);
+}
+
+// V 1.2 - Plano de Acao: aplica as regras de status/evidencia (ver
+// shared/planoAcaoRegras.js) e confere no Storage que os arquivos de
+// evidencia novos existem de verdade (nao basta o nome no corpo da requisicao).
+async function avaliarPlanoAcaoComArquivos(existente, novo, identidade, context) {
+  const avaliacao = avaliarPlanoAcao({
+    existente, novo, papel: identidade.papel, email: identidade.email,
+  });
+  if (!avaliacao.ok) return avaliacao;
+  const jaConhecidas = new Set(evidenciasValidas(existente).map((e) => e.chave));
+  const novas = evidenciasValidas(avaliacao.doc).filter((e) => !jaConhecidas.has(e.chave));
+  for (const e of novas) {
+    let existe = false;
+    try {
+      existe = await obterContainerCliente("planoAcao").getBlockBlobClient(e.chave).exists();
+    } catch (erro) {
+      context.error("Falha ao conferir evidencia no Storage: " + e.chave, erro);
+      existe = true; // falha de infraestrutura nao deve travar o usuario
+    }
+    if (!existe) {
+      return { ok: false, status: 422, codigo: "EVIDENCIA_NAO_ENCONTRADA", erro: "Um dos arquivos de evidência não foi encontrado. Anexe novamente." };
+    }
+  }
+  return avaliacao;
+}
+
+// Notificacoes do Plano de Acao disparadas na gravacao (best-effort - nunca
+// derrubam o registro): "atribuida" (so na criacao ou troca do e-mail do
+// responsavel) e "evidDispensa" (Administrador concluiu sem evidencia).
+// V 1.27: acao com origem "Riscos Psicossociais" usa o e-mail proprio do
+// modulo (texto pedido pelo Alexandre) e so sai com responsavel, e-mail e
+// prazo preenchidos; reenvia quando um dos tres muda (ou a pedido: _reenviarPsico).
+async function notificarAcaoPsico(context, container, resource, reenviar) {
+  try {
+    const email = String(resource["E-mail Responsavel"] || "").trim();
+    // V 1.33: sai com e-mail e previsao de conclusao (o nome do responsavel deixou de ser obrigatorio)
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !resource["Dt Programada"]) return resource;
+    if (resource["Dt Conclusao"] || resource["Status Execucao"] === "Concluida") return resource;
+    const assinatura = [resource["Responsavel Acao"], email.toLowerCase(), resource["Dt Programada"]].join("|");
+    if (!reenviar && resource._notifPsico && resource._notifPsico.assinatura === assinatura) return resource;
+    await enviarEmail({
+      para: email,
+      assunto: `Ação sob sua responsabilidade · Riscos psicossociais · ${resource.Cliente || ""}`,
+      htmlCorpo: rotaPsicossocial.emailAcaoPsico(resource),
+    });
+    const atualizado = Object.assign({}, resource, { _notifPsico: { assinatura, em: new Date().toISOString() } });
+    const { resource: salvo } = await container.items.upsert(atualizado);
+    return salvo || atualizado;
+  } catch (erro) {
+    context.error("Falha ao enviar e-mail de acao psicossocial (Plano de Acao)", erro);
+    return resource;
+  }
+}
+
+async function notificarPlanoAcao(context, existente, resource, container, reenviar) {
+  try {
+    if (resource.Origem !== "Riscos Psicossociais" && (precisaNotificarAtribuicao(existente, resource) || (reenviar && precisaNotificarAtribuicao(null, resource)))) {
+      const fx = await fotosDaAcaoAET(resource, context);
+      await enviarEmail({
+        para: resource["E-mail Responsavel"],
+        assunto: ESTAGIOS_PLANO_ACAO.atribuida.assunto(resource),
+        htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio: "atribuida", acao: resource, fotos: fx ? fx.fotos : null, semFoto: fx ? fx.semFoto : "" }),
+        anexos: fx ? fx.anexos : undefined,
+      });
+      // V 1.33: registra o envio (a tela mostra "e-mail enviado em ...")
+      if (container) {
+        const atualizado = Object.assign({}, resource, { _notifAtrib: { para: String(resource["E-mail Responsavel"]).trim().toLowerCase(), em: new Date().toISOString() } });
+        try { const { resource: salvo } = await container.items.upsert(atualizado); resource = salvo || atualizado; } catch (e) { context.error("registro do envio", e); }
+      }
+    }
+  } catch (erro) {
+    context.error("Falha ao enviar e-mail de acao atribuida (Plano de Acao)", erro);
+  }
+  try {
+    const d = resource._dispensa;
+    const jaAvisou = existente && existente._dispensa && existente._dispensa.em === (d && d.em);
+    if (d && !d.regularizadaEm && !jaAvisou) {
+      const destinos = Array.from(new Set([d.por, resource["E-mail Responsavel"]].filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(x || "")))));
+      for (const para of destinos) {
+        await enviarEmail({
+          para,
+          assunto: ESTAGIOS_PLANO_ACAO.evidDispensa.assunto(resource),
+          htmlCorpo: modeloPlanoAcao({ nomeApp: NOME_APP, estagio: "evidDispensa", acao: resource, paraAdmin: para === d.por }),
+        });
+      }
+    }
+  } catch (erro) {
+    context.error("Falha ao enviar e-mail de dispensa de evidencia (Plano de Acao)", erro);
+  }
+  return resource;
+}
+
+async function tratar(request, context) {
+  const colecao = request.params.colecao;
+
+  if (Object.prototype.hasOwnProperty.call(ROTAS_ESPECIAIS, colecao)) {
+    return ROTAS_ESPECIAIS[colecao](request, context);
+  }
+
+  if (!COLECOES.includes(colecao)) {
+    return { status: 404, jsonBody: { erro: `Coleção desconhecida: ${colecao}` } };
+  }
+
+  let identidade;
+  try {
+    identidade = await resolverIdentidade(request);
+  } catch (erro) {
+    context.error("Falha ao resolver identidade", erro);
+    return { status: 500, jsonBody: { erro: "Falha ao verificar identidade/permissões." } };
+  }
+  if (!identidade) {
+    return { status: 401, jsonBody: { erro: "Não autenticado." } };
+  }
+  if (!identidade.papel) {
+    return {
+      status: 403,
+      jsonBody: { erro: "Seu acesso ainda não foi liberado. Peça a um Administrador para vincular você a uma empresa." },
+    };
+  }
+
+  const container = ["configuracao", "ergonomista", "colaborador", "tempoTrabalho", "acaoAbsenteismo", "psicoLaudo", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
+  const id = request.params.id;
+  if (COLECOES_SO_ADMIN_GRAVA.includes(colecao) && request.method !== "GET" && identidade.papel !== "Administrador") {
+    return { status: 403, jsonBody: { erro: "Só Administrador pode alterar as configurações do sistema." } };
+  }
+
+  // V 1.27: o Usuario Cliente so consulta (Cadastro e Registro); quem grava e a equipe ElevaLife.
+  if (request.method !== "GET" && identidade.papel === "UsuarioCliente") {
+    return { status: 403, jsonBody: { erro: "Seu perfil permite apenas consultar e baixar os dados. Alterações são feitas pela equipe ElevaLife." } };
+  }
+
+  if (colecao === "cliente" && request.method !== "GET") cacheEmpresas = null;
+  try {
+    switch (request.method) {
+      case "GET": {
+        if (id) {
+          const item = await lerPorId(container, id);
+          // V 1.94: avaliação de ergonomista por id — Administrador vê qualquer uma; os demais só a própria.
+          const visivelAvalErg = colecao === "avaliacaoErgonomista" && item
+            ? (identidade.papel === "Administrador" || String(item.EmailErgonomista || "").toLowerCase() === String(identidade.email || "").toLowerCase())
+            : null;
+          // V 1.99: KPIs - só o Administrador lê por id.
+          const visivelKpi = COLECOES_SO_ADMIN_LE.includes(colecao) && item ? (identidade.papel === "Administrador") : null;
+          const visivel = item && (visivelKpi !== null ? visivelKpi : (visivelAvalErg !== null ? visivelAvalErg : (COLECOES_GLOBAIS.includes(colecao) || podeVerDocumento(identidade, colecao, item))));
+          if (!visivel) {
+            return { status: 404, jsonBody: { erro: "Não encontrado." } };
+          }
+          return { jsonBody: item };
+        }
+        // V 1.27: ?empresa=<EmpresaId> restringe a lista a uma empresa (so
+        // estreita o que o papel ja permite ver - usado pelos Riscos Psicossociais).
+        const soEmpresa = request.query && request.query.get ? request.query.get("empresa") : null;
+        if (soEmpresa && !COLECOES_GLOBAIS.includes(colecao)) {
+          if (!podeVerEmpresa(identidade, soEmpresa)) return { jsonBody: [] };
+          const campo = colecao === "cliente" ? "c.id" : "c.EmpresaId";
+          const { resources } = await container.items.query({ query: `SELECT * FROM c WHERE ${campo} = @e`, parameters: [{ name: "@e", value: soEmpresa }] }).fetchAll();
+          return { jsonBody: resources };
+        }
+        // V 1.41: lixeira de empresas - ?lixeira=1 lista só as empresas excluídas
+        // (restauráveis); a lista normal esconde as da lixeira.
+        if (colecao === "cliente") {
+          const soLixeira = request.query && request.query.get ? request.query.get("lixeira") : null;
+          if (soLixeira) {
+            if (identidade.papel !== "Administrador") return { jsonBody: [] };
+            return { jsonBody: await empresasNaLixeira() };
+          }
+          const lista = await listarComFiltro(container, colecao, identidade);
+          return { jsonBody: (lista || []).filter((c) => !c.Excluida) };
+        }
+        return { jsonBody: await listarComFiltro(container, colecao, identidade) };
+      }
+
+      case "POST": {
+        const parse = await lerCorpoJson(request); if (parse.erro) return parse.erro;
+        const corpo = parse.corpo;
+        // V 1.42 (Alexandre): o ergonomista (Consultor) também cadastra empresas;
+        // só o Administrador exclui. UsuarioCliente nunca grava (já barrado acima).
+        if (colecao === "cliente" && !["Administrador", "Consultor"].includes(identidade.papel)) {
+          return { status: 403, jsonBody: { erro: "Sem permissão para cadastrar uma empresa-cliente." } };
+        }
+        const empresaId = colecao === "cliente"
+          ? corpo.EmpresaId || crypto.randomUUID()
+          : COLECOES_GLOBAIS.includes(colecao) ? EMPRESA_GLOBAL : corpo.EmpresaId;
+        if (!empresaId) {
+          return { status: 400, jsonBody: { erro: "EmpresaId é obrigatório." } };
+        }
+        // A criação de empresa-cliente nova não passa pela checagem de vínculo
+        // (a empresa ainda não existe); o Consultor é vinculado à empresa logo
+        // abaixo, para poder continuar trabalhando nela.
+        const criandoClienteNovo = colecao === "cliente" && !(corpo.id && await lerPorId(container, corpo.id));
+        if (!COLECOES_GLOBAIS.includes(colecao) && !criandoClienteNovo && !podeVerEmpresa(identidade, empresaId)) {
+          return { status: 403, jsonBody: { erro: "Sem permissão para gravar nesta empresa." } };
+        }
+        const novo = Object.assign({}, corpo, { id: corpo.id || crypto.randomUUID(), EmpresaId: empresaId });
+        // POST e' upsert (a fila offline reenvia o mesmo registro) - se o id ja
+        // existe, o historico continua de onde parou em vez de recomecar.
+        const jaExistia = corpo.id ? await lerPorId(container, novo.id) : null;
+        if (jaExistia && !COLECOES_GLOBAIS.includes(colecao) && !podeVerDocumento(identidade, colecao, jaExistia)) {
+          return { status: 403, jsonBody: { erro: "Sem permissão." } };
+        }
+        // V 1.46 (Alexandre): trava anti-colisao de empresa. O id/EmpresaId da empresa vem
+        // do nome (slug). Se ja existe OUTRA empresa com o MESMO codigo (nome diferente que
+        // gera o mesmo slug, ou a empresa na lixeira), NAO sobrescreve - rejeita. Antes, o
+        // upsert juntava as duas no mesmo codigo e excluir uma afetava/apagava a outra.
+        if (colecao === "cliente" && jaExistia) {
+          const mesmoNome = String(jaExistia.Cliente || "").trim().toLowerCase() === String(novo.Cliente || "").trim().toLowerCase();
+          if (!mesmoNome) {
+            return { status: 409, jsonBody: { erro: `Já existe uma empresa (“${jaExistia.Cliente || jaExistia.id}”${jaExistia.Excluida ? ", na lixeira" : ""}) com o mesmo código interno gerado a partir do nome. Use um nome um pouco diferente para a nova empresa (ou restaure/edite a existente).` } };
+          }
+        }
+        if (colecao === "laudo" && await codigoVerificacaoEmUso(container, novo["Codigo Verificacao"], novo.id)) {
+          return { status: 409, jsonBody: { erro: "Já existe um laudo com este código de verificação." } };
+        }
+        let paraGravar = novo;
+        // V 1.28: numero da AEP (sequencial por empresa), atribuido pelo servidor na criacao e mantido depois.
+        // V 1.48 (Alexandre): o numero passou a ser editavel manualmente - se vier um
+        // valor valido no corpo, ele e respeitado; senao mantem o que ja existia; e,
+        // nao havendo nenhum, atribui o proximo da sequencia da empresa.
+        if (colecao === "avaliacaoErgonomica") {
+          const manual = Number(paraGravar["Nr Avaliacao"]);
+          if (Number.isFinite(manual) && manual > 0) {
+            paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": Math.trunc(manual) });
+          } else if (jaExistia && jaExistia["Nr Avaliacao"]) {
+            paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": jaExistia["Nr Avaliacao"] });
+          } else {
+            paraGravar = Object.assign({}, paraGravar, { "Nr Avaliacao": await proximoNrAvaliacao(container, empresaId) });
+          }
+        }
+        if (colecao === "planoAcao") {
+          const avaliacao = await avaliarPlanoAcaoComArquivos(jaExistia, novo, identidade, context);
+          if (!avaliacao.ok) return { status: avaliacao.status, jsonBody: { erro: avaliacao.erro, codigo: avaliacao.codigo } };
+          paraGravar = avaliacao.doc;
+        }
+        const doc = aplicarAuditoria(jaExistia, paraGravar, identidade.email);
+        const reenviarPsico = colecao === "planoAcao" && !!(doc._reenviarPsico || doc._reenviarAcao);
+        if (colecao === "planoAcao") { delete doc._reenviarPsico; delete doc._reenviarAcao; }
+        let { resource } = await container.items.upsert(doc);
+        if (colecao === "planoAcao") {
+          resource = await notificarPlanoAcao(context, jaExistia, resource, container, reenviarPsico);
+          if (resource.Origem === "Riscos Psicossociais") resource = await notificarAcaoPsico(context, container, resource, reenviarPsico);
+        }
+        if (colecao === "cliente") {
+          cacheEmpresas = null;
+          // V 1.42: Consultor que cria uma empresa nova fica vinculado a ela (senão não a veria depois).
+          if (criandoClienteNovo && identidade.papel === "Consultor") {
+            try {
+              const cu = obterContainer("usuarios");
+              const { resources } = await cu.items.query({ query: "SELECT * FROM c WHERE LOWER(c.Email) = @email", parameters: [{ name: "@email", value: String(identidade.email || "").toLowerCase() }] }).fetchAll();
+              const u = resources && resources[0];
+              if (u) {
+                const vinc = Array.isArray(u.EmpresasVinculadas) ? u.EmpresasVinculadas.slice() : [];
+                if (!vinc.includes(resource.id)) { vinc.push(resource.id); await cu.item(u.id, u.id).replace(Object.assign({}, u, { EmpresasVinculadas: vinc })); }
+              }
+            } catch (e) { context.error("Falha ao vincular o Consultor à empresa nova", e); }
+          }
+        }
+        return { status: 201, jsonBody: resource };
+      }
+
+      case "PUT": {
+        if (!id) return { status: 400, jsonBody: { erro: "Id é obrigatório para atualizar." } };
+        const existente = await lerPorId(container, id);
+        if (!existente) return { status: 404, jsonBody: { erro: "Não encontrado." } };
+        if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerDocumento(identidade, colecao, existente)) {
+          return { status: 403, jsonBody: { erro: "Sem permissão." } };
+        }
+        const parsePut = await lerCorpoJson(request); if (parsePut.erro) return parsePut.erro;
+        const corpo = parsePut.corpo;
+        const empresaIdFinal = colecao === "cliente"
+          ? empresaIdDoDocumento(colecao, existente)
+          : COLECOES_GLOBAIS.includes(colecao) ? EMPRESA_GLOBAL : corpo.EmpresaId || existente.EmpresaId;
+        if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerEmpresa(identidade, empresaIdFinal)) {
+          return { status: 403, jsonBody: { erro: "Sem permissão para gravar nesta empresa." } };
+        }
+        let mesclado = Object.assign({}, existente, corpo, { id, EmpresaId: empresaIdFinal });
+        if (colecao === "avaliacaoErgonomica" && existente["Nr Avaliacao"]) mesclado["Nr Avaliacao"] = existente["Nr Avaliacao"];
+        if (colecao === "laudo" && await codigoVerificacaoEmUso(container, mesclado["Codigo Verificacao"], id)) {
+          return { status: 409, jsonBody: { erro: "Já existe um laudo com este código de verificação." } };
+        }
+        if (colecao === "planoAcao") {
+          const avaliacao = await avaliarPlanoAcaoComArquivos(existente, mesclado, identidade, context);
+          if (!avaliacao.ok) return { status: avaliacao.status, jsonBody: { erro: avaliacao.erro, codigo: avaliacao.codigo } };
+          mesclado = avaliacao.doc;
+        }
+        const doc = aplicarAuditoria(existente, mesclado, identidade.email);
+        const reenviarPsico = colecao === "planoAcao" && !!(doc._reenviarPsico || doc._reenviarAcao);
+        if (colecao === "planoAcao") { delete doc._reenviarPsico; delete doc._reenviarAcao; }
+        let { resource } = await container.item(id, empresaIdDoDocumento(colecao, doc)).replace(doc);
+        if (colecao === "planoAcao") {
+          resource = await notificarPlanoAcao(context, existente, resource, container, reenviarPsico);
+          if (resource.Origem === "Riscos Psicossociais") resource = await notificarAcaoPsico(context, container, resource, reenviarPsico);
+        }
+        // Tirou uma foto/arquivo do registro: apaga o arquivo do Storage tambem.
+        await excluirArquivosRemovidos(existente, resource, empresaIdFinal, context);
+        return { jsonBody: resource };
+      }
+
+      case "DELETE": {
+        if (!id) return { status: 400, jsonBody: { erro: "Id é obrigatório para excluir." } };
+        const existente = await lerPorId(container, id);
+        if (!existente) return { status: 204 };
+        if (!COLECOES_GLOBAIS.includes(colecao) && !podeVerDocumento(identidade, colecao, existente)) {
+          return { status: 403, jsonBody: { erro: "Sem permissão." } };
+        }
+        if (colecao === "cliente" && identidade.papel !== "Administrador") {
+          return { status: 403, jsonBody: { erro: "Só Administrador pode excluir uma empresa-cliente." } };
+        }
+        // V 1.41: excluir empresa manda para a LIXEIRA (soft delete) - restaurável.
+        // Os dados ficam, mas somem das telas (empresasCadastradas ignora as da lixeira).
+        // Só a exclusão DEFINITIVA (?definitivo=1 - botão "Excluir definitivamente"
+        // da lixeira ou o expurgo automático) apaga tudo de verdade.
+        if (colecao === "cliente") {
+          const definitivo = request.query && request.query.get ? request.query.get("definitivo") : null;
+          if (!definitivo) {
+            const doc = Object.assign({}, existente, { Excluida: true, ExcluidaEm: new Date().toISOString(), ExcluidaPor: identidade.email });
+            const { resource } = await container.item(id, empresaIdDoDocumento(colecao, existente)).replace(doc);
+            cacheEmpresas = null;
+            return { status: 200, jsonBody: resource };
+          }
+          // V 1.37: exclusão definitiva - apaga TODOS os dados (em lotes; enquanto faltar,
+          // responde 202 { restante: true } e o navegador repete; o cadastro sai por último).
+          for (const eid of Array.from(new Set([empresaIdDoDocumento(colecao, existente), existente.id].filter(Boolean)))) {
+            const r = await excluirDadosEmpresa(eid, colecoesDaEmpresa(), context);
+            if (r.restante) return { status: 202, jsonBody: r };
+          }
+        }
+        await container.item(id, empresaIdDoDocumento(colecao, existente)).delete();
+        // Excluiu o registro: apaga as fotos/arquivos dele do Storage tambem.
+        await excluirArquivosRemovidos(existente, null, COLECOES_GLOBAIS.includes(colecao) ? EMPRESA_GLOBAL : empresaIdDoDocumento(colecao, existente), context);
+        if (colecao === "cliente") cacheEmpresas = null;
+        return { status: 204 };
+      }
+
+      default:
+        return { status: 405, jsonBody: { erro: "Método não suportado." } };
+    }
+  } catch (erro) {
+    context.error(`Erro em /api/${colecao}`, erro);
+    return { status: 500, jsonBody: { erro: "Erro interno." } };
+  }
+}
+
+app.http("entidades", {
+  route: "{colecao}/{id?}",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  authLevel: "anonymous",
+  handler: tratar,
+});
+
+// V 1.39 (revisão de segurança): a API pública (publicApi.js) reaproveita estas funções para
+// gravar com AS MESMAS regras de negócio/auditoria da API interna (código de laudo único,
+// Nr Avaliação pelo servidor, regras/evidência do Plano de Ação), em vez de um upsert cru.
+module.exports = { COLECOES, COLECOES_GLOBAIS, COLECOES_SO_EQUIPE_GRAVA, listarComFiltro, lerPorId, codigoVerificacaoEmUso, proximoNrAvaliacao, avaliarPlanoAcaoComArquivos, aplicarAuditoria };

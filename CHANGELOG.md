@@ -1,0 +1,867 @@
+# Histórico de versões — S.I.G.E
+
+A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
+
+## V 2.00 — 17/11/2026
+
+- **Gráficos dos KPIs: correções (Alexandre).** (1) Alguns gráficos apareciam em branco por uma corrida de layout (o canvas era medido antes do painel assentar) — agora todo gráfico do módulo é redimensionado no quadro seguinte, então todos os dados aparecem. (2) O gráfico **“Distribuição de risco no inventário”** passou a mostrar também a barra **“Reduzidos”** (quantidade de riscos reduzidos no mês). (3) Na rosca **“Composição das Ações ElevaLife”**, a legenda agora traz o **número e o % de cada item** (inclusive fatias pequenas), para nenhum dado ficar escondido. *(Arquivo: `js/kpi-operacional.js`.)* Service worker subiu para `sige-v115`.
+
+## V 1.99 — 17/11/2026
+
+- **KPIs operacionais dentro do SIGE, substituindo a planilha (Alexandre).** Nova sub-aba **“KPI operacionais - recorrentes”** na Coordenação (só o coordenador/Administrador vê e edita). Grade mensal por cliente. Ordem das colunas: primeiro o **controle de riscos do inventário** (Altíssimo, Alto, Moderado, Baixo, Trivial e Redução), depois **Análises, Validações, Ações Cliente** (previstas × realizadas, % e totais automáticos), os contadores **Jurídico, PCD/Restritos, DDS/Treinamento/Blitz, COERGO e Outras demandas** (+ coluna **“Obs. outras demandas”** para descrever a demanda) e, por fim, **Ações ElevaLife** — cujo **“Real.” é a soma dos contadores** (por isso ficam lado a lado). Os **riscos são herdados do mês anterior** (acumulam mês a mês, atravessando anos; a Redução reinicia). Seletor de **Ano e Mês** e botão **“+ Ano”** para começar um novo ano (ex.: 2027). Gráficos: **evolução por indicador** (filtro por indicador, coluna = % do mês com o número realizadas/previstas e o % sempre visíveis, linha tracejada de **meta** — 95%, exceto Ações Cliente 75% — e resumo do total/% no ano), **composição das Ações ElevaLife** no mês e **distribuição de risco** no mês. Botão **“Importar 2026”** traz, de uma vez, os 12 meses e as inconsistências da planilha original (com os riscos de outubro já herdados por nov/dez).
+- **Inconsistências Sólides (Alexandre).** Nova sub-aba na Coordenação (só coordenador): grade por colaborador (+ coordenador) com uma contagem por mês (Jan–Dez), total por colaborador e por mês, **faixas de cor** por quantidade (0 · 1 · 2 a 4 · 5 · ≥ 6) e gráficos (por mês e por colaborador no ano). Aceita **“NA”** no mês em que o colaborador não fazia parte do time (fica em preto e sai das somas) — na importação, as células pretas da planilha vêm como NA. Multi-ano, com **seletor de ano + botão “+ Ano”** (e opção “+ Novo ano…” no próprio seletor) para abrir um novo ano quando precisar.
+- Coleções novas **GLOBAIS e restritas ao Administrador**: `kpiOperacional` (1 doc por ano/mês) e `kpiInconsistencia` (1 doc por ano). *(Arquivos: `js/kpi-operacional.js` (novo), `js/kpi-dados-2026.js` (semente de importação), `js/coordenacao.js`, `js/app.js`, `css/style.css`, `index.html`, `api/src/functions/entidades.js`, `js/db.js`.)* Service worker subiu para `sige-v114`.
+
+## V 1.98 — 17/11/2026
+
+- **Dashboard › Gestão de Riscos: AEP e AET também escondem “Sem risco” (Alexandre).** Agora, ao escolher qualquer origem específica (AEP, AET ou Psicossocial), a rosca “Risco Global” e o detalhamento mostram só os avaliados com risco — sem a fatia “Sem risco” dos postos cadastrados, igual já era no psicossocial. Em “Todas” a visão geral continua com o “Sem risco”. *(`js/app.js`.)*
+- **Gráfico “Risco por Setor / GHE” que aparecia em branco (Alexandre).** Era uma corrida de layout: ao abrir uma dashboard, o gráfico era medido antes de o painel ganhar tamanho e saía vazio. Agora, ao trocar de dashboard, os gráficos são redimensionados no quadro seguinte (já com o painel visível). *(`js/app.js`.)*
+- **Coordenação vira menu suspenso no lateral (Alexandre).** A Coordenação passou a ser um grupo expansível no menu lateral (igual a Cadastro Empresa/Interno), abrindo direto as sub-abas: **Contabilidade de tempo**, **Avaliação de Ergonomistas** e o novo **Painel de avaliações**. O Consultor vê só a Avaliação (a própria). *(`index.html`, `js/app.js`, `js/coordenacao.js`, `css/style.css`.)*
+- **Novo “Painel de avaliações” na Coordenação (Alexandre).** Dashboard das avaliações de ergonomistas: KPIs (nº de avaliações, ergonomistas avaliados, nota média geral e por bloco A/B), **nota final por ergonomista**, **média por eixo** (12 eixos), **pontos de atenção** (Respeito B3 < 60 trava promoção; dimensões < 60) e o **catálogo do que é avaliado** (blocos, eixos, pesos e nº de itens). Só o Administrador. *(`js/aval-ergonomista.js`, `js/coordenacao.js`.)* Service worker subiu para `sige-v113`.
+
+## V 1.97 — 17/11/2026
+
+Ajustes no **laudo da AET** (Alexandre):
+
+- **Subtítulo da capa enxugado.** No modelo padrão, o subtítulo deixou de trazer “, com ferramentas ergonômicas e matriz de risco do cliente” — agora fica apenas **“AET conforme NR-17”**. O modelo Unimed (OCRA) não muda. *(`js/laudo-aet.js`.)*
+- **Menos espaço em branco no topo das páginas.** O conteúdo das páginas internas passou a começar mais perto do cabeçalho (margem superior de 70 → 54 pt, alinhada à inferior), tirando o vão em branco no começo da página. Afeta só o laudo da AET. *(`js/laudo-blocos.js`.)*
+- **Coluna “Ação” (nº A-NNNN) removida.** Na tabela de recomendações específicas (Plano de Ação por atividade), saiu a coluna com o número da ação; ficam **Tipo, Recomendação e Efeito no risco**, com as larguras redistribuídas. *(`js/laudo-aet.js`.)*
+
+Service worker subiu para `sige-v112`.
+
+## V 1.96 — 17/11/2026
+
+- **Fotos entram sempre na horizontal, com botão para girar (Alexandre).** Toda foto inserida no sistema (AET, fotos das análises/AEP, evidências do Plano de Ação e as importações de AET/laudo) passa a ficar na **horizontal (paisagem)**: se vier em pé (retrato), é deitada automaticamente ao inserir. Na janela de conferência que aparece ao **criar ou editar as análises**, há agora um botão **“⟳ Girar 90°”** para ajustar a orientação da foto antes de enviar (as marcações de rosto giram junto). *(Arquivo: `js/fotos.js`.)* Service worker subiu para `sige-v111`.
+
+## V 1.95 — 17/11/2026
+
+- **Exclusão de empresa apaga também o psicossocial (Alexandre).** Ao apagar uma empresa, ela some na hora de todas as telas — inclusive do módulo Riscos Psicossociais (a lista de empresas do módulo vem do cadastro de clientes, que já ignora as da lixeira); restaurar a empresa traz tudo de volta. A exclusão definitiva (botão da lixeira) e o expurgo automático de 30 dias passam a apagar de vez também o **laudo psicossocial importado** (`psicoLaudo`), que antes ficava para trás no expurgo automático. A coleta/respostas do módulo (partição `e_sige-<empresa>`) já era apagada na exclusão definitiva. *(Arquivo: `api/src/shared/empresaExclusao.js`.)*
+- **Empresa de exemplo agora é só Riscos Psicossociais, cobrindo todas as faixas (Alexandre).** O botão “Criar empresa de exemplo” (visível só para você) deixou de criar AEP, AET, absenteísmo, restritos e plano — passa a criar **apenas dados psicossociais fictícios**, com **5 GHEs**, cada um numa **faixa de risco diferente** (muito baixa, baixa, moderada, alta e muito alta), além do checklist ISO 45003. O exemplo é **recriado do zero** a cada clique: antes de criar, apaga de vez a empresa de exemplo anterior (cadastro + dados por empresa + psicossocial, mesmo se estiver na lixeira), evitando duplicatas e dados velhos. *(Arquivo: `js/app.js`.)*
+- **Dashboard › Gestão de Riscos no Psicossocial não mostra mais “Sem risco” (Alexandre).** Ao escolher a origem **Psicossocial**, a rosca “Risco Global” (e o detalhamento ao clicar) deixa de incluir a fatia “Sem risco” dos postos cadastrados — mostra só os **GHEs efetivamente avaliados** e sua graduação. A cobertura (avaliados × pendentes) continua no cartão de cobertura. Nas demais origens (AEP/AET/Todas) nada muda. *(Arquivo: `js/app.js`.)* Service worker subiu para `sige-v110`.
+
+## V 1.94 — 16/11/2026
+
+- **Avaliação de desempenho dos ergonomistas (Alexandre).** Nova sub-aba **"Avaliação de Ergonomistas"** dentro de **Coordenação**, com o checklist oficial **v1.2** embutido: **35 itens** em **12 eixos**, divididos em **Bloco A — Entregas técnicas (70%)** e **Bloco B — DNA 2.0, competências comportamentais (30%)**. O **Administrador** escolhe o ergonomista a avaliar (lista montada a partir dos **ergonomistas cadastrados** — com e-mail — e dos **usuários da equipe**), define o ciclo e a data e dá a nota de cada item numa **escala ancorada** (Referência 100 · Acima 85 · Esperado 70 · Em desenvolvimento 45 · Insuficiente 20 · N/A fora do cálculo). A **nota final** é calculada ao vivo (média ponderada dos eixos e blocos), respeitando as regras do checklist: **cobertura mínima de 50%** por eixo (eixo com menos itens avaliados é descartado e o peso redistribuído), **item ≤ 45 exige evidência escrita**, **Respeito (B3) < 60 trava promoção** e **dimensão < 60 sinaliza plano de correção**. Quando o **ergonomista** acessa com o usuário dele, ele vê a **própria avaliação em modo somente leitura** (a Coordenação passou a aparecer para a equipe, mas a Contabilidade de tempo continua exclusiva do Administrador). Backend: nova coleção **global** `avaliacaoErgonomista` (só o Administrador grava; o ergonomista lê a própria pelo campo `EmailErgonomista`). *(Arquivos: `js/aval-ergonomista.js` (novo), `js/coordenacao.js`, `js/db.js`, `js/app.js`, `css/style.css`, `index.html`, `api/src/functions/entidades.js`.)* Service worker subiu para `sige-v109`.
+
+## V 1.93 — 16/11/2026
+
+- **AEP e AET podem ter mais de um cargo (Alexandre).** Uma avaliação (AEP ou AET) pode cobrir vários cargos do mesmo posto. No cadastro, além do **Cargo principal** (cascata), há o campo **"Outros cargos desta avaliação"** (multi-seleção, lista só os cargos do posto escolhido). A lista completa de cargos é salva em `Cargos` e **aparece em todo lugar onde a avaliação aparece**: tabela de Avaliações (AEP), lista e cabeçalho da AET, laudos (AEP e AET), notificações e nas tabelas do Inventário de Riscos. Ao **filtrar** por um cargo específico, a avaliação e os riscos dela aparecem se aquele cargo estiver na lista. Compatível com avaliações antigas (um cargo só). *(Arquivos: `js/app.js`, `js/aet.js`, `js/acoes.js`, `js/calc.js`, `js/laudo.js`, `js/laudo-aet.js`.)* Service worker subiu para `sige-v108`.
+
+## V 1.92 — 16/11/2026
+
+- **Vincular usuário: a lista de "Unidades vinculadas" mostra só as unidades das empresas marcadas (Alexandre).** Antes a lista trazia todas as unidades de todos os clientes. Agora ela reage às "Empresas vinculadas" selecionadas: aparecem apenas as unidades dos clientes marcados; ao desmarcar uma empresa, as unidades dela saem do vínculo. Sem empresa marcada, a lista mostra a dica para marcar uma empresa primeiro. *(Arquivo: `js/app.js`.)*
+- **Regra de acesso por unidade confirmada (Alexandre).** Ergonomista/Cliente vinculado a um cliente **sem** marcar unidade vê o cliente inteiro (todas as unidades); vinculado a uma ou mais **unidades**, vê só os dados dessas unidades. (Já implementado no backend — depende do deploy da API a partir da V1.89.) Service worker subiu para `sige-v107`.
+
+## V 1.91 — 12/11/2026
+
+- **Seletor de "Segmento(s) acometido(s)" corrigido de vez (Alexandre).** O checkbox do seletor herdava `width:100%` da regra geral dos campos da AET, esticando a caixa e jogando o rótulo para a direita (lista torta). Agora o checkbox tem largura própria (inline + CSS), então a lista aparece certinha (checkbox à esquerda, rótulo ao lado). *(Arquivos: `js/acoes.js`, `css/style.css`.)*
+- **Perfil do UsuarioCliente revisado (Alexandre).** Confirmado e ajustado: o Cliente vê apenas os clientes/unidades vinculados (filtro por empresa e unidade no backend), vê AEP, AET, Gestão de Riscos, Absenteísmo e Restritos, **não edita nada** e **não vê** Cadastro Empresa, Cadastro Interno nem Coordenação. Ajuste: o Cliente agora consegue **abrir o Inventário de Riscos da AEP em modo somente leitura** (antes ficava totalmente bloqueado). *(Arquivo: `js/app.js`.)* Service worker subiu para `sige-v106`.
+
+## V 1.90 — 11/11/2026
+
+- **Cadastro de Unidade: edição voltou a mostrar os dados já salvos (Alexandre).** Ao clicar em **Editar** uma unidade, o formulário abria apagando o Cliente/Unidade (e o usuário não conseguia corrigir). A função de construção do formulário da Unidade não repassava os valores iniciais à cascata, que então repopulava os campos vazios. Corrigido: a edição agora preenche Cliente, Nome da Unidade, CNPJ, CNAE, Grau de Risco, endereço e demais campos salvos. *(Arquivo: `js/app.js`.)* Service worker subiu para `sige-v105`.
+
+## V 1.89 — 11/11/2026
+
+- **Usuários: vínculo de UNIDADES agora é salvo (Alexandre).** Ao editar/convidar um usuário, as **Unidades vinculadas** não estavam sendo gravadas (só o papel e as empresas). O backend passou a persistir e devolver `UnidadesVinculadas` no criar (convite), no editar (PUT) e na listagem (GET). Agora clientes e unidades vinculados a um usuário ficam salvos corretamente. *(Arquivos: `api/src/functions/auth.js`, `api/src/functions/usuarios.js`.)*
+- **Dashboard: filtros que apareciam "sem dados" corrigidos (Alexandre).** Alguns filtros (ex.: cliente "Gerdau HANA", setor "Escritório") deixavam a dashboard como se não houvesse dados, mesmo havendo. A comparação do filtro era exata (sensível a maiúsculas/minúsculas, acentos e espaços); passou a ser **normalizada** (sem acento, minúsculas, sem espaços nas pontas), então o filtro casa com os registros mesmo com pequenas diferenças de digitação entre cadastros/coleções. *(Arquivo: `js/calc.js`.)*
+  Service worker subiu para `sige-v104`.
+
+## V 1.88 — 11/11/2026
+
+- **AET › Análise do ambiente: campos de texto unidos em um só (Alexandre).** Na seção "6. Análise do ambiente (conforto)", os campos de texto separados **Descrição do ambiente, Iluminação, Ruído e Temperatura** viraram um único campo **"Descrição do ambiente"** (maior), onde o ergonomista descreve tudo junto. A **tabela de medições ambientais** (iluminação/ruído/temperatura com medição, parâmetro e condição) e as **considerações técnicas** continuam como estavam. Dados antigos (AETs já preenchidas com os campos separados) ficam preservados e seguem saindo no laudo. *(Arquivo: `js/aet.js`.)* Service worker subiu para `sige-v103`.
+
+## V 1.87 — 11/11/2026
+
+- **AET: voltou a dar para cadastrar setor/GHE, posto e cargo direto na aba de Identificação (Alexandre).** Com o cliente escolhido, os campos **Unidade, Setor/GHE, Posto de trabalho e Cargo/função** já oferecem a opção **"+ Cadastrar novo…"** — antes só liberava o cadastro de um nível depois de preencher o nível de cima. As opções já existentes continuam em cascata e a hierarquia é montada ao salvar a AET. *(Arquivo: `js/aet.js`.)*
+- **Correção do seletor de "Segmento(s) acometido(s)" (Alexandre).** O menu de múltiplos segmentos (AEP/AET) estava com o layout quebrado em instalações sem o CSS novo. Agora o widget tem estilos próprios embutidos e aparece sempre como um menu suspenso correto (lista compacta, rolável), independente do CSS. *(Arquivo: `js/acoes.js`.)*
+  Service worker subiu para `sige-v102`.
+
+## V 1.86 — 06/11/2026
+
+- **Notificações: coluna "Unidade" nas análises pendentes (Alexandre).** Na aba **Notificações**, na lista **"Análises faltando informações ou fotos"**, foi adicionada a coluna **Unidade** (entre Empresa e "Setor › posto › cargo"), para identificar de qual unidade é cada AEP/AET pendente. A mesma coluna foi incluída na lista **"Importações com pendência para corrigir"**. *(Arquivo: `js/app.js`.)* Service worker subiu para `sige-v101`.
+
+## V 1.85 — 05/11/2026
+
+- **Novo modelo de laudo de AET: "Unimed" (SOU – Saúde Ocupacional Unimed), por cliente (Alexandre).**
+  - No **Cadastro de Cliente** há um campo novo, **"Modelo do laudo da AET"** (Padrão ElevaLife / Unimed). Quando marcado como **Unimed**, todas as AETs daquele cliente passam a usar o modelo Unimed. Vale só para o cliente escolhido.
+  - **Confecção (modo Unimed):** a análise usa somente a ferramenta **Checklist OCRA**. Em cada fator, o ergonomista **anexa o print do resultado final do OCRA** (que vale como o risco da atividade) e **escolhe o grau de risco** numa lista própria (Risco Ausente · Aceitável · Risco no Limite · Baixo · Médio · Alto), já pintado pela cor da graduação. **Não é cruzado probabilidade × severidade** (o cliente Unimed não usa matriz). Há também um campo livre **"Demanda"** (ex.: "Biomecânica / Membros superiores"), que só aparece no modelo Unimed. O restante da confecção da AET é igual ao padrão atual.
+  - **Laudo (modo Unimed):** marca **UNIMED – Saúde Ocupacional (SOU)** na capa, cabeçalho e rodapé (banner oficial), paleta **verde Unimed**, apresentação "desenvolvido pela UNIMED". A tabela de fatores por atividade passa a ter **4 colunas — Fator de Risco · Demanda · Metodologia de estudo · Grau de Risco**. O **print do OCRA** sai logo após a tabela (no lugar do memorial de cálculo). As seções de severidade/probabilidade/matriz saem do documento; entra a escala de graduações do OCRA. Sai em **PDF e Word**.
+  Service worker subiu para `sige-v100`. *(Arquivos: `js/app.js`, `js/aet.js`, `js/calc.js`, `js/laudo-aet.js`, `js/logo-unimed.js` (novo), `index.html`.)*
+
+## V 1.84 — 05/11/2026
+
+- **Cadastro de Restritos: só o Cliente é obrigatório (Alexandre).** No cadastro de Restritos, todos os campos deixaram de ser obrigatórios para salvar — exceto o **Cliente**, que continua obrigatório para o registro ser alocado à empresa e aparecer nos filtros. Assim dá para salvar uma restrição com as informações que já se tem e completar o resto depois. *(Arquivo: `js/app.js`.)*
+- **Segmento corporal: pode escolher mais de um segmento na AEP e na AET (Alexandre).**
+  - Na **AEP (Inventário de Riscos / checklist)** e na **AET**, o campo de segmento acometido deixou de ser uma escolha única e virou um **seletor de múltiplos segmentos** ("escolha um ou mais").
+  - Ao salvar, cada segmento escolhido gera **um registro no Inventário de Riscos** (um por segmento), mantendo o modelo de dados de um segmento por registro — então os diagramas corporais, gráficos por segmento e demais relatórios continuam funcionando sem mudança. É o mesmo comportamento do antigo "+ Repetir este fator (outro segmento)", agora em um único passo.
+  - Na AET, o primeiro segmento mantém o vínculo com o Plano de Ação e o laudo; os demais são registros adicionais no Inventário. Compatível com AETs/AEPs antigas (segmento em texto único continua aparecendo marcado).
+- **Fatores de risco na AEP: vários fatores no mesmo grupo macro / repetição (Alexandre).** Confirmado que o **checklist do Inventário de Riscos** já permite marcar **quantos fatores quiser dentro de um mesmo grupo macro** (cada fator tem seu próprio seletor, sem exclusão mútua) e **repetir o mesmo fator** (botão "+ Repetir este fator"). Nenhuma trava existe no código atual — se na sua tela só dá para escolher um fator por grupo, é porque a versão publicada está desatualizada; esta atualização garante o comportamento correto.
+  Service worker subiu para `sige-v99`. *(Arquivos: `js/app.js`, `js/aet.js`, `js/acoes.js`, `js/laudo-aet.js`, `css/style.css`.)*
+
+## V 1.83 — 05/11/2026
+
+- **AET — campos "Consequências" e "Fonte geradora" separados (Alexandre).**
+  - No fator da AET, o campo que estava rotulado como **"Fonte geradora"** (mas que, na prática, guardava a *consequência* à saúde) voltou a se chamar **"Consequências"**, mantendo a lista de **textos recomendados** por fator.
+  - Foi criado um campo próprio de **"Fonte geradora"** (ex.: elevação dos membros superiores; aplicação de força) — é o que gera o risco. Ele alimenta a "Circunstância Geradora" no laudo. (Era o antigo campo "Observação", que a V 1.69 havia renomeado; voltou a ter o nome correto.)
+  - Ordem dos campos: **Fonte geradora → Consequências → Segmento** (causa → efeito → região).
+  - Ao gerar a AET a partir da AEP, os dois campos já vêm preenchidos da AEP (consequência e fonte geradora).
+  - **Laudo da AET:** a tabela de fatores passou a ter **duas colunas distintas — "Fonte geradora" e "Consequências"** — em vez de uma só rotulada errado.
+  Service worker subiu para `sige-v98`. *(Arquivos: `js/aet.js`, `js/laudo-aet.js`.)*
+
+## V 1.82 — 03/11/2026
+
+- **Gráficos de barras empilhadas: valores pequenos agora aparecem (Alexandre).**
+  - Nos gráficos **"Evolução mensal dos riscos"** e **"Risco dos Postos por Setor / GHE"** (e nos demais de barras empilhadas: ações por responsável/por setor, restritos por setor/turno), os segmentos pequenos ficavam **invisíveis** quando havia um nível ou setor muito maior que os outros (ex.: muitos "Baixo"/"Moderado" e poucos "Alto"/"Muito Alto"; ou um setor com muito mais postos esticando a escala e sumindo com os demais). Era o caso do gráfico "por Setor" aparecer **em branco** em "Todas"/"Riscos AEP".
+  - Agora todo segmento com valor **maior que zero recebe um tamanho mínimo visível** (mesma lógica que já existia nas roscas) e o zero não desenha barra. Os números na dica (tooltip), nas legendas e nos totais continuam exatos.
+- **Clicar em qualquer gráfico abre os detalhes (Alexandre).** Completado o padrão de *drill-down* para os gráficos que ainda não tinham: **Cobertura das avaliações** (abre os postos avaliados/pendentes), **Atestados por mês** e **Ações de absenteísmo (propostas/concluídas) por mês**. Todos os gráficos do sistema agora respondem ao clique mostrando as informações por trás do número.
+  Service worker subiu para `sige-v97`. *(Arquivo: `js/app.js`.)*
+
+## V 1.81 — 03/11/2026
+
+- **Dashboard mais corporativa: Visão Geral com resumo por serviço + navegação por serviço (Alexandre).**
+  - **Botões de serviço no topo** (voltaram): uma barra com **Visão Geral · Gestão de Riscos · Plano de Ação · Absenteísmo · Restritos**. Clicar **troca a visão** e mostra o dashboard completo daquele serviço (um por vez). Cada serviço só aparece quando o(s) cliente(s) do filtro o contratam.
+  - **Visão Geral = resumo de cada serviço:** um cartão executivo por serviço com os números-chave em destaque **e um mini-gráfico**:
+    - Gestão de Riscos — postos avaliados, postos críticos (em destaque vermelho) e fatores vigentes + rosca do Inventário por nível;
+    - Plano de Ação — ações abertas, concluídas e % de conclusão + rosca por status;
+    - Avaliações (AEP/AET) — AEPs e AETs realizadas + evolução mensal;
+    - Restritos — em restrição/acompanhamento + evolução mensal;
+    - Absenteísmo — atestados e dias perdidos + evolução mensal.
+    Cada cartão tem **"Abrir dashboard →"** que leva ao serviço correspondente.
+  - Visual **sóbrio/executivo** na paleta ElevaLife (cartões brancos, KPIs em destaque, mini-gráficos). A Visão Geral e os botões acompanham o filtro geral em tempo real.
+  - A barra de **Origem** (Todas/AEP/AET/Psicossocial) voltou a ficar **dentro do painel da Gestão de Riscos** (só aparece quando esse serviço está selecionado), em vez de no topo da página.
+  Service worker subiu para `sige-v96`. *(Arquivos: `js/app.js`, `css/style.css`.)*
+
+## V 1.80 — 29/10/2026
+
+- **Filtros muito mais rápidos em todos os serviços (Alexandre).**
+  - A cada mudança de filtro, o sistema reconstruía TODAS as tabelas de cadastro (de todos os grupos) e a lista do Plano de Ação — inclusive quando elas nem estavam na tela (ex.: no Dashboard). Com bases grandes isso deixava cada clique de filtro lento (~1,2–1,5 s de reprocessamento).
+  - Agora cada filtro reprocessa **só o que está visível**: no Dashboard, apenas os gráficos; nas abas de cadastro, só as tabelas daquele grupo; a lista do Plano de Ação só na própria aba. As tabelas das outras abas são montadas quando você abre aquela aba, sempre respeitando o filtro atual. Em testes com base grande, o tempo de cada filtro caiu de ~1,25 s para ~0,24 s (cerca de **5× mais rápido**).
+  - A lista do Plano de Ação, que antes era montada **duas vezes** a cada filtro, passou a ser montada uma vez só.
+  - O filtro continua valendo em todos os serviços (Gestão de Riscos, Plano de Ação, Absenteísmo, Restritos e Cadastros) — só ficou mais leve.
+  Service worker subiu para `sige-v95`. *(Arquivo: `js/app.js`.)*
+
+## V 1.79 — 29/10/2026
+
+- **Dashboard — fim do "Resumo por serviço" e filtro de Origem no topo da página (Alexandre).**
+  - **Removido o bloco "Resumo por serviço"** (os cartões com KPIs e os botões "Ver dashboard →"): como a aba Dashboard já mostra todos os gráficos de todos os serviços de uma vez, o resumo era redundante.
+  - **Filtro de Origem (Todas / Riscos AEP / Riscos AET / Psicossocial) foi para o começo da página**, acima de todos os painéis, em vez de ficar dentro da seção "Gestão de Riscos".
+  Service worker subiu para `sige-v94`. *(Arquivo: `js/app.js`.)*
+
+## V 1.78 — 29/10/2026
+
+- **Conclusão de ação — evidência, aprovação do ADM e foto do fator ao reduzir risco (Alexandre).**
+  - **Conclusão sem evidência vai para o Administrador aprovar:** antes, o ergonomista (Consultor) era **bloqueado** ao concluir uma ação sem anexar a evidência. Agora ele **pode** concluir sem evidência, e a ação fica marcada **"Aguardando aprovação"**. No Plano de Ação, essas ações mostram a etiqueta e, para o **Administrador**, um botão **"Aprovar"** que confirma a conclusão (registra quem aprovou e quando). Ação com evidência não fica pendente.
+  - **Reduzir o risco exige a nova foto do fator + atualiza a análise:** ao concluir **qualquer** ação marcada para reduzir/eliminar o risco (antes isso só valia para a eliminação da AET), é obrigatório anexar nas evidências a **nova foto do fator de risco** (situação após a ação). Essa foto passa a ser a foto "após a ação" no Inventário (a anterior vira "Antes:") e a **reavaliação** (nova probabilidade/severidade ou risco eliminado) atualiza a análise automaticamente, como já acontecia.
+  Service worker subiu para `sige-v93`. *(Arquivo: `js/app.js`.)*
+
+## V 1.77 — 29/10/2026
+
+- **Gestão de Riscos — clicar no risco abre a análise, o histórico e as fotos (Alexandre).**
+  - Ao clicar em um fator no Inventário de Riscos, abre um painel com: a **análise completa** (origem, posto, consequência/fonte geradora, segmento, metodologia, criticidade, probabilidade, pontuação e risco atual); o **histórico do risco** (graduação inicial, cada reavaliação com data e motivo, e as ações do plano ligadas ao fator); e as **fotos** do fator e do posto.
+  Service worker subiu para `sige-v92`. *(Arquivo: `js/app.js`.)*
+
+## V 1.76 — 29/10/2026
+
+- **Dashboard — todos os serviços de uma vez, sem o seletor por serviço (Alexandre).**
+  - A aba Dashboard passa a mostrar **todos os gráficos de todos os serviços contratados** empilhados (Visão geral + Gestão de Riscos + Plano de Ação + Absenteísmo + Restritos), cada bloco com seu título. O **seletor por serviço (chips) foi removido** — o filtro do topo faz o detalhamento por serviço.
+  - Cada serviço só aparece quando o(s) cliente(s) do filtro o contratam (Gestão de Riscos e Plano valem para todos). Sem cliente no filtro, aparecem todos os que existem.
+  Service worker subiu para `sige-v91`. *(Arquivo: `js/app.js`.)*
+
+## V 1.75 — 29/10/2026
+
+- **Dashboard e Plano de Ação — ajustes (Alexandre).**
+  - **Fatias pequenas aparecem nos gráficos de risco:** um risco com poucos fatores (ex.: 3 "Alto" em 991) ficava invisível na rosca. Agora toda fatia não-nula tem um tamanho mínimo visível; os números reais seguem corretos na legenda, no tooltip e no centro.
+  - **"Riscos ergonômicos globais"** (antes "Risco Global dos Postos", no dashboard Geral): passa a contar **cada análise** (AEP + AET) no maior risco do seu posto — o total bate com a quantidade de análises existentes (ex.: 317), não com os postos distintos. Postos/análises sem fator entram em "Sem risco".
+  - **Plano de Ação — filtro por Cliente:** além de Unidade, Setor/GHE, Status e Buscar, o Plano ganhou o filtro **Cliente** (aparece quando há mais de um cliente). Unidade e Setor passam a respeitar o cliente escolhido.
+  Service worker subiu para `sige-v90`. *(Arquivos: `js/app.js`, `js/calc.js`.)*
+
+## V 1.74 — 29/10/2026
+
+- **Vincular unidade a outra empresa — mover unidade (e seus dados) entre empresas (Alexandre).**
+  - No Cadastro de Unidades, cada linha ganhou (para o Administrador) o botão **"Vincular a outra empresa"**: escolhe a empresa de destino e move a unidade e **todos os dados dela** (avaliações, fatores de risco, AET, plano de ação, colaboradores, etc.) para lá.
+  - A operação é feita **no servidor** (`POST /api/mover-unidade`), de forma atômica: mantém os **ids** de todos os registros (as referências cruzadas — plano → fator → AET — continuam válidas) e só troca a empresa (EmpresaId) e o nome do cliente; cria na empresa de destino e remove da origem, sem duplicar nem perder nada. Recusa se a empresa de destino já tiver uma unidade com o mesmo nome.
+  Service worker subiu para `sige-v89`. *(Arquivos: `api/src/functions/entidades.js`, `js/db.js`, `js/app.js`.)*
+
+## V 1.73 — 29/10/2026
+
+- **Import de laudo AEP puxa criticidade/probabilidade/graduação/ações + dashboard do Ergonomista vinculado (Alexandre).**
+  - **Import AEP (ex.: OPELLA):** a importação do laudo em PDF já trazia os fatores, as fotos, a circunstância geradora e a consequência, mas **não trazia a criticidade (severidade), a probabilidade, a graduação do risco nem as ações**. A causa: a linha de valores da tabela de risco só era reconhecida quando começava por "baixa/alta/..." — laudos cuja criticidade é **"Leve"** (como o OPELLA) ficavam sem esses dados. Agora a linha de valores é detectada pela estrutura (tem a pontuação numérica), então **criticidade, probabilidade, pontuação, graduação e a ação para eliminação** passam a ser importadas. Mapeamento de escala ampliado (Leve, Grave, Crítico, Tolerável, Intolerável, Irrelevante, Trivial, etc.).
+  - **Dashboard do Ergonomista/Consultor vinculado só à empresa:** quem estava vinculado a uma **empresa** mas não tinha nenhuma **unidade** marcada nela não via NADA (dashboard vazio — caso da Jackeline na AGCO). Agora, sem unidade marcada, o acesso é no **nível da empresa** (vê todas as unidades dela); a restrição por unidade só vale quando o usuário marca unidades.
+  Service worker subiu para `sige-v88`. *(Arquivos: `js/aep-laudo-import.js`, `api/src/shared/tenant.js`.)*
+
+## V 1.72 — 29/10/2026
+
+- **Dashboard — "Risco Global dos Postos" passa a bater com a cobertura (Alexandre).**
+  - O gráfico de rosca contava só os postos COM fator de risco (ex.: 165) enquanto a cobertura mostrava todos os postos cadastrados (ex.: 309). Agora o gráfico conta TODOS os postos: cada um na sua graduação (o maior risco entre os seus fatores) e os postos sem nenhum fator entram numa fatia à parte **"Sem risco"** (cinza). O total do gráfico passa a bater com a contagem de postos cadastrados. Vale para o dashboard Geral e para a Gestão de Riscos.
+  Service worker subiu para `sige-v87`. *(Arquivos: `js/calc.js`, `js/app.js`.)*
+
+## V 1.71 — 29/10/2026
+
+- **Usuários (HTTP 500) — diagnóstico e provisionamento (Alexandre).**
+  - A lista de usuários passa a **garantir o container** (`createIfNotExists`) antes de consultar — se a base de usuários não existir no ambiente, ela é criada em vez de estourar 500.
+  - Quando ainda assim houver erro, o backend devolve o **motivo real** (campo `detalhe`) e a tela de Usuários mostra esse motivo, em vez de só "tente novamente" — para identificar a causa de uma vez.
+  Service worker subiu para `sige-v86`. *(Arquivos: `api/src/functions/usuarios.js`, `js/app.js`.)*
+
+## V 1.70 — 29/10/2026
+
+- **Renomear cliente/unidade não orfana mais os dados + exclusão em cascata + filtro hierárquico estrito (Alexandre).**
+  - **Renomear mantém tudo ligado:** editar o nome de um Cliente (ou Unidade/Setor/Posto/Cargo) agora mantém o `id` e o `EmpresaId` estáveis e propaga o novo nome para TODOS os registros abaixo (unidades, avaliações, fatores, AET, plano de ação, colaboradores...). Nada é movido de partição nem excluído — as informações prévias continuam alocadas na edição. (Antes, renomear o cliente "soltava" as unidades/avaliações, que só apareciam filtrando pela unidade com o cliente em branco.)
+  - **Excluir unidade/cliente leva os dados junto:** excluir uma Unidade (ou Setor/Posto/Cargo) agora apaga em cascata todas as avaliações, fatores, AET, plano e demais cadastros abaixo dela. O Cliente continua indo para a Lixeira (que já apaga tudo).
+  - **Filtro em cascata estrito:** a Unidade só oferece opções depois de escolher a Empresa; o Setor só depois da Unidade; o Posto só depois do Setor; o Cargo só depois do Posto. Assim a Unidade nunca aparece "solta" e não mistura unidades de clientes diferentes.
+  Service worker subiu para `sige-v85`. *(Arquivos: `js/app.js`, `js/calc.js`.)*
+
+## V 1.69 — 27/10/2026
+
+- **Legenda de riscos e impactos após a matriz (AEP, AET e psicossocial) + "Consequência" → "Fonte geradora" na AET (Alexandre).**
+  - **Legenda de graduações × impacto:** logo após a matriz de risco, os três laudos passam a trazer uma tabela com cada graduação (na cor e com o nome que a matriz do cliente produz) e o impacto correspondente: Altíssimo/Muito Alto/Intolerável – iminente probabilidade de problemas; Alto – inadequações importantes e alta probabilidade; Moderado – inadequações de menor importância e baixa probabilidade; Baixo/Tolerável – inadequações inexistentes ou mínimas; Muito Baixo/Trivial/Irrelevante – sem inadequações ou riscos. (Helper central `Calc.impactoRisco`, por cor, para funcionar com qualquer matriz.)
+  - **AET — "Consequência" renomeado para "Fonte geradora"** na tabela de fatores do laudo e no cadastro (campo e validação). O antigo campo "Fonte geradora / observação" passou a se chamar apenas "Observação", para não duplicar o rótulo.
+  Service worker subiu para `sige-v84`. *(Arquivos: `js/calc.js`, `js/laudo.js`, `js/laudo-aet.js`, `js/aet.js`, `psicossocial.html`.)*
+
+## V 1.68 — 27/10/2026
+
+- **Laudo AET — certificado sem a validade e menos espaço em branco (Alexandre).**
+  - **Certificados de calibração:** o título de cada certificado no laudo passa a mostrar **somente o nome** (ex.: "10.1 THDL 400"), sem o "(validade dd/mm/aaaa)". A validade continua aparecendo só na tela de seleção.
+  - **Menos espaço em branco:** as reservas de quebra de página (introduzidas na V1.66 para evitar títulos órfãos) eram grandes demais (130/150 pt) e deixavam vãos no rodapé quando um título/rótulo caía perto do fim da página. Reduzidas para valores moderados (60–72 pt) — ainda evitam o título órfão, mas sem desperdiçar espaço.
+  Service worker subiu para `sige-v83`. *(Arquivos: `js/laudo-aet.js`, `js/laudo-blocos.js`.)*
+
+## V 1.67 — 27/10/2026
+
+- **Laudo AET — "Memorial de cálculo" não se separa mais da tabela (Alexandre).**
+  - O rótulo **"Memorial de cálculo"** ficava em uma página e a tabela da ferramenta (ex.: Equação de NIOSH com todos os dados preenchidos) pulava inteira para a página seguinte, deixando um grande vão em branco.
+  - Agora, quando a tabela da ferramenta é alta (NIOSH preenchida, etc.), ela **flui na página** em vez de pular inteira; a primeira linha (título da ferramenta) **se repete no topo** quando a tabela quebra para a próxima página. As tabelas curtas continuam viajando juntas, sem quebra.
+  Service worker subiu para `sige-v82`. *(Arquivo: `js/laudo-aet.js`.)*
+
+## V 1.66 — 27/10/2026
+
+- **Laudos AEP e AET — ajustes de conteúdo e formatação (Alexandre).**
+  - **Campo "Abrangência" removido** de todo o documento (capa e Informações cadastrais), no AEP e no AET.
+  - **Capa** passa a mostrar o **Responsável técnico E o Ergonomista responsável** (antes só o responsável técnico) — no AEP, no AET e no Word.
+  - **AET — formatação/quebras de página:** títulos (seção, atividade) não ficam mais órfãos no fim da página; o "Memorial de cálculo", "Registro fotográfico" e "Recomendações" viajam junto com o conteúdo seguinte; o título de atividade sem nome próprio não repete ("Atividade 01" em vez de "Atividade 01: Atividade 01"); e textos de preenchimento ("Aguardando", "ATUALIZAR INFORMAÇÕES") não são mais impressos nas descrições de setor/cargo/posto.
+  - **AET — conclusão como a da AEP:** traz os números do laudo (postos, atividades, fatores, ações), o quadro-resumo dos postos com os fatores determinantes e o risco, e a distribuição dos fatores por graduação.
+  - **AET — página de Referências** (normas, ISO e metodologias), como já havia na AEP.
+  Service worker subiu para `sige-v81`. *(Arquivos: `js/laudo.js`, `js/laudo-docx.js`, `js/laudo-aet.js`, `js/laudo-blocos.js`.)*
+
+## V 1.65 — 27/10/2026
+
+- **Sumário do laudo corrigido + divisão por unidade no sumário (Alexandre).** No laudo (PDF e Word):
+  - **Títulos longos não colidem mais com o número da página.** Antes, nomes grandes de posto passavam por cima do número; agora o título é encurtado com "…" e o número fica sempre alinhado à direita, com o pontilhado entre eles.
+  - **A divisão por unidade agora aparece no sumário.** No laudo da empresa toda, cada unidade entra como um item ("Unidade: …") e os postos daquela unidade ficam recuados logo abaixo (sumário em 3 níveis: seção › unidade › posto). No Word, o sumário é um campo nativo: ao abrir, aceite "Atualizar campo" para ver os números. Service worker subiu para `sige-v80`. *(Arquivos: `js/laudo.js`, `js/laudo-docx.js`.)*
+
+## V 1.64 — 27/10/2026
+
+- **Aviso claro quando a sessão expira (Alexandre).** Ao tentar enviar foto na AET (ou outra ação) com a sessão vencida, o servidor responde `401` e antes aparecia o erro cru "Não foi possível enviar … : Não autenticado", sem dizer o que fazer. Agora: a mensagem de erro explica que a sessão expirou e, principalmente, aparece um **aviso fixo no topo** com o botão **"Entrar novamente"**. Os lançamentos pendentes continuam guardados no aparelho e são enviados assim que o usuário entra de novo. *(Causa do erro relatado: a sessão de login — cookie — não valia mais; o upload de foto não pode ir para a fila offline, então falhava de imediato enquanto as gravações de texto iam para a fila silenciosamente.)* Service worker subiu para `sige-v79`. *(Arquivos: `js/db.js`, `js/app.js`.)*
+
+## V 1.63 — 27/10/2026
+
+- **Cadastro de Cliente simplificado + dados cadastrais na Unidade (Alexandre).** O cadastro do **Cliente** passou a ter só o essencial: **Nome, Matriz de Risco, Serviços contratados e Logotipo**. Todos os dados cadastrais (CNPJ, Inscrição Estadual, CNAE, Grau de Risco NR-4, telefone e endereço completo) foram para o cadastro de **Unidade** — cada unidade tem o seu CNPJ e endereço. A consulta automática de CNPJ (BrasilAPI, que preenche CNAE/endereço) também passou para a tela de Unidade. *Migração automática:* para empresas com **uma única unidade**, os dados cadastrais antigos do cliente são copiados para a unidade (empresas com várias unidades ficam manuais); e o laudo usa o dado antigo do cliente como reserva, então nada se perde. *(Arquivos: `js/app.js`.)*
+- **Laudo por empresa ou por unidade (AEP, AET, PDF e Word) (Alexandre).** Na emissão do laudo:
+  - **Por unidade** (escolhendo a unidade, e opcionalmente setor/cargo/posto): as *Informações Cadastrais* saem daquela unidade e o corpo traz só as avaliações dela.
+  - **Por empresa** (sem escolher unidade): as *Informações Cadastrais* trazem uma **tabela resumida de todas as unidades** (CNPJ, cidade/UF, CNAE, grau) e, no corpo, as avaliações ficam **agrupadas por unidade**, com um **cabeçalho de unidade** (nome, CNPJ, cidade) abrindo o bloco de cada uma.
+  *(Arquivos: `js/laudo.js`, `js/laudo-docx.js`, `js/laudo-aet.js`.)*
+- **Visibilidade por unidade (reforço do que já vinha da V1.55).** ADM vê tudo; Ergonomista e Cliente veem apenas os clientes/unidades aos quais estão vinculados. (Sem mudança de código nesta versão — comportamento confirmado.)
+- **Import de laudo psicossocial removido (Alexandre).** A opção de importar o laudo psicossocial em Word (aba e entrada no Dashboard) foi retirada, conforme pedido ("ficou muito estranha e confusa"). O questionário HSE-IT padrão e os demais módulos psicossociais seguem intactos.
+- **Importar AET:** o casamento automático da empresa por CNPJ agora procura o CNPJ nas **unidades** (onde ele passou a viver), e o CNPJ lido do laudo é gravado na unidade criada, não no cliente.
+
+  Service worker subiu para `sige-v78`.
+
+## V 1.62 — 23/10/2026
+
+- **Importar AET em Word — leitura completa do modelo ElevaLife e input mais fácil (Alexandre).** A importação de AET (Word .docx) agora lê **tudo** do laudo e transcreve para o sistema, deixando só o que faltar para o ergonomista revisar no fim:
+  - **Empresa, Unidade e CNPJ** vêm do cabeçalho do documento; a empresa é **casada automaticamente com a já cadastrada** — primeiro por **CNPJ** (ex.: arquivo "IMERYS DO BRASIL… LTDA" → cadastro "Imerys"), depois por nome.
+  - Cada função do laudo (seção "SETOR – CARGO: …") vira uma AET com **setor, posto, cargo**, descrição do cargo, organização do trabalho, ambiente, ciclo, **fotos do posto**, e cada **atividade** com descrição, **fotos**, **fatores de risco** (consequência, metodologia/ferramenta, criticidade, probabilidade e grau) e **recomendações**.
+  - Correções que faziam o modelo não importar: o **Sumário** (TOC) era lido como se fossem atividades; o nome da empresa não era capturado; a coluna **"Demanda"** da tabela de riscos não entrava como consequência (todo fator ficava "sem consequência"); e um fator chamado "Movimentação manual de cargas" se perdia por colidir com o bloco de cargas. No laudo de exemplo (IMERYS, 15 funções): **15 AETs, 23 atividades, 23 fatores e 99 fotos**, tudo lido.
+  - **Botão "Preparar todas as AETs"**: cadastra empresa/unidades/setores/cargos e envia as fotos de **todas** as funções de uma vez; depois é só abrir cada AET (instantâneo), revisar e salvar.
+  Service worker subiu para `sige-v77`. *(Arquivo: `js/aet-import.js`.)*
+
+## V 1.61 — 23/10/2026
+
+- **Dashboard "Geral" com gráficos consolidados (Alexandre).** A aba **Geral** do Dashboard passou a trazer, no topo (seção "Visão geral"), os **gráficos consolidados de todos os serviços**: Risco Global dos Postos, Inventário de Riscos por nível, Plano de Ação por status, AEPs realizadas (mês a mês) e Atestados (mês a mês). Logo abaixo ("Resumo por serviço") seguem os cartões de KPIs com o atalho "Ver dashboard →". O seletor (Geral + um por serviço) continua no topo, como já era. Tudo responde ao filtro global. Service worker subiu para `sige-v76`. *(Arquivo: `js/app.js`.)*
+
+## V 1.60 — 23/10/2026
+
+- **Falha ao listar usuários não derruba mais o sistema (Alexandre).** Se o endpoint de usuários (recurso só do Administrador) falhar — por exemplo um `HTTP 500` do servidor/Cosmos —, antes aparecia o banner vermelho "Não foi possível carregar o S.I.G.E", dando a impressão de que o sistema inteiro caiu. Agora o erro aparece **apenas dentro da aba Usuários** ("Não foi possível carregar a lista de usuários… o restante do sistema funciona normalmente") e todo o resto do SIGE (dashboards, cadastros, registros) abre normalmente. *Obs.: isto trata o sintoma no app; um 500 nesse endpoint é do lado do servidor (Cosmos/implantação) e deve ser investigado nos logs da Azure Function `/api/usuarios`.* Service worker subiu para `sige-v75`. *(Arquivo: `js/app.js`.)*
+
+## V 1.59 — 23/10/2026
+
+- **Dashboard como tela inicial, reunindo os dashboards de cada serviço (Alexandre).** Nova aba **Dashboard**, agora a **tela inicial** do sistema. No topo há um seletor: **Geral** + um dashboard por serviço (Gestão de Riscos, Plano de Ação, Absenteísmo, Restritos, Laudo Psicossocial). **Os gráficos saíram das abas de serviço e passaram a viver só no Dashboard** — as abas de serviço ficaram com a parte operacional (as tabelas/cadastro/registro): a Gestão de Riscos mantém o Inventário de Riscos (tabela), a Gestão de Absenteísmo mantém o Plano de Ação do absenteísmo, a Gestão do Plano de Ação mantém a lista de ações. A aba **Gestão de Restritos** (que era só gráficos) saiu do menu — seu dashboard está no seletor. O dashboard **Geral** mostra um resumo de KPIs de todos os serviços (postos avaliados, postos críticos, fatores vigentes, AEPs/AETs, ações abertas/concluídas e % de conclusão, atestados e dias perdidos, restritos, áreas psicossociais em risco), cada bloco com um atalho "Ver dashboard →". Tudo responde aos filtros globais e aos filtros de origem de cada serviço. Service worker subiu para `sige-v74`. *(Arquivos: `index.html`, `css/style.css`, `js/app.js`, `sw.js`.)*
+
+## V 1.58 — 23/10/2026
+
+- **Psicossocial — importar laudo em Word (.docx) e montar a dashboard (Alexandre).** Nova tela **Laudo Psicossocial (importado)**: a equipe escolhe a empresa, sobe o laudo psicossocial em Word e o sistema transcreve, por **Unidade × Grupo Ocupacional**, os **7 fatores do HSE-IT** (Demandas, Controle, Apoio da chefia, Apoio dos colegas, Relacionamentos, Cargo, Comunicação e mudanças) com score + classificação de risco, e a média de cada área. Antes de gravar, mostra tudo numa tabela de conferência (os valores podem ser ajustados). Ao confirmar, grava uma área por Unidade × Grupo e, opcionalmente, lança as ações do "Plano de ação" do laudo no **Plano de Ação** (origem *Riscos Psicossociais*, sem repetir ações idênticas). A dashboard abaixo mostra os riscos e o resultado (de-para) desse cliente, nos dois níveis (Unidade e Grupo). A leitura é feita direto no navegador (sem servidor), com 100% de fidelidade validada no laudo de exemplo (142 áreas, 7 dimensões). Isto é **separado** do questionário HSE-IT padrão — não altera o módulo Psicossocial existente. Service worker subiu para `sige-v73`. *(Arquivos: `js/psico-laudo-import.js` (novo), `js/app.js`, `js/db.js`, `api/src/functions/entidades.js`, `index.html`, `sw.js`.)*
+
+## V 1.57 — 23/10/2026
+
+- **Performance (Etapa 1) — salvar e excluir instantâneos (Alexandre).** Antes, ao salvar ou excluir **um** registro, o sistema recarregava a **coleção inteira** do servidor — o que ficava lento com muita informação (ex.: milhares de atestados). Agora só o registro gravado/excluído entra, atualiza ou sai do cache local, na hora, sem recarregar a coleção. Vale para todas as telas de cadastro/registro (AEP, AET, Absenteísmo, Restritos, Plano de Ação, etc.). *(Primeira etapa da melhoria de performance; próximas etapas tratam do carregamento inicial e de filtros/dashboards.)* Service worker subiu para `sige-v72`. *(Arquivo: `js/db.js`.)*
+
+## V 1.56 — 23/10/2026
+
+- **Performance — exclusão de empresas em bloco instantânea (Alexandre).** A exclusão em bloco de empresas também passou a podar o cache local em vez de recarregar todos os dados do servidor (como já era na exclusão individual na V1.54). *(Primeiro passo da melhoria de performance; o rework completo de carregamento sob demanda é uma etapa à parte.)* Service worker subiu para `sige-v71`. *(Arquivo: `js/db.js`.)*
+
+## V 1.55 — 23/10/2026
+
+- **Visibilidade por unidade (vínculo de usuário por empresa E unidade) (Alexandre).** No cadastro de usuário há agora **Unidades vinculadas** (além de Empresas vinculadas). Regras:
+  - **Administrador** vê tudo (independente das listas).
+  - **Ergonomista (Consultor)** e **Cliente** veem **apenas as unidades marcadas** — e as empresas dessas unidades. Mapa de riscos, plano de ação, AEP/AET, absenteísmo e restritos são filtrados por unidade no servidor.
+  - É **obrigatório marcar unidade**: um ergo/cliente **sem nenhuma unidade marcada não vê dados**.
+  - Chaves de API não são afetadas (continuam por empresa).
+  
+  ⚠️ **Importante ao publicar:** os usuários ergonomista/cliente **já existentes** não têm unidades marcadas ainda — ao subir esta versão, eles deixam de ver dados **até um Administrador editar cada um e marcar as unidades**. Reserve um momento para revisar esses cadastros logo após o deploy. Service worker subiu para `sige-v70`. *(Arquivos: `api/src/shared/tenant.js`, `api/src/functions/entidades.js`, `js/app.js`.)*
+  
+  *(Obs.: o módulo **Psicossocial** continua filtrado por empresa; o filtro por unidade nele é uma etapa à parte, porque usa um caminho de dados próprio.)*
+
+## V 1.54 — 23/10/2026
+
+- **Coordenação — ciclo de vida por função do sistema (Alexandre).** Novo card que agrega o tempo de cada função do SIGE (AEP, AET, Plano de Ação, Psicossocial, Absenteísmo, Restritos, Laudos, Cadastro), da mais rápida à mais demorada, com itens trabalhados, sessões, tempo total e médio. *(Obs.: Psicossocial só aparecerá com tempo quando esse módulo passar a cronometrar; os demais já cronometram.)* *(Arquivo: `js/coordenacao.js`.)*
+- **Excluir empresa — rápido e direto para a lixeira (Alexandre).** Excluir uma empresa (Admin) agora é instantâneo: vai para a lixeira (restaurável) e some na hora das telas, sem recarregar todos os dados do servidor — o que antes deixava a exclusão lenta e dava a impressão de que “algumas não apagavam”. A mensagem de confirmação deixou claro que vai para a lixeira. *(Arquivos: `js/db.js`, `js/app.js`.)*
+- **CNPJ por unidade (Alexandre).** A unidade passou a ter um campo **CNPJ** próprio (opcional). No **laudo por unidade**, o CNPJ da unidade sai como o principal; no **laudo da empresa toda**, todos os CNPJs cadastrados (empresa + unidades) são listados. A empresa pode ser cadastrada sem CNPJ. *(Arquivos: `js/app.js`, `js/laudo.js`, `js/laudo-docx.js`.)* Service worker subiu para `sige-v69`.
+
+## V 1.53 — 22/10/2026
+
+- **Importação — “Posto de Trabalho” opcional (Alexandre).** Na importação de Absenteísmo e de Restritos, a coluna Posto de Trabalho deixou de ser obrigatória (como as demais). Linhas sem posto são importadas normalmente. Service worker subiu para `sige-v68`. *(Arquivo: `js/app.js`.)*
+
+## V 1.52 — 22/10/2026
+
+- **Importar mesmo com linhas incompletas (Absenteísmo e Restritos) (Alexandre).** Agora dá para confirmar a importação mesmo com linhas faltando informação — nenhuma coluna é obrigatória na importação. A linha incompleta (ex.: absenteísmo sem CID/data/dias; restrito sem status/turno/início) é **importada assim mesmo**, fica marcada como pendente e:
+  - aparece na **aba Notificações**, numa seção “Importações com pendência para corrigir”, com botão **Abrir** que leva direto ao registro para o ergonomista completar;
+  - **não entra no gráfico de absenteísmo** enquanto estiver pendente;
+  - **sai da lista** assim que o registro é corrigido e salvo (a pendência é limpa automaticamente ao salvar pelo formulário).
+  
+  O contador (badge) da aba Notificações passa a incluir essas pendências. Service worker subiu para `sige-v67`. *(Arquivo: `js/app.js`.)*
+
+## V 1.51 — 22/10/2026
+
+- **Importação de Absenteísmo e Restritos — melhorias (Alexandre).**
+  - **Limite de linhas** subiu de 2.000 para 50.000 por arquivo.
+  - **Linhas repetidas são contabilizadas**: cada linha da planilha vira um registro próprio (antes a 2ª linha igual virava “linha repetida” e era descartada). Isso também corrige os Restritos, que estavam puxando praticamente só a 1ª linha.
+  - **Cabeçalho detectado corretamente** mesmo quando a planilha tem uma linha de título acima do cabeçalho real (ex.: “CONTADOR DE COMPATÍVEIS” na planilha de Restritos) — antes o título era lido como cabeçalho e as colunas não mapeavam.
+  - **Segmento corporal com lado**: “JOELHO DIREITO/ESQUERDO” passa a ser entendido como “Joelho” (o segmento, sem o lado); vazio ou “não informado/especificado” vira **“Não identificado”**.
+  - **Nome e Matrícula não são mais obrigatórios** na importação (de Absenteísmo e de Restritos). Service worker subiu para `sige-v66`. *(Arquivos: `js/importador.js`, `js/calc.js`, `js/app.js`.)*
+
+## V 1.50 — 22/10/2026
+
+- **AET — botões “Como definir o risco do fator” corrigidos (Alexandre).** Os dois botões (“Seguir o risco da ferramenta” / “Informar a probabilidade”) ficavam marcados ao mesmo tempo e não dava para alternar, porque cada um recebia um nome diferente e não formavam um grupo de rádio. Agora selecionar um desmarca o outro, como esperado (`js/aet.js`).
+- **AET — resultado da ferramenta no relatório (Alexandre).** Quando a ferramenta não está concluída, o laudo não imprime mais o texto de interface “Preencha os campos da ferramenta”; mostra o resultado quando há pontuação, o nível atribuído pelo ergonomista quando houver, ou “Ferramenta não concluída — faltam dados para calcular a pontuação” (`js/laudo-aet.js`). *Obs.: ferramentas como a REBA precisam de todos os campos preenchidos (tronco, pescoço, pernas, carga, braço, antebraço, punho, pega e atividade) e do botão “Aplicar” para gerar a pontuação.*
+- **Migração do laudo anterior — “N/A” em vez de citar o sistema antigo (Alexandre).** Campos sem dado no laudo migrado (jornada, pausas, rodízio, características dos trabalhadores, histórico de acidentes) passam a ficar como **N/A**, sem nenhuma referência ao “laudo do sistema anterior”. Textos antigos com essa frase também são trocados por N/A ao reimportar (`js/aep-laudo-import.js`).
+- **Migração do laudo anterior — fim do “Máquina/linha/célula:” na descrição (Alexandre).** A descrição da atividade não recebe mais o prefixo “Máquina/linha/célula: …”, que estava vazando para esse campo indevidamente (`js/aep-laudo-import.js`). Service worker subiu para `sige-v65`.
+
+## V 1.49 — 19/10/2026
+
+- **Aba de Notificações: Nº da AEP e “Abrir” leva ao registro exato (Alexandre).** Na lista de análises com informações/fotos faltando, passou a aparecer uma coluna **Nº** com o número da avaliação (ex.: AEP-001 · para AET, o Nº AET quando houver). O botão **“Abrir”** agora não leva mais só para a aba: abre **diretamente o registro exato** que precisa de ajuste, já no formulário de edição (AEP abre a avaliação na aba AEP; AET abre o editor daquela AET). Service worker subiu para `sige-v64`.
+
+## V 1.48 — 19/10/2026
+
+- **Número da avaliação (AEP) editável e define a ordem do laudo (Alexandre).** Cada avaliação já recebia um número automático por empresa ao ser cadastrada (1, 2, 3…), fixo depois. Agora esse número é **editável manualmente** no formulário da avaliação (campo “Nº da avaliação”; em branco = numeração automática) e passou a ser **a ordem em que as avaliações saem no laudo** (seção 9) — antes a ordem era alfabética por unidade/setor/cargo. Avaliações sem número vão para o fim, aí em ordem alfabética. O servidor respeita o número informado, mantém o existente quando não se mexe nele, e atribui o próximo da sequência quando não há nenhum (`api/src/functions/entidades.js` e `publicApi.js`).
+- **Foto do fator de risco no laudo (Alexandre).** Ao graduar um fator de risco, há um novo campo **opcional** para anexar foto(s) do fator (JPG/PNG, rostos anonimizados no envio). Quando preenchido, a foto sai **no laudo (PDF e Word), junto do fator**, além da(s) foto(s) gerais do posto. Se o campo ficar em branco, nada aparece para aquele fator (não é obrigatório e não bloqueia o cadastro). As fotos dos fatores também são comprimidas antes de entrar no laudo. Service worker subiu para `sige-v63`.
+
+## V 1.47 — 19/10/2026
+
+- **Correção definitiva do erro 413 ao emitir laudo (envio do arquivo em pedaços) (Alexandre).** Mesmo com as fotos comprimidas, um laudo grande podia estourar o **limite de tamanho de requisição da própria plataforma (Azure Static Web Apps)** — a requisição era barrada *antes* de chegar na API (erro 413 “seco”, sem mensagem). Agora, arquivos acima de 2 MB sobem **em pedaços de 1 MB**: cada pedaço é uma requisição pequena que o servidor guarda como “bloco” no armazenamento e, no fim, os blocos são confirmados e o arquivo é montado inteiro (`api/src/functions/arquivos.js` + `js/db.js`). Isso **não depende de nenhuma configuração extra na Azure** e funciona para qualquer tamanho de laudo. Testado com remontagem byte a byte idêntica ao original (conferência por SHA-256). Arquivos pequenos continuam indo em uma requisição só. Service worker subiu para `sige-v62`.
+- **Correção: erro na API ao emitir o laudo da AGCO (e de clientes com muitas fotos) (Alexandre).** As fotos das análises entravam no laudo (PDF e Word) no tamanho e na codificação originais — fotos de celular de 3 a 5 MB cada. Em clientes com vários postos, o laudo final passava de dezenas de MB; como o arquivo é enviado para a API em base64 (que ainda infla ~33%), estourava o **limite de tamanho de requisição da plataforma (Azure)** e dava erro ao salvar. Agora cada foto é **redimensionada (lado maior ≤ 1600 px) e recomprimida em JPEG** antes de entrar no laudo (`js/laudo.js`, no preparo comum ao PDF e ao Word). Uma foto típica cai ~83% (ex.: 589 KB → 101 KB), mantendo boa legibilidade, e o laudo final fica em poucos MB — bem dentro do limite. Se a compressão falhar por algum motivo, a foto original é mantida (não quebra o laudo). Compressão reforçada (lado maior ≤ 1280 px, qualidade JPEG 0,70): um laudo com 20 fotos de celular (≈14 MB de originais) sai com ~3,5 MB de PDF (envio em base64 de ~4,7 MB), bem abaixo do limite da plataforma. Service worker subiu para `sige-v61` — **importante:** a correção só roda quando o navegador carrega o `js/laudo.js` novo; enquanto o service worker servir a versão antiga em cache, o erro 413 continua. O bump do service worker força todos os aparelhos a baixarem o código novo.
+
+## V 1.46 — 19/10/2026
+
+- **Nova aba “Notificações” (abre ao entrar no SIGE) (Alexandre).** Logo após o login, o sistema abre a aba de Notificações, com três cartões: ações **não iniciadas**, **atrasadas** e **perto do vencimento** (próximos 7 dias), somando as empresas que o usuário acompanha. Para o **ergonomista (Consultor)** e o **Administrador**, mostra também a lista das análises (AEP/AET) dos clientes dele que estão **faltando informações ou fotos** (ex.: AEP sem fotos ou sem descrição da atividade; AET sem fotos, sem atividades ou sem diagnóstico), com um botão para abrir cada uma. O item do menu tem um contador (badge) com os pendentes.
+- **Laudo da AEP/AET — vários ajustes (Alexandre).**
+  - **Emissão sem trava de tamanho:** o laudo gerado (PDF/Word) não é mais barrado por tamanho; os dois campos de upload manual (“Arquivo do Laudo” e “Laudo em Word”) saíram da tela de emissão (o arquivo gerado continua anexado automaticamente e aparece para baixar).
+  - **Informações cadastrais padronizadas:** razão social sempre em MAIÚSCULO; unidade e endereço em “Primeira Maiúscula” (preservando siglas como SP/ETE); a abrangência sai como foi cadastrada.
+  - **Item 7.2:** saiu a tabela “Norma/ferramenta × Aplicação”; fica só a explicação da AEP e os critérios para AET.
+  - **Item 7.3:** a tabela passa a listar os fatores que compõem cada grupo (não só a contagem); removida a frase final sobre “Ruído inadequado”.
+  - **Item 7.4 (“Guias de referência para graduação”) removido;** o antigo 7.5 (Interfaces) virou 7.4.
+  - **Item 8.3** renomeado para “Recomendações e evolução do risco” (os tipos listados já são os cadastráveis no sistema).
+  - **Fotos da análise sem legenda.**
+  - **Correção de quebra de página:** o cabeçalho de uma tabela (ex.: a de ações de um fator) não fica mais sozinho no fim da página — ele vai junto com a primeira linha. Isso corrigia o efeito de “fator sem ação” quando a ação caía na página seguinte.
+  - **Item 10 (plano de ação):** colunas Ação, Setor, Fator (coluna própria), Tipo e Descrição; saíram Responsável, Prazo e Situação (continuam no Plano de Ação do sistema).
+  - **Referências** foram para o fim do documento, em página própria (última seção).
+- **Correção crítica: empresas não colidem mais no mesmo código (evita perda/mistura de dados ao excluir) (Alexandre).** O código interno de cada empresa (`EmpresaId`) é gerado a partir do nome. Quando duas empresas geravam o mesmo código (nomes parecidos que viram o mesmo “slug”, ou a mesma empresa cadastrada de novo com nome ligeiramente diferente), a criação fazia **upsert** e as duas passavam a compartilhar o mesmo código — então **excluir uma afetava/apagava os dados da outra**. Agora o servidor (`api/src/functions/entidades.js`) **bloqueia** criar uma empresa cujo código bata com o de outra empresa já existente (inclusive uma que esteja na lixeira), com uma mensagem clara pedindo um nome um pouco diferente, em vez de sobrescrever. Re-salvar/editar a **mesma** empresa continua funcionando normalmente. **Observação:** empresas que já haviam sido mescladas por esse problema precisam ser recadastradas (o código não consegue “desmesclar” dados que já nasceram com o mesmo código).
+- **Limite de tamanho de arquivo praticamente removido (laudos AEP/AET e arquivos da AET) (Alexandre).** O app não limita mais o tamanho em 15MB (laudo) / 20MB (AET) — vale tanto para o envio manual quanto para o laudo final que o sistema gera e guarda. O limite do app virou “quase infinito” (1 GB) nos três pontos: servidor (`api/src/functions/arquivos.js`) e as duas validações do navegador (`js/app.js`). **Observação importante:** o upload é enviado como base64 dentro da requisição, então o teto que resta é o **limite de tamanho de requisição da plataforma (Azure Static Web Apps, ~100MB nas functions gerenciadas)**, que não é configurável no nosso código — arquivos acima disso precisariam de um envio direto ao armazenamento (recurso à parte). Service worker subiu para `sige-v57` para os aparelhos pegarem a versão nova.
+- **Importar AEP — transcrição completa e automática (Alexandre).** Ao subir o laudo em PDF do sistema anterior, o SIGE agora traz **tudo** automaticamente: dados do posto, fotos, fatores de risco **com a graduação** (criticidade, probabilidade, pontuação e graduação do risco) e as recomendações (eliminação → ação de Engenharia; administrativas/organizacionais → Organizacional). Correção: a tabela de risco do laudo antigo vinha com o cabeçalho quebrado em duas linhas (“Graduação do” / “Risco”), o que sujava o campo “Medida de controle” e **fazia o fator entrar sem a graduação** — agora o cabeçalho é reconhecido e a graduação é transcrita corretamente. Saíram as opções (checkboxes) da tela de importação: tudo é importado de uma vez, sem passos extras. E o **PDF do laudo antigo não fica mais guardado** no sistema. Testado de ponta a ponta com o laudo da AGCO (postos, fotos, fatores com graduação e ações migrados sem erro).
+- **Cache do app renovado (service worker v56) e precache tolerante a falhas.** A versão do cache subiu para `sige-v56`, o que faz todos os aparelhos descartarem o cache antigo na próxima abertura (corrige telas presas numa versão anterior em cache, como o erro “Cannot read properties of undefined (reading 'fatorRisco')” causado por um `app.js` velho guardado no navegador). Além disso, o precache passou a guardar cada arquivo por conta própria: antes, um único arquivo faltando (por exemplo `vendor/libs` mal publicado) abortava todo o cache offline. **Atenção à publicação:** a pasta de bibliotecas tem que ficar em **`vendor/libs/`** (e não dentro de `vendor/face-api/`).
+- **Geração de laudos tolerante a falhas (AEP e AET).** Ao gerar o laudo em PDF, o SIGE depende das bibliotecas jsPDF e Chart.js. Se a cópia local (`vendor/libs/`) não tiver sido publicada no deploy, o sistema parava com “A biblioteca de geração de PDF não carregou (script externo bloqueado ou indisponível)”. Agora todas as bibliotecas servidas em `vendor/libs/` (Chart.js e o plugin de rótulos, jsPDF, SheetJS/xlsx, pdf.js e o leitor de QR) têm **fallback automático para o CDN**: cada `<script>` tenta primeiro a cópia local e, se ela não existir no deploy, carrega a versão equivalente do cdnjs — sem travar o sistema. Vale para o laudo da AEP e da AET (ambos usam o jsPDF sob demanda no momento da geração). **Importante:** o ideal continua sendo publicar a pasta `vendor/libs/` no deploy; o fallback é a rede de segurança para quando ela não chega ao site.
+
+## V 1.45 — 16/10/2026
+
+- **Leitor de PDF tolerante a falhas (importação da AEP e da AET).** Ao subir o laudo em PDF, o SIGE agora carrega o leitor de PDF sob demanda: tenta primeiro a cópia local (`vendor/libs/pdf.min.js`) e, se ela não estiver disponível, o CDN — assim a importação funciona mesmo que um dos caminhos falhe. Antes, se a biblioteca não tivesse carregado na abertura da página, a importação parava com “O leitor de PDF não carregou”. A mensagem de erro, quando ocorre, agora orienta a conferir se a pasta `vendor/libs` foi publicada. **Importante:** confirme que a pasta `vendor/libs/` está no deploy (abra `…/vendor/libs/pdf.min.js` no navegador: deve mostrar código JavaScript, não a página do sistema).
+
+## V 1.44 — 16/10/2026
+
+- **Anonimização de rostos nas fotos da AET (e nas importações).** As fotos anexadas no editor da AET já tinham a conferência de anonimização (igual à AEP); agora as fotos que entram pela **importação de AET (Word/PDF)** e pela **importação do laudo antigo da AEP (PDF)** também têm os rostos desfocados — automaticamente, sem abrir uma conferência por foto (seria inviável em lote). Em resumo: os rostos são anonimizados em todas as fotos, tanto na AEP quanto na AET, inclusive nas importadas.
+
+## V 1.43.1 — 15/10/2026
+
+Correção crítica: a tela de login voltou a abrir mesmo se os gráficos não carregarem.
+
+- **Login não depende mais do Chart.js.** Antes, se a biblioteca de gráficos (Chart.js) não carregasse, o sistema travava na abertura com o erro “A biblioteca Chart.js não carregou” — e **nem a tela de login aparecia**. Agora o SIGE abre normalmente: a tela de login, os cadastros e todas as telas funcionam; apenas os gráficos que dependem da biblioteca aparecem com um aviso “Gráfico indisponível”. Combinado com a V 1.43 (bibliotecas hospedadas no próprio sistema), os gráficos também voltam a funcionar em redes que bloqueiam o cdnjs.
+- **Importante ao atualizar:** a pasta **`vendor/libs/`** precisa ir no deploy (é onde ficam as bibliotecas). Depois de publicar, force a atualização no navegador (Ctrl+Shift+R) para descartar o cache antigo.
+
+## V 1.43 — 15/10/2026
+
+Correção importante: o sistema deixou de depender de um CDN externo (cdnjs) para carregar.
+
+- **Bibliotecas hospedadas no próprio sistema (fim do erro “Chart.js não carregou”).** As bibliotecas que antes vinham do cdnjs.cloudflare.com (Chart.js e o plugin de rótulos, jsPDF, SheetJS/xlsx, pdf.js e o leitor de QR) passaram a ser servidas pelo próprio SIGE, em `vendor/libs/`. Em redes corporativas que bloqueiam o cdnjs, o sistema abria com o erro “A biblioteca Chart.js não carregou (script externo bloqueado ou indisponível)”. Agora o SIGE carrega normalmente mesmo com o cdnjs bloqueado (testado com o CDN e as fontes externas bloqueados). Vale para o painel principal e para o módulo de Riscos Psicossociais. O cache offline (service worker) também guarda essas bibliotecas.
+
+## V 1.42 — 15/10/2026
+
+Rodada de ajustes do Alexandre: importação da AEP só pelo PDF, Gestão de Absenteísmo (modelo + importação, plano de ação próprio, gráficos e análise crítica), ergonomista com acesso ao cadastro de empresa, e correções (Coordenação, admin, filtros, exemplo ElevaLife).
+
+- **Importar AEP — só o PDF.** O ergonomista envia apenas o laudo em PDF do sistema anterior. O SIGE lê tudo (dados do posto, fotos, fatores de risco e as recomendações) e transcreve para o novo sistema; depois abre a conferência (comparação posto a posto). As recomendações entram automaticamente: **eliminação vira ação de Engenharia** e **medidas administrativas/organizacionais viram Organizacional**. Saiu o passo da planilha Excel.
+- **Absenteísmo — modelo + importação por Excel** (vários atestados de uma vez, com modelo para baixar). O mesmo já existia em **HHT / Taxa de frequência** e **Restritos**. No cadastro de Absenteísmo saiu o campo Atividade e entraram **Nome** e **Matrícula** do colaborador. Todos respondem ao filtro.
+- **Gestão de Absenteísmo — aba reforçada:** gráfico **mês a mês de atestados e dias perdidos**; **Plano de Ação do Absenteísmo** próprio (coleção separada do Plano geral), com cadastro de ações por mês de referência e **gráfico de evolução (propostas × concluídas)**; e botão **“Gerar análise crítica”** que produz um documento (PDF + Word) cruzando o absenteísmo com os riscos ergonômicos por setor/posto e com as ações concluídas (Plano geral + Plano do Absenteísmo).
+- **Ergonomista (Consultor) no Cadastro Empresa:** agora cadastra e edita empresas (fica vinculado à empresa que criar); **só o Administrador exclui** empresas.
+- **Correções:** a aba **Coordenação** voltou a ocupar a largura toda e a sub-aba “Contabilidade de tempo” aparece corretamente; o **Administrador volta a ver todo o conteúdo** mesmo em empresas com poucos serviços (o bloqueio de “serviço não contratado” é só para o Cliente); a Coordenação **responde ao filtro** e volta ao limpar; o botão **“Criar empresa de exemplo (ElevaLife)”** agora cria também os **Riscos Psicossociais** (respostas nos GHEs) e o absenteísmo com os campos corretos.
+
+## V 1.41 — 15/10/2026
+
+Rodada de ajustes pedida pelo Alexandre: importação da AEP numa opção só, lixeira de empresas, empresa de exemplo, papéis/serviços, Coordenação com sub-aba e telas mais legíveis.
+
+- **Importar AEP — uma opção só (planilha + laudo).** A sub-aba Importar da AEP virou um cartão único: a pessoa escolhe a planilha (Excel, com as avaliações/inventário) e o laudo (PDF, com a análise) e clica em “Importar e comparar”. O SIGE importa a planilha e abre a conferência do laudo, ligando posto a posto e comparando para o ergonomista decidir (mesma conferência de antes, agora encadeada). Saíram as opções separadas (Avaliações, Inventário, Laudo) que confundiam.
+- **Lixeira de empresas (restaurar + expurgo automático).** Excluir uma empresa agora manda para a **lixeira** (os dados ficam guardados e somem das telas) em vez de apagar de vez. Em Cadastro Empresa › “🗑 Lixeira de empresas” (Administrador) dá para **Restaurar** ou **Excluir definitivamente**. Empresas na lixeira há mais de **30 dias** são apagadas definitivamente de forma automática (expurgo no job diário). A exclusão definitiva (manual ou automática) é a única que apaga os dados de verdade.
+- **Papéis e serviços.** Administrador vê tudo e todas as empresas; o Ergonomista (Consultor) vê só as empresas vinculadas e os serviços de cada uma; o Cliente vê as abas de serviço (nas não contratadas aparece a mensagem para procurar a ElevaLife) e não vê Cadastro/Interno/Usuários/Coordenação. **Gestão de Riscos e Gestão do Plano de Ação ficam sempre disponíveis** (etapa final de qualquer serviço, sem a mensagem de “não contratado”).
+- **Serviços ao criar empresa.** Ao criar uma empresa — no Cadastro ou ao subir uma AET/AEP cuja empresa ainda não existe — o SIGE abre o Cadastro Empresa já preenchido para completar os dados e **escolher os serviços** (depois é só repetir a importação).
+- **Empresa de exemplo (ElevaLife).** Botão em Cadastro Empresa (só para o Alexandre) que cria a empresa ElevaLife com AEP, AET, Riscos Psicossociais, Gestão de Riscos, Plano de Ação, colaboradores, absenteísmo e restritos — para apresentação.
+- **Coordenação com sub-aba.** A contabilidade de tempo foi para a sub-aba “Contabilidade de tempo”. Botão “⏱ Gerar tempos (exemplo)” (só para o Alexandre) cria tempos de exemplo para apresentação.
+- **Fator de risco: grupo → subdivisão.** Na AET e no Inventário (AEP), primeiro escolhe-se o **grupo** e só então aparecem os **fatores daquele grupo** (na AET “Outros” continua junto aos grupos; dentro de cada grupo também há “Outro (digitar)”). O Inventário mostra os grupos recolhidos e abre o grupo ao clicar.
+- **Telas mais legíveis.** AEP, AET e Psicossocial com janelas um pouco mais largas e fontes ligeiramente menores, para ficar menos apertado.
+
+## V 1.40 — 14/10/2026
+
+Melhorias pedidas pelo Alexandre: aba Coordenação (contabilidade de tempo), gráfico de cobertura no topo da Gestão de Riscos e geração de AET a partir da AEP.
+
+- **Nova aba Coordenação (só Administrador) — contabilidade de tempo (`js/tempo.js`, `js/coordenacao.js`, coleção `tempoTrabalho`).** Mede, por login, quanto tempo cada ergonomista levou para cadastrar cada entidade (empresa, colaboradores, setores, etc.) e para fazer as AEP/AET. São medidos **os dois**: o tempo **ativo** de edição (só conta com a tela visível, em foco e com interação nos últimos 60 s — não conta janela aberta e esquecida) e o **ciclo de vida** da AEP/AET, do início (primeira abertura) à finalização (último salvamento). Cada sessão de trabalho salva gera um registro em `tempoTrabalho` (por EmpresaId; só a equipe grava, nunca o UsuarioCliente). A aba mostra KPIs, uma tabela por login, uma por tipo de cadastro e o ciclo de vida de cada AEP/AET. A gravação do tempo é em segundo plano: se falhar, não afeta o trabalho do usuário. A aba e o item de menu só aparecem para o Administrador (`body.perfil-admin`).
+- **Gestão de Riscos — gráfico de cobertura no topo (`js/calc.js` `coberturaPorOrigem`, `js/app.js` `renderCoberturaPostos`).** Abaixo dos filtros, um cartão mostra quantos postos de trabalho estão cadastrados e quantos já foram avaliados (com os números e uma barra). Respeita o filtro de origem da aba: em AEP conta postos com AEP, em AET postos com AET, em "Todas" qualquer um dos dois; quando a origem é **Psicossocial**, troca para quantidade de **GHEs** cadastrados × avaliados.
+- **AEP → "Gerar AET" (`js/aet.js` `gerarDaAEP`, botão na lista de Avaliações).** Na aba Avaliações, cada AEP tem o botão "🛠 Gerar AET": o ergonomista escolhe quais fatores de risco do Inventário (origem AEP) vão para a AET e o sistema cria uma **AET nova** já preenchida com o que dá para aproveitar (posto, fator, consequência, segmento, fonte, severidade, probabilidade e graduação da AEP), numa atividade "Atividade 01". A AEP **não é alterada**. O editor abre com um aviso explicando que é uma AET gerada a partir da AEP, para o ergonomista completar o que falta (descrição da atividade, fotos, ferramentas) e salvar.
+
+## V 1.39 — 13/10/2026
+
+Revisão de segurança (pen test) e teste de estresse do sistema, mais o gráfico de cobertura (ver V 1.40 abaixo também). As seções datadas a seguir detalham as correções; entram oficialmente nesta versão.
+
+## Desempenho sob carga (teste de estresse) — 13/10/2026
+
+Teste de estresse (até ~500% de uma empresa já grande: 80 mil fatores de risco e 240 mil ações) revelou um ponto que travava o sistema em empresas muito grandes; corrigido.
+
+- **Plano de Ação por fator — O(fatores × ações) → índice (ALTA).** `BI.Acoes.acoesDoFator` (`js/acoes.js`) varria TODO o Plano de Ação a cada fator. Nas telas que chamam isso por fator (tabela do Inventário, geração dos laudos AEP/AET), com dezenas de milhares de fatores o tempo explodia (em teste, >2 min, travando). Agora um índice por "Fator Risco Id" é construído uma vez por coleção e reaproveitado: o mesmo cenário caiu de "travado" para <1 s (e o caso de 12 mil fatores, de ~3,1 s para ~0,2 s).
+- **Tamanho do corpo das requisições (robustez).** A API (`entidades.js` e `publicApi.js`) passou a recusar corpos acima de 1,9 MB com 413 (o Cosmos rejeita documentos acima de ~2 MB; antes virava um 500 confuso) e JSON malformado com 400 (antes 500). Os anexos continuam indo pelo upload de arquivos (Storage), não dentro do registro.
+- **Concorrência:** 800 gravações simultâneas e 1.000 requisições mistas passaram sem erro; os endpoints públicos sob rajada (500 chamadas) respeitam o limite de requisições sem vazar memória nem derrubar o serviço.
+
+## Correções de segurança (pen test) — 13/10/2026
+
+Correções aplicadas após a revisão de segurança (pen test caixa-branca) do código. Entram oficialmente na V 1.39.
+
+- **Endpoints públicos sem limite de requisições (ALTA).** `/api/psicopub/*` (telas do QR Code do HSE-IT) e `/api/verificar` ganharam limite de requisições por IP (`api/src/shared/rateLimit.js`). Na consulta de matrícula, a proteção conta as **tentativas que falham** (matrícula inexistente): um colaborador legítimo acerta a própria matrícula, quem tenta mapear a força de trabalho gera muitas falhas e é bloqueado — sem prejudicar vários colaboradores que respondem pela mesma rede/IP.
+- **Link de redefinição de senha via cabeçalho (MÉDIA).** `montarLink` (`api/src/functions/auth.js`) passou a montar o link de convite/redefinição a partir de `URL_PUBLICA` (ou do domínio oficial fixo `https://sige-ergo.elevalife.com.br` quando ela não está configurada); nunca mais a partir de `x-forwarded-host` (evita sequestro de conta por link forjado). Não exige configuração extra para o domínio oficial.
+- **API pública de escrita contornava as regras (MÉDIA).** `publicApi.js` (POST) agora passa pela mesma esteira da API interna: unicidade do código de laudo, Nr Avaliação atribuído pelo servidor, regras/evidência do Plano de Ação e auditoria; e remove campos internos (`_...`) enviados pelo cliente (fim da injeção de trilha de auditoria / dispensa de evidência).
+- **Injeção de HTML no corpo dos e-mails (BAIXA).** `email.js` escapa todos os campos armazenados nos modelos (`escHtml`). O e-mail dos Riscos Psicossociais já escapava.
+- **JWT sem algoritmo fixado (BAIXA).** `verificarSessao` fixa `algorithms: ["HS256"]`.
+- **Configuração / política (BAIXA).** `staticwebapp.config.json`: Content-Security-Policy completa (além de `frame-ancestors`), `X-Content-Type-Options: nosniff`, `Referrer-Policy`, e bloqueio dos arquivos de teste `data/seed_db*.json` (o `mock_data.json` continua acessível porque o app o usa para abrir antes do login). Política de senha de 8 a 72 caracteres.
+
+## V 1.38 — 09/10/2026
+
+Rodada de ajustes após o teste de estresse: AET (ferramentas, cadastro, duplicação), fotos anonimizadas, revisão das ferramentas pela planilha, Plano de Ação e separação dos laudos AEP x AET.
+
+- **AET – ferramenta (`js/aet.js`, `abrirFerramenta`):** resultado fixo no topo da janela (atualiza a cada campo), prévia do risco do fator e memorial recolhível; escolha explícita "Seguir o risco da ferramenta" × "Informar a probabilidade" (com a probabilidade na própria janela); aviso rápido com o resultado ao aplicar (`BI.avisar`). Uma ferramenta por fator: sem "+ Aplicar ferramenta…" depois da primeira; os botões de recomendação trocam a ferramenta (com confirmação); registros antigos com várias ferramentas mostram aviso.
+- **AET – identificação e fatores:** unidade, setor, posto e cargo com "+ Cadastrar novo…" (listas também a partir das tabelas `unidade`, `setor`, `posto`), gravados no Cadastro Empresa ao salvar (`BI.garantirHierarquia`). Lista única de fatores (o grupo é preenchido sozinho). AEP: o mesmo "+ Cadastrar novo…" nos selects em cascata do formulário (`comCascata(..., true)`, `permiteNovoNaCascata`).
+- **Duplicar AET (`duplicarAET`):** nova AET com atividades, fatores, ferramentas e ações propostas (`criarEditor({ acoesIniciais })`), empresa e posto editáveis; as fotos são copiadas para a empresa da nova AET ao salvar (`copiarFotosDuplicadas`).
+- **Ferramentas (`js/ferramentas.js`, revisão pela planilha FERRAMENTAS_ERGONOMIA_GERAL):** REBA bilateral (braço, antebraço e punho uma vez; registros antigos usam o lado mais exigido); Checklist OCRA tradicional refeito (peças por turno → ciclo, frequência sem interrupções pela tabela da planilha, recuperação calculada pelo turno e pausas ou informada, força moderada + picos fortes + picos intensos somados, postura por segmento + estereotipia por lado, complementares físicos por lado + organizacionais); Checklist OCRA com "mãos acima da cabeça" (ombro × 2); ICE com as opções de calor da planilha e itens críticos (B3, B5 = 20); NR-17 com percentual sobre os 48 itens; KIM-PP com aviso das combinações críticas; HAL com 10,1 no texto. Imagens: `reba-1.jpg` (tronco) e `niosh-38.jpg` (medidas H, V, D) incluídas; imagens do OCRA tradicional por segmento; legenda corrigida de `kimPp-88`. Mantidos de propósito (diferença da planilha, para decisão): tabela C do REBA (linha A = 11), coluna B do ICE somando B8, fator de duração 1 em 480 min, ombro ausente = 0 e tabela de horas 390/420 em ordem, pescoço do QEC sem o +1.
+- **Fotos (`js/fotos.js`, `vendor/face-api/`):** `BI.Fotos.prepararLista` reduz (1920 px, JPEG 85%), detecta rostos no navegador (face-api, SSD MobileNet v1; backends WebGL/WASM/CPU) e abre a conferência (retirar/marcar rostos, desfocar em mosaico ou tarja, "anonimizar as próximas automaticamente"). Usado nas fotos da AET (sem limite, "+ Adicionar mais fotos"), nas fotos da AEP (`anonimizarRostos`), nas imagens de exemplo das ações e nas evidências do Plano. Campos de vários arquivos ganharam o botão "+ Adicionar / + Adicionar mais".
+- **Ações (`js/acoes.js`):** imagens de exemplo por ação (AET, `Imagens Exemplo`); "+ Usar" não propaga o clique (a edição do Inventário não fecha). Inventário da AEP com "Salvar e continuar editando".
+- **Eliminação (Plano de Ação):** ação de eliminação da AET só conclui com a foto da nova situação nas evidências; ao concluir, a foto é copiada para a AET e vira a foto atual da atividade (`atualizarFotoAtividadeAET`; as anteriores ficam "Antes").
+- **Gestão do Plano de Ação:** cards "Todas as ações" e "Postos Críticos" (saiu "Inventário de Riscos - Status"); gráficos respondem também aos filtros da lista (`filtroListaPlano`). Excel: botão do topo habilitado na aba (`TITULOS_ABA.registro`) e planilha legível (`linhasPlanoExcel`) também no "Baixar Excel" da lista; PDF da aba.
+- **Serviços:** aviso de serviço não contratado/ativo também em Psicossocial (e demais abas), "Procure o gestor do contrato ElevaLife"; faixa quando parte das empresas filtradas não tem o serviço.
+- **Contraste:** textos e textos secundários mais escuros (claro) e mais claros (escuro); legendas dos gráficos na cor do texto.
+- **AEP:** sem ferramentas ergonômicas no checklist; laudo da AEP sem certificados de calibração e só com fatores de origem AEP (`js/laudo.js`).
+- **Importar AET:** sem bloqueio por campo ausente — sobe com "ATUALIZAR INFORMAÇÕES" (destacado no editor) e fator sem graduação marcado (`semGraduacaoImportada`, "Atualizar Informacoes" no Inventário); fotos sem limite.
+- **Ajuda, fluxo da AET, versão 1.38 e cache (`sw.js` v47)** atualizados.
+
+## V 1.37 — 09/10/2026
+
+Recomendações por fator de risco (ferramentas e ações), memorial completo no laudo da AET, foto da atividade no e-mail da ação e exclusão completa da empresa.
+
+- **Biblioteca de recomendações (`js/recomendacoes.js`, `BI.Recomendacoes`):** para cada um dos 42 fatores da ISO/TS 20646 (e um conjunto geral para "Outro"), as ferramentas ergonômicas indicadas (ids de `js/ferramentas.js`, a 1ª é a mais indicada, com observação de avaliação quantitativa quando cabe — NHO-01/06/09/10/11) e as ações padronizadas `[tipo, texto, complexidade, nivelMinimo, nivelMaximo?]` (base: NR-17, NR-01/GRO, ISO 11228-1/-2/-3, ISO 11226, ISO/TS 20646, ISO 9241, ISO 10075, ISO 45003). `acoesParaNivel(fator, ordemNivel)` filtra pelo nível de risco: baixo = manutenção/monitoramento; moderado = + engenharia e organização; alto ou acima = + eliminação/substituição.
+- **AET (`js/aet.js`):** no fator, botões "Ferramentas recomendadas para este fator" (★ a mais indicada; clique aplica e abre a ferramenta) e `+ Aplicar ferramenta…` com o grupo "Recomendadas para este fator" primeiro. Fotos acima de 700 KB são reduzidas no navegador antes do envio (até 1920 px, JPEG 85%).
+- **Editor de ações (`js/acoes.js`, AEP e AET):** painel "Recomendações padronizadas para este fator · risco X (n)" com tipo, texto e complexidade; "+ Usar" cria a ação preenchida (Eliminação já marcada como "Elimina o risco"), "✓ Incluída" marca as já usadas; opção de ver as recomendações dos demais níveis. O botão passou a "+ Outra ação (digitar)" (ação livre). As sugestões do campo Ação trazem primeiro as do fator.
+- **AEP (`js/app.js`, checklist do Inventário):** em cada fator, as ferramentas recomendadas para a avaliação aprofundada.
+- **Laudo da AET (`js/laudo-aet.js`, `BI.Ferramentas.entradas`):** o memorial de cálculo passou a trazer "Dados preenchidos na ferramenta" (cada campo, por seção, com esquerdo/direito), depois "Cálculo" e o resultado — antes saíam só os escores intermediários.
+- **E-mail da ação da AET (`api/src/shared/fotosAET.js`, `email.js`):** `enviarEmail({ anexos })` envia anexos inline (Microsoft Graph, `isInline`/`contentId`); a atribuição (`entidades.js`) e os lembretes do prazo (`lembretesPlanoAcao.js`) das ações de origem AET levam até 4 fotos da atividade (cada uma até 2 MB, total até 2,7 MB; a que não couber é indicada no texto). O e-mail mostra também a atividade e o fator de risco.
+- **Plano de Ação:** "✕ Excluir responsável e prazo" em cada ação (apaga prazo, responsável e e-mail; status volta a "Não iniciada").
+- **Exclusão de empresa (`api/src/shared/empresaExclusao.js`):** `DELETE /api/cliente/{id}` apaga, em lotes, todos os documentos da empresa nas coleções por empresa (com os arquivos no Storage), os dados do módulo Riscos Psicossociais (partição `e_sige-<id>` e documento raiz) e tira a empresa de `EmpresasVinculadas`; enquanto houver dados responde `202 { restante: true }` e o navegador repete (`fetchExcluir` em `js/db.js`); o cadastro sai por último e o app recarrega todas as coleções. As listas (`listarComFiltro`) não devolvem mais documentos de empresa sem cadastro. `GET/POST /api/manutencao/orfaos` (só Administrador) lista e apaga os dados de empresas excluídas antes desta versão — botão "🧹 Dados de empresas excluídas" em Cadastro Empresa › Cliente.
+- **Ajuda, fluxo da AET e cache (`sw.js` v46)** atualizados.
+
+## V 1.36 — 09/10/2026
+
+Migração completa do sistema anterior: laudo da AEP em PDF.
+
+- **Laudo do sistema anterior (`js/aep-laudo-import.js`, AEP › Importar Excel):** lê o laudo "Análise Ergonômica Preliminar" do Sistema de Gestão Integrada (PDF): capa (empresa e unidade), cada posto da seção 4 (data, setor, cargo, posto, máquina/linha/célula, jornada, características dos trabalhadores, pausas, rodízio, histórico de acidentes, descrição da atividade e do setor), as fotos da interação com o posto (bytes originais da imagem do PDF, via pdf.js) e os fatores de risco (seções 4.N.M: grupo, fator, existe fator, circunstância geradora, consequência, medida de controle, criticidade, probabilidade, pontuação, graduação, propor ação, ação para eliminação e controles administrativos).
+- **Conferência e gravação:** cada posto é ligado à AEP da planilha (chave Cliente + Unidade + Setor + Posto + Cargo, ou a mais parecida — o usuário confirma ou escolhe outra, ou manda criar nova). Campos vazios são completados (opção para trocar os preenchidos); obrigatórios ausentes no laudo ficam "Não informado no laudo do sistema anterior". Fotos com hash (`Fotos Laudo Anterior`) não se repetem; fatores existentes são completados (inclui segmento pela consequência), os que faltam são criados com a escala do cliente e a graduação do laudo; as ações (eliminação e controles administrativos) viram ações do Plano de Ação (uma vez por fator). O PDF antigo vai para AEP › Laudos.
+- **Riscos Psicossociais (`psicossocial.html`):** cópia de segurança das respostas do HSE-IT em Excel (`baixarBackupExcel`, ExcelJS) — anônima (sem matrícula nem nome), com aplicação, unidade, setor/GHE, tipo, data, situação e P1–P35 (1 a 5), abas "Perguntas e escala" e "Resumo por setor-GHE". A cópia técnica em JSON continua como opção.
+- **Ajuda, fluxo "Migração do sistema anterior" e cache (`sw.js` v45)** atualizados.
+
+## V 1.35 — 08/10/2026
+
+Menu reorganizado, sub-abas da AEP e da AET, Gestão de Riscos e Plano de Ação com filtro de origem, laudos com recorte em cascata e certificados no arquivo, importação de AET e aviso de vencimento de certificados.
+
+- **Menu (`index.html`, `js/app.js`):** ordem AEP, AET, Psicossocial, Gestão de Riscos, Gestão do Plano de Ação, Gestão de Absenteísmo, Gestão de Restritos, Cadastro Empresa, Cadastro Interno e Ajuda. Usuários virou sub-aba do Cadastro Interno (`SUBABAS_EXTRAS.usuarios`); a aba Configurações saiu (os nomes de tipos de ação já gravados continuam valendo).
+- **Sub-abas de tela própria (`SUBABAS_EXTRAS`, `chavesDoGrupo(grupo, paraMenu)`):** AEP › Avaliações, Laudos, Importar Excel (avaliações e inventário do sistema anterior) e Editor de texto (só campos da AEP; os da AET são preservados ao salvar). AET › AETs, Laudos, Importar AET e Editor de texto. O Inventário de Riscos (AEP) e as AETs anexadas saem do menu (`semMenu`); os registros continuam guardados.
+- **Serviços contratados:** um por aba (AEP, AET, Psicossocial, Gestão de Riscos, Gestão do Plano de Ação, Absenteísmo e Restritos). Cadastro antigo com "Gestão de Risco" conta como AEP, AET e Plano de Ação (`empresaTemServico`).
+- **Gestão de Riscos:** filtro de origem no topo (`estadoOrigemAba`, aplicado depois do filtro geral); Risco Global dos Postos e Inventário em rosca com total no centro (`pluginTotalCentro`) e texto explicativo; Evolução mensal logo abaixo do risco por setor, com o total de cada mês e drill-down por seções (graduações, reduzidos de/para, eliminados); tabela do Inventário com busca. Saíram Inventário - Prazos e AET - Arquivos anexados.
+- **Gestão do Plano de Ação:** filtro de origem no topo, valendo para gráficos, Status do Inventário e lista (saiu o filtro Origem da lista); lista com quebra de texto nas colunas (antes o texto passava por cima das vizinhas).
+- **Laudo da AEP:** recorte em cascata Unidade › Setor › Cargo › Posto ("Todas as unidades" = empresa toda); certificados marcados saem no próprio arquivo (seção 13, uma página por certificado; PDF página a página via `LaudoPadrao.paginasDoArquivo`), em PDF e em Word. A lista mostra só os laudos da AEP.
+- **Laudo da AET (`js/laudo-aet.js`):** sub-aba com emissão pelo recorte em cascata e histórico dos laudos emitidos (download PDF/Word); editor de texto próprio (`renderEditorTexto`); certificados em imagem ou PDF.
+- **Importar AET (`js/aet-import.js`):** Word (.docx, com fotos) ou PDF (texto com posição, tabelas reconstruídas). Identifica empresa, setor, posto, cargo, organização, demandas, ambiente e medições, ciclo, cargas, atividades, fatores (com sinônimos para a lista ISO/TS 20646, consequência, segmento, metodologia, criticidade, probabilidade e grau) e diagnóstico. Conferência com criação do que falta no Cadastro Empresa (`BI.garantirHierarquia`) e abertura no editor da AET (`abrirEditor(null, rascunho)`). Fator sem ferramenta preenchida usa a severidade e a probabilidade do documento ou o grau informado (`grauImportado`).
+- **Ferramentas:** imagens de referência da planilha FERRAMENTAS_ERGONOMIA_GERAL junto de cada campo (RULA, REBA, OCRA, ROSA, KIM-LHC, KIM-PP e Checklist OCRA) - `js/ferramentas-imagens.js`, `img/ferramentas/`.
+- **Certificado de calibração:** validade obrigatória; certificado em PDF ou imagem (até 10 MB, `api/src/functions/arquivos.js`); o job diário (`api/src/functions/lembretesPlanoAcao.js`, `executarCertificados`) avisa os Administradores por e-mail 30 dias antes de vencer e no vencimento (controle em `_notifVenc`, recomeça quando a validade muda).
+- **Ajuda, fluxos (AET importada, Certificado de calibração), indicadores e cache (`sw.js` v44)** atualizados.
+
+## V 1.34 — 08/10/2026
+
+Módulo AET completo: análise por posto e atividade, ferramentas ergonômicas, Inventário, Plano de Ação e laudo.
+
+- **AET no sistema (`js/aet.js`, aba AET):** AET por posto de trabalho e cargo (cadastro do Cadastro Cliente), coleção `aet` com `Tipo Registro` = "AET". Seções: identificação, setor/população/cargo, organização do trabalho, demandas cognitivas e psicossociais, posto (foto geral, até 2), ambiente e medições, manifestações/ciclo/cargas, atividades (descrição, até 4 fotos, fatores, ações, recomendações) e diagnóstico global (com sugestão automática).
+- **Fatores e graduação:** lista ISO/TS 20646 por grupo ou "Outro"; consequência e segmento. Ferramenta com tempo de exposição define o risco (nível 0–4 levado à graduação mais próxima da matriz do cliente); ferramenta sem exposição dá a severidade, cruzada com a probabilidade (categoria de exposição na jornada da matriz: 5x5 e 4x4 do modelo AET, Gerdau pelas faixas do cliente, 3x3 com <10%, 10–50% e >50%). Sem ferramenta, severidade × probabilidade. Vale a maior graduação.
+- **Ferramentas (`js/ferramentas.js`, `js/ferramentas-dados.js`):** 18 ferramentas da planilha FERRAMENTAS_ERGONOMIA_GERAL 2025 com as tabelas e o memorial de cálculo — Strain Index, RULA, REBA, HAL/ACGIH, QEC, Rodgers, PLIBEL, NIOSH, Checklist OCRA, OCRA tradicional, ROSA, KIM-LHC, KIM-PP, Liberty Mutual (Snook), ERGOS, NASA-TLX, ICE e Check NR-17. PLIBEL, NASA-TLX e Check NR-17 não classificam (nível atribuído pelo ergonomista). O ergonomista pode marcar/desmarcar se a métrica considera a exposição.
+- **Inventário e Plano:** um `fatorRisco` por fator (`aet-{aetId}-{fatorUid}`, Origem "AET", `Atividade`, `Metodologia AET`), ações pelo editor de ações com origem "AET". Reabrir e mudar as entradas do fator recalcula e grava `Historico Risco` ("Reavaliação na AET"). Fator removido sai do Inventário com as ações não trabalhadas; excluir a AET faz o mesmo.
+- **Laudo da AET (`js/laudo-aet.js`, `js/laudo-blocos.js`):** PDF e Word no padrão dos laudos do sistema (capa, cabeçalho/rodapé, sumário clicável, cores e fonte), estrutura do modelo AET 2026: apresentação, fundamentação, demanda, informações cadastrais, métodos (5.1–5.5 com severidade, probabilidade e matriz do cliente), recomendações e conduta, uma seção por setor – posto – cargo (identificação, organização, demandas, posto com foto geral, ambiente, ciclo e cargas, atividades com fotos, fatores, evolução, ações e memorial de cálculo, diagnóstico), conclusão, encerramento com QR Code, certificados de calibração (Cadastro Interno) e métodos aplicados. Abrangência pelo filtro: empresa, unidade, setor / GHE, cargo ou posto. Registro em Laudos (Tipo "Laudo AET") e revisão carimbada nas ações. Novo bloco "fotos" no Word (`js/laudo-docx.js`).
+- **Editor de Texto:** campos "AET · ..." com os textos padrão do laudo.
+- **API (`api/src/functions/arquivos.js`):** a coleção `aet` aceita fotos JPG e PNG.
+- **AETs anexadas:** a lista antiga passa a se chamar "AETs anexadas (arquivos de análises feitas fora do sistema)"; a classificação automática vale só para elas.
+- **Carregamento (`js/app.js`):** gráfico cujo `<canvas>` não existe no `index.html` (index de outra versão em cache) é ignorado, em vez de travar o S.I.G.E com "Cannot read properties of null (reading 'getContext')".
+- **Ajuda, fluxos, indicadores e cache (`sw.js` v43)** atualizados.
+
+## V 1.33 — 08/10/2026
+
+Gestão de Risco só com riscos, Plano de Ação no formato do antigo plano do Psicossocial e Editor de Texto direto.
+
+- **Gestão de Risco (`index.html`, `js/app.js`):** cenário de todos os riscos (AEP, AET e Psicossocial). Ficam Risco Global, Risco por Setor / GHE, Top 3 Setores críticos, Inventário (graduação, evolução mensal, prazos) e Avaliações realizadas (cobertura da AEP, novos `chart-aep-mensal` e `chart-aet-mensal`, AET por classificação). Saíram Top Setores - Riscos em Aberto e Laudos e Certificados por Tipo; os gráficos de ações e o Status do Inventário foram para o Plano de Ação.
+- **Plano de Ação:** aba logo depois da Gestão de Risco; indicadores das ações no topo (`#painel-plano`); lista de todas as ações (`renderPlanoLista`) com filtros Unidade, Setor / GHE, Origem, Status e Buscar, resumo por status e Prazo, Responsável e E-mail editáveis na linha; botão Concluir abre o formulário (evidência e reavaliação). Campos antigos escondidos no formulário (atividade, auditoria, medida ADM, fator pós ação, segmento).
+- **E-mail do responsável (`api/src/shared/planoAcaoRegras.js`, `api/src/functions/entidades.js`):** só com prazo; sai ao informar ou trocar o e-mail (ou ao definir o prazo de uma ação que já tinha e-mail), com registro `_notifAtrib` e reenvio (`_reenviarAcao`); Psicossocial sem exigir o nome do responsável. Sem e-mail, nada é enviado ao responsável.
+- **Cadastro Interno:** Editor de Texto primeiro e aberto direto no texto do laudo (sem modelo gravado, abre um novo já preenchido).
+- **Ajuda, fluxos e indicadores** atualizados.
+
+## V 1.32 — 08/10/2026
+
+Matriz Gerdau, ações pela matriz do cliente e Editor de Texto igual ao laudo.
+
+- **Matriz 5x5 Gerdau (`js/calc.js`):** nomes e definições do cliente — probabilidade Muito Baixa a Muito Alta (pelo % do tempo amostral), severidade Brando, Moderado, Sério, Crítico e Muito Crítico (`rotulosSeveridade`, `rotuloEscala(..., "severidade")`), graduações Irrelevante, Tolerável, Moderado, Alto e Intolerável. A grade é a mesma da 5x5 ElevaLife. Cores pelas equivalentes do padrão (Irrelevante = muito baixo, Tolerável = baixo, Intolerável = muito alto); nos indicadores, Irrelevante e Tolerável contam como Baixo e Intolerável como Muito Alto. Nova escala única `Calc.ordemNivel` e `Calc.niveisDaMatriz`.
+- **Ações (`js/acoes.js`):** "Reduz o risco para" usa as graduações da matriz cadastrada no cliente.
+- **Laudo da AEP:** textos 8.1 e 8.2 próprios da Gerdau (`Gravidade Gerdau`, `Probabilidade Gerdau`, `Graduacao Gerdau`); severidade sem citar doenças; "severidade" no lugar de "gravidade" nos textos da matriz.
+- **Editor de Texto (`js/app.js`, `js/laudo-textos.js`):** cada campo mostra o texto que sai no laudo (`textoEfetivo`), com marca "alterado" e "Restaurar padrão"; campo igual ao padrão é gravado vazio.
+- **Psicossocial:** graduações e severidade da Gerdau na análise e no laudo.
+
+## V 1.31 — 08/10/2026
+
+Evolução do risco, reavaliação ao concluir ações e reaplicação do psicossocial.
+
+- **Segmentos (`js/acoes.js`, `js/calc.js`, `js/diagramas.js`, `js/app.js`):** "Não identificado" e "Psicossocial" em todas as escolhas de segmento (Inventário, Absenteísmo, Restritos) e nos diagramas, em cartões ao lado da figura (Psicossocial com ícone de cérebro).
+- **Inventário:** segmento acometido obrigatório no fator (sai da ação); "Gravidade" passa a "Severidade". Mudança de graduação no checklist entra no histórico do fator.
+- **Ações (`js/acoes.js`):** tipo, complexidade e ação escrita; marcação "Esta ação vai reduzir ou eliminar o risco" com a graduação esperada ("Reduz para X" ou "Elimina o risco"). Responsável, prazo e status só no Plano de Ação.
+- **Plano de Ação:** ao concluir (com evidência) uma ação redutora da AEP/AET, abre a janela de reavaliação (nova Probabilidade e Severidade → novo risco pela matriz, ou Risco eliminado), que grava `Historico Risco` no fator. Ações do Psicossocial concluem só com evidência. Nova coluna "Revisão do laudo" (`Revisao Laudo`), carimbada na emissão do laudo.
+- **Inventário — evolução:** campos `Historico Risco`, `Graduacao Inicial`, `Risco Eliminado`, `Eliminado Em`; coluna "Evolução do risco" (ex.: "Iniciou Alto · Ação A-01 concluída: Moderado"). Risco eliminado sai do risco do posto e dos indicadores atuais.
+- **Gestão de Risco:** gráfico "Evolução mensal dos riscos" (`chart-evolucao-riscos`, `Calc.evolucaoMensalRiscos`), clicável.
+- **Laudo da AEP (`js/laudo.js`, `js/laudo-docx.js`, `js/laudo-textos.js`):** por fator, risco do fator, probabilidade, severidade e segmento acometido, com a evolução; ações com tipo e efeito no risco; riscos eliminados do posto; seção 10 "Plano de ação e evolução dos riscos". Sempre o risco mais atual.
+- **Riscos Psicossociais (`psicossocial.html`, `api/src/functions/psicossocial.js`):** reaplicação do projeto (HSE-IT › Aplicações do projeto). Cada aplicação tem coleta, ISO 45003, taxa de frequência, análise e laudo próprios (`empresas/{eid}/ciclos/{n}` a partir da 2ª). Mapa de Risco e Inventário sempre da aplicação mais recente (mudança de graduação vai ao histórico do fator); ações de aplicações anteriores ficam no Plano como histórico. Fatores psicossociais com segmento "Psicossocial". Laudo com a aplicação na capa e na identificação, comparativo entre aplicações, revisão carimbada nas ações e QR Code de validação.
+- **Ajuda, fluxos e indicadores** atualizados.
+
+## V 1.30 — 08/10/2026
+
+Padronização dos laudos e das cores.
+
+- **Padrão único de laudo (`js/laudo-padrao.js`, novo):** capa, cabeçalho (logotipo + título + "Doc. código · Rev."), rodapé (cliente + "Página X de Y"), títulos, sumário, assinaturas, ciência do cliente e validação por QR Code, usados pelo laudo da AEP (`js/laudo.js`, `js/laudo-docx.js`) e pelo laudo de Riscos Psicossociais (`psicossocial.html`).
+- **Laudo psicossocial:** mesma formatação do laudo da AEP (margens, corpo, títulos "1. Título", sumário, capa e fechamento); passa a sair também em Word (`BI.LaudoDocx.deBlocos`); encerramento, assinaturas e validação no fim do documento; registrado no histórico de laudos do cliente (AEP › Laudos) com código, revisão, hash SHA-256, PDF e Word.
+- **Cores padrão** (`css/style.css`, `js/calc.js`): risco — trivial/muito baixo #8CCBEB, baixo #2E8B57, moderado #F2C230, alto #C62828, muito alto/altíssimo #6A3D9A; ações — não iniciada #E8833A, em andamento #F2C230, atrasada #C62828, concluída #2E8B57 (com atraso #1E6B44). Texto escuro sobre azul-claro e amarelo. Mesmas cores no tema claro e escuro, nos laudos, no Word e na página /verificar.
+- **Metodologia da AEP no laudo:** graduações da matriz do cliente no panorama e no diagnóstico; tabela 8.2 com as pontuações de cada graduação e nota explicando que a graduação vem da célula da matriz; textos padrão "Matriz Intro", "Medidas Intro" e "ISO Legenda" revistos (responsável e prazo no Plano de Ação; ação organizacional / de controle; fator "Ruído inadequado").
+- **Melhorias do laudo psicossocial levadas à AEP:** quadro-resumo dos postos com os fatores determinantes, contagem de fatores por graduação por grupo da ISO/TS 20646 e grupos que mais concentram risco moderado ou superior; números do plano por situação (não iniciadas, em andamento, atrasadas, concluídas).
+- **Status das ações:** com prazo e não vencida, a ação conta como "Em andamento" também nos indicadores.
+
+## V 1.29 — 08/10/2026
+
+Plano de Ação único, risco do posto pelo Inventário e fim da aba Registro.
+
+- **Plano de Ação único (`index.html`, `js/app.js`, `js/acoes.js`):** menu próprio; recebe as ações da AEP (Inventário) e do Psicossocial (AET quando o módulo existir), com a coluna e o filtro **Origem**. Não se cria ação nova no Plano: a descrição, o segmento e a redução do risco ficam somente leitura (vêm da origem); aqui se definem responsável, e-mail, prazo, conclusão e evidência. Status automático (com prazo = Em andamento; vencido = Atrasada) e e-mail ao responsável mantidos.
+- **Psicossocial (`psicossocial.html`):** a aba "Plano de ação" do módulo saiu; a escolha das ações por setor/GHE e as ações já realizadas foram para a Análise de risco, com o botão "Abrir no Plano de Ação do SIGE". A taxa de frequência e o Editor de texto do módulo continuam como estavam.
+- **Gestão de Risco (`js/calc.js`, `js/app.js`):** o risco do posto passa a ser a **maior graduação entre os fatores** do Inventário (AEP, Psicossocial e AET), no lugar do Mapa de Risco manual de 12 notas (que saiu do menu; os registros antigos ficam). Cards e drill-down mantidos; cobertura da AEP por posto e cargo cadastrados; "postos críticos" pelo risco atual do posto; Excel da aba com "Risco por Posto" e "Inventário".
+- **Filtro único:** novo filtro Origem (AEP, AET, Psicossocial) e rótulo Setor / GHE; os filtros de página que já existiam continuam.
+- **Cadastro Cliente:** recebe Absenteísmo, HHT / Taxa de frequência e Restritos (individual ou por Excel). A aba Registro deixou de existir.
+- **Absenteísmo:** segmento corporal geral (sem direito/esquerdo) no cadastro, na lista e no diagrama; registros antigos com lado entram no segmento geral.
+- **AET:** aba própria, marcada como módulo em desenvolvimento (filtro e coluna Origem já preparados).
+- **Laudo da AEP:** "Risco do posto" em cada posto e explicação na metodologia (item 8.2).
+- **Ajuda, fluxos e indicadores** atualizados.
+
+## V 1.28 — 08/10/2026
+
+Reestruturação da AEP, do menu e da emissão do laudo.
+
+- **Filtro geral (`js/app.js`, `psicossocial.html`):** o filtro Cliente lista só os clientes vinculados ao usuário; todas as abas respondem ao filtro, inclusive Riscos Psicossociais (com um único cliente filtrado, o módulo abre a página dele).
+- **Menu (`index.html`, `js/app.js`):** "Cadastro Cliente" no topo (Cliente, Unidade, Setor / GHE, Colaboradores, Cargo, Posto de Trabalho, Atividade — a hierarquia de dados não muda); nova aba "Cadastro Interno" (Certificado de calibração, Editor de texto, Ergonomistas, com e-mail); nova aba "AEP" (Avaliações, Inventário de Riscos, Laudos).
+- **AEP:** sem atividade (por posto e cargo); número por cliente atribuído pelo servidor (`api/src/functions/entidades.js`, AEP-001…); lista com número, data/ergonomista do cadastro, data/ergonomista da última atualização; "Mais detalhes" com dados, inventário e histórico de atualizações; aviso para o Administrador juntar as AEPs antigas do mesmo posto e cargo, retirar a atividade e numerar.
+- **Inventário (`js/app.js`, `js/calc.js`, `js/acoes.js`):** fator "Ruído inadequado" em "Influência de fatores do meio ambiente"; lista padrão de consequências por fator; não salva com campo em branco; "Repetir este fator" com todas as informações e contador de cadastros; ações sem responsável/e-mail/prazo (ficam no Plano de Ação), risco atual automático pela graduação e opção "Não reduz (ação organizacional / de controle)". Importação Excel com a mesma lógica (sem atividade).
+- **Laudo (`js/laudo.js`, `js/laudo-docx.js`):** responde ao filtro geral, com painel "Emitir laudo atual" e histórico de laudos emitidos do cliente; abrangência empresa toda / unidade / setor / cargo / posto de trabalho; cada posto traz o número da AEP, o cargo e a data da última atualização; ação que não reduz a graduação aparece como organizacional / de controle.
+- **Ajuda:** manual, fluxos e indicadores atualizados para os novos menus.
+
+## V 1.27 — 07/10/2026
+
+SIGE e Riscos Psicossociais passam a ser um pacote único. (A V 1.26 não chegou a ser publicada; dela ficam a planilha do plano de ação mais enxuta e o prazo só quando informado. Os vínculos separados SIGE/Psicossocial foram substituídos pela lista única abaixo.)
+
+- **Laudo psicossocial adaptado a qualquer matriz (`psicossocial.html`):**
+  - Correção: o módulo guardava a matriz da empresa do momento em que foi aberto; ao trocar a matriz no Cadastro (ex.: 4x4 → 3x3) o laudo saía com a antiga. Agora a matriz é relida ao abrir a empresa, ao voltar para a aba e ao emitir o laudo.
+  - A metodologia (item 4) gera automaticamente, para a matriz da empresa (3x3, 4x4, 5x5 ou Gerdau), a tabela de conversão da probabilidade, as faixas de Severidade Final por nível, a matriz com pontuações, a conduta por nível e os níveis da conclusão. Textos salvos no Editor não conseguem mais contradizer a matriz.
+  - **Matriz 3x3 no modelo ElevaLife (`js/calc.js`, vale para Inventário e Psicossocial):** escala Leve/Média/Alta (o valor gravado continua "Baixa" e é exibido como "Leve") e graduação por pontuação 1–2 Baixo, 3–4 Moderado, 6–9 Alto (antes: 3 era Baixo e 6 era Moderado). Formulários, checklist e laudos (`js/laudo.js`, `js/laudo-docx.js`) usam o novo rótulo via `Calc.rotuloEscala`.
+  - Formatação do PDF: tabelas com linhas alternadas, cabeçalho que não fica sozinho no fim da página, quebra de palavras longas, justificação sem espaços exagerados, plano de ação por GHE em 3 colunas (Fator · código, Recomendação, Indicador) e capítulo de resultados por unidade iniciando em página nova.
+
+- **Ajustes após a apresentação à diretoria:**
+  - Laudos (psicossocial, AEP em PDF e Word): a formação/cargo do profissional gravada toda em maiúsculas sai com iniciais maiúsculas, mantendo siglas (ABERGO, CREFITO, NR...) e preposições em minúsculas (`Calc.formatarCargo`).
+  - Plano de ação: ação com prazo passa automaticamente a "Em andamento"; prazo vencido e não concluída aparece como "Atrasada"; tirar o prazo volta a "Não iniciada". Concluir continua exigindo evidência. Vale para o módulo psicossocial e para o Plano de Ação do SIGE (`calcularStatusAcao` e formulário).
+  - Laudo psicossocial: a data do checklist ISO 45003 é sempre a da última atualização das respostas.
+- **Evidência organizacional só pela taxa de frequência:** saiu o ajuste manual da EO (a lista "Ajustada" na aba Diagnóstico organizacional). A EO passa a ser sempre definida pela taxa de frequência do setor/GHE (menor que 2% = 1; 2% a menos de 5% = 2; 5% a 20% = 3; acima de 20% = 4) e pelos casos graves registrados (= 5); ajustes manuais gravados antes são ignorados. Textos do laudo e da Ajuda atualizados.
+- **Empresas de teste (Administrador):** no Painel geral do módulo, "Empresas de teste" cria (ou exclui) três clientes fictícios com o HSE-IT respondido para graduação muito baixa, moderada e muito alta, ISO 45003 em gestão intermediária e taxa de frequência 0%, para testar a taxa de frequência e a graduação.
+- **Tabulação do HSE-IT conferida (sem mudança no cálculo):** itens por fator e os 12 itens invertidos (3, 5, 6, 9, 12, 14, 16, 18, 20, 21, 22 e 34, de Demandas e Relacionamentos) conferem com o instrumento original do HSE; média do fator = média das respostas dos seus itens; média geral = média dos 7 fatores. Resultado idêntico à planilha antiga de extratificação em 5 fatores; a diferença em Apoio da chefia e Relacionamentos vem do item 33, que a planilha antiga classificava em Relacionamentos (tradução "Tenho suportado trabalhos emocionalmente exigentes"), quando no original é Apoio da chefia ("Eu recebo apoio para lidar com trabalho emocionalmente exigente"). O laudo passa a mostrar a tabela de itens por fator, o sentido da pontuação e as faixas de graduação; o anexo de perguntas traz o número de cada item.
+- **Graduação revisada em todas as matrizes (`js/calc.js`, `psicossocial.html`, `js/ajuda.js`):**
+  - As matrizes 3x3, 4x4 e 5x5 (e a 5x5 Gerdau, igual à 5x5 até haver modelo próprio) passam a usar as matrizes modelo ElevaLife célula a célula, no lugar da faixa genérica de pontuação (que deixava, por exemplo, 3 × 5 = 15 como Moderado na 5x5, quando o modelo é Altíssimo). A 4x4 ganha o nível Muito Baixo (1 × 1). Rótulos: 4x4 Leve/Média/Alta/Muito Alta; 5x5 com "Moderada" no nível do meio. Vale para o Inventário de Riscos (AEP) e para os Riscos Psicossociais.
+  - Riscos psicossociais conforme o Manual SIF: a Severidade Final é enquadrada no inteiro mais próximo, 0,50 para cima (Tabela 6: 1 Baixa, 2 Moderada, 3 Alta, 4 Crítica), e levada à matriz por equivalência (4x4 direto; 5x5 colunas 1, 3, 4 e 5; 3x3 Leve, Média, Alta, Alta). A probabilidade do método (1 a 5) vai para a matriz por equivalência de nomes (5x5 direto; 4x4 1-1-2-3-4; 3x3 1-1-2-3-3). Acabou a conversão proporcional.
+  - O laudo mostra, para a matriz da empresa, a tabela SF → nível do método → severidade na matriz.
+  - Correção: ao mudar a taxa de frequência (ou a EO, as respostas do HSE-IT, o ISO 45003 ou a matriz), a graduação muda e o plano recomendado automaticamente é refeito para acompanhar a nova graduação, enquanto a equipe não tiver mexido nele (ação incluída/retirada à mão, responsável, e-mail, prazo, status ou evidência). Isso acontece na sincronização com o Registro, ao baixar o plano em Excel e ao emitir o laudo.
+- **Logotipos oficiais da ElevaLife:** versão bordô (fundo claro) e branca (fundo vinho) em `img/logo-elevalife.png` e `img/logo-elevalife-branco.png`. Usadas na tela de acesso, carregamento, barra lateral (símbolo), módulo psicossocial (barra superior, telas do QR code, kit de teste, capa e cabeçalho do laudo), laudo AEP em PDF (capa e cabeçalho) e Word (capa) e cabeçalho dos e-mails (requer a variável `URL_PUBLICA`).
+- **Termo de consentimento (LGPD) no HSE-IT:** depois de confirmar a matrícula, o colaborador lê o termo (versão 1.0 · out/2026) e marca o aceite para começar, ou não aceita. A recusa conta como participação, sem respostas (`POST /api/psicopub/resposta` com `recusa: true`); a participação guarda `termo` e `termoVersao`. Também no kit de teste avulso.
+  - Aba HSE-IT e visão do cliente: "Participaram" = responderam + não aceitaram o termo; tabelas e gráficos (adesão por unidade, respostas por dia) separam as duas quantidades.
+  - Laudo: o item Dados gerais traz cadastrados, participantes, quantos responderam e quantos não aceitaram o termo (com % do total); cada unidade e cada setor/GHE do item 7 informa cadastrados, respondentes e recusas. Novos marcadores no Editor de texto: {nPart}, {nRec}, {resumoParticipacao}.
+
+- **Cadastro único (`js/app.js`, `js/db.js`, `api/src/functions/entidades.js`):**
+  - **Cliente:** novo campo **Serviços contratados** (Gestão de Risco, Gestão de Absenteísmo, Gestão de Restritos, Riscos Psicossociais), em caixas de marcar. A Matriz de Risco do cliente passa a valer também para os Riscos Psicossociais. Cliente antigo sem o campo = todos os serviços.
+  - **Aviso de serviço não contratado:** a aba continua no menu; se nenhuma empresa do filtro (ou das empresas do usuário) tem o serviço, o conteúdo dá lugar ao aviso "não possui o serviço… procure o time de especialistas da ElevaLife" (`aplicarServicosContratados`). No módulo psicossocial, o aviso aparece ao escolher a empresa.
+  - **Setor / GHE:** o cadastro de Setor ganhou o campo "É setor ou GHE?" (`Tipo Setor`).
+  - **Colaboradores:** nova coleção `colaborador` (Cliente, Unidade, Setor/GHE, Matrícula, Nome, Cargo opcional), id = Cliente + Matrícula (nunca duplica), busca, exclusão individual e em lote, importação por Excel (até 12 mil linhas por arquivo). Container criado sob demanda.
+  - Novo tipo de campo `checklist` (caixas de marcar com busca) e `?empresa=<id>` no GET da API genérica (só estreita o que o perfil já vê).
+- **Riscos Psicossociais (`psicossocial.html`, `js/psicossocial-sige.js`, `api/src/functions/psicossocial.js`):**
+  - A empresa do módulo é o Cliente do SIGE (`e_sige-<id do cliente>`). Unidades, setores/GHE, colaboradores e ergonomistas vêm do cadastro do SIGE; o módulo guarda só coleta, respostas, ISO 45003, taxa de frequência e análise. O questionário público localiza a matrícula na coleção `colaborador`.
+  - Abas: **Diagnóstico organizacional** (checklist ISO 45003, taxa de frequência e evidência organizacional por setor/GHE, ações já realizadas, planilha de solicitação, cópia de segurança), **HSE-IT**, **Análise de risco**, **Plano de ação**, **Laudo** e **Editor de texto**. Saíram Cadastro de empresa, Colaboradores, Ergonomistas, Severidade e Probabilidade (as explicações foram para a Ajuda).
+  - **Metodologia com as matrizes do SIGE** (3x3, 4x4, 5x5, 5x5 Gerdau; mesma grade do Inventário, `js/calc.js`): probabilidade (graduação HSE × ISO 45003, 1 a 5) e severidade final (SIF × 0,75 + EOaj × 0,25, de 0,75 a 4,00) convertidas proporcionalmente para a escala da matriz; nomes e cores dos níveis conforme a matriz.
+  - **Análise de risco:** sem escolha de matriz e sem seleção de ações; resumo por empresa, unidade e setor/GHE com probabilidade, severidade e graduação de cada um dos 7 fatores; gráfico de quantidade de fatores por graduação com filtros (unidade, setor/GHE, fator); matriz com a contagem de fatores.
+  - **Integração com o Registro:** 1 linha "Risco psicossocial" por setor/GHE no Mapa de Risco (Risco Global = graduação do setor/GHE), 1 linha por fator no Inventário de Riscos e 1 ação por linha no Plano de Ação, todas com `Origem = "Riscos Psicossociais"` e contando 1 nos indicadores. A sincronização roda ao abrir a empresa e a cada mudança (botão "Atualizar Registro agora" na Análise).
+  - **Plano de ação:** a ação do módulo é a mesma do Registro › Plano de Ação (prazo, responsável, e-mail, status e evidências são de lá; regras de evidência do SIGE para concluir). O e-mail ao responsável usa o modelo do psicossocial (`notificarAcaoPsico` em `entidades.js`) e os lembretes diários do SIGE passam a valer. Seleção de ações no quadro "Ajustar ações recomendadas".
+  - **Laudo:** ergonomista e responsável técnico do cadastro de Ergonomistas do SIGE; logotipo do cadastro do cliente; metodologia, tabelas de probabilidade, severidade e matriz conforme a matriz do cliente; marcador `{matriz}` no Editor de texto.
+  - **Perfis:** Administrador vê tudo; Consultor (ergonomista) e Usuário Cliente só as empresas vinculadas ao usuário.
+  - **Migração:** no painel do módulo, o Administrador migra cada empresa da versão anterior (`POST /api/psico/migrar`, em etapas): empresa → Cliente (novo ou existente), unidades, GHEs (setor do tipo GHE) e colaboradores → cadastro do SIGE; respostas, participação, ISO 45003 e análise → nova empresa; profissionais → Ergonomistas. O código da coleta e os QR codes continuam valendo. Nada é apagado.
+- **Usuários:** volta a ser uma lista única de empresas vinculadas, agora em caixas de marcar com busca.
+- **Perfil Usuário Cliente:** sem acesso ao Cadastro (o item some do menu). No Registro, só consulta e baixa cada aba em Excel: sem Novo registro, Importar, Editar, Excluir ou seleção em lote. A API recusa qualquer gravação desse perfil (`entidades.js`) e envio/exclusão de arquivos (`arquivos.js`). Nos Riscos Psicossociais o cliente continua respondendo o checklist ISO 45003.
+- **Baixar Excel:** cada aba do Cadastro e do Registro ganhou o botão "⬇ Baixar Excel", com a busca e os filtros da tela.
+- **Ajuda:** manual de Cadastro e de Riscos Psicossociais atualizados, novo tópico "probabilidade, severidade e graduação", novo fluxo "Riscos Psicossociais" e notas nos indicadores de Mapa de Risco, Inventário e Plano de Ação.
+- **Plano de ação em Excel (da V 1.26):** sem as colunas Risco encontrado, Resultado esperado, Indicador de eficácia, Evidência organizacional e Origem; "Achado" no lugar de Risco encontrado; prazo em branco quando não foi informado.
+
+## V 1.25 — 07/10/2026
+
+- **Riscos Psicossociais · navegação por subabas, perfis de acesso, plano de ação com e-mail e laudo em PDF.**
+  - **Menu lateral (`index.html`):** "Riscos Psicossociais" virou grupo expansível (como "Registro"), com as subabas publicadas pelo módulo conforme o perfil: Cadastro de empresa, Colaboradores, Checklist ISO 45003, HSE-IT, Severidade, Probabilidade, Análise de risco, Plano de ação, Laudo, Ergonomistas e Editor de texto. O módulo ocupa toda a largura da área principal (correção da tela "reduzida": `main` deixava de esticar com o iframe). Removido o recolhimento automático do menu da V 1.21.
+  - **Perfis:**
+    - Administrador: tudo.
+    - Consultor (ergonomista): todas as abas de trabalho; não exclui empresa; Editor de texto só leitura ("solicite ao coordenador"); sem acesso à aba Ergonomistas. A API recusa (403) exclusão de empresa e gravação em `profissionais/*` e `config/*` para Consultor.
+    - UsuarioCliente: só Checklist ISO 45003 (responder, editar e ver o resultado), HSE-IT (quantidade de respostas por empresa, unidade e GHE) e Plano de ação (ações, prazos e gráfico de status). Vê apenas as empresas cujo "Cliente vinculado no SIGE" está em `empresasVinculadas`. Rotas novas: `GET /api/psico/eu`, `GET /api/psico/cli-empresas`, `GET /api/psico/cli-dados?e=`, `PUT /api/psico/cli-iso?e=`.
+  - **Cadastro de empresa:** dados, vínculo com o cliente do SIGE (sugestão automática pelo CNPJ), ações já realizadas, logo, planilha de solicitação, cópia de segurança e "Excluir empresa" (só Administrador).
+  - **HSE-IT:** QR code/link por empresa, adesão e respostas por empresa, unidade e GHE, com gráficos (adesão por unidade, respostas por dia, distribuição das respostas).
+  - **Severidade:** explicação do SIF, taxa de frequência por GHE e resultado da severidade final por fator (empresa, unidade e GHE). **Probabilidade:** resultado por fator (empresa, unidade e GHE).
+  - **Análise de risco:** escolha da matriz (5×5 ou 4×4), matriz com a contagem de GHEs, gráfico por graduação, classificação por unidade/GHE e seleção das ações por GHE.
+  - **Plano de ação:** só as ações selecionadas; prazo, responsável e e-mail começam em branco. Com os três preenchidos, o responsável recebe um e-mail (via Microsoft Graph, mesma configuração `GRAPH_*` do SIGE) com a ação, o prazo e a importância da conclusão; não reenvia se nada mudou (botão "Reenviar" disponível). Novo `POST /api/psico/notificar-acao`. Status: Não iniciada (laranja), Em andamento (amarelo), Atrasada (vermelho, prazo vencido) e Concluída (verde), com gráfico e filtros. Excel com Prazo, Responsável, E-mail e Status coloridos e aba "Resumo" por status.
+  - **Laudo:** emitido em PDF (jsPDF + fontes Montserrat de `js/pdf-fonts.js`), escolhendo ergonomista e responsável técnico; sumário com páginas e links; removida a seção "Plano de ação consolidado"; removidos de "Resultados gerais da empresa" o parágrafo de graduação da empresa como um todo e o quadro de distribuição dos grupos ocupacionais por graduação; a graduação de cada GHE e a conclusão citam todos os fatores que atingiram a maior graduação (não só o primeiro), e a tabela da conclusão passou a "Fatores determinantes"; NR-01 e NR-17 sempre nas referências bibliográficas (último capítulo).
+  - **Editor de texto:** todos os textos padrão do laudo, da capa ao encerramento e referências, editáveis pelo Administrador (`config/laudo`), com "Restaurar padrão" por campo.
+  - **Ergonomistas:** cadastro de ergonomistas e responsáveis técnicos.
+  - **Gráficos:** Chart.js no padrão do SIGE (rosca 62%, barras arredondadas, rótulos em %), com as cores de risco (trivial azul-claro, baixo verde, moderado amarelo, alto vermelho, altíssimo roxo).
+
+## V 1.24 — 07/10/2026
+
+- **Riscos Psicossociais · escala e confiabilidade (empresas com até ~10 mil colaboradores, sem perda de dados).**
+  - **API (`api/src/functions/psicossocial.js`):**
+    - `/api/psico/col` paginado (`{ docs, next }`, 2.000 por página; o cliente segue `next`).
+    - Consulta de matrícula das telas públicas por índice em memória por empresa (TTL 90 s, invalidado quando a equipe grava um GHE; se não achar, confere de novo sem cache), em vez de ler todos os GHEs a cada colaborador.
+    - **Envio do HSE-IT idempotente:** o navegador manda um token `t`. A participação guarda só `sha256("p:"+t)` e a resposta usa id `r`+`sha256("r:"+t)`, então o hash da participação não leva ao id da resposta e o anonimato se mantém. Reenviar o mesmo envio (rede caiu, confirmação perdida, falha entre as duas gravações) completa o que faltou sem duplicar. Se a resposta não puder ser gravada, a matrícula é liberada e volta 503 `retry`.
+    - Novas tentativas com espera crescente em falhas transitórias (408/429/449/5xx).
+    - Novo `DELETE /api/psico/empresa?e=<eid>`: exclusão em lotes de todos os documentos da empresa, até ~20 s por chamada; o cliente repete enquanto vier `{ restante: true }`.
+  - **Adaptador (`js/psicossocial-sige.js`):**
+    - Todas as chamadas repetem sozinhas em falhas transitórias (sem rede, 408, 425, 429, 5xx), até 6–7 tentativas.
+    - Listagens paginadas e cache de leitura de 10 s.
+    - Token do envio guardado no aparelho até a confirmação.
+    - `ELEVA_DB.excluirEmpresa`.
+    - Reenvio do ISO 45003 já gravado tratado como sucesso.
+  - **Tela (`psicossocial.html`):**
+    - As respostas do colaborador ficam guardadas no aparelho até o envio ser confirmado. Recarregar a página ou perder a conexão não perde nada: ao digitar a matrícula de novo, ele continua de onde parou.
+    - Mensagem de "tentando de novo" durante o envio.
+    - Cálculos reaproveitados a cada desenho de tela (respostas agrupadas por GHE).
+    - Busca com espera.
+    - Importação em paralelo (4 gravações), com limite por GHE (~20 mil colaboradores por registro). Se a importação for interrompida, os dados são recarregados do servidor, com orientação para reimportar; reimportar não duplica.
+    - Exclusão de empresa pelo servidor.
+    - Botão "Baixar cópia de segurança (JSON)" em Cadastro.
+  - **Teste de carga (servidor simulado com 5% de falhas transitórias aleatórias):**
+    - Cadastro de 10.000 colaboradores (80 GHEs) e 9.000 respostas concorrentes (60 simultâneas), mais 262 reenvios do mesmo envio e 84 tentativas de segunda resposta: 9.000 respostas = 9.000 participações, nenhuma perdida ou duplicada, segundas respostas barradas.
+    - Abrir a empresa: 0,5 s. Trocar de aba: 0,1–0,7 s. Laudo (169 páginas): 2,3 s. Excel: 0,2 s.
+    - Importar planilha de 10.000 linhas: leitura 0,25 s, gravação ~9 s. Reimportar não duplica.
+- **Recomendação de infraestrutura (Azure):** ativar o backup contínuo (restauração a um ponto no tempo) da conta Cosmos DB `cosmos-bi-ergonomia` em Azure Portal › conta Cosmos › Backup e restauração.
+- Service worker: cache `sige-v27`.
+
+## V 1.23 — 07/10/2026
+
+- **Riscos Psicossociais · laudo:**
+  - **Sumário:** passa a sair já preenchido com os títulos numerados (capítulos e subitens), mesmo antes de o Word atualizar os campos ou em visualizadores que não atualizam (Word on-line); ao aceitar "atualizar campos", o Word completa os números de página. Estilos `toc 1`/`toc 2` no padrão ElevaLife. Unidades cujo nome já começa com "Unidade" não repetem o prefixo ("Unidade – Unidade Betim" → "Unidade Betim").
+  - **Conclusão reescrita** com a nova metodologia: fontes da avaliação (HSE-IT, ISO 45003, SIF ajustada pelas evidências), fatores fortes e de atenção, graduação da empresa, quadro dos grupos ocupacionais (unidade, GHE, fator determinante, graduação), fatores mais frequentes com risco moderado ou acima, resumo do plano e, ao final, tabela com a quantidade de fatores por graduação (fatores × Trivial…Altíssimo, com total).
+  - **Referências bibliográficas** como último capítulo (depois do encerramento e das assinaturas) e lista padrão ampliada com as portarias citadas no relatório modelo e na Biblioteca Mestre (Portaria SEPRT 6.730/2020, Portaria MTE 1.419/2024, Portaria MTP 423/2021).
+- Service worker: cache `sige-v26`. Sem alteração na API.
+
+## V 1.22 — 06/10/2026
+
+- **Riscos Psicossociais · laudo mais natural:** a análise de cada fator (empresa e GHEs) foi reescrita em linguagem corrida — probabilidade (média do HSE-IT e gestão pelo ISO 45003) e severidade (gravidade do fator segundo a literatura, com o motivo resumido, ajustada pelas evidências de dano do grupo, sem a conta SF = …; a fórmula fica só na metodologia, item 4.4). A graduação do risco de cada fator passa a ser uma tabela de três colunas (probabilidade, severidade e graduação), colorida.
+- **Matriz 4 × 4 = modelo ElevaLife:** graduação final linhas P1→P4: Trivial, Baixo, Baixo, Moderado / Baixo, Baixo, Moderado, Alto / Baixo, Moderado, Alto, Alto / Moderado, Alto, Alto, Altíssimo. Service worker: cache `sige-v25`.
+
+## V 1.21 — 06/10/2026
+
+- **Riscos Psicossociais · layout em notebooks:** o módulo roda num iframe e o layout dele depende da largura disponível; com o menu lateral aberto, em telas de notebook sobravam ~800 px e as telas empilhavam como no celular. Agora, ao abrir a aba, o menu lateral é recolhido automaticamente (sem alterar a preferência salva; volta ao sair da aba) e a área do módulo perde o limite de largura e o espaçamento extra (`body.psico-ativo`, script inline em `index.html`). No módulo, os pontos de quebra para uma coluna caíram (etapas: 800 px; painéis lado a lado: 820 px) e a fonte fica um pouco menor entre 641 e 1280 px. Service worker: cache `sige-v24`.
+
+## V 1.20 — 06/10/2026
+
+- **Riscos Psicossociais · Excel do plano de ação:** removida a aba "Resumo por GHE" (ficam "Plano de ação" e, quando houver, "Ações a manter"). Service worker: cache `sige-v23`.
+
+## V 1.19 — 06/10/2026
+
+- **Riscos Psicossociais · laudo:** o capítulo "Resultados gerais da empresa" passa a ter a mesma estrutura dos GHEs — resultado HSE-IT e gráfico, interpretação por fator (probabilidade, severidade e graduação), quadro-resumo e graduação da empresa — seguido da distribuição dos GHEs por graduação. Service worker: cache `sige-v22`.
+
+## V 1.18 — 06/10/2026
+
+- **Riscos Psicossociais · matriz 5 × 5 = modelo ElevaLife** (graduação final igual à matriz de criticidade × probabilidade da empresa, com a célula Trivial em probabilidade 1 × severidade 1). A SF 1 é lida na coluna 1 (colunas 1 e 2 equivalem à SF 1); SF 2, 3 e 4 → colunas 3, 4 e 5. Service worker: cache `sige-v21`.
+
+## V 1.17 — 06/10/2026
+
+- **Riscos Psicossociais · cores das graduações** (variáveis `--g0`…`--g4`, aplicadas a risco, graduação HSE, probabilidade, severidade, EO, distribuição de respostas e checklist ISO, na tela, no Word e no Excel): trivial/muito baixo azul claro `#8CCBEB`, baixo verde `#2E8B57`, moderado amarelo `#F2C230`, alto vermelho `#C62828`, muito alto/altíssimo/crítico roxo `#6A3D9A`. Texto escuro sobre azul claro e amarelo.
+- **Laudo, por GHE:** interpretação por fator (probabilidade: média HSE-IT e graduação × resultado ISO 45003; severidade: SIF × evidência organizacional/fator atenuante com o cálculo da SF; graduação do risco), depois quadro-resumo com probabilidade, severidade e graduação de cada fator e, por fim, o plano de ação para os riscos identificados. As tabelas de graduação (empresa e GHE) mostram só probabilidade, severidade e graduação.
+- **Excel do plano:** colunas "Probabilidade do fator" e "Severidade do fator" na aba Plano de ação; aba Resumo por GHE só com Unidade, GHE e a graduação de cada fator. Service worker: cache `sige-v20`. Sem alteração na API.
+
+## V 1.16 — 06/10/2026
+
+- **Riscos Psicossociais · Manual SIF HSE-IT ElevaLife.** SIF fixa por domínio (Demandas, Apoio da chefia e Relacionamentos 4; Controle, Apoio dos colegas, Cargo e Comunicação e mudanças 3), sem edição por empresa. Severidade Final SF = SIF × 0,75 + EOaj × 0,25 (EOaj = EO − 1), arredondada no inteiro mais próximo (0,50 sobe) — mesma tabela da V 1.15. A EO continua sugerida pela taxa de frequência (casos graves = 5) e pode ser ajustada por GHE (`eoMan`) com outros indicadores.
+- **Matriz 5 × 5 de volta:** colunas 1 e 2 da severidade equivalem à SF 1 e usam os valores da coluna 2 da matriz original (critério conservador); SF 2, 3 e 4 → colunas 3, 4 e 5. Matriz 4 × 4 sem mudança.
+- **Laudo:** item 4.4 reescrito com o manual (SIF, escala, justificativa por domínio, EO/EOaj, fórmula da SF, matriz SIF × EO e limitações); referências padrão = lista do manual + NR-7, Portaria MTE 765/2025, ISO 45001 e OIT/OMS 1984. Service worker: cache `sige-v19`. Sem alteração na API.
+
+## V 1.15 — 06/10/2026
+
+- **Riscos Psicossociais · nova metodologia de severidade.** Probabilidade continua HSE × ISO 45003, agora calculada por fator do HSE (graduação do fator × resultado do checklist). Severidade = SIF do fator (1 Baixa a 4 Crítica; padrão Demandas 4, Controle 3, Apoio da chefia 4, Apoio dos colegas 3, Relacionamentos 4, Cargo 3, Comunicação e mudanças 3; editável por empresa) × evidência organizacional (EO 1 a 5: TF < 2%, 2 a < 5%, 5 a 20%, > 20%, casos graves). Matrizes 5 × 4 (colunas 1 a 4 da 5 × 5 original) e 4 × 4. A graduação do GHE é a do fator de maior risco; a recomendação automática usa os fatores com risco moderado ou acima.
+- **Tela:** sem a lista lateral de empresas (seletor no topo), etapas numeradas em ordem de preenchimento com status, layout de computador; a aba Taxa de frequência passa a ser "Severidade (SIF e TF)".
+- **Laudo:** responsável técnico citado e assinado uma vez quando é o próprio ergonomista; razão social em caixa normal no texto; "Resultados gerais da empresa"; graduação moderada/alta no HSE e na probabilidade; ISO 45003 com gestão eficaz / intermediária / ineficaz; sem a coluna Prazo e sem a frase sobre o cruzamento no plano; lista das ações já realizadas; nova metodologia nos itens 4.3 a 4.5; capítulo de referências bibliográficas (editável em Cadastro, documento `config/laudo`).
+- Aba Riscos Psicossociais: iframe mais alto. Service worker: cache `sige-v18`. Sem alteração na API.
+
+## V 1.14 — 06/10/2026
+
+- **Novo módulo Riscos Psicossociais (versão de testes)** em `psicossocial.html`, aberto pela aba Riscos Psicossociais (embutido) ou em tela cheia. Fluxo: cadastro da empresa pelo CNPJ (usa `/api/cnpj`) → planilha de solicitação ao cliente (unidades, colaboradores/GHEs, taxa de frequência, ações já realizadas) → coleta do HSE-IT por QR code ou código curto, com matrícula (resposta única; a matrícula não é gravada junto das respostas) → checklist ISO 45003 pelo gestor do contrato → análise de risco (probabilidade = HSE × ISO 45003; severidade = taxa de frequência do GHE; matriz 4x4 ou 5x5) → plano de ação com a Biblioteca Mestre (450 ações) → relatório Word.
+- **API:** duas rotas novas no dispatcher (`ROTAS_ESPECIAIS`): `/api/psico/{doc|col|eu}` (equipe: sessão + papel Administrador/Consultor) e `/api/psicopub/{codigo|empresa|matricula|resposta|iso}` (pública, sem login, usada pelas telas do QR code). Dados no Cosmos, container `psicossocial` (criado sob demanda, partição `/EmpresaId`). Ver `api/src/functions/psicossocial.js`.
+- `staticwebapp.config.json`: `/psicossocial.html` pode ser embutido no próprio SIGE (`X-Frame-Options: SAMEORIGIN`). Service worker: cache `sige-v17`.
+
+## V 1.13 — 06/10/2026
+
+- **Importação única do histórico do sistema anterior.** Importar o relatório de Inventário de Riscos agora distribui tudo de uma vez, com uma única prévia de validação: (1) cria os cadastros que faltam (Cliente › Unidade › Setor › Posto › Cargo › Atividade), (2) cria a **Avaliação Ergonômica (AEP) de cada posto/cargo** a que os fatores pertencem — só com os dados da planilha (jornada, pausas e rodízio ficam para preencher depois) e **reaproveitando as AEP que já existem** (chave: Cliente, Unidade, Setor, Posto, Cargo, Atividade) — e (3) grava os fatores no Inventário. A criação da AEP é uma caixa marcada na prévia (padrão: marcada).
+- **Da tela de AEP:** ao selecionar uma planilha de Inventário de Riscos (Grupo, Fator, Criticidade/Probabilidade/Graduação) em Avaliação Ergonômica › Importar Excel, o sistema abre automaticamente a importação do histórico já com a planilha carregada (não é preciso escolher o arquivo de novo). Planilhas de AEP comuns seguem no fluxo de AEP.
+- **Interpretação de valores:** "Temperatura" (sistema anterior) passa a ser reconhecido como "Ambiente de trabalho extremamente quente ou frio" (sinônimo); grafias parecidas continuam em revisão (nomes unificados, correspondência de valores, duplicadas).
+- Motor (`js/importador.js`): novos recursos opcionais `derivados` (registros criados junto), `redirecionar` (planilha de outro tipo) e `abrir(def, ctx, inicial)` (arquivo já lido). Sem rota nova na API. Service worker: cache `sige-v16`.
+
+## V 1.12 — 06/10/2026
+
+- **Aviso na importação da Avaliação Ergonômica (AEP):** se a planilha tiver colunas de Inventário de Riscos (Grupo, Fator, Criticidade, Probabilidade, Graduação…), a prévia mostra um aviso para usar Registro › Inventário de Riscos (AEP) › Importar Excel. Motivo: o relatório do sistema anterior tem Empresa/Unidade/Setor/Posto/Cargo, e importado na AEP só a hierarquia entra (e avaliações vazias), enquanto os fatores de risco são ignorados. Novo recurso opcional `avisoPlanilha(cabecalhos)` no motor (`js/importador.js`); só a AEP o usa. O aviso não bloqueia a importação. Service worker: cache `sige-v15`.
+
+## V 1.11 — 06/10/2026
+
+- **Atividade e Data deixam de ser obrigatórias nas importações** do Inventário de Riscos (Atividade, Data de identificação) e da Avaliação Ergonômica/AEP (Atividade, Data da avaliação): o sistema anterior não as traz. Sem coluna ou com célula vazia, o campo fica em branco; os "valores padrão" da prévia passam a começar vazios (a V 1.10 sugeria "Atividade não informada – histórico" e a data de hoje) e continuam editáveis, caso o usuário queira preencher as linhas sem dado. Não cria mais cadastros de Atividade fictícios.
+- Efeito na chave de duplicidade: sem Atividade e sem Data, duas linhas com o mesmo Posto + Cargo (AEP) caem na mesma chave — a segunda é marcada como repetida/atualiza a primeira. Formulários de cadastro manual seguem com os campos obrigatórios. Nenhuma rota da API alterada. Service worker: cache `sige-v14`.
+
+## V 1.10 — 06/10/2026
+
+- **Importação do Inventário de Riscos do sistema anterior** (Registro › Inventário de Riscos › "Importar Excel", coleção `fatorRisco`): lê o relatório exportado do sistema anterior (Empresa, Unidade, Setor, Cargo, Posto de trabalho, Grupo, Fator, Existe fator, Circunstância geradora, Consequência, Medida de controle, Criticidade, Probabilidade, Pontuação, Graduação, Propor ação, ação para eliminação, controles administrativos, Status, SLA, Observação, Válido até). Decisão de negócio: **a Graduação e a Pontuação do sistema anterior são gravadas exatamente como vieram** (o S.I.G.E. só calcula se a planilha não trouxer); as linhas em que a graduação difere da matriz do S.I.G.E. são marcadas (chip, filtro e aviso por linha). Textos de ação do legado vão para `Acao Eliminacao` / `Controles Administrativos` (convertíveis em ação do Plano de Ação), `Propor Acao` e `Matriz` (a do cliente; novo cliente nasce em "Matriz 4x4"). Observação recebe "Importado do sistema anterior em dd/mm/aaaa.".
+- **Criar cadastros ausentes** (todas as importações com hierarquia): se Cliente › Unidade › Setor › Posto de Trabalho › Cargo › Atividade não existir, a prévia mostra o que falta e oferece "Criar automaticamente os cadastros que faltam" (opção desligada por padrão). Cria nível a nível, de cima para baixo, com os mesmos ids do cadastro manual (`idCadastroMestre`); só Administrador cria Cliente (regra já existente na API); falha em um nível bloqueia os dependentes e é informada no final, sem deixar registros sem cadastro.
+- **Revisão de duplicadas:** linhas com a mesma chave (Cliente…Atividade + Grupo + Fator + Fonte geradora) dentro do arquivo ou já gravadas no S.I.G.E. — idênticas (padrão: pular) ou parecidas (padrão: importar; contra o sistema, pular), com decisão por linha, ações em bloco, filtro e coluna "difere em". Reimportar o mesmo arquivo não duplica.
+- **Nomes parecidos:** dentro do mesmo cliente, nomes que são a mesma coisa escrita de formas diferentes (sem acento/pontuação/palavras de ligação/plural, ou um erro de digitação em uma palavra) são agrupados para o usuário escolher a grafia (padrão: a já cadastrada, senão a mais frequente) ou manter separados; números, algarismos romanos e siglas nunca são unificados.
+- **Correspondência de valores:** Grupo/Fator (lista ISO/TS 20646) e a escala da matriz (Leve = Baixa, Alto = Alta…) com equivalente automático conferível; o que não tem equivalente ("Temperatura") o usuário mapeia na prévia ou rejeita as linhas.
+- **Valores padrão editáveis** para o que a planilha não traz (Atividade padrão "Atividade não informada – histórico"; Data de identificação = hoje); `_x000A_` vira quebra de linha e "-", "N/A", "Não informado" viram vazio; **Relatório de revisão** (.xlsx) com duplicadas, grafias, correspondências, cadastros a criar e rejeitadas.
+- Motor (`js/importador.js`): `analisar` passa a devolver `grafias`, `correspondencias`, `plano`/`pendente` e `padroesUsados`; novos recursos (`hierarquia`, `padroes`, `correspondencia`, `duplicidade`, `marcas`, `valoresVazios`) são opcionais — HHT, Restritos e AEP mantêm o comportamento anterior. Nenhuma rota nova na API; nenhuma regra de cálculo alterada. Service worker: cache `sige-v13`.
+
+## V 1.9 — 06/10/2026
+
+- **Editor de Texto cobre todo o Laudo** (Cadastro › Editor de Texto, coleção `modeloLaudo`): de 12 para 48 campos, em ordem do documento — capa (lema, título, subtítulo), títulos das seções (campo "Títulos": uma linha `chave | título`), apresentação, ElevaLife, responsabilidade, demanda, fundamentação, pilares, metodologia, etapas, PDCA, técnicas, ISO/TS 20646, guias de graduação (ADM, escalas), interfaces, gravidade/probabilidade/graduação, medidas, avaliações, recomendações, referências, conclusão e texto de validação. Campo vazio = texto padrão (`js/laudo-textos.js`); sem edição, o PDF permanece idêntico ao da V 1.8. Novos marcadores: `{nFatoresISO}`, `{nGruposISO}`, `{matriz}`, `{dataBase}`, `{nomes}`, `{emissao}`, `{codigo}`, `{revisao}`.
+- **Laudo em PDF e Word (.docx):** "Gerar Laudo" produz os dois arquivos a partir do mesmo conteúdo. Novo `js/laudo-docx.js` (sem biblioteca externa): estilos Título 1/2/3, sumário como campo do Word, cabeçalho/rodapé com "Página X de Y", tabelas, imagens (logotipo, fotos, assinaturas) e QR Code nativos. `js/laudo.js` passa a ter `preparar()` (dados e texto compartilhados) e `BI.Laudo.gerarDocx`.
+- Novo campo `Arquivo Word` no cadastro de Laudo e botão "⬇ Word" na lista. API de arquivos: coleção `laudo` aceita `.docx` (assinatura PK conferida). Hash SHA-256 e verificação continuam referindo-se ao PDF.
+- Limites: cabeçalhos das colunas das tabelas e alguns rótulos estruturais seguem fixos no código. Laudos anteriores não têm Word. Service worker: cache `sige-v12`.
+
+## V 1.8 — 05/10/2026
+
+- **Importação do histórico de AEP** (Registro › Avaliação Ergonômica › "Importar Excel"), no mesmo motor da V 1.6 (`js/importador.js`): modelo para baixar, **apelidos de colunas** comuns de sistemas anteriores (Empresa, Filial, Área, Posto, Função, Data da AEP, Jornada…) reconhecidos automaticamente, mapeamento manual, prévia e confirmação. Chave natural: Cliente + Unidade + Setor + Posto + Cargo + Atividade + Data da avaliação (atualiza, não duplica).
+- Jornada, Pausas e Rodízio ficam opcionais **só na importação** (no formulário continuam obrigatórios). Fotos não são importadas. Nenhuma rota nova na API; AET e gráficos inalterados.
+- Pendente (aguarda planilha real do sistema legado): mapeamento exato das colunas e dos 5 níveis de risco legados para os 4 níveis do S.I.G.E.
+- Service worker: cache `sige-v11`.
+
+## V 1.7 — 05/10/2026
+
+Revisão de segurança (pen test: código + testes seguros em produção). Relatório completo em `docs/relatorio-seguranca-v1.7.md`.
+
+- **Convites (crítico):** `POST /api/auth/convidar` e `POST /api/usuarios` não reenviam/zeram convite de conta ativa (409); Consultor só convida `UsuarioCliente` e só para empresas às quais está vinculado; `reenviar-convite` de Consultor limitado a `UsuarioCliente`.
+- **RBAC:** `UsuarioCliente` não grava `laudo`, `cliente`, `ergonomista`, `modeloLaudo` nem `certificadoCalibracao` (API interna, uploads e chave de API de empresa); API pública não grava coleções globais. `Codigo Verificacao` do laudo único (409).
+- **Arquivos:** chave `<EmpresaId>/<colecao>/<arquivo>` validada (3 partes, sem `..`, `\`, `%`), bloqueando path traversal; assinatura (bytes iniciais) conferida para JPEG, PNG, PDF e XLSX; `X-Content-Type-Options: nosniff` no download.
+- **Login:** 5 senhas erradas bloqueiam a conta por 15 min (HTTP 429); resposta com custo de tempo igual para e-mail inexistente; "Esqueci minha senha" com intervalo mínimo de 1 min por conta; `/api/auth/*` só aceita POST (405).
+- **Front:** `pdfjsLib.getDocument(..., { isEvalSupported:false })` (CVE-2024-4367, pdf.js 3.11.174).
+- **Config:** `/MANUAL.md`, `/docs/*.md` e `/data/*.py` respondem 404; cabeçalhos `X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'` e `Permissions-Policy`.
+- Service worker: cache `sige-v10`.
+
+## V 1.6 — 05/10/2026
+
+- **Importação por Excel** (novo `js/importador.js`, motor genérico reutilizável): botão "Importar Excel" em Registro › HHT / Dias Úteis e Registro › Restritos (Compatíveis). Fluxo: baixar modelo (abas Dados, Instruções, Exemplo e Referências) ou "Baixar dados atuais" → enviar a planilha → **prévia** (novo, atualiza, sem alteração, erro, com motivo por linha e mapeamento de colunas ajustável) → **confirmação** → gravação em lote com relatório. Linhas com erro nunca são gravadas; há download das linhas rejeitadas.
+- Validações: obrigatórios, números (aceita vírgula decimal), datas dd/mm/aaaa e número de série do Excel, mês (mm/aaaa, mmm/aaaa), listas fechadas e hierarquia Cliente › Unidade › Setor › … contra o Cadastro (grafia padronizada). Limite de 2.000 linhas por arquivo.
+- **Sem duplicidade:** HHT / Dias Úteis passa a aceitar um lançamento por Cliente + Unidade + Setor + mês (formulário e importação). Importação atualiza o existente; Restritos usa Cliente + Matrícula + Início da restrição.
+- `BI.DB.salvarEmLote` (js/db.js): mesmas rotas e regras de empresa/permissão do cadastro manual; 4 requisições em paralelo e uma única recarga ao final. Nenhuma rota nova na API e nenhuma regra de cálculo alterada.
+- Textos de Ajuda (Manual e Histórico) atualizados. Service worker: cache `sige-v9`.
+
+## V 1.5 — 05/10/2026
+
+- **Textos de Ajuda:** manual de uso reescrito em linguagem técnica e padronizada, com "Objetivo" e "Perfis" em cada seção; seções novas (Absenteísmo, HHT e Restritos; Usuários, perfis e configurações) e conteúdo atualizado conforme V 1.2–1.4 (ações por fator, evidência, Gerar Laudo em uma etapa, verificação).
+- **Dicionário de indicadores** (botão "i" e Ajuda › Indicadores) e **fluxos BPMN** com redação técnica; histórico de versões revisado. Nenhuma regra de cálculo foi alterada.
+- Renderização do manual: `js/ajuda.js` (campos opcionais `objetivo` e `perfis`); estilo `.ajuda-objetivo` em `css/style.css`. Service worker: cache `sige-v8`.
+
+## V 1.4 — 05/10/2026
+
+- **Laudo:** formulário enxuto (12 campos visíveis); `Texto`, `Emitido Por`, `Hash Documento`, `Registro Responsavel` e `Registro Executor` ficam ocultos e são gravados na geração. Revisão inicial "00", Tipo "Laudo" e Emitido em (hoje) por padrão; certificado de calibração só aparece com "Incluir = Sim".
+- **Rodapé:** botão primário "Gerar Laudo" (gera, anexa e salva em um clique; exige Cliente e Responsável técnico) ao lado de "Salvar sem gerar" e "Cancelar".
+- **Menus:** Ergonomistas, Certificado Calibração e Editor de Texto movidos para Cadastro; "Compatíveis" → "Restritos (Compatíveis)" no menu Registro. Sem mudança de dados.
+- Service worker: cache `sige-v7`.
+
+## V 1.3 — 05/10/2026
+
+- **Laudo (AEP) oficial:** gerador novo (`js/laudo.js`), A4 retrato, capa com logotipo do cliente, sumário clicável (links internos + marcadores do PDF), cabeçalho/rodapé corridos com "Página X de Y" e código do documento. Seções: apresentação, a ElevaLife, responsabilidade técnica, demanda, dados da empresa, fundamentação (ergonomia, cinco pilares, NR-17, NR-01/GRO/PGR), métodos (cinco etapas, PDCA, técnicas, ISO/TS 20646, guias de graduação, interfaces), classificação do risco (gravidade, probabilidade, matriz do cliente, tipos de ação, risco residual), avaliações por posto (fotos numeradas, descrição, panorama, grupos, fatores com ações e risco previsto/realizado), plano de ação, risco residual por fator, referências e conclusão.
+- **Texto editável:** `js/laudo-textos.js` guarda o texto padrão; a área técnica substitui cada trecho em Registro › Editor de Texto (campo vazio = padrão; botão "Preencher campos vazios com o texto padrão"). Marcadores: `{cliente}`, `{unidade}`, `{setores}`, `{nPostos}`, `{nFatores}`, `{nAcoes}`, `{resumoNiveis}`. Tabelas e quadros (pilares, etapas, PDCA, métodos, guias de graduação, interfaces) seguem fixos no código.
+- **Ergonomistas (coleção global `ergonomista`):** nome, formação/certificações, registro profissional e imagem da assinatura (container `ergonomistas-assinaturas`, criado sob demanda). O Laudo ganha "Responsável técnico" e "Ergonomista executor".
+- **Validação:** o Laudo grava `Codigo Verificacao` (ELV-AEP-AAAA-XXXXXX), `Hash Documento` (SHA-256 do PDF), `Revisao` e os registros profissionais. Última página: assinaturas (imagem), campo do cliente e QR Code. `GET /api/verificar/{codigo}` é público e devolve só tipo, cliente, emissão, revisão, ergonomistas e hash; a página `/verificar/{codigo}` confere o arquivo no navegador (o PDF não sai do aparelho). Só vale depois de salvar o registro do Laudo.
+- QR Code: biblioteca `qrcode-generator` (cdnjs). Service worker: cache `sige-v6`.
+- O gerador anterior (V 1.2) permanece em `app.js` apenas como reserva e será removido na próxima versão.
+
+## V 1.2 — 05/10/2026
+
+- **Ações por fator de risco:** o Inventário de Riscos troca "Ação para Eliminação"/"Ação Organizacional" (texto) e o risco "após a melhoria" digitado por uma **lista de ações**. Cada ação é um registro do Plano de Ação ligado ao fator (`Fator Risco Id`) com tipo, descrição, segmento corporal, "reduz o risco de [atual] para [menor nível]", complexidade (Baixa/Média/Alta), responsável (nome + e-mail), prazo e status (Não iniciada / Em andamento / Concluída). A ação precisa levar o segmento a um nível menor que o atual.
+- **Risco residual calculado:** por segmento, previsto = menor alvo entre as ações; realizado = idem só com as concluídas; o fator fica no maior nível entre os segmentos. Sem ação, o residual não se aplica.
+- **Configurações (Administrador):** novos nomes para os três tipos de ação (códigos internos fixos `Eliminacao`, `Engenharia`, `Organizacional`); coleção global `configuracao`.
+- **Evidência obrigatória:** para concluir é preciso anexar foto (JPG/PNG) ou PDF (até 15 MB) — regra aplicada no servidor (`api/src/shared/planoAcaoRegras.js`). Só o Administrador pode concluir sem evidência, com justificativa (mín. 10 caracteres) e data-limite (até 180 dias); o servidor grava `_dispensa` (quem, quando, justificativa, prazo) e os lembretes diários cobram a evidência (3 dias antes, no dia, e a cada 7 dias de atraso) do responsável e do Administrador. Anexar a evidência regulariza a dispensa.
+- **E-mail de atribuição** só na criação da ação ou quando o e-mail do responsável muda (acaba o reenvio a cada gravação / reenvio da fila offline).
+- **Compatibilidade:** registros antigos intactos (campos e risco pós antigos ficam gravados); textos antigos viram ação com um clique; ações concluídas antes da V 1.2 seguem editáveis sem evidência.
+- **Plano de Ação:** campos novos (fator vinculado, tipo, segmento, risco atual/alvo, complexidade, situação, evidências) e coluna "Evidência" (Anexada (n) / Pendente até dd/mm / Sem evidência). Ações podem ser criadas offline (fila).
+- **Laudo:** a seção do Inventário lista as ações e o risco previsto/realizado.
+- Correção: histórico não registra mais alteração falsa quando só muda o tipo do valor.
+
+## V 1.1 — 05/10/2026
+
+- **Ano/Mês só com data lançada:** as opções vêm das datas realmente registradas e o filtro só traz registros com a data preenchida. Campos novos: Data da avaliação (Mapa de Risco e Avaliação Ergonômica) e Data da identificação (Inventário de Riscos).
+- **Datas em DD/MM/AAAA** em todas as telas, com máscara automática e calendário; o banco continua guardando AAAA-MM-DD (ordena e filtra certo). Excel exporta em DD/MM/AAAA.
+- **Histórico de cada registro:** o servidor grava quem criou, quem editou por último e quando (`_criadoEm/_criadoPor/_editadoEm/_editadoPor/_historico`); o navegador não consegue forjar. Botão "Mais detalhes" em cada linha mostra o histórico campo a campo (valor atual, autor, data/hora e valor anterior). Registros anteriores à V 1.1 aparecem com "usuário não identificado".
+- **Inventário de Riscos:** o checklist passa a mostrar Fonte Geradora, Consequência, Medidas de Controle Existentes, Ação para Eliminação, Ação Organizacional e a classificação após a melhoria (Criticidade/Probabilidade pós, graduação calculada pela matriz do cliente). O formulário do cadastro ganhou a mesma seção.
+- **Menos campos abertos:** SLA em lista (24 horas a 90 dias); e-mail do responsável validado e preenchido a partir de ações anteriores; máscaras de CNPJ, CEP e telefone; sugestões em Queixa Principal, Restrição Médica, Atividade Compatível (recomendada) e Emitido por.
+- Restritos: o filtro Ano/Mês agora considera o Início da Restrição.
+
+## V 1.0 — 04/10/2026
+
+Primeira versão numerada: fecha o pacote de melhorias de 04/10/2026.
+
+- Coleta offline da Avaliação Ergonômica (AEP) com fotos, fila de envios, conflitos e sessão expirada.
+- Exclusão de dados com ou sem internet; fotos e arquivos saem do Storage junto com o registro.
+- Endereço oficial `sige-ergo.elevalife.com.br` (URL pública dos e-mails e do job de lembretes).
+- Visual limpo: textos de apoio dos cards, introduções de página e notas de rodapé removidos; a explicação de cada indicador fica no botão "i" e em Ajuda.
+- Dicionário de indicadores (Gestão de Risco, Absenteísmo, Restritos) — ver `docs/indicadores-gestao-de-risco.md`.
+- Correção: graduação do Inventário de Riscos agora conta "Moderado", "Muito Baixo" e "Altíssimo".
+- Correção: fatores marcados "Não" não entram mais nos indicadores do Inventário.
+- Correção: card de Prazos do Inventário considera só fatores em aberto.
+- Nova tela Riscos Psicossociais (em construção).
+- Nova página Ajuda: manual de uso, 7 fluxos BPMN, indicadores e histórico de versões.
+- Marco zero: base de dados e Storage zerados, mantido apenas o login do Administrador responsável.
