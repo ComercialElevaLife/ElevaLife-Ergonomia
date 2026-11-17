@@ -81,32 +81,50 @@
     return !!(i && String(i.email || "").toLowerCase() === "alexandre.berloffa@elevalife.com.br");
   }
 
-  // Sub-abas da Coordenação (hoje só a Contabilidade de tempo; estrutura pronta p/ crescer).
+  // V 1.94: a sub-aba "Avaliação de Ergonomistas" (BI.AvalErgo) é montada em
+  // separado. "papeis" define quem vê cada sub-aba: a Contabilidade de tempo é
+  // só do Administrador; a Avaliação o Administrador avalia e o Consultor vê a
+  // própria (somente leitura).
+  function renderAvalErgo(area) {
+    if (BI.AvalErgo && BI.AvalErgo.render) BI.AvalErgo.render(area);
+    else area.appendChild(cartao("Avaliação de Ergonomistas", null, h("div", "coord-vazio", "Módulo de avaliação indisponível.")));
+  }
   let subAtiva = "tempo";
-  const SUBABAS = [{ chave: "tempo", rotulo: "Contabilidade de tempo", montar: renderContabilidade }];
+  const SUBABAS = [
+    { chave: "tempo", rotulo: "Contabilidade de tempo", montar: renderContabilidade, papeis: ["Administrador"] },
+    { chave: "avaliacao", rotulo: "Avaliação de Ergonomistas", montar: renderAvalErgo, papeis: ["Administrador", "Consultor"] },
+  ];
+
+  function papelAtual() { const i = BI.DB && BI.DB.estado && BI.DB.estado.identidade; return i ? i.papel : "Administrador"; }
+  function subabasVisiveis() { const p = papelAtual(); return SUBABAS.filter((s) => s.papeis.indexOf(p) !== -1); }
 
   function render() {
     const grade = document.getElementById("grade-coordenacao");
     if (!grade) return;
     grade.innerHTML = "";
 
-    const DB = BI.DB;
-    if (DB && DB.estado && DB.estado.identidade && DB.estado.identidade.papel !== "Administrador") {
-      grade.appendChild(cartao("Coordenação", null, h("div", "coord-vazio", "Área restrita ao Administrador.")));
+    const visiveis = subabasVisiveis();
+    if (!visiveis.length) {
+      grade.appendChild(cartao("Coordenação", null, h("div", "coord-vazio", "Área restrita à equipe ElevaLife.")));
       return;
     }
+    // Garante que a sub-aba ativa é uma das visíveis para o perfil atual.
+    if (!visiveis.some((s) => s.chave === subAtiva)) subAtiva = visiveis[0].chave;
 
     const nav = h("nav", "subnav-cadastro coord-subnav");
     const area = h("div", "coord-area");
-    SUBABAS.forEach((s) => {
-      const b = h("button", "subnav-cadastro-item" + (s.chave === subAtiva ? " ativa" : ""), s.rotulo);
-      b.type = "button";
-      b.addEventListener("click", () => { subAtiva = s.chave; render(); });
-      nav.appendChild(b);
-    });
-    grade.appendChild(nav);
+    // Com uma só sub-aba visível (ex.: Consultor), não mostra a barra de navegação.
+    if (visiveis.length > 1) {
+      visiveis.forEach((s) => {
+        const b = h("button", "subnav-cadastro-item" + (s.chave === subAtiva ? " ativa" : ""), s.rotulo);
+        b.type = "button";
+        b.addEventListener("click", () => { subAtiva = s.chave; render(); });
+        nav.appendChild(b);
+      });
+      grade.appendChild(nav);
+    }
     grade.appendChild(area);
-    (SUBABAS.find((s) => s.chave === subAtiva) || SUBABAS[0]).montar(area);
+    (visiveis.find((s) => s.chave === subAtiva) || visiveis[0]).montar(area);
   }
 
   function renderContabilidade(grade) {

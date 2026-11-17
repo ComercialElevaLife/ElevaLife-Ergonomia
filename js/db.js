@@ -63,6 +63,10 @@
     // Ocupacional, com os 7 scores do HSE-IT + media + classificacao. Por EmpresaId.
     // Nao mexe no subsistema padrao do questionario (iframe psicossocial.html).
     "psicoLaudo",
+    // V 1.94: avaliacao de desempenho dos ergonomistas (sub-aba Coordenacao).
+    // GLOBAL, so Administrador grava; o ergonomista avaliado le a propria
+    // (filtro por EmailErgonomista no backend - ver entidades.js).
+    "avaliacaoErgonomista",
   ];
 
   const estado = {

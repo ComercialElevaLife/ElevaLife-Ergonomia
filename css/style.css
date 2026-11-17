@@ -2478,6 +2478,10 @@ span.aet-ferr-chip { cursor: default; margin: 2px 4px 2px 0; }
 /* V 1.40: aba Coordenacao (so Administrador) */
 .sidebar-nav button.nav-so-admin { display: none; }
 body.perfil-admin .sidebar-nav button.nav-so-admin { display: flex; }
+/* V 1.94: Coordenação visível para a equipe interna (Administrador ou Consultor). */
+.sidebar-nav button.nav-so-equipe { display: none; }
+body.perfil-admin .sidebar-nav button.nav-so-equipe,
+body.perfil-equipe .sidebar-nav button.nav-so-equipe { display: flex; }
 .coord-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
 .coord-kpi { background: var(--card, #fff); border: 1px solid var(--linha, #e5d8d8); border-radius: 12px; padding: 14px 16px; }
 .coord-kpi .coord-kpi-valor { font-size: 24px; font-weight: 800; color: var(--vinho-escuro, #5a2a33); }

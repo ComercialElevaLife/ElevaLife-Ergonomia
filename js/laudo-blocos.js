@@ -12,7 +12,7 @@
   "use strict";
   const BI = (window.BI = window.BI || {});
   const COR={wine:"8B3A42",deep:"5E2A30",mid:"A34E56",soft:"C99AA0",tint:"EBD9DB",ink:"3A2A2E",mut:"8A7A78",ln:"EADDE0",ok:"2E7D5B",teal:"3E7B7E",warn:"C9822B",bad:"B23A48",crit:"7E1F2C",g0:"8CCBEB",g1:"2E8B57",g2:"F2C230",g3:"C62828",g4:"6A3D9A"};
-  const PDFL={W:595.28,H:841.89,ML:42,MR:42,TOP:70,BOT:52,get CW(){return this.W-this.ML-this.MR}};
+  const PDFL={W:595.28,H:841.89,ML:42,MR:42,TOP:54,BOT:52,get CW(){return this.W-this.ML-this.MR}};
   const hexRGB=h=>{ h=String(h||"3A2A2E").replace("#",""); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; };
   function renderPDF(blocos,opc){
     const jsPDFC=window.jspdf&&window.jspdf.jsPDF; if(!jsPDFC) throw new Error("O gerador de PDF não carregou. Recarregue a página.");

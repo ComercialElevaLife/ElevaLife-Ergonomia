@@ -83,15 +83,19 @@ const COLECOES = [
   // V 1.58: laudo psicossocial importado (Word) - um registro por Unidade/Grupo
   // Ocupacional (7 dimensoes HSE-IT + media). Por EmpresaId; container sob demanda.
   "psicoLaudo",
+  // V 1.94: avaliação de desempenho dos ergonomistas (aba Coordenação › Avaliação de
+  // Ergonomistas). Coleção GLOBAL (não é de uma empresa-cliente): só o Administrador grava;
+  // o ergonomista avaliado (Consultor) lê APENAS a avaliação com o e-mail dele. Container sob demanda.
+  "avaliacaoErgonomista",
 ];
 
 // Colecoes sem dono (nenhuma amarrada a uma empresa-cliente especifica) -
 // todo usuario autenticado com papel liberado ve e edita, independente de
 // quais empresas estao vinculadas a ele. Gravadas sempre com
 // EmpresaId=EMPRESA_GLOBAL (constante fixa, nunca uma empresa real).
-const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo", "configuracao", "ergonomista"];
+const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo", "configuracao", "ergonomista", "avaliacaoErgonomista"];
 // Colecoes em que so o Administrador grava/exclui (todos podem ler).
-const COLECOES_SO_ADMIN_GRAVA = ["configuracao"];
+const COLECOES_SO_ADMIN_GRAVA = ["configuracao", "avaliacaoErgonomista"];
 const EMPRESA_GLOBAL = "GLOBAL";
 // V 1.7 (revisao de seguranca): colecoes que o UsuarioCliente le mas NAO grava.
 // Laudo (documento emitido e seu codigo de verificacao publico), cadastro da
@@ -265,6 +269,14 @@ async function semEmpresaExcluida(colecao, docs) {
 }
 
 async function listarComFiltro(container, colecao, identidade) {
+  // V 1.94: avaliação de ergonomista — o Administrador vê todas; qualquer outro papel vê
+  // APENAS as avaliações com o e-mail dele (o ergonomista avaliado vê só a dele).
+  if (colecao === "avaliacaoErgonomista") {
+    const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
+    if (identidade.papel === "Administrador") return resources;
+    const meu = String(identidade.email || "").toLowerCase();
+    return (resources || []).filter((d) => String(d.EmailErgonomista || "").toLowerCase() === meu);
+  }
   if (COLECOES_GLOBAIS.includes(colecao)) {
     const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
     return resources;
@@ -408,7 +420,7 @@ async function tratar(request, context) {
     };
   }
 
-  const container = ["configuracao", "ergonomista", "colaborador", "tempoTrabalho", "acaoAbsenteismo", "psicoLaudo"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
+  const container = ["configuracao", "ergonomista", "colaborador", "tempoTrabalho", "acaoAbsenteismo", "psicoLaudo", "avaliacaoErgonomista"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
   const id = request.params.id;
   if (COLECOES_SO_ADMIN_GRAVA.includes(colecao) && request.method !== "GET" && identidade.papel !== "Administrador") {
     return { status: 403, jsonBody: { erro: "Só Administrador pode alterar as configurações do sistema." } };
@@ -425,7 +437,11 @@ async function tratar(request, context) {
       case "GET": {
         if (id) {
           const item = await lerPorId(container, id);
-          const visivel = item && (COLECOES_GLOBAIS.includes(colecao) || podeVerDocumento(identidade, colecao, item));
+          // V 1.94: avaliação de ergonomista por id — Administrador vê qualquer uma; os demais só a própria.
+          const visivelAvalErg = colecao === "avaliacaoErgonomista" && item
+            ? (identidade.papel === "Administrador" || String(item.EmailErgonomista || "").toLowerCase() === String(identidade.email || "").toLowerCase())
+            : null;
+          const visivel = item && (visivelAvalErg !== null ? visivelAvalErg : (COLECOES_GLOBAIS.includes(colecao) || podeVerDocumento(identidade, colecao, item)));
           if (!visivel) {
             return { status: 404, jsonBody: { erro: "Não encontrado." } };
           }

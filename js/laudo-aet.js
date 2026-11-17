@@ -247,7 +247,8 @@
         const acoes = linhasF.flatMap(({ row }) => (row ? (BI.dados.planoAcao || []).filter((p) => p["Fator Risco Id"] === row._id) : []));
         if (acoes.length || at.recomendacoes) {
           P("**Recomendações específicas**", { keepNext: true, sa: 3, sb: 4 });
-          if (acoes.length) table([hdr(["Ação", "Tipo", "Recomendação", "Efeito no risco"])].concat(acoes.map((ac) => [cell(ac["Nr Acao"] != null ? "A-" + String(ac["Nr Acao"]).padStart(2, "0") : "-", { bold: true }), cell(BI.Acoes ? BI.Acoes.rotuloTipo(ac["Tipo Acao"]) : ac["Tipo Acao"] || "-"), cell(ac["Acao Recomendada"] || "-"), cell(ac["Reduz Risco"] === "Sim" || ac["Risco Apos Acao"] ? (ac["Risco Apos Acao"] === "Eliminado" ? "Elimina o risco" : "Reduz para " + C.rotuloNivel(ac["Risco Apos Acao"])) : "Organizacional / de controle")])), [900, 1800, 4654, 2000], { va: "t" });
+          // V 1.97 (Alexandre): o número da ação (A-NNNN) saiu do laudo da AET.
+          if (acoes.length) table([hdr(["Tipo", "Recomendação", "Efeito no risco"])].concat(acoes.map((ac) => [cell(BI.Acoes ? BI.Acoes.rotuloTipo(ac["Tipo Acao"]) : ac["Tipo Acao"] || "-"), cell(ac["Acao Recomendada"] || "-"), cell(ac["Reduz Risco"] === "Sim" || ac["Risco Apos Acao"] ? (ac["Risco Apos Acao"] === "Eliminado" ? "Elimina o risco" : "Reduz para " + C.rotuloNivel(ac["Risco Apos Acao"])) : "Organizacional / de controle")])), [2000, 5100, 2254], { va: "t" });
           if (at.recomendacoes) P(at.recomendacoes);
         }
         // memorial de calculo
@@ -494,7 +495,7 @@
     const nAt = o.aets.reduce((s, a) => s + (a.Atividades || []).length, 0);
     const nFat = o.aets.reduce((s, a) => s + (a.Atividades || []).reduce((t, at) => t + (at.fatores || []).length, 0), 0);
     const nAc = (BI.dados.planoAcao || []).filter((p) => o.aets.some((a) => fatores.some((f) => f["AET Id"] === (a._id || a.id) && f._id === p["Fator Risco Id"]))).length;
-    const capa = { logoEleva: logoBranco, lema: uni ? "SOU – Saúde Ocupacional Unimed" : "15 anos elevando pessoas e resultados", logoCliente: logoCli, nomeCliente: cliente, titulo: ["Análise Ergonômica", "do Trabalho"], subtitulo: uni ? "AET conforme NR-17 — metodologia Checklist OCRA (ISO 11228-3)" : "AET conforme NR-17, com ferramentas ergonômicas e matriz de risco do cliente",
+    const capa = { logoEleva: logoBranco, lema: uni ? "SOU – Saúde Ocupacional Unimed" : "15 anos elevando pessoas e resultados", logoCliente: logoCli, nomeCliente: cliente, titulo: ["Análise Ergonômica", "do Trabalho"], subtitulo: uni ? "AET conforme NR-17 — metodologia Checklist OCRA (ISO 11228-3)" : "AET conforme NR-17",
       // V 1.66 (Alexandre): sem "Abrangência"; a capa mostra o Responsável técnico E o Ergonomista responsável (executor).
       infos: [["Empresa avaliada", cliente, true], ["Unidades", unidades.join(" · ") || "-"], ["Data de emissão", dataBR(emissao)],
         ["Responsável técnico", rt ? rt.Nome : (ex ? ex.Nome : "-")],

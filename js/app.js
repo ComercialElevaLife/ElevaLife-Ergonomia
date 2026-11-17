@@ -6372,8 +6372,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         // visibilidade é ajustada em renderizarListaCadastro, após o login.
         const bEx = document.createElement("button");
         bEx.type = "button"; bEx.className = "btn-cad-secundario"; bEx.id = "btn-exemplo-elevalife";
-        bEx.textContent = "✨ Criar empresa de exemplo (ElevaLife)";
-        bEx.title = "Cria a empresa ElevaLife com AEP, AET, Psicossocial, riscos e plano de ação para apresentação. Visível só para você.";
+        bEx.textContent = "✨ Criar empresa de exemplo (psicossocial)";
+        bEx.title = "Cria a empresa ElevaLife de exemplo só com Riscos Psicossociais (dados fictícios cobrindo todas as faixas de risco). Recria do zero se já existir. Visível só para você.";
         bEx.hidden = !ehUsuarioAlexandre();
         bEx.addEventListener("click", () => criarEmpresaExemploElevaLife(bEx));
         cab.appendChild(bEx);
@@ -6535,6 +6535,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     document.body.classList.toggle("perfil-cliente", ehUsuarioCliente());
     // V 1.40: aba Coordenacao (contabilidade de tempo) so aparece para o Administrador.
     document.body.classList.toggle("perfil-admin", ehAdministradorAtual());
+    // V 1.94: equipe interna (Administrador ou Consultor) - a aba Coordenação
+    // aparece para a equipe (o Consultor vê a própria avaliação de desempenho).
+    document.body.classList.toggle("perfil-equipe", ehEquipeNotif());
   }
   // Baixa em Excel a aba do Cadastro/Registro como esta na tela (busca e filtros aplicados).
   function exportarCadastroExcel(chave) {
@@ -7321,8 +7324,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   async function criarEmpresaExemploElevaLife(botao) {
     if (!ehUsuarioAlexandre()) return;
     if (!window.BI.DB.estado.disponivel || window.BI.DB.estado.somenteLeitura) { window.alert("Banco indisponível nesta visualização."); return; }
-    if (!window.confirm("Criar a empresa ElevaLife de EXEMPLO (com AEP, AET, Psicossocial, riscos e plano de ação)? Serve para apresentação.")) return;
-    const Calc = window.BI.Calc;
+    if (!window.confirm("Criar a empresa ElevaLife de EXEMPLO (somente Riscos Psicossociais, com dados fictícios cobrindo todas as faixas de risco)? Serve para apresentação. Se já existir uma empresa de exemplo, ela é recriada do zero.")) return;
     const api = async (method, path, body) => {
       const r = await fetch("/api" + path, { method, credentials: "same-origin", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
       const t = await r.text(); let d; try { d = JSON.parse(t); } catch (e) { d = t; }
@@ -7330,122 +7332,98 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       return d;
     };
     const setBtn = (t) => { if (botao) { botao.disabled = true; botao.textContent = t; } };
-    const mz = "Matriz 5x5"; const esc = Calc.escalaDaMatriz(mz);
-    const [MB, BX, ME, AL, MA] = esc; // Muito Baixa, Baixa, Media, Alta, Muito Alta
-    const grad = (prob, crit) => Calc.nivelDaMatriz(mz, prob, crit);
-    const pont = (prob, crit) => Calc.pontuacaoDaMatriz(mz, prob, crit);
     const cid = "exemplo-elevalife";
+    const eidP = "e_sige-" + cid;
     const CLI = "ElevaLife (Exemplo)";
-    const hoje = new Date().toISOString().slice(0, 10);
-    const diasAtras = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+    // V 1.95 (Alexandre): a empresa de exemplo passa a ser SÓ Riscos Psicossociais, com
+    // dados fictícios que cobrem todas as faixas de risco. Cada GHE recebe respostas que
+    // resultam numa graduação distinta (G=1..5): 5 muito baixa · 4 baixa · 3 moderada ·
+    // 2 alta · 1 muito alta. Recriada do zero (apaga a anterior, inclusive o psicossocial).
+    const GHES = [
+      { unidade: "Unidade Matriz", setor: "Tecnologia da Informação", g: 5 },
+      { unidade: "Unidade Filial", setor: "Comercial", g: 4 },
+      { unidade: "Unidade Matriz", setor: "Administrativo", g: 3 },
+      { unidade: "Unidade Filial", setor: "Logística", g: 2 },
+      { unidade: "Unidade Matriz", setor: "Produção", g: 1 },
+    ];
     try {
+      // 1) Apaga a empresa de exemplo anterior (cadastro + dados por empresa + psicossocial),
+      // para recriar do zero. Garante que nada de execuções anteriores sobra.
+      setBtn("Limpando exemplo anterior…");
+      await purgarExemplo(api, cid, eidP);
+
+      // 2) Empresa só com o serviço Riscos Psicossociais.
       setBtn("Criando empresa…");
-      await api("POST", "/cliente", { id: cid, EmpresaId: cid, Cliente: CLI, "Matriz Risco": mz, Servicos: ["aep", "aet", "psicossocial", "ergo", "registro", "medocup", "compativeis"], CNPJ: "12.345.678/0001-90", Cidade: "Florianópolis", Estado: "SC", Logradouro: "Av. Exemplo", Numero: "1000", CNAE: "8299-7/99", "Grau Risco NR4": "2" });
+      await api("POST", "/cliente", { id: cid, EmpresaId: cid, Cliente: CLI, "Matriz Risco": "Matriz 5x5", Servicos: ["psicossocial"], CNPJ: "12.345.678/0001-90", Cidade: "Florianópolis", Estado: "SC", Logradouro: "Av. Exemplo", Numero: "1000", CNAE: "8299-7/99", "Grau Risco NR4": "2" });
       const base = { EmpresaId: cid, Cliente: CLI };
-      // hierarquia
-      const unidades = ["Unidade Matriz", "Unidade Filial"];
+
+      // 3) Hierarquia mínima: unidades + GHEs (os Riscos Psicossociais indexam por GHE).
+      const unidades = Array.from(new Set(GHES.map((x) => x.unidade)));
       for (const u of unidades) await api("POST", "/unidade", Object.assign({ id: "ex-un-" + slugLocal(u), Unidade: u }, base));
-      const setores = [["Unidade Matriz", "Produção", "Setor"], ["Unidade Matriz", "Administrativo", "Setor"], ["Unidade Matriz", "Linha de Montagem", "GHE"], ["Unidade Filial", "Expedição", "GHE"]];
-      for (const [u, s, t] of setores) await api("POST", "/setor", Object.assign({ id: "ex-se-" + slugLocal(u + s), Unidade: u, Setor: s, "Tipo Setor": t }, base));
-      const postos = [["Unidade Matriz", "Produção", "Prensa", "Operador de Prensa"], ["Unidade Matriz", "Administrativo", "Estação de Trabalho", "Analista Administrativo"], ["Unidade Matriz", "Linha de Montagem", "Bancada", "Montador"], ["Unidade Filial", "Expedição", "Doca", "Auxiliar de Expedição"]];
-      for (const [u, s, p, cg] of postos) await api("POST", "/cargo", Object.assign({ id: "ex-cg-" + slugLocal(u + s + p + cg), Unidade: u, Setor: s, "Posto Trabalho": p, Cargo: cg }, base));
+      for (const gh of GHES) await api("POST", "/setor", Object.assign({ id: "ex-se-" + slugLocal(gh.unidade + gh.setor), Unidade: gh.unidade, Setor: gh.setor, "Tipo Setor": "GHE" }, base));
 
       setBtn("Colaboradores…");
-      let m = 1000;
-      for (const [u, s] of setores.map((x) => [x[0], x[1]])) for (let i = 0; i < 4; i++) { m++; await api("POST", "/colaborador", Object.assign({ id: "ex-col-" + m, Unidade: u, Setor: s, Matricula: String(m), Nome: "Colaborador Exemplo " + m }, base)); }
-
-      setBtn("AEP e inventário…");
-      // AEP em 2 postos, com inventário de riscos (fatorRisco origem AEP)
-      const postosAEP = [postos[0], postos[2]];
-      let nr = 0;
-      const invAEP = [
-        { Grupo: "Posturas e movimentos", Fator: "Movimentos repetitivos dos membros superiores", seg: "Punho", crit: AL, prob: AL, cons: "Biomecânica – punho/mão", fonte: "Operação repetitiva na prensa" },
-        { Grupo: "Levantamento e transporte de carga", Fator: "Levantamento manual de carga", seg: "Lombar", crit: ME, prob: ME, cons: "Biomecânica – coluna lombar", fonte: "Movimentação de peças" },
-        { Grupo: "Fatores físicos do ambiente", Fator: "Ruído", seg: "Corpo Todo", crit: BX, prob: AL, cons: "Auditivo", fonte: "Máquinas em operação" },
-      ];
-      for (const [u, s, p, cg] of postosAEP) {
-        nr++;
-        await api("POST", "/avaliacaoErgonomica", Object.assign({ id: "ex-aep-" + nr, Unidade: u, Setor: s, "Posto Trabalho": p, Cargo: cg, "Nr Avaliacao": nr, "Data Avaliacao": diasAtras(20), "Jornada de Trabalho": "08h/dia", Pausas: "2 pausas de 10 min", Rodizio: "Sim", "Descricao Atividade Observada": "Atividade de exemplo para apresentação." }, base));
-        for (let k = 0; k < invAEP.length; k++) {
-          const f = invAEP[k];
-          await api("POST", "/fatorRisco", Object.assign({ id: `ex-aepfr-${nr}-${k}`, Unidade: u, Setor: s, "Posto Trabalho": p, Cargo: cg, Origem: "AEP", Grupo: f.Grupo, Fator: f.Fator, "Existe Fator Risco": "Sim", Consequencia: f.cons, "Circunstancia Geradora": f.fonte, "Segmento Corporal": f.seg, Criticidade: f.crit, Probabilidade: f.prob, "Graduacao Risco": grad(f.prob, f.crit), "Graduacao Inicial": grad(f.prob, f.crit), "Pontuacao Risco": pont(f.prob, f.crit), Matriz: mz, Status: "Em andamento", "Dt Identificacao": diasAtras(20) }, base));
-        }
+      let m = 2000; const porGhe = {};
+      for (const gh of GHES) {
+        porGhe[gh.setor] = [];
+        for (let i = 0; i < 4; i++) { m++; const mat = String(m); porGhe[gh.setor].push(mat); await api("POST", "/colaborador", Object.assign({ id: "ex-col-" + mat, Unidade: gh.unidade, Setor: gh.setor, Matricula: mat, Nome: "Colaborador Exemplo " + mat }, base)); }
       }
 
-      setBtn("AET…");
-      // AET em 1 posto, com 1 atividade e 2 fatores (+ inventário origem AET)
-      const aetPosto = postos[2]; const aetId = "ex-aet-1";
-      const fatAET = [
-        { uid: "exf1", grupo: "Posturas e movimentos", fator: "Postura inadequada", outro: "", consequencia: "Biomecânica – coluna", segmento: "Lombar", fonte: "Flexão de tronco", ferramentas: [], exposicao: "3", severidade: AL },
-        { uid: "exf2", grupo: "Força", fator: "__outro", outro: "Uso de força manual excessiva", consequencia: "Biomecânica – ombro", segmento: "Ombro", fonte: "Aperto manual", ferramentas: [], exposicao: "2", severidade: ME },
-      ];
-      await api("POST", "/aet", Object.assign({ id: aetId, "Tipo Registro": "AET", Unidade: aetPosto[0], Setor: aetPosto[1], "Posto Trabalho": aetPosto[2], Cargo: aetPosto[3], "Data Analise": diasAtras(10), "Nr AET": 1, Ergonomista: "Alexandre Berloffa", Demandas: {}, Medicoes: [], Ciclos: [], Cargas: [], "Foto Geral": [], Atividades: [{ uid: "exat1", nome: "Atividade 01", descricao: "Montagem de componentes.", fotos: [], recomendacoes: "", fatores: fatAET }] }, base));
-      for (let k = 0; k < fatAET.length; k++) {
-        const fa = fatAET[k]; const nome = fa.fator === "__outro" ? fa.outro : fa.fator; const prob = esc[Number(fa.exposicao)] || ME;
-        await api("POST", "/fatorRisco", Object.assign({ id: `ex-aetfr-${k}`, Unidade: aetPosto[0], Setor: aetPosto[1], "Posto Trabalho": aetPosto[2], Cargo: aetPosto[3], Atividade: "Atividade 01", Origem: "AET", "AET Id": aetId, "AET Fator": fa.uid, Grupo: fa.grupo === "__outro" ? "Outros" : fa.grupo, Fator: nome, "Existe Fator Risco": "Sim", Consequencia: fa.consequencia, "Circunstancia Geradora": fa.fonte, "Segmento Corporal": fa.segmento, Criticidade: fa.severidade, Probabilidade: prob, "Graduacao Risco": grad(prob, fa.severidade), "Graduacao Inicial": grad(prob, fa.severidade), "Pontuacao Risco": pont(prob, fa.severidade), Matriz: mz, Status: "Em andamento", "Dt Identificacao": diasAtras(10) }, base));
-      }
-
-      setBtn("Plano de ação…");
-      const acoes = [
-        { Origem: "AEP", "Fator Risco Id": "ex-aepfr-1-0", "Fator Risco Nome": "Movimentos repetitivos dos membros superiores", "Acao Recomendada": "Implantar rodízio e pausas ativas na prensa", "Tipo Acao": "Organizacional", "Status Execucao": "Em andamento", "Dt Programada": diasAtras(-15), Setor: "Produção", "Posto Trabalho": "Prensa" },
-        { Origem: "AEP", "Fator Risco Id": "ex-aepfr-1-1", "Fator Risco Nome": "Levantamento manual de carga", "Acao Recomendada": "Disponibilizar dispositivo de elevação", "Tipo Acao": "Engenharia", "Status Execucao": "Nao iniciada", "Dt Programada": diasAtras(-30), Setor: "Produção", "Posto Trabalho": "Prensa" },
-        { Origem: "AET", "Fator Risco Id": "ex-aetfr-0", "Fator Risco Nome": "Postura inadequada", "Acao Recomendada": "Ajustar altura da bancada", "Tipo Acao": "Engenharia", "Status Execucao": "Concluida", "Dt Programada": diasAtras(5), "Dt Conclusao": diasAtras(2), "Justificativa Sem Evidencia": "Ação concluída em campo; evidência fotográfica a anexar (registro de exemplo).", "Prazo Evidencia": diasAtras(-10), Setor: "Linha de Montagem", "Posto Trabalho": "Bancada" },
-      ];
-      for (let k = 0; k < acoes.length; k++) await api("POST", "/planoAcao", Object.assign({ id: "ex-ac-" + k, "Nr Acao": k + 1, "Gestao Acao": "ElevaLife", "Reduz Risco": "Nao" }, base, acoes[k]));
-
-      setBtn("Absenteísmo e restritos…");
-      const mesIso = (n) => { const d = new Date(); d.setMonth(d.getMonth() - n); return d.toISOString().slice(0, 7); };
-      // HHT/Dias úteis por setor nos últimos meses (base da Taxa de Frequência)
-      for (let n = 0; n < 4; n++) for (const s of ["Produção", "Linha de Montagem"]) {
-        try { await api("POST", "/diasUteis", Object.assign({ id: `ex-du-${slugLocal(s)}-${n}`, Unidade: s === "Produção" ? "Unidade Matriz" : "Unidade Matriz", Setor: s, "Ano/Mes Uteis": mesIso(n), "Qtd Colaboradores": 40, "Qtd Dias Uteis": 21 }, base)); } catch (e) { /* segue */ }
-      }
-      // Absenteísmo (atestados) em vários meses, por setor/posto - campos corretos do cadastro
-      const atest = [
-        ["Produção", "Prensa", "Operador de Prensa", "M54.5", "Lombar", "1001", "Colaborador Exemplo 1001"],
-        ["Produção", "Prensa", "Operador de Prensa", "M75.5", "Ombro", "1002", "Colaborador Exemplo 1002"],
-        ["Linha de Montagem", "Bancada", "Montador", "M54.2", "Cervical", "1009", "Colaborador Exemplo 1009"],
-        ["Linha de Montagem", "Bancada", "Montador", "G56", "Punho", "1010", "Colaborador Exemplo 1010"],
-        ["Administrativo", "Estação de Trabalho", "Analista Administrativo", "M54.5", "Lombar", "1005", "Colaborador Exemplo 1005"],
-      ];
-      let ka = 0;
-      for (let n = 0; n < 4; n++) for (const a of atest) {
-        if ((ka + n) % 2 === 0) { ka++; continue; } // espalha pelos meses
-        const dt = new Date(); dt.setMonth(dt.getMonth() - n); dt.setDate(5 + (ka % 20));
-        try { await api("POST", "/absenteismo", Object.assign({ id: `ex-abs-${n}-${ka}`, Unidade: a[0] === "Administrativo" ? "Unidade Matriz" : "Unidade Matriz", Setor: a[0], "Posto Trabalho": a[1], Cargo: a[2], "Cod CID": a[3], "Regiao Corporal": a[4], Matricula: a[5], Nome: a[6], "Dt Afastamento": dt.toISOString().slice(0, 10), "Qtd Dias": 1 + (ka % 7) }, base)); } catch (e) { /* segue */ }
-        ka++;
-      }
-      try { await api("POST", "/compativeis", Object.assign({ id: "ex-comp-1", Unidade: "Unidade Matriz", Setor: "Produção", Matricula: "1001", Funcionario: "Colaborador Exemplo 1001", "Status Restricao": "Em Avaliação", "Turno Trabalho": "Diurno", "Segmento Corporal": "Lombar", "Inicio Restricao": diasAtras(40), "Atividade Compativel": "Sim", "Restricao Medica": "Evitar carga acima de 5 kg" }, base)); } catch (e) { /* segue */ }
-
+      // 4) Riscos Psicossociais: coleta aberta + respostas por GHE (todas as faixas) + ISO 45003.
       setBtn("Riscos Psicossociais…");
-      let nPsico = 0;
-      try { nPsico = await criarPsicoExemplo(api, cid, CLI); } catch (e) { console.warn("psico", e); }
+      const nPsico = await criarPsicoExemplo(api, cid, CLI, GHES, porGhe);
 
       if (window.BI.DB.recarregarTudo) await window.BI.DB.recarregarTudo();
-      if (window.BI.avisar) window.BI.avisar("Empresa ElevaLife de exemplo criada. Filtre por ela para apresentar.");
-      window.alert(`Empresa ElevaLife de exemplo criada: AEP, AET, Plano de Ação, Absenteísmo, Restritos e Riscos Psicossociais (${nPsico} respostas). Filtre por “${CLI}” para ver.`);
+      if (window.BI.avisar) window.BI.avisar("Empresa ElevaLife de exemplo (Riscos Psicossociais) criada. Abra o módulo e selecione a empresa.");
+      window.alert(`Empresa ElevaLife de exemplo criada (somente Riscos Psicossociais): ${GHES.length} GHEs cobrindo todas as faixas de risco e ${nPsico} respostas fictícias.\nAbra “Riscos Psicossociais” e selecione “${CLI}”.`);
     } catch (e) {
-      console.error("exemplo ElevaLife", e); window.alert("Não foi possível criar todo o exemplo: " + (e && e.message ? e.message : e) + "\nO que já foi criado permanece.");
+      console.error("exemplo ElevaLife", e); window.alert("Não foi possível criar o exemplo: " + (e && e.message ? e.message : e));
     }
-    if (botao) { botao.disabled = false; botao.textContent = "✨ Criar empresa de exemplo (ElevaLife)"; }
+    if (botao) { botao.disabled = false; botao.textContent = "✨ Criar empresa de exemplo (psicossocial)"; }
   }
   function slugLocal(s) { return String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60); }
-  async function criarPsicoExemplo(api, cid, CLI) {
+
+  // V 1.95 (Alexandre): apaga de vez a empresa de exemplo anterior (cadastro + todos os
+  // dados por empresa + Riscos Psicossociais), inclusive se estiver na lixeira, para que o
+  // botão "Criar empresa de exemplo" sempre entregue um exemplo limpo.
+  async function purgarExemplo(api, cid, eidP) {
+    // SIGE: exclusão DEFINITIVA (a cascata do servidor apaga unidades, setores, colaboradores
+    // e também os dados do módulo psicossocial). Repete enquanto faltar (HTTP 202).
+    try {
+      for (let i = 0; i < 300; i++) {
+        const r = await fetch("/api/cliente/" + encodeURIComponent(cid) + "?definitivo=1", { method: "DELETE", credentials: "same-origin" });
+        if (r.status !== 202) break;
+      }
+    } catch (e) { /* segue */ }
+    // Psicossocial: garante a limpeza da partição e do documento raiz, mesmo que o cadastro
+    // do cliente já não exista (dados órfãos de uma execução anterior).
+    try { for (let i = 0; i < 300; i++) { const d = await api("DELETE", "/psico/empresa?e=" + encodeURIComponent(eidP)); if (!d || !d.restante) break; } } catch (e) { /* segue */ }
+    try { await api("DELETE", "/psico/doc?c=" + encodeURIComponent("empresas/" + eidP)); } catch (e) { /* segue */ }
+  }
+
+  // Dimensão de cada um dos 35 itens do HSE-IT (ordem do instrumento, ver psicossocial.html).
+  // Os itens das dimensões negativas (Demandas, Relacionamentos) são invertidos no cálculo
+  // (favorabilidade = 6 - resposta). Por isso, para um GHE cair na graduação G (1..5) com nota
+  // uniforme, respondemos (6 - G) nesses itens e G nos demais → todas as dimensões ficam em G.
+  const PSICO_NEG_IDX = new Set([2, 4, 5, 8, 11, 13, 15, 17, 19, 20, 21, 33]);
+  function respostasParaFaixa(g) { return Array.from({ length: 35 }, (_, i) => (PSICO_NEG_IDX.has(i) ? 6 - g : g)); }
+
+  async function criarPsicoExemplo(api, cid, CLI, GHES, porGhe) {
     const eid = "e_sige-" + cid;
     let n = 0;
     await api("PUT", "/psico/doc?c=" + encodeURIComponent("empresas/" + eid), { v: 127, k: eid, clienteId: cid, razao: CLI, cnpj: "12.345.678/0001-90", codigo: "EXEMPLO1", status: "aberta", inicio: new Date().toISOString().slice(0, 10) });
-    // Só colaboradores de setores GHE entram nos Riscos Psicossociais (o módulo
-    // indexa por GHE): na empresa de exemplo, as matrículas 1009–1016 (Linha de
-    // Montagem e Expedição). Token "t" distinto por matrícula (trava de resposta única).
-    const mats = ["1009", "1010", "1011", "1012", "1013", "1014", "1015", "1016"];
-    for (const mat of mats) {
-      try {
-        const c = await api("POST", "/psicopub/matricula", { e: eid, matricula: mat });
-        if (!c || !c.colab) continue;
-        const respostas = Array.from({ length: 35 }, () => 2 + Math.floor(Math.random() * 3)); // 2..4
-        const t = (mat + "0000000000000000").slice(0, 16).replace(/[^a-f0-9]/g, "a");
-        await api("POST", "/psicopub/resposta", { e: eid, matricula: mat, respostas, termo: "aceito", t });
-        n++;
-      } catch (e) { /* segue */ }
+    // Uma faixa de risco por GHE: todos do GHE respondem o padrão que resulta na graduação alvo.
+    for (const gh of GHES) {
+      const respostas = respostasParaFaixa(gh.g);
+      for (const mat of (porGhe[gh.setor] || [])) {
+        try {
+          const c = await api("POST", "/psicopub/matricula", { e: eid, matricula: mat });
+          if (!c || !c.colab) continue;
+          const t = (mat + "0000000000000000").slice(0, 16).replace(/[^a-f0-9]/g, "a");
+          await api("POST", "/psicopub/resposta", { e: eid, matricula: mat, respostas, termo: "aceito", t });
+          n++;
+        } catch (e) { /* segue */ }
+      }
     }
     try { const r33 = {}; for (let i = 0; i < 33; i++) r33[i] = i % 4 === 0 ? "P" : "S"; await api("POST", "/psicopub/iso", { e: eid, nome: "Gestor Exemplo", r: r33 }); } catch (e) { /* segue */ }
     return n;
@@ -7917,7 +7895,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // Ocup/Compativeis recolhe as duas.
   function ativarAba(aba) {
     if ((aba === "cadastro" || aba === "interno") && ehUsuarioCliente()) aba = "ergo";
-    if (aba === "coordenacao" && !ehAdministradorAtual()) aba = "ergo";
+    // V 1.94: Coordenação deixa de ser exclusiva do Administrador. O Consultor
+    // entra para ver a própria avaliação de desempenho (a Contabilidade de tempo
+    // continua só do Administrador, filtrada dentro da aba). Cliente segue fora.
+    if (aba === "coordenacao" && ehUsuarioCliente()) aba = "ergo";
     const nav = document.getElementById("nav-abas");
     const botoes = Array.from(nav.querySelectorAll("button[data-aba]"));
     const btn = botoes.find((b) => b.dataset.aba === aba);
@@ -9480,10 +9461,17 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // V 1.72: fatia "Sem risco" = postos cadastrados (filtrados) sem fator de risco - total bate com a cobertura.
     const kPG = (l) => ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].map((d) => l[d] || "").join("||");
     const universoCargoR = Calc.filtrar(window.BI.dados.cargo || [], filtros, []);
+    // V 1.95 (Alexandre): no Psicossocial a Gestão de Riscos mostra só os GHEs efetivamente
+    // avaliados (com risco) - sem a fatia/linhas "Sem risco" dos postos cadastrados, que não
+    // fazem sentido no módulo (a cobertura, que é por GHE, continua no cartão de cobertura).
+    const ehPsicoErgo = estadoOrigemAba.ergo === "Psicossocial";
+    const universoSemRiscoR = ehPsicoErgo ? [] : universoCargoR;
     const comRiscoR = new Set(mapaRiscoF.map(kPG));
-    const semRiscoLinhasR = universoCargoR.filter((c) => !comRiscoR.has(kPG(c))).map((c) => ({ Cliente: c.Cliente, Unidade: c.Unidade, Setor: c.Setor, "Posto Trabalho": c["Posto Trabalho"], Cargo: c.Cargo, "Risco Global": "Sem risco", "Fator Mais Grave": "-", Fatores: 0 }));
-    renderDonutNiveis("chart-risco-global", "legenda-risco-global", Calc.mapaRiscoGlobalSemRisco(mapaRiscoF, universoCargoR), "postos", "posto(s)", (n) => ({
-      titulo: `Risco Global dos Postos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} posto(s) de trabalho`, chave: "riscoPosto", linhas: n.semRisco ? semRiscoLinhasR : mapaRiscoF.filter((l) => l["Risco Global"] === n.nivel) }));
+    const semRiscoLinhasR = universoSemRiscoR.filter((c) => !comRiscoR.has(kPG(c))).map((c) => ({ Cliente: c.Cliente, Unidade: c.Unidade, Setor: c.Setor, "Posto Trabalho": c["Posto Trabalho"], Cargo: c.Cargo, "Risco Global": "Sem risco", "Fator Mais Grave": "-", Fatores: 0 }));
+    let distRiscoGlobalR = Calc.mapaRiscoGlobalSemRisco(mapaRiscoF, universoSemRiscoR);
+    if (ehPsicoErgo) distRiscoGlobalR = distRiscoGlobalR.filter((n) => !n.semRisco);
+    renderDonutNiveis("chart-risco-global", "legenda-risco-global", distRiscoGlobalR, ehPsicoErgo ? "GHEs" : "postos", ehPsicoErgo ? "GHE(s)" : "posto(s)", (n) => ({
+      titulo: `Risco Global ${ehPsicoErgo ? "dos GHEs" : "dos Postos"} - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} ${ehPsicoErgo ? "GHE(s)" : "posto(s) de trabalho"}`, chave: "riscoPosto", linhas: n.semRisco ? semRiscoLinhasR : mapaRiscoF.filter((l) => l["Risco Global"] === n.nivel) }));
     renderTopSetores(Calc.topSetores(mapaRiscoF, 3), mapaRiscoF);
     renderDonutStatus("chart-plano-global", "legenda-plano-global", Calc.statusPlanoAcao(planoAcaoF, hoje), planoAcaoF, hoje);
     renderDonutStatus("chart-plano-criticos", "legenda-plano-criticos", Calc.planoAcaoPostosCriticos(planoAcaoFComRisco, hoje), planoAcaoFCriticos, hoje);

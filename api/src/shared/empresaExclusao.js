@@ -128,7 +128,11 @@ async function empresasOrfas(colecoes) {
 // V 1.41: expurgo automático da lixeira - apaga de vez as empresas excluídas há
 // mais de `diasLimite` dias (padrão 30). Rodado pelo job diário. Respeita um
 // limite de tempo; o que faltar fica para o próximo dia (nada é perdido).
-const COLECOES_EMPRESA_PADRAO = ["mapaRisco", "planoAcao", "absenteismo", "compativeis", "unidade", "setor", "cargo", "posto", "atividade", "avaliacaoErgonomica", "fatorRisco", "laudo", "aet", "diasUteis", "colaborador", "tempoTrabalho", "acaoAbsenteismo"];
+// V 1.95 (Alexandre): inclui "psicoLaudo" (laudo psicossocial importado, por empresa) para o
+// expurgo automático da lixeira apagar também esses documentos. "avaliacaoErgonomista" NÃO entra
+// aqui por ser coleção GLOBAL (não pertence a uma empresa). Os dados da coleta/respostas do módulo
+// psicossocial são apagados à parte, dentro de excluirDadosEmpresa (partição e_sige-<id>).
+const COLECOES_EMPRESA_PADRAO = ["mapaRisco", "planoAcao", "absenteismo", "compativeis", "unidade", "setor", "cargo", "posto", "atividade", "avaliacaoErgonomica", "fatorRisco", "laudo", "aet", "diasUteis", "colaborador", "tempoTrabalho", "acaoAbsenteismo", "psicoLaudo"];
 async function expurgarLixeiraVencida(diasLimite, colecoes, context, limiteMs = 30000) {
   colecoes = colecoes && colecoes.length ? colecoes : COLECOES_EMPRESA_PADRAO;
   const limite = Date.now() - (diasLimite || 30) * 86400000;

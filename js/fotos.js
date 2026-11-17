@@ -46,6 +46,24 @@
     return carregando;
   }
 
+  // V 1.96 (Alexandre): gira um canvas 90° no sentido horário (devolve um novo canvas).
+  function rotacionar90(cv) {
+    const r = document.createElement("canvas");
+    r.width = cv.height; r.height = cv.width;
+    const cx = r.getContext("2d");
+    cx.translate(r.width, 0); cx.rotate(Math.PI / 2); cx.drawImage(cv, 0, 0);
+    return r;
+  }
+  // Transforma as caixas (rostos marcados) junto com um giro de 90° horário.
+  // alturaAntiga = altura do canvas ANTES do giro.
+  function girarCaixas90(caixas, alturaAntiga) {
+    return (caixas || []).map((c) => ({ x: alturaAntiga - (c.y + c.h), y: c.x, w: c.h, h: c.w, auto: c.auto }));
+  }
+  // V 1.96 (Alexandre): toda foto inserida no sistema fica na HORIZONTAL (paisagem).
+  // Se vier em pé (retrato), gira 90° para deitar. O usuário pode ajustar depois com o
+  // botão "Girar" na conferência (ao criar/editar as análises).
+  function autoParaHorizontal(cv) { return cv.height > cv.width ? rotacionar90(cv) : cv; }
+
   async function imagemDe(arquivo) {
     const url = URL.createObjectURL(arquivo);
     try {
@@ -53,7 +71,7 @@
       const k = Math.min(1, LADO_MAX / Math.max(im.naturalWidth, im.naturalHeight));
       const cv = document.createElement("canvas"); cv.width = Math.round(im.naturalWidth * k); cv.height = Math.round(im.naturalHeight * k);
       const cx = cv.getContext("2d"); cx.fillStyle = "#fff"; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(im, 0, 0, cv.width, cv.height);
-      return cv;
+      return autoParaHorizontal(cv);
     } finally { URL.revokeObjectURL(url); }
   }
 
@@ -93,14 +111,26 @@
       let modo = "desfocar";
       const barraModo = h("div", "fotos-anon-modo");
       [["desfocar", "Desfocar"], ["tarja", "Cobrir com tarja"]].forEach(([v, t]) => { const l = h("label", "aet-radio"); const r = h("input"); r.type = "radio"; r.name = "anon-modo"; r.value = v; r.checked = v === modo; r.addEventListener("change", () => { modo = v; desenhar(); }); l.appendChild(r); l.appendChild(h("span", null, t)); barraModo.appendChild(l); });
+      // V 1.96 (Alexandre): botão para girar a foto 90° (as fotos entram na horizontal;
+      // aqui o usuário ajusta a orientação ao criar/editar a análise).
+      const bGirar = h("button", "btn-cad-secundario fotos-anon-girar", "⟳ Girar 90°"); bGirar.type = "button";
+      bGirar.addEventListener("click", () => {
+        const altura = trabalho.height;
+        trabalho = rotacionar90(trabalho);
+        for (let i = 0; i < lista.length; i++) lista[i] = girarCaixas90([lista[i]], altura)[0];
+        tela.width = trabalho.width; tela.height = trabalho.height;
+        desenhar();
+      });
+      barraModo.appendChild(bGirar);
       const cont = h("span", "fotos-anon-cont"); barraModo.appendChild(cont); cx0.appendChild(barraModo);
+      let trabalho = cv; // canvas de trabalho (pode ser girado pelo usuário)
       const tela = h("canvas", "fotos-anon-tela"); tela.width = cv.width; tela.height = cv.height; cx0.appendChild(tela);
       const ctx = tela.getContext("2d");
       const lista = caixas.slice();
       function desenhar(arrasto) {
-        ctx.drawImage(cv, 0, 0);
-        const tmp = document.createElement("canvas"); tmp.width = cv.width; tmp.height = cv.height; tmp.getContext("2d").drawImage(cv, 0, 0); aplicar(tmp, lista, modo); ctx.drawImage(tmp, 0, 0);
-        ctx.lineWidth = Math.max(3, cv.width / 300); lista.forEach((c) => { ctx.strokeStyle = c.auto ? "#00c853" : "#ffab00"; ctx.strokeRect(c.x, c.y, c.w, c.h); });
+        ctx.drawImage(trabalho, 0, 0);
+        const tmp = document.createElement("canvas"); tmp.width = trabalho.width; tmp.height = trabalho.height; tmp.getContext("2d").drawImage(trabalho, 0, 0); aplicar(tmp, lista, modo); ctx.drawImage(tmp, 0, 0);
+        ctx.lineWidth = Math.max(3, trabalho.width / 300); lista.forEach((c) => { ctx.strokeStyle = c.auto ? "#00c853" : "#ffab00"; ctx.strokeRect(c.x, c.y, c.w, c.h); });
         if (arrasto) { ctx.strokeStyle = "#ffab00"; ctx.setLineDash([10, 6]); ctx.strokeRect(arrasto.x, arrasto.y, arrasto.w, arrasto.h); ctx.setLineDash([]); }
         cont.textContent = lista.length ? `${lista.length} rosto(s) marcado(s)` : "Nenhum rosto marcado";
       }
@@ -119,8 +149,8 @@
       const barra = h("div", "reav-barra");
       const fechar = (r) => { g.removeEventListener("mouseup", fim); fundo.remove(); resolver(r); };
       const bC = h("button", "btn-cad-secundario", "Não enviar esta foto"); bC.type = "button"; bC.addEventListener("click", () => fechar(null));
-      const bA = h("button", "btn-cad-secundario", `Confirmar esta e anonimizar as próximas (${restantes}) automaticamente`); bA.type = "button"; bA.hidden = !restantes; bA.addEventListener("click", () => { automatico = true; fechar({ caixas: lista, modo }); });
-      const bO = h("button", "btn-cad-primario", "Confirmar e enviar"); bO.type = "button"; bO.addEventListener("click", () => fechar({ caixas: lista, modo }));
+      const bA = h("button", "btn-cad-secundario", `Confirmar esta e anonimizar as próximas (${restantes}) automaticamente`); bA.type = "button"; bA.hidden = !restantes; bA.addEventListener("click", () => { automatico = true; fechar({ caixas: lista, modo, cv: trabalho }); });
+      const bO = h("button", "btn-cad-primario", "Confirmar e enviar"); bO.type = "button"; bO.addEventListener("click", () => fechar({ caixas: lista, modo, cv: trabalho }));
       barra.appendChild(bC); barra.appendChild(bA); barra.appendChild(bO); cx0.appendChild(barra);
       document.body.appendChild(fundo); desenhar();
     });
@@ -140,8 +170,9 @@
     if (automatico && !aviso) r = { caixas, modo: modoAuto };
     else { r = await conferir(cv, caixas, arquivo.name, aviso, restantes || 0); if (r) modoAuto = r.modo; }
     if (!r) return null;
-    aplicar(cv, r.caixas, r.modo);
-    return paraArquivo(cv, arquivo.name);
+    const cvFinal = r.cv || cv; // o usuário pode ter girado a foto na conferência
+    aplicar(cvFinal, r.caixas, r.modo);
+    return paraArquivo(cvFinal, arquivo.name);
   }
   async function prepararLista(arquivos) {
     automatico = false; const out = []; const l = Array.from(arquivos || []);

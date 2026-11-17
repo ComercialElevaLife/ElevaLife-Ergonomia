@@ -2,6 +2,30 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 1.97 — 17/11/2026
+
+Ajustes no **laudo da AET** (Alexandre):
+
+- **Subtítulo da capa enxugado.** No modelo padrão, o subtítulo deixou de trazer “, com ferramentas ergonômicas e matriz de risco do cliente” — agora fica apenas **“AET conforme NR-17”**. O modelo Unimed (OCRA) não muda. *(`js/laudo-aet.js`.)*
+- **Menos espaço em branco no topo das páginas.** O conteúdo das páginas internas passou a começar mais perto do cabeçalho (margem superior de 70 → 54 pt, alinhada à inferior), tirando o vão em branco no começo da página. Afeta só o laudo da AET. *(`js/laudo-blocos.js`.)*
+- **Coluna “Ação” (nº A-NNNN) removida.** Na tabela de recomendações específicas (Plano de Ação por atividade), saiu a coluna com o número da ação; ficam **Tipo, Recomendação e Efeito no risco**, com as larguras redistribuídas. *(`js/laudo-aet.js`.)*
+
+Service worker subiu para `sige-v112`.
+
+## V 1.96 — 17/11/2026
+
+- **Fotos entram sempre na horizontal, com botão para girar (Alexandre).** Toda foto inserida no sistema (AET, fotos das análises/AEP, evidências do Plano de Ação e as importações de AET/laudo) passa a ficar na **horizontal (paisagem)**: se vier em pé (retrato), é deitada automaticamente ao inserir. Na janela de conferência que aparece ao **criar ou editar as análises**, há agora um botão **“⟳ Girar 90°”** para ajustar a orientação da foto antes de enviar (as marcações de rosto giram junto). *(Arquivo: `js/fotos.js`.)* Service worker subiu para `sige-v111`.
+
+## V 1.95 — 17/11/2026
+
+- **Exclusão de empresa apaga também o psicossocial (Alexandre).** Ao apagar uma empresa, ela some na hora de todas as telas — inclusive do módulo Riscos Psicossociais (a lista de empresas do módulo vem do cadastro de clientes, que já ignora as da lixeira); restaurar a empresa traz tudo de volta. A exclusão definitiva (botão da lixeira) e o expurgo automático de 30 dias passam a apagar de vez também o **laudo psicossocial importado** (`psicoLaudo`), que antes ficava para trás no expurgo automático. A coleta/respostas do módulo (partição `e_sige-<empresa>`) já era apagada na exclusão definitiva. *(Arquivo: `api/src/shared/empresaExclusao.js`.)*
+- **Empresa de exemplo agora é só Riscos Psicossociais, cobrindo todas as faixas (Alexandre).** O botão “Criar empresa de exemplo” (visível só para você) deixou de criar AEP, AET, absenteísmo, restritos e plano — passa a criar **apenas dados psicossociais fictícios**, com **5 GHEs**, cada um numa **faixa de risco diferente** (muito baixa, baixa, moderada, alta e muito alta), além do checklist ISO 45003. O exemplo é **recriado do zero** a cada clique: antes de criar, apaga de vez a empresa de exemplo anterior (cadastro + dados por empresa + psicossocial, mesmo se estiver na lixeira), evitando duplicatas e dados velhos. *(Arquivo: `js/app.js`.)*
+- **Dashboard › Gestão de Riscos no Psicossocial não mostra mais “Sem risco” (Alexandre).** Ao escolher a origem **Psicossocial**, a rosca “Risco Global” (e o detalhamento ao clicar) deixa de incluir a fatia “Sem risco” dos postos cadastrados — mostra só os **GHEs efetivamente avaliados** e sua graduação. A cobertura (avaliados × pendentes) continua no cartão de cobertura. Nas demais origens (AEP/AET/Todas) nada muda. *(Arquivo: `js/app.js`.)* Service worker subiu para `sige-v110`.
+
+## V 1.94 — 16/11/2026
+
+- **Avaliação de desempenho dos ergonomistas (Alexandre).** Nova sub-aba **"Avaliação de Ergonomistas"** dentro de **Coordenação**, com o checklist oficial **v1.2** embutido: **35 itens** em **12 eixos**, divididos em **Bloco A — Entregas técnicas (70%)** e **Bloco B — DNA 2.0, competências comportamentais (30%)**. O **Administrador** escolhe o ergonomista a avaliar (lista montada a partir dos **ergonomistas cadastrados** — com e-mail — e dos **usuários da equipe**), define o ciclo e a data e dá a nota de cada item numa **escala ancorada** (Referência 100 · Acima 85 · Esperado 70 · Em desenvolvimento 45 · Insuficiente 20 · N/A fora do cálculo). A **nota final** é calculada ao vivo (média ponderada dos eixos e blocos), respeitando as regras do checklist: **cobertura mínima de 50%** por eixo (eixo com menos itens avaliados é descartado e o peso redistribuído), **item ≤ 45 exige evidência escrita**, **Respeito (B3) < 60 trava promoção** e **dimensão < 60 sinaliza plano de correção**. Quando o **ergonomista** acessa com o usuário dele, ele vê a **própria avaliação em modo somente leitura** (a Coordenação passou a aparecer para a equipe, mas a Contabilidade de tempo continua exclusiva do Administrador). Backend: nova coleção **global** `avaliacaoErgonomista` (só o Administrador grava; o ergonomista lê a própria pelo campo `EmailErgonomista`). *(Arquivos: `js/aval-ergonomista.js` (novo), `js/coordenacao.js`, `js/db.js`, `js/app.js`, `css/style.css`, `index.html`, `api/src/functions/entidades.js`.)* Service worker subiu para `sige-v109`.
+
 ## V 1.93 — 16/11/2026
 
 - **AEP e AET podem ter mais de um cargo (Alexandre).** Uma avaliação (AEP ou AET) pode cobrir vários cargos do mesmo posto. No cadastro, além do **Cargo principal** (cascata), há o campo **"Outros cargos desta avaliação"** (multi-seleção, lista só os cargos do posto escolhido). A lista completa de cargos é salva em `Cargos` e **aparece em todo lugar onde a avaliação aparece**: tabela de Avaliações (AEP), lista e cabeçalho da AET, laudos (AEP e AET), notificações e nas tabelas do Inventário de Riscos. Ao **filtrar** por um cargo específico, a avaliação e os riscos dela aparecem se aquele cargo estiver na lista. Compatível com avaliações antigas (um cargo só). *(Arquivos: `js/app.js`, `js/aet.js`, `js/acoes.js`, `js/calc.js`, `js/laudo.js`, `js/laudo-aet.js`.)* Service worker subiu para `sige-v108`.
