@@ -2,6 +2,16 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.01 — 17/11/2026
+
+- **Agenda diária do ergonomista — nova aba “Ergonomista” (Alexandre).** Nova aba no menu lateral (menu suspenso, como a Coordenação), visível para a equipe, com sub-abas por perfil:
+  - **Minha avaliação** (equipe): o ergonomista vê o resultado da própria avaliação.
+  - **Minha agenda** (equipe): registro do dia com **atividade padronizada**, **horário (início e fim)**, **duração automática** e **quantidade** — ex.: “08:00–09:00 · Montar AEP (SIGE) · 5”. Navegação por dia, total lançado × previsto no rodapé e **puxada automática do SIGE** (as montagens de AEP/AET feitas no dia entram como sugestão, já com horário e quantidade, editáveis). A agenda **começa em dezembro/2026**.
+  - **Montar agendas** (coordenador): **horas por dia da semana** de cada ergonomista (referência de “previsto” do painel) e cadastro dos **tipos de atividade** (o coordenador pode criar novas).
+  - **Painel da agenda** (coordenador): acompanhamento corporativo, geral e por ergonomista — **horas previstas × lançadas**, **aderência**, **dias com lançamento** e **distribuição por atividade** (gráficos + tabela), com filtro de mês/ano e por ergonomista.
+- Atividades padronizadas: Montar AEP/AET (SIGE), Coleta de dados (AEP/AET), Gemba, Visita a restrito, COERGO, Validação de análise, Parecer técnico, Auditoria de ação implementada, Jurídico, Reunião, Lançamento de absenteísmo, Outras demandas e Almoço.
+- Coleções novas **GLOBAIS**: `agendaErgo` (1 doc por ergonomista/dia — cada ergonomista grava a própria, o coordenador vê todas) e `agendaConfig` (horas por dia da semana, só o coordenador monta). *(Arquivos: `js/agenda-ergo.js` (novo), `js/app.js`, `index.html`, `css/style.css`, `api/src/functions/entidades.js`, `js/db.js`.)* **Inclui mudança no backend (API) — requer novo deploy da API.** Service worker subiu para `sige-v116`.
+
 ## V 2.00 — 17/11/2026
 
 - **Gráficos dos KPIs: correções (Alexandre).** (1) Alguns gráficos apareciam em branco por uma corrida de layout (o canvas era medido antes do painel assentar) — agora todo gráfico do módulo é redimensionado no quadro seguinte, então todos os dados aparecem. (2) O gráfico **“Distribuição de risco no inventário”** passou a mostrar também a barra **“Reduzidos”** (quantidade de riscos reduzidos no mês). (3) Na rosca **“Composição das Ações ElevaLife”**, a legenda agora traz o **número e o % de cada item** (inclusive fatias pequenas), para nenhum dado ficar escondido. *(Arquivo: `js/kpi-operacional.js`.)* Service worker subiu para `sige-v115`.

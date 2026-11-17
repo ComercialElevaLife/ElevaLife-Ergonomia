@@ -70,6 +70,11 @@
     // V 1.99: KPIs operacionais e inconsistencias solides (Coordenacao > KPIs).
     // GLOBAIS e restritas ao Administrador (backend so devolve para o coordenador).
     "kpiOperacional", "kpiInconsistencia",
+    // V 2.01: agenda diaria do ergonomista (aba Ergonomista). GLOBAIS. "agendaErgo"
+    // = um doc por ergonomista/dia; cada ergonomista grava a propria, o coordenador
+    // ve todas. "agendaConfig" = horas por dia da semana de cada ergonomista (so o
+    // coordenador monta). Filtros por EmailErgonomista no backend - ver entidades.js.
+    "agendaErgo", "agendaConfig",
   ];
 
   const estado = {

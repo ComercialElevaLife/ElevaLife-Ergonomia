@@ -6285,6 +6285,34 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     });
   }
 
+  // V 2.01: menu suspenso da aba Ergonomista no sidebar (mesmo padrão da
+  // Coordenação) — lista as sub-abas visíveis pelo perfil (Minha avaliação,
+  // Minha agenda e, para o coordenador, Montar agendas e Painel da agenda).
+  function montarSidebarErgonomista() {
+    const nav = document.getElementById("sidebar-sub-ergonomista");
+    if (!nav || !window.BI.AgendaErgo || !window.BI.AgendaErgo.subabas) return;
+    const subs = window.BI.AgendaErgo.subabas();
+    const atual = window.BI.AgendaErgo.subAtiva ? window.BI.AgendaErgo.subAtiva() : null;
+    const ICON = { minhaaval: "📋", minhaagenda: "🗓", montaragendas: "🧩", painel: "📊" };
+    nav.innerHTML = "";
+    subs.forEach((s) => {
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.dataset.chave = s.chave;
+      const ic = document.createElement("span"); ic.className = "icone"; ic.textContent = ICON[s.chave] || "•";
+      const rot = document.createElement("span"); rot.className = "rotulo"; rot.textContent = s.rotulo;
+      btn.appendChild(ic); btn.appendChild(rot);
+      btn.classList.toggle("ativa", s.chave === atual);
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        ativarAba("ergonomista");
+        try { window.BI.AgendaErgo.abrir(s.chave); } catch (e) { console.error(e); }
+        montarSidebarErgonomista();
+        fecharSidebarMobile();
+      });
+      nav.appendChild(btn);
+    });
+  }
+
   function remontarSubAbas() {
     Object.keys(GRUPOS_CADASTRO).forEach((grupo) => {
       montarSubNavCadastro(grupo);
@@ -7940,11 +7968,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (btnRef) btnRef.textContent = "Ver tabelas de referência";
     if (window.BI.Indicadores) window.BI.Indicadores.fecharPopover();
     atualizarEstadoExportacao();
-    expandirGrupoSidebar((GRUPO_DA_ABA[aba] || aba === "coordenacao") ? aba : null);
+    expandirGrupoSidebar((GRUPO_DA_ABA[aba] || aba === "coordenacao" || aba === "ergonomista") ? aba : null);
     try { aplicarServicosContratados(); } catch (_) { /* dados ainda nao carregados */ }
     if (aba === "psicossocial") sincronizarFiltroPsico(true);
     if (aba === "aep" && estadoSubAbaCadastro.aep === "modeloLaudo") abrirEditorTextoDireto();
     if (aba === "coordenacao" && window.BI.Coordenacao) { try { montarSidebarCoordenacao(); window.BI.Coordenacao.render(); } catch (e) { console.error(e); } }
+    if (aba === "ergonomista" && window.BI.AgendaErgo) { try { montarSidebarErgonomista(); window.BI.AgendaErgo.render(); } catch (e) { console.error(e); } }
     if (aba === "notificacoes") { try { renderNotificacoes(); } catch (e) { console.error(e); } }
     if (aba === "dashboard") { try { montarDashboard(); mostrarDash(dashAtual); } catch (e) { console.error(e); } }
     // V 1.80 (Alexandre - desempenho): as tabelas de cadastro (e a lista do Plano de Ação) não são
@@ -9441,6 +9470,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // se estiverem abertas, re-renderiza; ao limpar o filtro as páginas voltam.
       const secCoord = document.getElementById("aba-coordenacao");
       if (secCoord && !secCoord.hidden && window.BI.Coordenacao) { try { window.BI.Coordenacao.render(); } catch (e) { console.error(e); } }
+      // V 2.01: a aba Ergonomista (agenda diária) também re-renderiza ao vivo.
+      const secErgo = document.getElementById("aba-ergonomista");
+      if (secErgo && !secErgo.hidden && window.BI.AgendaErgo) { try { window.BI.AgendaErgo.render(); } catch (e) { console.error(e); } }
       // V 1.46: badge e conteúdo da aba de Notificações acompanham os dados.
       try { atualizarBadgeAbaNotificacoes(); } catch (e) { /* */ }
       const secNotif = document.getElementById("aba-notificacoes");
@@ -10246,6 +10278,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       montarCadastros();
       montarSidebarSubnav();
       try { montarSidebarCoordenacao(); } catch (e) { /* Coordenação pode não estar disponível */ }
+      try { montarSidebarErgonomista(); } catch (e) { /* aba Ergonomista pode não estar disponível */ }
       configurarSidebar();
       configurarAbas();
       configurarToggleReferencia();

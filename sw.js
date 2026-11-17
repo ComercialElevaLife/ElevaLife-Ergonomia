@@ -20,7 +20,7 @@
 
 "use strict";
 
-const VERSAO = "sige-v115";
+const VERSAO = "sige-v116";
 const CACHE_SITE = `${VERSAO}-site`;
 const CACHE_EXTERNO = `${VERSAO}-externo`;
 
@@ -60,6 +60,7 @@ const ARQUIVOS_BASE = [
   "/js/kpi-dados-2026.js",
   "/js/kpi-operacional.js",
   "/js/coordenacao.js",
+  "/js/agenda-ergo.js",
   "/js/absenteismo-laudo.js",
   "/js/app.js",
   "/vendor/libs/chart.umd.min.js",

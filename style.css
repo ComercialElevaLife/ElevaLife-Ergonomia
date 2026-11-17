@@ -2515,6 +2515,28 @@ table.kpi-grade tbody tr:hover { background: #fcf7f5; }
 .coord-vazio { padding: 16px; color: var(--texto-suave, #7a6a6c); font-size: 13.5px; }
 
 /* ====================================================================
+   V 2.01 — Agenda diária do ergonomista (aba Ergonomista).
+   ==================================================================== */
+.agenda-barra { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 4px 0 12px; }
+.agenda-data, .agenda-barra .agenda-inp, .agenda-inp { padding: 6px 8px; border: 1px solid var(--linha, #e5d8d8); border-radius: 8px; font: inherit; font-size: 13px; background: var(--card, #fff); }
+.agenda-dia-sem { font-weight: 700; color: var(--vinho-escuro, #5a2a33); margin-left: 4px; }
+.agenda-tabela td, .agenda-tabela th { white-space: nowrap; }
+.agenda-tabela .agenda-inp { width: 100%; }
+.agenda-hora { width: 108px; }
+.agenda-qtd { width: 70px; text-align: right; }
+.agenda-obs { min-width: 160px; }
+.agenda-tabela select.agenda-inp { min-width: 170px; }
+.agenda-badge { display: block; width: fit-content; margin: 4px 0 0; font-size: 10.5px; font-weight: 700; color: var(--teal, #2E7D5B); background: #e7f3ec; border-radius: 6px; padding: 1px 6px; }
+.agenda-tabela tr.agenda-auto { background: #f3faf6; }
+.agenda-acoes { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.agenda-total { margin-left: auto; font-weight: 700; color: var(--vinho-escuro, #5a2a33); font-size: 13px; }
+.agenda-msg { font-size: 13px; }
+.agenda-rodape { margin-top: 8px; }
+.agenda-cfg-hora { width: 64px; text-align: right; }
+.agenda-grafico-box { position: relative; height: 320px; }
+.agenda-grafico-doughnut { height: 340px; }
+
+/* ====================================================================
    V 1.41 — grupos recolhíveis no Inventário (AEP) e telas mais largas/
    legíveis (AEP, AET, Psicossocial): "primeiro o grupo, depois os fatores".
    ==================================================================== */
