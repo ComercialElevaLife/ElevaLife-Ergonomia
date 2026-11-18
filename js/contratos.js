@@ -289,7 +289,7 @@
       const tr = h("tr");
       tr.appendChild(h("td", null, MESES[l.Mes]));
       const tdB = h("td", "num ap-dinheiro"); tdB.appendChild(inpNum(l, "totalPrevisto")); tr.appendChild(tdB);
-      const tdC = h("td", "num ap-dinheiro"); const wrapC = h("div"); wrapC.style.cssText = "display:flex;gap:4px;align-items:center"; wrapC.appendChild(inpNum(l, "faturado")); const bF = h("button", "btn-mini-fat", "↻"); bF.type = "button"; bF.title = "Puxar do sistema de faturamento (reconhecido pelo coordenador)"; bF.addEventListener("click", () => puxarFaturamento(l, recalc)); wrapC.appendChild(bF); tdC.appendChild(wrapC); tr.appendChild(tdC);
+      const tdC = h("td", "num ap-dinheiro"); const wrapC = h("div"); wrapC.style.cssText = "display:flex;gap:4px;align-items:center"; const iC = inpNum(l, "faturado"); wrapC.appendChild(iC); const bF = h("button", "btn-mini-fat", "↻"); bF.type = "button"; bF.title = "Abrir a dashboard do faturamento (Ergonomia · reconhecido · mês) e preencher este campo"; bF.addEventListener("click", () => puxarFaturamento(l, recalc, iC)); wrapC.appendChild(bF); tdC.appendChild(wrapC); tr.appendChild(tdC);
       const tdD = h("td", "num"); const spD = h("span", "kpi-pct"); tdD.appendChild(spD); tr.appendChild(tdD);
       const tdE = h("td", "num ap-dinheiro"); tr.appendChild(tdE);
       const tdF = h("td", "num ap-dinheiro"); tr.appendChild(tdF);
@@ -347,13 +347,17 @@
     area.appendChild(box);
   }
 
-  // Coluna C — puxar do sistema de faturamento. A integração automática depende de o
-  // faturamento expor os dados ao SIGE; enquanto não estiver ligada, orienta o uso manual.
-  async function puxarFaturamento(l, cb) {
+  // Coluna C — fluxo ASSISTIDO: abre a dashboard do faturamento e deixa o campo pronto
+  // para colar o valor de "Ergonomia · reconhecido · mês vigente". (Se um dia a TI ligar a
+  // integração automática via Graph, basta definir BI.FaturamentoIntegra.valorMes que o
+  // botão passa a preencher sozinho — o gancho já está aqui.)
+  async function puxarFaturamento(l, cb, inp) {
     if (BI.FaturamentoIntegra && typeof BI.FaturamentoIntegra.valorMes === "function") {
-      try { const v = await BI.FaturamentoIntegra.valorMes(l.Ano, l.Mes); if (v != null) { l.faturado = v; if (cb) cb(); if (BI.avisar) BI.avisar("Valor do faturamento puxado."); return; } } catch (e) { console.error(e); }
+      try { const v = await BI.FaturamentoIntegra.valorMes(l.Ano, l.Mes); if (v != null) { l.faturado = v; if (inp) inp.value = v; if (cb) cb(); if (BI.avisar) BI.avisar("Valor do faturamento puxado automaticamente."); return; } } catch (e) { console.error(e); }
     }
-    window.alert("A ligação automática com o sistema de faturamento ainda não está habilitada neste ambiente. Abra a dashboard de faturamento (botão “Abrir faturamento”), copie o valor reconhecido do mês e digite no campo. Assim que a integração for liberada, este botão preenche sozinho.");
+    try { window.open(URL_FATURAMENTO, "_blank", "noopener"); } catch (e) { /* popup bloqueado */ }
+    if (BI.avisar) BI.avisar("Abri a dashboard do faturamento. Pegue o valor de “Ergonomia · reconhecido” do mês (regime caixa) e cole aqui no campo Total faturado.");
+    if (inp) { try { inp.focus(); inp.select(); } catch (e) { /* */ } }
   }
 
   function anosDisponiveis() { const set = new Set([new Date().getFullYear(), 2026, anoBud]); docsBudget().forEach((d) => { if (d.Ano) set.add(Number(d.Ano)); }); return Array.from(set).sort((a, b) => a - b); }

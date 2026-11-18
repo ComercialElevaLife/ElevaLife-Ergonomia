@@ -2,6 +2,10 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.09 — 18/11/2026
+
+- **Coluna C (Total Faturado) — fluxo assistido (Alexandre).** O sistema de faturamento lê o SharePoint via login Microsoft, então não dá para o SIGE puxar o número sozinho sem integração de TI. O botão **“↻”** na coluna C agora **abre a dashboard do faturamento** e deixa o campo pronto para você colar o valor de **“Ergonomia · reconhecido · mês vigente”** (regime caixa). O gancho para automação total (via Graph/Azure) já está no código, caso a TI habilite depois. *(`js/contratos.js`.)* Service worker subiu para `sige-v124`.
+
 ## V 2.08 — 18/11/2026
 
 - **Desligar usuário (reversível), preservando tudo que ele criou (Alexandre).** Em Cadastro Interno › Usuários, cada usuário ganhou o botão **“Desligar”** (e **“Reativar”**). Desligar **bloqueia o acesso** da pessoa ao sistema, mas **mantém o cadastro e tudo que ela criou** (AEP, AET, laudos, agenda, análises…) — é reversível. O backend passa a tratar `StatusConta = "Desligado"` revogando o papel no login (sem apagar nada). O botão **“Excluir”** continua para remoção definitiva do acesso, agora com aviso deixando claro que os dados da pessoa permanecem. *Observação: isso é o **login/acesso**; o cadastro do ergonomista (nome/assinatura usados nos laudos) é separado e não é afetado, para os laudos antigos continuarem válidos.* *(Arquivos: `api/src/shared/tenant.js`, `api/src/functions/usuarios.js`, `js/app.js`, `css/style.css`.)* **Mexe no backend — requer republicar a API.** Service worker subiu para `sige-v123`.
