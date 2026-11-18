@@ -9356,7 +9356,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const ov = document.createElement("div"); ov.className = "kpi-conf-overlay";
       const card = document.createElement("div"); card.className = "kpi-conf-card";
       const tit = document.createElement("div"); tit.className = "kpi-conf-titulo"; tit.textContent = "Fim da " + (opts.tipo || "análise") + " — cliente do KPI";
-      const txt = document.createElement("p"); txt.className = "kpi-conf-texto"; txt.textContent = "Confirme qual cliente do KPI operacional esta " + (opts.tipo || "análise") + " vai abastecer. Já veio sugerido pelo cadastro — edite se o nome no KPI for diferente, ou deixe em branco para não abastecer o KPI.";
+      const txt = document.createElement("p"); txt.className = "kpi-conf-texto"; txt.textContent = "Confirme qual cliente do KPI operacional esta " + (opts.tipo || "análise") + " vai abastecer. Já veio sugerido pelo cadastro — edite se o nome no KPI for diferente. Se esta análise não entra no KPI recorrente (ex.: time de pontuais), use “Não vincular a nenhum KPI”.";
       const lab = document.createElement("label"); lab.className = "kpi-conf-label"; lab.textContent = "Cliente no KPI";
       const inp = document.createElement("input"); inp.type = "text"; inp.className = "kpi-conf-input"; inp.value = opts.sugestao || ""; inp.setAttribute("list", "kpi-conf-datalist");
       // sugestões: nomes já usados nas linhas do KPI (quando o coordenador; para os demais, os clientes do cadastro)
@@ -9369,12 +9369,16 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const linha = document.createElement("div"); linha.className = "kpi-conf-acoes";
       const bOk = document.createElement("button"); bOk.type = "button"; bOk.className = "btn-cad-principal"; bOk.textContent = "Confirmar e salvar";
       const bCancel = document.createElement("button"); bCancel.type = "button"; bCancel.className = "btn-cad-secundario"; bCancel.textContent = "Voltar a editar";
-      linha.appendChild(bCancel); linha.appendChild(bOk);
+      // V 2.11 (Alexandre): salvar SEM abastecer nenhum KPI — o time de pontuais não alimenta
+      // o KPI recorrente. Resolve com "" (string vazia), que os chamadores salvam como "sem KPI".
+      const bNenhum = document.createElement("button"); bNenhum.type = "button"; bNenhum.className = "btn-cad-secundario"; bNenhum.textContent = "Não vincular a nenhum KPI";
+      linha.appendChild(bCancel); linha.appendChild(bNenhum); linha.appendChild(bOk);
       card.appendChild(tit); card.appendChild(txt); card.appendChild(lab); card.appendChild(linha);
       ov.appendChild(card); document.body.appendChild(ov);
       const fechar = (v) => { try { document.body.removeChild(ov); } catch (e) { /* */ } document.removeEventListener("keydown", onKey); resolve(v); };
       const onKey = (ev) => { if (ev.key === "Escape") { ev.preventDefault(); fechar(false); } else if (ev.key === "Enter" && document.activeElement === inp) { ev.preventDefault(); fechar(inp.value.trim()); } };
       bOk.addEventListener("click", () => fechar(inp.value.trim()));
+      bNenhum.addEventListener("click", () => fechar(""));
       bCancel.addEventListener("click", () => fechar(false));
       ov.addEventListener("click", (ev) => { if (ev.target === ov) fechar(false); });
       document.addEventListener("keydown", onKey);

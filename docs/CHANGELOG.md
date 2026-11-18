@@ -2,6 +2,10 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.11 — 18/11/2026
+
+- **Fechar a análise: opção “Não vincular a nenhum KPI” (Alexandre).** No painel que aparece ao finalizar uma AEP/AET (confirmação do cliente do KPI), além de “Confirmar e salvar” e “Voltar a editar”, agora há o botão **“Não vincular a nenhum KPI”**. Serve para análises que não entram no KPI recorrente (ex.: time de pontuais): a análise é salva normalmente, só não abastece nenhum KPI operacional. *(`js/app.js`.)* Service worker subiu para `sige-v126`.
+
 ## V 2.10 — 18/11/2026
 
 Desempenho, Usuários e Agenda (Alexandre):
