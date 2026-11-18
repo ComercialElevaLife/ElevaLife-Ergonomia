@@ -120,7 +120,7 @@
 
     const bImp = botaoImportar(area); if (bImp) box.appendChild(bImp);
 
-    const wrap = h("div", "tabela-scroll"); const tb = h("table", "tabela-dados kpi-grade contratos-grade");
+    const wrap = h("div", "tabela-scroll contratos-scroll"); const tb = h("table", "tabela-dados kpi-grade contratos-grade");
     const thead = h("thead"); const trh = h("tr");
     ["Cliente", "Unidade", "Ergonomista", "CH (sem)", "CH Coord.", "Coordenador", "$ CTT", "Venc. contrato", "Teto MO", "MO atual", "Teto Benef.", "Benef. atual", "Saldo MO", "Saldo Benef.", "Saldo Total", ""].forEach((c) => trh.appendChild(h("th", null, c)));
     thead.appendChild(trh); tb.appendChild(thead);
@@ -151,13 +151,15 @@
       refs.push({ l, sec, tdCHc, tdTMO, tdTB, tdSMO, tdSB, tdST });
       return tr;
     }
+    // V 2.10 (Alexandre): saldo positivo = verde destacado; zerado ou negativo = vermelho destacado.
+    function corSaldo(td, v) { td.className = "num ap-dinheiro " + (n0(v) > 0 ? "saldo-pos" : "saldo-neg"); td.textContent = moeda(v); }
     function recalc() {
       refs.forEach(({ l, sec, tdCHc, tdTMO, tdTB, tdSMO, tdSB, tdST }) => {
-        if (sec) { tdCHc.textContent = "—"; tdTMO.textContent = "(pacote)"; tdTB.textContent = "(pacote)"; tdSMO.textContent = "(pacote)"; tdSB.textContent = "(pacote)"; tdST.textContent = "(pacote)"; return; }
+        if (sec) { tdCHc.textContent = "—"; tdTMO.textContent = "(pacote)"; tdTB.textContent = "(pacote)"; tdSMO.className = "num ap-dinheiro"; tdSMO.textContent = "(pacote)"; tdSB.className = "num ap-dinheiro"; tdSB.textContent = "(pacote)"; tdST.className = "num ap-dinheiro"; tdST.textContent = "(pacote)"; return; }
         const d = derivadosCoord(l);
         tdCHc.textContent = (Math.round(d.chCoord * 100) / 100);
         tdTMO.textContent = moeda(d.tetoMO); tdTB.textContent = moeda(d.tetoBen);
-        tdSMO.textContent = moeda(d.saldoMO); tdSB.textContent = moeda(d.saldoBen); tdST.textContent = moeda(d.saldoTotal);
+        corSaldo(tdSMO, d.saldoMO); corSaldo(tdSB, d.saldoBen); corSaldo(tdST, d.saldoTotal);
       });
       cardResumo();
     }
@@ -183,12 +185,16 @@
       const tot = linhas.reduce((s, l) => s + n0(l.ValorCtt), 0);
       const tMO = linhas.reduce((s, l) => s + derivadosCoord(l).tetoMO, 0);
       const uMO = linhas.reduce((s, l) => s + n0(l.MOAtual), 0);
+      const tBEN = linhas.reduce((s, l) => s + derivadosCoord(l).tetoBen, 0);
+      const uBEN = linhas.reduce((s, l) => s + n0(l.BenefAtual), 0);
       const nGrupos = new Set(linhas.map((l) => grupoLinha(l))).size;
       cards.appendChild(kpi(String(nGrupos), "Clientes"));
       cards.appendChild(kpi(String(linhas.length), "Unidades ativas"));
       cards.appendChild(kpi(moeda(tot), "Soma dos contratos", true));
       cards.appendChild(kpi(moeda(tMO), "Teto MO total", true));
       cards.appendChild(kpi(pctTxt(pct(uMO, tMO)), "% MO utilizada"));
+      cards.appendChild(kpi(moeda(tBEN), "Teto BEN total", true));
+      cards.appendChild(kpi(pctTxt(pct(uBEN, tBEN)), "% BEN utilizada"));
     }
     box.appendChild(cards);
     redesenhar();

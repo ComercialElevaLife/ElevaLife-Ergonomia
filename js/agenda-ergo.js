@@ -56,8 +56,26 @@
   function emailAtual() { const i = ident(); return i ? String(i.email || "").toLowerCase() : ""; }
   function podeGravar() { const e = DB() && DB().estado; return !!(e && e.disponivel && !e.somenteLeitura && e.modoApi); }
   function slug(email) { return String(email || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); }
+  // V 2.10 (Alexandre): cache dos usuários (contas de login) para vincular à agenda.
+  let _usuariosCache = null;
+  async function carregarUsuarios() {
+    if (_usuariosCache) return _usuariosCache;
+    try {
+      const r = await fetch("/api/usuarios", { credentials: "same-origin", cache: "no-store" });
+      _usuariosCache = r.ok ? await r.json() : [];
+    } catch (e) { _usuariosCache = []; }
+    return _usuariosCache;
+  }
+  function usuarioPorEmail(email) {
+    const e = String(email || "").toLowerCase();
+    return (_usuariosCache || []).find((u) => String(u.Email || "").trim().toLowerCase() === e);
+  }
   function nomeDe(email) {
     const e = String(email || "").toLowerCase();
+    // V 2.10: prioriza o Nome do usuário (login); depois a config da agenda; depois o ergonomista.
+    const u = usuarioPorEmail(e); if (u && u.Nome) return u.Nome;
+    const cfg = docsConfig().find((c) => String(c.EmailErgonomista || "").toLowerCase() === e);
+    if (cfg && cfg.Nome) return cfg.Nome;
     const erg = (BI.dados && BI.dados.ergonomista || []).find((x) => String(x.Email || "").trim().toLowerCase() === e);
     return (erg && erg.Nome) || email || "—";
   }
@@ -67,6 +85,25 @@
       .filter((x) => x.Email)
       .map((x) => ({ email: String(x.Email).toLowerCase(), nome: x.Nome || x.Email }))
       .sort((a, b) => a.nome.localeCompare(b.nome));
+  }
+  // V 2.10 (Alexandre): donos de agenda — quem realmente TEM agenda no sistema. As agendas
+  // (agendaErgo/agendaConfig) são gravadas pela conta de LOGIN (o backend força isso), então o
+  // painel/seletores do ADM listam os donos a partir das configs salvas, unidos aos ergonomistas.
+  function donosAgenda() {
+    const mapa = {};
+    ergonomistas().forEach((e) => { mapa[e.email] = { email: e.email, nome: e.nome }; });
+    docsConfig().forEach((c) => {
+      const em = String(c.EmailErgonomista || "").toLowerCase(); if (!em) return;
+      mapa[em] = { email: em, nome: c.Nome || nomeDe(em) };
+    });
+    return Object.keys(mapa).map((k) => mapa[k]).sort((a, b) => String(a.nome).localeCompare(String(b.nome)));
+  }
+  // Config da agenda correspondente a uma linha de ergonomista do Cadastro Interno.
+  // Reconhece tanto o formato novo (ErgoRef = e-mail do ergonomista) quanto o antigo (chave pelo e-mail).
+  function cfgDoErgo(ergoEmail) {
+    const e = String(ergoEmail || "").toLowerCase();
+    return docsConfig().find((c) => String(c.ErgoRef || "").toLowerCase() === e)
+      || docsConfig().find((c) => (c._id || c.id) === idCfg(e));
   }
 
   // --------------------------------------------------- datas / horário
@@ -160,6 +197,8 @@
   function render() {
     const grade = document.getElementById("grade-ergonomista");
     if (!grade) return;
+    // V 2.10 (Alexandre): o ADM usa os nomes dos usuários (login) nos seletores/painel.
+    if (_usuariosCache === null && ehAdmin()) { carregarUsuarios().then(() => { try { render(); } catch (e) {} }); }
     grade.innerHTML = "";
     const visiveis = subabasVisiveis();
     if (!visiveis.length) { grade.appendChild(cartao("Ergonomista", null, h("div", "coord-vazio", "Área restrita à equipe ElevaLife."))); return; }
@@ -212,7 +251,7 @@
     // Seletor de ergonomista — só para o coordenador (vê a de todos, inclusive a própria).
     if (ehAdmin()) {
       const selErg = h("select", "agenda-inp");
-      const lista = [{ email: meu, nome: nomeDe(meu) + " (eu)" }].concat(ergonomistas().filter((e) => e.email !== meu));
+      const lista = [{ email: meu, nome: nomeDe(meu) + " (eu)" }].concat(donosAgenda().filter((e) => e.email !== meu));
       lista.forEach((e) => { const o = h("option", null, e.nome); o.value = e.email; if (e.email === email) o.selected = true; selErg.appendChild(o); });
       selErg.addEventListener("change", () => { agendaAlvoEmail = selErg.value; renderMinhaAgenda(area); });
       const lbl = h("label", "agenda-dia-sem"); lbl.style.fontWeight = "600"; lbl.textContent = "Ergonomista:"; lbl.appendChild(selErg); lbl.style.display = "inline-flex"; lbl.style.gap = "6px"; lbl.style.alignItems = "center";
@@ -229,7 +268,11 @@
     bAnt.addEventListener("click", () => irPara(somaDias(dataAgenda, -1)));
     bProx.addEventListener("click", () => irPara(somaDias(dataAgenda, 1)));
     inpData.addEventListener("change", () => irPara(inpData.value || dataAgenda));
-    barra.appendChild(bAnt); barra.appendChild(inpData); barra.appendChild(bProx); barra.appendChild(lblDia);
+    // V 2.10 (Alexandre): a carga horária por dia da semana é fixa (previsto), mas o ergonomista
+    // precisa INFORMAR a data real em que fez as atividades. Rótulo explícito deixa isso claro.
+    const lblData = h("label", "agenda-dia-sem"); lblData.style.cssText = "display:inline-flex;gap:6px;align-items:center;font-weight:600";
+    lblData.appendChild(h("span", null, "Data das atividades:")); lblData.appendChild(inpData);
+    barra.appendChild(bAnt); barra.appendChild(lblData); barra.appendChild(bProx); barra.appendChild(lblDia);
     card.appendChild(barra);
     const area2 = area; // referência estável para re-render
 
@@ -339,22 +382,40 @@
     const ergos = ergonomistas();
     const card = h("div", "cartao col-12");
     card.appendChild(h("div", "cartao-titulo", "Horas por dia da semana"));
-    card.appendChild(h("div", "coord-sub", "Defina quantas horas cada ergonomista atua em cada dia da semana. O dia com 0 (zero) horas é dia que ele não atua. Essas horas são a referência (previsto) do Painel da agenda."));
+    card.appendChild(h("div", "coord-sub", "Defina quantas horas cada ergonomista atua em cada dia da semana (0 = dia que não atua) e vincule cada agenda ao usuário (login) que vai preenchê-la. O usuário vinculado passa a ver e editar essa agenda em “Minha agenda”. Essas horas são a referência (previsto) do Painel da agenda."));
 
     if (!ergos.length) { card.appendChild(h("div", "coord-vazio", "Cadastre os ergonomistas (com e-mail) em Cadastro Interno › Ergonomistas para montar as agendas.")); area.appendChild(card); return; }
+
+    // V 2.10 (Alexandre): precisamos da lista de usuários (logins) para o vínculo. Se ainda
+    // não carregou, dispara a busca e re-renderiza quando chegar.
+    if (_usuariosCache === null) { carregarUsuarios().then(() => renderMontarAgendas(area)); }
+    const usuarios = (_usuariosCache || []).slice().filter((u) => u && u.Email).sort((a, b) => String(a.Nome || a.Email).localeCompare(String(b.Nome || b.Email)));
 
     const wrap = h("div", "coord-tabela-wrap");
     const t = h("table", "coord-tabela agenda-cfg-tabela");
     const thead = h("thead"); const trh = h("tr");
-    const cols = ["Ergonomista"].concat(DIAS_CURTO).concat(["Semana"]);
-    cols.forEach((c, i) => { const th = h("th", i > 0 ? "num" : null, c); trh.appendChild(th); });
+    const cols = ["Ergonomista", "Usuário (login)"].concat(DIAS_CURTO).concat(["Semana"]);
+    cols.forEach((c, i) => { const th = h("th", i > 1 ? "num" : null, c); trh.appendChild(th); });
     thead.appendChild(trh); t.appendChild(thead);
     const tb = h("tbody");
-    const estado = {}; // email -> [7]
+    const estado = {}; // ergoEmail -> [7]
+    const vinculo = {}; // ergoEmail -> login escolhido
     ergos.forEach((e) => {
-      estado[e.email] = horasPorDiaDe(e.email);
+      const cfg = cfgDoErgo(e.email);
+      estado[e.email] = (cfg && Array.isArray(cfg.horasPorDia)) ? [0, 1, 2, 3, 4, 5, 6].map((i) => n0(cfg.horasPorDia[i])) : horasPorDiaDe(e.email);
+      // Vínculo atual: EmailUsuario salvo; se não houver, sugere o usuário com o mesmo e-mail do ergonomista.
+      let loginAtual = (cfg && cfg.EmailUsuario) ? String(cfg.EmailUsuario).toLowerCase() : "";
+      if (!loginAtual && usuarioPorEmail(e.email)) loginAtual = e.email;
+      vinculo[e.email] = loginAtual;
       const tr = h("tr");
       tr.appendChild(h("td", null, e.nome));
+      // Seletor de usuário (login) — define de quem é essa agenda.
+      const tdU = h("td");
+      const sel = h("select", "agenda-inp");
+      const o0 = h("option", null, "— não vinculado —"); o0.value = ""; sel.appendChild(o0);
+      usuarios.forEach((u) => { const em = String(u.Email || "").toLowerCase(); if (!em) return; const o = h("option", null, (u.Nome ? u.Nome + " — " : "") + em); o.value = em; if (em === loginAtual) o.selected = true; sel.appendChild(o); });
+      sel.addEventListener("change", () => { vinculo[e.email] = String(sel.value || "").toLowerCase(); });
+      tdU.appendChild(sel); tr.appendChild(tdU);
       const tdSemana = h("td", "num", "");
       function recalcSemana() { tdSemana.textContent = fmtHoras(estado[e.email].reduce((s, x) => s + x, 0) * 60); }
       for (let d = 0; d < 7; d++) {
@@ -376,13 +437,23 @@
       bSalvar.disabled = true; msg.style.color = "#1E6B44"; msg.textContent = "Salvando…";
       try {
         for (const e of ergos) {
-          const ex = acharCfg(e.email);
-          const doc = { EmpresaId: "GLOBAL", EmailErgonomista: e.email, Nome: e.nome, horasPorDia: estado[e.email] };
-          await DB().salvar("agendaConfig", ex ? (ex._id || ex.id) : idCfg(e.email), doc, !ex);
+          // V 2.10 (Alexandre): a agenda é gravada pela conta de LOGIN vinculada (o backend
+          // força EmailErgonomista = login de quem grava), então a config fica na chave do login.
+          const login = vinculo[e.email] || "";
+          const donoEmail = login || e.email; // sem vínculo, mantém a chave pelo e-mail do ergonomista
+          const cfgAnt = cfgDoErgo(e.email);
+          const doc = { EmpresaId: "GLOBAL", EmailErgonomista: donoEmail, EmailUsuario: login, ErgoRef: e.email, Nome: e.nome, horasPorDia: estado[e.email] };
+          const alvo = acharCfg(donoEmail);
+          await DB().salvar("agendaConfig", alvo ? (alvo._id || alvo.id) : idCfg(donoEmail), doc, !alvo);
+          // Se o dono mudou, remove a config antiga (evita horas/agenda em duas chaves).
+          if (cfgAnt && (cfgAnt._id || cfgAnt.id) !== idCfg(donoEmail)) {
+            try { await DB().excluir("agendaConfig", cfgAnt._id || cfgAnt.id); } catch (e2) { console.error("limpar cfg antiga", e2); }
+          }
         }
         await recarregar(["agendaConfig"]);
-        if (BI.avisar) BI.avisar("Horas das agendas salvas.");
+        if (BI.avisar) BI.avisar("Horas e vínculos das agendas salvos.");
         msg.textContent = "Salvo."; bSalvar.disabled = false;
+        renderMontarAgendas(area);
       } catch (e) { console.error("cfg salvar", e); msg.textContent = "Erro ao salvar: " + (e && e.message ? e.message : e); msg.style.color = "#C62828"; bSalvar.disabled = false; }
     });
     acoes.appendChild(bSalvar); acoes.appendChild(msg);
@@ -461,7 +532,8 @@
   function renderPainel(area) {
     area.innerHTML = "";
     if (!ehAdmin()) { area.appendChild(cartao("Painel da agenda", null, h("div", "coord-vazio", "Área restrita ao coordenador."))); return; }
-    const ergos = ergonomistas();
+    if (_usuariosCache === null) { carregarUsuarios().then(() => renderPainel(area)); }
+    const ergos = donosAgenda();
 
     // Barra de filtros (mês/ano + ergonomista)
     const card = h("div", "cartao col-12");

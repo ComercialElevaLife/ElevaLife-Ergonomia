@@ -7075,6 +7075,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   function nomeDoUsuario(email) {
     if (!email) return "—";
     const e = String(email).trim().toLowerCase();
+    // V 2.10 (Alexandre): prefere o Nome cadastrado no usuário (login); se não houver,
+    // cai para o Nome do ergonomista e, por fim, o próprio e-mail.
+    const usr = (estadoUsuarios && Array.isArray(estadoUsuarios.lista) ? estadoUsuarios.lista : []).find((x) => String(x.Email || "").trim().toLowerCase() === e);
+    if (usr && usr.Nome) return usr.Nome;
     const erg = (window.BI.dados.ergonomista || []).find((x) => String(x.Email || "").trim().toLowerCase() === e);
     return erg ? erg.Nome : email;
   }
@@ -9795,6 +9799,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
   function camposUsuario() {
     return [
+      // V 2.10 (Alexandre): "Nome" para identificar o usuário nas telas (lista, agenda, etc.).
+      { campo: "Nome", rotulo: "Nome", tipo: "texto", obrigatorio: true },
       { campo: "Email", rotulo: "E-mail", tipo: "texto", obrigatorio: true },
       { campo: "Papel", rotulo: "Papel", tipo: "select", obrigatorio: true, opcoes: PAPEIS_USUARIO },
       // V 1.27: lista unica de empresas (vale para o SIGE inteiro, inclusive
@@ -9912,15 +9918,23 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       }
 
       dados.Email = String(dados.Email || "").trim().toLowerCase();
+      dados.Nome = String(dados.Nome || "").trim();
       try {
         if (estadoUsuarios.editandoId) {
-          await window.BI.DB.salvar("usuarios", estadoUsuarios.editandoId, dados);
+          const idEd = estadoUsuarios.editandoId;
+          await window.BI.DB.salvar("usuarios", idEd, dados);
           fecharFormUsuario();
+          // V 2.10 (Alexandre): atualização otimista — o registro editado aparece
+          // com os novos valores IMEDIATAMENTE, sem precisar recarregar a página.
+          mesclarUsuarioNaLista(Object.assign({ id: idEd }, dados));
         } else {
           // Criar (POST) sempre dispara o convite por e-mail - ver
           // js/db.js/criarUsuario e api/src/functions/usuarios.js.
           const resultado = await window.BI.DB.criarUsuario(dados);
           fecharFormUsuario();
+          // V 2.10: o usuário recém-criado entra na lista na hora (antes o campo
+          // ficava em branco até recarregar), com os dados que já temos do form + resposta.
+          mesclarUsuarioNaLista(Object.assign({ StatusConta: "Convidado" }, dados, resultado || {}));
           mostrarAvisoConvite({ email: resultado.Email, linkConvite: resultado.linkConvite, avisoEmail: resultado.avisoEmail });
         }
         await carregarUsuarios();
@@ -9965,6 +9979,19 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     });
   }
 
+  // V 2.10 (Alexandre): insere/atualiza um usuário na lista em memória e redesenha,
+  // para a tela refletir a criação/edição na hora (o carregarUsuarios() em seguida
+  // confirma com os dados oficiais do servidor).
+  function mesclarUsuarioNaLista(u) {
+    if (!u) return;
+    if (!Array.isArray(estadoUsuarios.lista)) estadoUsuarios.lista = [];
+    const chaveEmail = String(u.Email || "").trim().toLowerCase();
+    const i = estadoUsuarios.lista.findIndex((x) => (u.id && x.id === u.id) || String(x.Email || "").trim().toLowerCase() === chaveEmail);
+    if (i >= 0) estadoUsuarios.lista[i] = Object.assign({}, estadoUsuarios.lista[i], u);
+    else estadoUsuarios.lista.push(u);
+    renderizarListaUsuarios();
+  }
+
   function renderizarListaUsuarios() {
     const tabela = document.getElementById("tabela-usuarios");
     if (!tabela) return;
@@ -9974,7 +10001,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     thead.innerHTML = "";
     tbody.innerHTML = "";
     const trHead = document.createElement("tr");
-    ["E-mail", "Papel", "Empresas Vinculadas", "Status", "Ações"].forEach((c) => {
+    ["Nome", "E-mail", "Papel", "Empresas Vinculadas", "Status", "Ações"].forEach((c) => {
       const th = document.createElement("th");
       th.textContent = c;
       if (c === "Ações") th.className = "col-acoes";
@@ -9988,14 +10015,14 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (estadoUsuarios.carregando) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 5; td.className = "sem-dados"; td.textContent = "Carregando...";
+      td.colSpan = 6; td.className = "sem-dados"; td.textContent = "Carregando...";
       tr.appendChild(td); tbody.appendChild(tr);
       return;
     }
     if (estadoUsuarios.erro) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 5; td.className = "sem-dados";
+      td.colSpan = 6; td.className = "sem-dados";
       td.textContent = "Não foi possível carregar a lista de usuários: " + estadoUsuarios.erro + " — tente novamente mais tarde. (O restante do sistema funciona normalmente.)";
       tr.appendChild(td); tbody.appendChild(tr);
       return;
@@ -10003,12 +10030,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (!estadoUsuarios.lista.length) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 5; td.className = "sem-dados"; td.textContent = "Nenhum usuário cadastrado ainda.";
+      td.colSpan = 6; td.className = "sem-dados"; td.textContent = "Nenhum usuário cadastrado ainda.";
       tr.appendChild(td); tbody.appendChild(tr);
       return;
     }
     estadoUsuarios.lista.forEach((u) => {
       const tr = document.createElement("tr");
+      const tdNome = document.createElement("td"); tdNome.textContent = u.Nome || "—";
       const tdEmail = document.createElement("td"); tdEmail.textContent = u.Email || "-";
       const tdPapel = document.createElement("td"); tdPapel.textContent = u.Papel || "-";
       const tdEmpresas = document.createElement("td");
@@ -10043,7 +10071,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         btnExcluir.addEventListener("click", () => excluirUsuario(u.id, u.Email));
         tdAcoes.appendChild(btnExcluir);
       }
-      tr.appendChild(tdEmail); tr.appendChild(tdPapel); tr.appendChild(tdEmpresas); tr.appendChild(tdStatus); tr.appendChild(tdAcoes);
+      tr.appendChild(tdNome); tr.appendChild(tdEmail); tr.appendChild(tdPapel); tr.appendChild(tdEmpresas); tr.appendChild(tdStatus); tr.appendChild(tdAcoes);
       tbody.appendChild(tr);
     });
   }
@@ -10367,13 +10395,26 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // Banco de dados (js/db.js) - callback chamado a cada snapshot de uma
   // colecao (mapaRisco/planoAcao/absenteismo/compativeis)
   // ------------------------------------------------------------------
+  // V 2.10 (Alexandre): desempenho. Antes, cada coleção atualizada disparava
+  // atualizarOpcoesFiltros()+renderizarTudo() na hora — no boot (ou num salvamento que
+  // recarrega várias coleções) isso rodava dezenas de vezes seguidas e travava a tela.
+  // Agora a atualização dos dados é imediata (barata) e o re-render pesado é AGRUPADO
+  // num único quadro, coalescendo rajadas de updates em uma renderização só.
+  let _rerenderPendente = null;
+  function agendarRerender() {
+    if (_rerenderPendente) return;
+    _rerenderPendente = setTimeout(() => {
+      _rerenderPendente = null;
+      try { atualizarOpcoesFiltros(); } catch (e) { console.error(e); }
+      try { renderizarTudo(); } catch (e) { console.error(e); }
+    }, 50);
+  }
   function aoAtualizarColecaoDB(chave) {
     window.BI.dados[chave] = window.BI.DB.estado.colecoes[chave];
-    atualizarOpcoesFiltros();
-    renderizarTudo();
     if (chave === "planoAcao") {
       try { atualizarSinoNotificacoes(); } catch (e) { console.error("Sino de notificações (Plano de Ação) falhou:", e); }
     }
+    agendarRerender();
   }
 
   // ------------------------------------------------------------------

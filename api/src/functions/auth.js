@@ -118,7 +118,7 @@ async function enviarConvite(request, container, doc, { reenvio }) {
 // SEMPRE dispara um convite por e-mail agora, nao existe mais "criar sem
 // convidar" (pedido do Leo: toda pessoa nova tem que receber o convite).
 // Faz upsert pelo e-mail (nunca cria um segundo documento pro mesmo e-mail).
-async function criarOuConvidarUsuario(request, container, { Email, Papel, EmpresasVinculadas, UnidadesVinculadas, id }, identidade) {
+async function criarOuConvidarUsuario(request, container, { Email, Nome, Papel, EmpresasVinculadas, UnidadesVinculadas, id }, identidade) {
   const crypto = require("crypto");
   const email = normalizarEmail(Email);
   if (!email) return { erro: { status: 400, jsonBody: { erro: "E-mail é obrigatório." } } };
@@ -158,6 +158,8 @@ async function criarOuConvidarUsuario(request, container, { Email, Papel, Empres
     }
   }
   const doc = existente || { id: id || crypto.randomUUID(), Email: email };
+  // V 2.10 (Alexandre): "Nome" para identificar o usuário. Mantém o existente se vier vazio.
+  if (typeof Nome === "string" && Nome.trim()) doc.Nome = Nome.trim();
   doc.Papel = Papel;
   doc.EmpresasVinculadas = empresas;
   doc.UnidadesVinculadas = unidades;

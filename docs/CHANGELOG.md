@@ -2,6 +2,20 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.10 — 18/11/2026
+
+Desempenho, Usuários e Agenda (Alexandre):
+
+- **Sistema mais leve.** As telas voltavam a desenhar tudo várias vezes a cada atualização de dados (no boot e ao recarregar coleções). Agora há um *debounce*: uma única redesenhada por rajada de atualizações, deixando o sistema bem mais responsivo. *(`js/app.js`.)*
+- **Gráfico “Por colaborador (total no ano)”: todos os nomes aparecem.** A altura era fixa e o Chart.js escondia rótulos alternados quando havia muitos colaboradores. Agora a altura cresce com a quantidade de pessoas e o *autoSkip* fica desligado — **todos os nomes aparecem**. *(`js/kpi-operacional.js`.)*
+- **Usuário: campo “Nome”.** Em Cadastro Interno › Usuários, o usuário agora tem **Nome** (para identificar quem é), exibido numa nova coluna da lista e usado nas telas (agenda etc.). *(`js/app.js`, `api/src/functions/usuarios.js`, `api/src/functions/auth.js`.)* **Mexe no backend — requer republicar a API.**
+- **Correção: campo ficava em branco até atualizar.** Ao criar/editar um usuário, a linha agora aparece já preenchida na hora (atualização otimista), sem precisar recarregar a página. *(`js/app.js`.)*
+- **Agenda: vincular o usuário (login) a cada agenda.** Na tela **Montar agendas**, cada ergonomista ganhou um seletor de **Usuário (login)**. A agenda passa a “pertencer” àquele login — a pessoa vê e edita em **Minha agenda**, mesmo quando o e-mail de login é diferente do e-mail do cadastro de ergonomista. Painel e seletores do coordenador passam a listar os donos de agenda. *(`js/agenda-ergo.js`.)*
+- **Agenda: data das atividades em destaque.** Mesmo com a carga horária fixa por dia da semana, o ergonomista **informa a data** em que fez as atividades — o seletor de data agora tem rótulo explícito “Data das atividades”. *(`js/agenda-ergo.js`.)*
+- **Dashboard de contratos (saldos coloridos + BEN + cabeçalho fixo).** Saldos (MO, BEN e total) ficam **verde** quando positivos e **vermelho** quando zerados/negativos; os cartões de resumo agora trazem também **Teto BEN** e **% BEN utilizada**; e o cabeçalho das colunas fica fixo ao rolar a grade (não precisa subir/descer). *(`js/contratos.js`, `css/style.css`.)*
+
+Service worker subiu para `sige-v125`.
+
 ## V 2.09 — 18/11/2026
 
 - **Coluna C (Total Faturado) — fluxo assistido (Alexandre).** O sistema de faturamento lê o SharePoint via login Microsoft, então não dá para o SIGE puxar o número sozinho sem integração de TI. O botão **“↻”** na coluna C agora **abre a dashboard do faturamento** e deixa o campo pronto para você colar o valor de **“Ergonomia · reconhecido · mês vigente”** (regime caixa). O gancho para automação total (via Graph/Azure) já está no código, caso a TI habilite depois. *(`js/contratos.js`.)* Service worker subiu para `sige-v124`.

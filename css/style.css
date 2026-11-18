@@ -2545,6 +2545,12 @@ table.kpi-grade tbody tr:hover { background: #fcf7f5; }
 .contratos-grade .kpi-inp-qtd { width: 56px; }
 .kpi-inp-qtd { width: 56px; text-align: right; }
 .contratos-grade .kpi-inp-ro { background: var(--fundo, #f6f1ed); color: var(--texto-suave, #9a8a8c); border-style: dashed; }
+/* V 2.10: rolagem interna + cabeçalho fixo (nomes das colunas sempre visíveis ao descer). */
+.contratos-scroll { max-height: 72vh; overflow: auto; }
+table.contratos-grade thead th { position: sticky; top: 0; z-index: 5; }
+/* Saldos: positivo = verde destacado; zerado/negativo = vermelho destacado. */
+table.contratos-grade td.saldo-pos { background: #e7f3ec; color: #1E6B44; font-weight: 700; }
+table.contratos-grade td.saldo-neg { background: #fdecec; color: #C62828; font-weight: 700; }
 tr.contratos-grupo-row td { background: var(--vinho, #6b2f37); color: #fff; font-weight: 700; padding: 6px 10px; position: sticky; left: 0; }
 .contratos-grupo-nome { font-size: 13px; letter-spacing: .3px; }
 .contratos-grupo-sub { font-weight: 500; opacity: .85; font-size: 12px; }

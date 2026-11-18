@@ -497,7 +497,7 @@
     boxG.appendChild(h("div", "cartao-titulo", "Inconsistências por mês · " + st.ano));
     const g1 = h("div"); g1.style.cssText = "position:relative;height:280px"; const cv1 = h("canvas"); cv1.id = "inc-mes"; g1.appendChild(cv1); boxG.appendChild(g1);
     boxG.appendChild(h("div", "cartao-titulo", "Por colaborador (total no ano) · " + st.ano));
-    const g2 = h("div"); g2.style.cssText = "position:relative;height:420px;margin-top:8px"; const cv2 = h("canvas"); cv2.id = "inc-colab"; g2.appendChild(cv2); boxG.appendChild(g2);
+    const g2 = h("div"); g2.style.cssText = "position:relative;margin-top:8px"; const cv2 = h("canvas"); cv2.id = "inc-colab"; g2.appendChild(cv2); boxG.appendChild(g2);
     area.appendChild(boxG);
     // V 2.03 (Alexandre): "Inconsistências por mês" saía em branco porque era desenhado
     // dentro de redesenhar()/recomputar() ANTES do canvas entrar no DOM. Agora, com os
@@ -507,7 +507,11 @@
     desenharGraficosInc(totMes);
     // barras por colaborador
     const porColab = st.linhas.map((l) => ({ nome: l.Colaborador || "—", total: l.meses.reduce((s, v) => s + n0(v), 0) })).filter((x) => x.total > 0).sort((a, b) => b.total - a.total);
-    grafico("inc-colab", { type: "bar", data: { labels: porColab.map((x) => x.nome), datasets: [{ label: "Inconsistências no ano", data: porColab.map((x) => x.total), backgroundColor: "#C0392B", borderRadius: 4 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } } });
+    // V 2.10 (Alexandre): mostrar TODOS os nomes. Antes a altura era fixa (420px) e o
+    // Chart.js escondia rótulos alternados (autoSkip) quando havia muitos colaboradores.
+    // Agora a altura cresce com a quantidade de colaboradores e o autoSkip fica desligado.
+    g2.style.height = Math.max(280, porColab.length * 26 + 60) + "px";
+    grafico("inc-colab", { type: "bar", data: { labels: porColab.map((x) => x.nome), datasets: [{ label: "Inconsistências no ano", data: porColab.map((x) => x.total), backgroundColor: "#C0392B", borderRadius: 4 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true }, y: { ticks: { autoSkip: false, font: { size: 11 } } } } } });
   }
   function desenharGraficosInc(totMes) {
     grafico("inc-mes", { type: "line", data: { labels: MESES_CURTO.slice(), datasets: [{ label: "Inconsistências", data: totMes.map((v) => v), borderColor: "#C0392B", backgroundColor: "#C0392B", tension: 0.3, fill: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });

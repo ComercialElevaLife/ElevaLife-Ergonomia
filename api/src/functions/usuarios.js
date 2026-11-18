@@ -60,7 +60,7 @@ async function tratar(request, context) {
         // Nunca devolver os hashes/tokens pro frontend - so o necessario pra
         // tela de Usuarios (e-mail, papel, empresas, status da conta).
         const semSegredos = resources.map((u) => ({
-          id: u.id, Email: u.Email, Papel: u.Papel, EmpresasVinculadas: u.EmpresasVinculadas, UnidadesVinculadas: u.UnidadesVinculadas,
+          id: u.id, Nome: u.Nome || "", Email: u.Email, Papel: u.Papel, EmpresasVinculadas: u.EmpresasVinculadas, UnidadesVinculadas: u.UnidadesVinculadas,
           StatusConta: u.StatusConta || (u.SenhaHash ? "Ativo" : "Convidado"),
         }));
         return { jsonBody: semSegredos };
@@ -71,7 +71,7 @@ async function tratar(request, context) {
         const resultado = await criarOuConvidarUsuario(request, container, corpo, identidade);
         if (resultado.erro) return resultado.erro;
         const { doc, link, avisoEmail } = resultado;
-        return { status: 201, jsonBody: { id: doc.id, Email: doc.Email, Papel: doc.Papel, EmpresasVinculadas: doc.EmpresasVinculadas, UnidadesVinculadas: doc.UnidadesVinculadas, StatusConta: doc.StatusConta, linkConvite: link, avisoEmail } };
+        return { status: 201, jsonBody: { id: doc.id, Nome: doc.Nome || "", Email: doc.Email, Papel: doc.Papel, EmpresasVinculadas: doc.EmpresasVinculadas, UnidadesVinculadas: doc.UnidadesVinculadas, StatusConta: doc.StatusConta, linkConvite: link, avisoEmail } };
       }
 
       case "PUT": {
@@ -93,6 +93,8 @@ async function tratar(request, context) {
         // (ver tenant.js) sem apagar o usuário nem nada que ele criou; "Ativo" reativa.
         const statusNovo = (corpo.StatusConta === "Desligado" || corpo.StatusConta === "Ativo") ? corpo.StatusConta : existente.StatusConta;
         const doc = Object.assign({}, existente, {
+          // V 2.10 (Alexandre): o PUT passa a persistir também o Nome do usuário.
+          Nome: (typeof corpo.Nome === "string" && corpo.Nome.trim()) ? corpo.Nome.trim() : (existente.Nome || ""),
           Papel: corpo.Papel || existente.Papel,
           EmpresasVinculadas: Array.isArray(corpo.EmpresasVinculadas) ? corpo.EmpresasVinculadas : existente.EmpresasVinculadas,
           UnidadesVinculadas: Array.isArray(corpo.UnidadesVinculadas) ? corpo.UnidadesVinculadas : existente.UnidadesVinculadas,
@@ -100,7 +102,7 @@ async function tratar(request, context) {
           id,
         });
         const { resource } = await container.item(id, id).replace(doc);
-        return { jsonBody: { id: resource.id, Email: resource.Email, Papel: resource.Papel, EmpresasVinculadas: resource.EmpresasVinculadas, UnidadesVinculadas: resource.UnidadesVinculadas, StatusConta: resource.StatusConta } };
+        return { jsonBody: { id: resource.id, Nome: resource.Nome || "", Email: resource.Email, Papel: resource.Papel, EmpresasVinculadas: resource.EmpresasVinculadas, UnidadesVinculadas: resource.UnidadesVinculadas, StatusConta: resource.StatusConta } };
       }
 
       case "DELETE": {
