@@ -1863,6 +1863,7 @@ section.sem-servico > :not(.aviso-servico) { display: none !important; }
 }
 .badge-status-ativo { background: var(--status-good); color: #fff; }
 .badge-status-convidado { background: var(--status-warning); color: #fff; }
+.badge-status-desligado { background: #8a7a78; color: #fff; }
 
 footer.rodape {
   text-align: center;
@@ -2513,6 +2514,77 @@ table.kpi-grade tbody tr:hover { background: #fcf7f5; }
 .coord-sub { font-size: 13px; color: var(--texto-suave, #7a6a6c); margin: 2px 0 10px; }
 .coord-tabela-wrap { overflow: auto; max-height: 60vh; }
 .coord-vazio { padding: 16px; color: var(--texto-suave, #7a6a6c); font-size: 13.5px; }
+
+/* ====================================================================
+   V 2.01 — Agenda diária do ergonomista (aba Ergonomista).
+   ==================================================================== */
+.agenda-barra { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 4px 0 12px; }
+.agenda-data, .agenda-barra .agenda-inp, .agenda-inp { padding: 6px 8px; border: 1px solid var(--linha, #e5d8d8); border-radius: 8px; font: inherit; font-size: 13px; background: var(--card, #fff); }
+.agenda-dia-sem { font-weight: 700; color: var(--vinho-escuro, #5a2a33); margin-left: 4px; }
+.agenda-tabela td, .agenda-tabela th { white-space: nowrap; }
+.agenda-tabela .agenda-inp { width: 100%; }
+.agenda-hora { width: 108px; }
+.agenda-qtd { width: 70px; text-align: right; }
+.agenda-obs { min-width: 160px; }
+.agenda-tabela select.agenda-inp { min-width: 170px; }
+.agenda-badge { display: block; width: fit-content; margin: 4px 0 0; font-size: 10.5px; font-weight: 700; color: var(--teal, #2E7D5B); background: #e7f3ec; border-radius: 6px; padding: 1px 6px; }
+.agenda-tabela tr.agenda-auto { background: #f3faf6; }
+.agenda-acoes { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.agenda-total { margin-left: auto; font-weight: 700; color: var(--vinho-escuro, #5a2a33); font-size: 13px; }
+.agenda-msg { font-size: 13px; }
+.agenda-rodape { margin-top: 8px; }
+.agenda-cfg-hora { width: 64px; text-align: right; }
+.agenda-grafico-box { position: relative; height: 320px; }
+.agenda-grafico-doughnut { height: 340px; }
+
+/* ====================================================================
+   V 2.05 — Contratos & Budget + Modo apresentação.
+   ==================================================================== */
+.contratos-grade .kpi-inp { width: 92px; }
+.contratos-grade .kpi-inp-txt { width: 120px; }
+.contratos-grade .kpi-inp-qtd { width: 56px; }
+.kpi-inp-qtd { width: 56px; text-align: right; }
+.contratos-grade .kpi-inp-ro { background: var(--fundo, #f6f1ed); color: var(--texto-suave, #9a8a8c); border-style: dashed; }
+tr.contratos-grupo-row td { background: var(--vinho, #6b2f37); color: #fff; font-weight: 700; padding: 6px 10px; position: sticky; left: 0; }
+.contratos-grupo-nome { font-size: 13px; letter-spacing: .3px; }
+.contratos-grupo-sub { font-weight: 500; opacity: .85; font-size: 12px; }
+tr.contratos-pct-sec td { background: #fbf7f8; }
+.contratos-badge-pct { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700; color: #6A4C93; background: #efe9f5; border-radius: 6px; padding: 1px 5px; vertical-align: middle; }
+.btn-mini-fat { border: 1px solid var(--linha, #e0d2d2); background: var(--fundo, #f6f1ed); border-radius: 6px; cursor: pointer; font-size: 12px; line-height: 1; padding: 4px 6px; color: var(--vinho-escuro, #5a2a33); }
+.btn-mini-fat:hover { background: #efe6e0; }
+#btn-apresentacao.ativo { background: var(--vinho, #6b2f37); color: #fff; border-color: var(--vinho, #6b2f37); }
+#btn-apresentacao.ativo .icone svg { stroke: #fff; }
+
+/* Modo apresentação: embaralha (oculta) nomes de usuários/ergonomistas (ap-nome) e
+   valores em dinheiro (ap-dinheiro). Nomes de clientes e porcentagens não são marcados,
+   então permanecem visíveis. Vale para texto e para campos de formulário. */
+body.modo-apresentacao .ap-nome,
+body.modo-apresentacao .ap-dinheiro,
+body.modo-apresentacao .ap-nome input,
+body.modo-apresentacao .ap-dinheiro input {
+  color: transparent !important;
+  text-shadow: 0 0 0.6em rgba(90, 42, 51, 0.72) !important;
+  -webkit-text-security: disc;
+  user-select: none;
+}
+body.modo-apresentacao .ap-nome input::placeholder,
+body.modo-apresentacao .ap-dinheiro input::placeholder { color: transparent !important; }
+/* aviso discreto de que o modo está ligado */
+body.modo-apresentacao::after {
+  content: "Modo apresentação"; position: fixed; bottom: 10px; right: 12px; z-index: 9998;
+  background: var(--vinho, #6b2f37); color: #fff; font-size: 11.5px; font-weight: 700;
+  padding: 4px 10px; border-radius: 999px; opacity: .85; pointer-events: none;
+}
+
+/* V 2.03 — painel (na própria página) de confirmação do cliente do KPI ao finalizar AEP/AET. */
+.kpi-conf-overlay { position: fixed; inset: 0; background: rgba(40, 20, 24, .45); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 16px; }
+.kpi-conf-card { background: var(--card, #fff); border-radius: 14px; box-shadow: 0 18px 50px rgba(0,0,0,.28); width: 100%; max-width: 440px; padding: 20px 22px; }
+.kpi-conf-titulo { font-size: 17px; font-weight: 800; color: var(--vinho-escuro, #5a2a33); }
+.kpi-conf-texto { font-size: 13.5px; color: var(--texto-suave, #7a6a6c); margin: 8px 0 14px; line-height: 1.4; }
+.kpi-conf-label { display: block; font-size: 12.5px; font-weight: 700; color: var(--texto-suave, #7a6a6c); }
+.kpi-conf-input { display: block; width: 100%; margin-top: 5px; padding: 9px 11px; border: 1px solid var(--linha, #e5d8d8); border-radius: 9px; font: inherit; font-size: 14px; box-sizing: border-box; }
+.kpi-conf-input:focus { outline: 2px solid var(--teal, #2E7D5B); border-color: transparent; }
+.kpi-conf-acoes { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
 
 /* ====================================================================
    V 1.41 — grupos recolhíveis no Inventário (AEP) e telas mais largas/

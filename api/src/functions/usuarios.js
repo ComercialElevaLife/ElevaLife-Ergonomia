@@ -89,10 +89,14 @@ async function tratar(request, context) {
         // essa rota so mexe em Papel/EmpresasVinculadas.
         // V 1.89 (Alexandre): o PUT passa a persistir também UnidadesVinculadas (antes só
         // Papel/EmpresasVinculadas — por isso o vínculo de unidades não ficava salvo).
+        // V 2.08 (Alexandre): "Desligar/Reativar" — StatusConta "Desligado" revoga o acesso
+        // (ver tenant.js) sem apagar o usuário nem nada que ele criou; "Ativo" reativa.
+        const statusNovo = (corpo.StatusConta === "Desligado" || corpo.StatusConta === "Ativo") ? corpo.StatusConta : existente.StatusConta;
         const doc = Object.assign({}, existente, {
           Papel: corpo.Papel || existente.Papel,
           EmpresasVinculadas: Array.isArray(corpo.EmpresasVinculadas) ? corpo.EmpresasVinculadas : existente.EmpresasVinculadas,
           UnidadesVinculadas: Array.isArray(corpo.UnidadesVinculadas) ? corpo.UnidadesVinculadas : existente.UnidadesVinculadas,
+          StatusConta: statusNovo,
           id,
         });
         const { resource } = await container.item(id, id).replace(doc);

@@ -185,7 +185,7 @@
   function novaAET() {
     const f = BI.filtros || {}; const um = (d) => (f[d] && f[d].length === 1 ? f[d][0] : "");
     const i = BI.DB && BI.DB.estado.identidade; const erg = (BI.dados.ergonomista || []).find((e) => i && e.Email && e.Email.toLowerCase() === String(i.email || "").toLowerCase());
-    const d = { "Tipo Registro": "AET", Cliente: um("Cliente"), Unidade: um("Unidade"), Setor: um("Setor"), "Posto Trabalho": um("Posto Trabalho"), Cargo: um("Cargo"), "Data Analise": hojeISO(), Ergonomista: erg ? erg.Nome : "", Demandas: {}, Medicoes: [], Ciclos: [], Cargas: [], Atividades: [], "Foto Geral": [] };
+    const d = { "Tipo Registro": "AET", Cliente: um("Cliente"), Unidade: um("Unidade"), Setor: um("Setor"), "Posto Trabalho": um("Posto Trabalho"), Cargo: um("Cargo"), "Data Analise": hojeISO(), Ergonomista: erg ? erg.Nome : "", "Status Avaliacao": "A validar", Demandas: {}, Medicoes: [], Ciclos: [], Cargas: [], Atividades: [], "Foto Geral": [] };
     DEMANDAS.forEach(([k, , t]) => { d.Demandas[k] = t; });
     d.Medicoes = [{ fator: "Iluminação", medicao: "", parametro: "300 lux (NHO-11)", condicao: "" }, { fator: "Ruído", medicao: "", parametro: "até 65 dB(A)", condicao: "" }, { fator: "Temperatura", medicao: "", parametro: "Entre 18 °C e 25 °C", condicao: "" }];
     return d;
@@ -324,6 +324,13 @@
         if (wCargos) { if (!editar && wCargos.setDisabled) wCargos.setDisabled(true); const lab = h("div", "aet-campo aet-campo--largo"); lab.appendChild(h("span", "aet-rot", "Outros cargos desta AET (além do principal)")); lab.appendChild(wCargos); g1.appendChild(lab); } }
       g1.appendChild(campoTexto(st, "Data Analise", "Data da análise *", { tipo: "date" }));
       g1.appendChild(campoSelect(st, "Ergonomista", "Ergonomista responsável pela análise", uniq((BI.dados.ergonomista || []).map((e) => e.Nome))));
+      // V 2.02 (Alexandre): status da AET para o indicador/KPI. "A validar" é o inicial;
+      // "Concluída" (já validada) exige a data de conclusão (define o mês no KPI).
+      if (!st["Status Avaliacao"]) st["Status Avaliacao"] = "A validar";
+      g1.appendChild(campoSelect(st, "Status Avaliacao", "Status *", ["A validar", "Concluída"]));
+      g1.appendChild(campoTexto(st, "Dt Conclusao Avaliacao", "Data de conclusão (quando concluída/validada)", { tipo: "date" }));
+      // V 2.03 (Alexandre): o "Cliente no KPI" é confirmado num painel na própria página ao
+      // FINALIZAR (Salvar) a AET (ver salvar()), não mais num campo fixo aqui.
       s1.appendChild(h("p", "aet-nota", `Matriz de risco do cliente: ${mz}. O cadastro de unidade, setor/GHE, posto e cargo é o do Cadastro Cliente.`));
       // 2. Setor e populacao
       const s2 = secao("setor", "2. Setor, população e cargo"); const g2 = grade(s2);
@@ -593,6 +600,8 @@
     function validar() {
       const falta = ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Data Analise"].filter((k) => !st[k]);
       if (falta.length) return "Identificação: preencha " + falta.map((k) => T(k).replace("Posto Trabalho", "Posto de trabalho").replace("Data Analise", "Data da análise")).join(", ") + ".";
+      // V 2.02 (Alexandre): "Concluída" exige data de conclusão (mês do KPI).
+      if (st["Status Avaliacao"] === "Concluída" && !st["Dt Conclusao Avaliacao"]) return "Para marcar a AET como “Concluída”, informe a data de conclusão.";
       if (!st.Atividades.length) return "Cadastre ao menos uma atividade.";
       const mz = matrizDe(st.Cliente);
       const uni = Calc().ehModeloUnimed(BI.dados.cliente || [], st.Cliente);
@@ -626,6 +635,14 @@
 
     async function salvar() {
       const erro = validar(); if (erro) { msg.hidden = false; msg.className = "aet-msg erro"; msg.textContent = erro; msg.scrollIntoView({ block: "nearest" }); return; }
+      // V 2.03 (Alexandre): ao finalizar a AET, confirma o cliente do KPI num painel na própria
+      // página (Etapa 2). "Voltar a editar" cancela o salvamento.
+      if (BI.confirmarKpiCliente) {
+        const sug = String(st.KpiCliente || st.Cliente || "").trim();
+        const vConf = await BI.confirmarKpiCliente({ tipo: "AET", sugestao: sug });
+        if (vConf === false) return;
+        st.KpiCliente = vConf;
+      }
       bSalvar.disabled = true; msg.hidden = false; msg.className = "aet-msg"; msg.textContent = "Salvando a AET…";
       try {
         // V 1.38: unidade/setor/posto/cargo novos entram no Cadastro Empresa

@@ -50,9 +50,13 @@ async function resolverIdentidade(request) {
     return { email, papel: null, empresasVinculadas: [], unidadesVinculadas: [], fonteUsuario: true };
   }
 
+  // V 2.08 (Alexandre): usuário DESLIGADO perde o acesso (papel nulo = bloqueado), mas o
+  // cadastro e TUDO que ele criou continuam no sistema. É reversível (Reativar).
+  const desligado = String(doc.StatusConta || "").toLowerCase() === "desligado";
+
   return {
     email,
-    papel: doc.Papel || null,
+    papel: desligado ? null : (doc.Papel || null),
     empresasVinculadas: Array.isArray(doc.EmpresasVinculadas) ? doc.EmpresasVinculadas : [],
     // V 1.55 (Alexandre): vínculo por unidade. Chaves no formato "EmpresaId::Unidade".
     unidadesVinculadas: Array.isArray(doc.UnidadesVinculadas) ? doc.UnidadesVinculadas : [],

@@ -2403,6 +2403,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // empresa ao cadastrar e fixo depois, mas editável manualmente. Define a
       // ORDEM em que a avaliação sai no laudo. Em branco = numeração automática.
       { campo: "Nr Avaliacao", rotulo: "Nº da avaliação (em branco = automático · define a ordem no laudo)", tipo: "numero", min: 1 },
+      // V 2.02 (Alexandre): status da AEP para o indicador/KPI. "A validar" é o estado
+      // inicial; "Concluída" (já validada) exige a data de conclusão (define o mês no KPI).
+      { campo: "Status Avaliacao", rotulo: "Status *", tipo: "select", obrigatorio: true, padraoValor: "A validar", opcoes: [{ valor: "A validar", label: "A validar" }, { valor: "Concluída", label: "Concluída" }] },
+      { campo: "Dt Conclusao Avaliacao", rotulo: "Data de conclusão (quando concluída/validada)", tipo: "data" },
+      // V 2.03 (Alexandre): o "Cliente no KPI" NÃO fica mais fixo aqui — é confirmado num
+      // painel na própria página ao FINALIZAR (Salvar) a AEP (ver aoConfirmarAntes abaixo).
     ]), "🧭 Identificação do Posto").concat(
       comSecao([
         { campo: "Jornada de Trabalho", rotulo: "Jornada de Trabalho", tipo: "textarea", obrigatorio: true },
@@ -5163,11 +5169,28 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       campos: camposAvaliacaoErgonomica(),
       aoConstruir: comCascata(null, true), // V 1.38: "+ Cadastrar novo…" em unidade, setor, posto e cargo
       permiteNovoNaCascata: true,
+      // V 2.02 (Alexandre): status "Concluída" exige data de conclusão (mês do KPI).
+      aoValidar: (form, dados) => {
+        if (dados["Status Avaliacao"] === "Concluída" && !dados["Dt Conclusao Avaliacao"]) {
+          return "Para marcar a AEP como “Concluída”, informe a data de conclusão.";
+        }
+        return null;
+      },
       // V 1.93 (Alexandre): monta a lista completa de cargos (principal + adicionais escolhidos no
       // campo personalizado "Cargos"). "Cargo" continua o principal; "Cargos" é a lista para exibir/filtrar.
       aoPrepararDados: (form, dados) => {
         const extras = (form._campos["Cargos"] && Array.isArray(form._campos["Cargos"].value)) ? form._campos["Cargos"].value : [];
         dados.Cargos = Array.from(new Set([dados.Cargo].concat(extras))).filter(Boolean);
+      },
+      // V 2.03 (Alexandre): ao finalizar (Salvar) a AEP, abre o painel na própria página
+      // para confirmar o cliente do KPI (Etapa 2). Cancelar volta a editar sem salvar.
+      aoConfirmarAntes: async (form, dados) => {
+        if (!window.BI.confirmarKpiCliente) return true;
+        const sug = String(dados.KpiCliente || dados.Cliente || "").trim();
+        const v = await window.BI.confirmarKpiCliente({ tipo: "AEP", sugestao: sug });
+        if (v === false) return false;
+        dados.KpiCliente = v;
+        return true;
       },
       // Pedido do Leo (28/09/2026): "achei muito longa a tela, tem que
       // ficar rolando a tela... faz varias abas" - as 3 secoes do form (ver
@@ -5765,6 +5788,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           el.appendChild(optAntigo);
         }
         el.value = valorInicial != null ? valorInicial : "";
+        // V 2.02 (Alexandre): valor padrão para selects (ex.: Status "A validar").
+        // Vale tanto para registro novo quanto para registro antigo sem o campo.
+        if ((valorInicial == null || valorInicial === "") && def.padraoValor) el.value = def.padraoValor;
       } else if (def.tipo === "multiselect") {
         // Select multiplo nativo (ex.: "Empresas Vinculadas" no cadastro de
         // Usuarios - ver camposUsuario) - mais simples que o multi-select
@@ -6284,6 +6310,83 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       nav.appendChild(btn);
     });
   }
+
+  // V 2.01: menu suspenso da aba Ergonomista no sidebar (mesmo padrão da
+  // Coordenação) — lista as sub-abas visíveis pelo perfil (Minha avaliação,
+  // Minha agenda e, para o coordenador, Montar agendas e Painel da agenda).
+  function montarSidebarErgonomista() {
+    const nav = document.getElementById("sidebar-sub-ergonomista");
+    if (!nav || !window.BI.AgendaErgo || !window.BI.AgendaErgo.subabas) return;
+    const subs = window.BI.AgendaErgo.subabas();
+    const atual = window.BI.AgendaErgo.subAtiva ? window.BI.AgendaErgo.subAtiva() : null;
+    const ICON = { minhaaval: "📋", minhaagenda: "🗓", montaragendas: "🧩", painel: "📊" };
+    nav.innerHTML = "";
+    subs.forEach((s) => {
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.dataset.chave = s.chave;
+      const ic = document.createElement("span"); ic.className = "icone"; ic.textContent = ICON[s.chave] || "•";
+      const rot = document.createElement("span"); rot.className = "rotulo"; rot.textContent = s.rotulo;
+      btn.appendChild(ic); btn.appendChild(rot);
+      btn.classList.toggle("ativa", s.chave === atual);
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        ativarAba("ergonomista");
+        try { window.BI.AgendaErgo.abrir(s.chave); } catch (e) { console.error(e); }
+        montarSidebarErgonomista();
+        fecharSidebarMobile();
+      });
+      nav.appendChild(btn);
+    });
+  }
+
+  // V 2.05: menu suspenso da aba Contratos & Budget (restrita à allowlist).
+  function montarSidebarContratos() {
+    const nav = document.getElementById("sidebar-sub-contratos");
+    if (!nav || !window.BI.Contratos || !window.BI.Contratos.subabas) return;
+    const subs = window.BI.Contratos.subabas();
+    const atual = window.BI.Contratos.subAtiva ? window.BI.Contratos.subAtiva() : null;
+    const ICON = { coordenadores: "👥", inativos: "🗂", analise: "📅", painel: "📊", acessos: "🔑" };
+    nav.innerHTML = "";
+    subs.forEach((s) => {
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.dataset.chave = s.chave;
+      const ic = document.createElement("span"); ic.className = "icone"; ic.textContent = ICON[s.chave] || "•";
+      const rot = document.createElement("span"); rot.className = "rotulo"; rot.textContent = s.rotulo;
+      btn.appendChild(ic); btn.appendChild(rot);
+      btn.classList.toggle("ativa", s.chave === atual);
+      btn.addEventListener("click", (ev) => { ev.stopPropagation(); ativarAba("contratos"); try { window.BI.Contratos.abrir(s.chave); } catch (e) { console.error(e); } montarSidebarContratos(); fecharSidebarMobile(); });
+      nav.appendChild(btn);
+    });
+  }
+
+  // V 2.05: Modo apresentação (sistema todo). Liga/desliga a classe body.modo-apresentacao,
+  // que, via CSS, embaralha (oculta) os elementos marcados ap-nome (nomes de usuários/
+  // ergonomistas) e ap-dinheiro (valores em R$). Nomes de clientes e porcentagens permanecem.
+  // Também redesenha os gráficos para respeitar o modo (os canvases não são afetados por CSS).
+  window.BI.apresentacaoAtiva = () => document.body.classList.contains("modo-apresentacao");
+  function configurarModoApresentacao() {
+    const btn = document.getElementById("btn-apresentacao");
+    const aplicar = (v, avisar) => {
+      document.body.classList.toggle("modo-apresentacao", v);
+      if (btn) { btn.setAttribute("aria-pressed", v ? "true" : "false"); btn.classList.toggle("ativo", v); }
+      try { localStorage.setItem("sige-apresentacao", v ? "1" : "0"); } catch (e) { /* */ }
+      if (avisar && window.BI.avisar) window.BI.avisar(v ? "Modo apresentação ligado — nomes e valores ocultos." : "Modo apresentação desligado.");
+      try { renderizarTudo(); } catch (e) { /* */ }
+    };
+    let on = false;
+    try { on = localStorage.getItem("sige-apresentacao") === "1"; } catch (e) { /* */ }
+    if (on) aplicar(true, false);
+    if (btn) btn.addEventListener("click", () => aplicar(!document.body.classList.contains("modo-apresentacao"), true));
+  }
+
+  // V 2.05: mostra/esconde a aba Contratos conforme a allowlist (só quem tem acesso vê).
+  window.BI.atualizarAbaContratos = function () {
+    const grupo = document.getElementById("grupo-nav-contratos");
+    if (!grupo) return;
+    const temAcesso = !!(window.BI.Contratos && window.BI.Contratos.temAcesso && window.BI.Contratos.temAcesso());
+    grupo.hidden = !temAcesso;
+    if (temAcesso) { try { montarSidebarContratos(); } catch (e) { /* */ } }
+  };
 
   function remontarSubAbas() {
     Object.keys(GRUPOS_CADASTRO).forEach((grupo) => {
@@ -7940,11 +8043,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (btnRef) btnRef.textContent = "Ver tabelas de referência";
     if (window.BI.Indicadores) window.BI.Indicadores.fecharPopover();
     atualizarEstadoExportacao();
-    expandirGrupoSidebar((GRUPO_DA_ABA[aba] || aba === "coordenacao") ? aba : null);
+    expandirGrupoSidebar((GRUPO_DA_ABA[aba] || aba === "coordenacao" || aba === "ergonomista" || aba === "contratos") ? aba : null);
     try { aplicarServicosContratados(); } catch (_) { /* dados ainda nao carregados */ }
     if (aba === "psicossocial") sincronizarFiltroPsico(true);
     if (aba === "aep" && estadoSubAbaCadastro.aep === "modeloLaudo") abrirEditorTextoDireto();
     if (aba === "coordenacao" && window.BI.Coordenacao) { try { montarSidebarCoordenacao(); window.BI.Coordenacao.render(); } catch (e) { console.error(e); } }
+    if (aba === "ergonomista" && window.BI.AgendaErgo) { try { montarSidebarErgonomista(); window.BI.AgendaErgo.render(); } catch (e) { console.error(e); } }
+    if (aba === "contratos" && window.BI.Contratos) { try { montarSidebarContratos(); window.BI.Contratos.render(); } catch (e) { console.error(e); } }
     if (aba === "notificacoes") { try { renderNotificacoes(); } catch (e) { console.error(e); } }
     if (aba === "dashboard") { try { montarDashboard(); mostrarDash(dashAtual); } catch (e) { console.error(e); } }
     // V 1.80 (Alexandre - desempenho): as tabelas de cadastro (e a lista do Plano de Ação) não são
@@ -8954,11 +9059,19 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       });
 
       // 3) Avaliações (AEP / AET)
+      // V 2.02 (Alexandre): indicador por status — criada / a validar / concluída
+      // (criada = a validar + concluída). "A validar" é o estado inicial; registros
+      // antigos sem status contam como "a validar". Concluída = Status Avaliacao "Concluída".
+      const statusAval = (arr) => { let c = 0; (arr || []).forEach((a) => { if (String(a["Status Avaliacao"] || "") === "Concluída") c++; }); return { criada: arr.length, aValidar: arr.length - c, concluida: c }; };
+      const sAEP = statusAval(avaliacaoArr), sAET = statusAval(aetArr);
       cardServico({
         titulo: "Avaliações (AEP / AET)", abrir: "ergo",
-        kpis: [{ num: aeps, rot: "AEPs realizadas" }, { num: aets, rot: "AETs realizadas" }],
+        kpis: [
+          { num: sAEP.criada, rot: "AEP criadas" }, { num: sAEP.aValidar, rot: "AEP a validar" }, { num: sAEP.concluida, rot: "AEP concluídas" },
+          { num: sAET.criada, rot: "AET criadas" }, { num: sAET.aValidar, rot: "AET a validar" }, { num: sAET.concluida, rot: "AET concluídas" },
+        ],
         canvasId: "vg-aval",
-        render: () => renderLinhaMensal("vg-aval", Calc.serieMensal(avaliacaoArr, "Data Avaliacao"), "AEPs realizadas", teal, avaliacaoArr, "Data Avaliacao", "avaliacaoErgonomica"),
+        render: () => renderLinhaMensal("vg-aval", Calc.serieMensal(avaliacaoArr, "Data Avaliacao"), "AEPs criadas", teal, avaliacaoArr, "Data Avaliacao", "avaliacaoErgonomica"),
       });
 
       // 4) Restritos
@@ -9227,6 +9340,43 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   };
   // V 1.38: aviso rapido (toast) no canto da tela
   window.BI.avisar = (msg) => { let t = document.getElementById("sige-toast"); if (!t) { t = document.createElement("div"); t.id = "sige-toast"; t.className = "sige-toast"; t.setAttribute("role", "status"); document.body.appendChild(t); } t.textContent = msg; t.classList.add("visivel"); clearTimeout(window.BI.avisar._t); window.BI.avisar._t = setTimeout(() => t.classList.remove("visivel"), 5000); };
+
+  // V 2.03 (Alexandre): confirmação do "Cliente no KPI" ao FINALIZAR a análise (AEP/AET).
+  // É um painel NA PRÓPRIA PÁGINA (não uma janela do navegador), aberto no Salvar. Vem
+  // sugerido com o nome do cliente do cadastro; o ergonomista confirma, edita (quando o nome
+  // no KPI é diferente) ou deixa em branco para não abastecer. Resolve com o texto confirmado,
+  // ou false se o usuário cancelar (volta a editar).
+  window.BI.confirmarKpiCliente = function (opts) {
+    opts = opts || {};
+    return new Promise((resolve) => {
+      const ov = document.createElement("div"); ov.className = "kpi-conf-overlay";
+      const card = document.createElement("div"); card.className = "kpi-conf-card";
+      const tit = document.createElement("div"); tit.className = "kpi-conf-titulo"; tit.textContent = "Fim da " + (opts.tipo || "análise") + " — cliente do KPI";
+      const txt = document.createElement("p"); txt.className = "kpi-conf-texto"; txt.textContent = "Confirme qual cliente do KPI operacional esta " + (opts.tipo || "análise") + " vai abastecer. Já veio sugerido pelo cadastro — edite se o nome no KPI for diferente, ou deixe em branco para não abastecer o KPI.";
+      const lab = document.createElement("label"); lab.className = "kpi-conf-label"; lab.textContent = "Cliente no KPI";
+      const inp = document.createElement("input"); inp.type = "text"; inp.className = "kpi-conf-input"; inp.value = opts.sugestao || ""; inp.setAttribute("list", "kpi-conf-datalist");
+      // sugestões: nomes já usados nas linhas do KPI (quando o coordenador; para os demais, os clientes do cadastro)
+      const dl = document.createElement("datalist"); dl.id = "kpi-conf-datalist";
+      const nomes = new Set();
+      (window.BI.dados.cliente || []).forEach((c) => { if (c.Cliente) nomes.add(c.Cliente); });
+      (window.BI.dados.kpiOperacional || []).forEach((d) => (d.Linhas || []).forEach((l) => { if (l.Cliente) nomes.add(l.Cliente); }));
+      Array.from(nomes).sort().forEach((n) => { const o = document.createElement("option"); o.value = n; dl.appendChild(o); });
+      lab.appendChild(inp); lab.appendChild(dl);
+      const linha = document.createElement("div"); linha.className = "kpi-conf-acoes";
+      const bOk = document.createElement("button"); bOk.type = "button"; bOk.className = "btn-cad-principal"; bOk.textContent = "Confirmar e salvar";
+      const bCancel = document.createElement("button"); bCancel.type = "button"; bCancel.className = "btn-cad-secundario"; bCancel.textContent = "Voltar a editar";
+      linha.appendChild(bCancel); linha.appendChild(bOk);
+      card.appendChild(tit); card.appendChild(txt); card.appendChild(lab); card.appendChild(linha);
+      ov.appendChild(card); document.body.appendChild(ov);
+      const fechar = (v) => { try { document.body.removeChild(ov); } catch (e) { /* */ } document.removeEventListener("keydown", onKey); resolve(v); };
+      const onKey = (ev) => { if (ev.key === "Escape") { ev.preventDefault(); fechar(false); } else if (ev.key === "Enter" && document.activeElement === inp) { ev.preventDefault(); fechar(inp.value.trim()); } };
+      bOk.addEventListener("click", () => fechar(inp.value.trim()));
+      bCancel.addEventListener("click", () => fechar(false));
+      ov.addEventListener("click", (ev) => { if (ev.target === ov) fechar(false); });
+      document.addEventListener("keydown", onKey);
+      setTimeout(() => { inp.focus(); inp.select(); }, 30);
+    });
+  };
   window.BI.abrirAba = (aba, sub) => { ativarAba(aba); if (GRUPO_DA_ABA[aba]) selecionarSubAbaCadastro(GRUPO_DA_ABA[aba], sub || chavesDoGrupo(GRUPO_DA_ABA[aba], true)[0]); };
   // V 1.46: o Chart.js pode chegar pelo CDN (fallback) depois da inicialização;
   // quando isso acontece, o index.html chama isto para redesenhar os gráficos.
@@ -9441,6 +9591,13 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // se estiverem abertas, re-renderiza; ao limpar o filtro as páginas voltam.
       const secCoord = document.getElementById("aba-coordenacao");
       if (secCoord && !secCoord.hidden && window.BI.Coordenacao) { try { window.BI.Coordenacao.render(); } catch (e) { console.error(e); } }
+      // V 2.01: a aba Ergonomista (agenda diária) também re-renderiza ao vivo.
+      const secErgo = document.getElementById("aba-ergonomista");
+      if (secErgo && !secErgo.hidden && window.BI.AgendaErgo) { try { window.BI.AgendaErgo.render(); } catch (e) { console.error(e); } }
+      // V 2.05: aba Contratos & Budget — atualiza visibilidade (allowlist) e re-renderiza se aberta.
+      try { if (window.BI.atualizarAbaContratos) window.BI.atualizarAbaContratos(); } catch (e) { /* */ }
+      const secCtt = document.getElementById("aba-contratos");
+      if (secCtt && !secCtt.hidden && window.BI.Contratos) { try { window.BI.Contratos.render(); } catch (e) { console.error(e); } }
       // V 1.46: badge e conteúdo da aba de Notificações acompanham os dados.
       try { atualizarBadgeAbaNotificacoes(); } catch (e) { /* */ }
       const secNotif = document.getElementById("aba-notificacoes");
@@ -9776,10 +9933,23 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function excluirUsuario(id, email) {
-    if (!window.confirm(`Remover o acesso de "${email}" ao S.I.G.E? Essa ação não pode ser desfeita.`)) return;
+    if (!window.confirm(`Remover DEFINITIVAMENTE o acesso de "${email}" ao S.I.G.E?\n\nTudo que ele cadastrou e analisou (AEP, AET, laudos, agenda, etc.) CONTINUA no sistema — só o login é removido.\n\nPara apenas tirar o acesso de forma reversível, use “Desligar”. Esta exclusão não pode ser desfeita.`)) return;
     window.BI.DB.excluir("usuarios", id).then(() => carregarUsuarios()).catch((e) => {
       mostrarErro("Erro ao excluir usuário: " + (e && e.message ? e.message : String(e)));
     });
+  }
+
+  // V 2.08 (Alexandre): desligar/reativar o acesso de um usuário (ex.: ergonomista que saiu).
+  // Desligar bloqueia o login mas PRESERVA o cadastro e tudo que a pessoa criou; é reversível.
+  function definirStatusUsuario(id, email, status) {
+    const msg = status === "Desligado"
+      ? `Desligar o acesso de "${email}"?\n\nEle não conseguirá mais entrar no sistema, MAS tudo que cadastrou/analisou continua normal. Você pode Reativar depois.`
+      : `Reativar o acesso de "${email}"?`;
+    if (!window.confirm(msg)) return;
+    fetch("/api/usuarios/" + encodeURIComponent(id), { method: "PUT", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ StatusConta: status }) })
+      .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(() => { if (window.BI.avisar) window.BI.avisar(status === "Desligado" ? "Usuário desligado — sem acesso; dados preservados." : "Usuário reativado."); carregarUsuarios(); })
+      .catch((e) => mostrarErro("Erro ao atualizar o usuário: " + (e && e.message ? e.message : String(e))));
   }
 
   function reenviarConviteUsuario(email, botao) {
@@ -9844,13 +10014,14 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const tdEmpresas = document.createElement("td");
       tdEmpresas.textContent = u.Papel === "Administrador" ? "Todas" : (nomesClientesPorId(u.EmpresasVinculadas) || "-");
       const statusConta = u.StatusConta || "Convidado";
+      const desligado = statusConta === "Desligado";
       const tdStatus = document.createElement("td");
       const badgeStatus = document.createElement("span");
-      badgeStatus.className = "badge-status-conta " + (statusConta === "Ativo" ? "badge-status-ativo" : "badge-status-convidado");
-      badgeStatus.textContent = statusConta === "Ativo" ? "Ativo" : "Convite pendente";
+      badgeStatus.className = "badge-status-conta " + (desligado ? "badge-status-desligado" : (statusConta === "Ativo" ? "badge-status-ativo" : "badge-status-convidado"));
+      badgeStatus.textContent = desligado ? "Desligado" : (statusConta === "Ativo" ? "Ativo" : "Convite pendente");
       tdStatus.appendChild(badgeStatus);
       const tdAcoes = document.createElement("td"); tdAcoes.className = "col-acoes";
-      if (statusConta !== "Ativo") {
+      if (statusConta !== "Ativo" && !desligado) {
         const btnReenviar = document.createElement("button");
         btnReenviar.type = "button"; btnReenviar.className = "btn-acao-linha"; btnReenviar.textContent = "Reenviar convite";
         btnReenviar.addEventListener("click", () => reenviarConviteUsuario(u.Email, btnReenviar));
@@ -9860,10 +10031,17 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         const btnEditar = document.createElement("button");
         btnEditar.type = "button"; btnEditar.className = "btn-acao-linha btn-acao-editar"; btnEditar.textContent = "Editar";
         btnEditar.addEventListener("click", () => abrirFormEditarUsuario(u.id));
+        tdAcoes.appendChild(btnEditar);
+        // Desligar (reversível) / Reativar — revoga/retoma o acesso sem apagar os dados.
+        const btnStatus = document.createElement("button");
+        btnStatus.type = "button"; btnStatus.className = "btn-acao-linha";
+        btnStatus.textContent = desligado ? "Reativar" : "Desligar";
+        btnStatus.addEventListener("click", () => definirStatusUsuario(u.id, u.Email, desligado ? "Ativo" : "Desligado"));
+        tdAcoes.appendChild(btnStatus);
         const btnExcluir = document.createElement("button");
         btnExcluir.type = "button"; btnExcluir.className = "btn-acao-linha excluir btn-acao-excluir"; btnExcluir.textContent = "Excluir";
         btnExcluir.addEventListener("click", () => excluirUsuario(u.id, u.Email));
-        tdAcoes.appendChild(btnEditar); tdAcoes.appendChild(btnExcluir);
+        tdAcoes.appendChild(btnExcluir);
       }
       tr.appendChild(tdEmail); tr.appendChild(tdPapel); tr.appendChild(tdEmpresas); tr.appendChild(tdStatus); tr.appendChild(tdAcoes);
       tbody.appendChild(tr);
@@ -10246,6 +10424,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       montarCadastros();
       montarSidebarSubnav();
       try { montarSidebarCoordenacao(); } catch (e) { /* Coordenação pode não estar disponível */ }
+      try { montarSidebarErgonomista(); } catch (e) { /* aba Ergonomista pode não estar disponível */ }
+      try { if (window.BI.atualizarAbaContratos) window.BI.atualizarAbaContratos(); } catch (e) { /* aba Contratos pode não estar disponível */ }
+      try { configurarModoApresentacao(); } catch (e) { /* modo apresentação pode não estar disponível */ }
       configurarSidebar();
       configurarAbas();
       configurarToggleReferencia();

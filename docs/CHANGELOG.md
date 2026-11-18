@@ -2,6 +2,76 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.08 — 18/11/2026
+
+- **Desligar usuário (reversível), preservando tudo que ele criou (Alexandre).** Em Cadastro Interno › Usuários, cada usuário ganhou o botão **“Desligar”** (e **“Reativar”**). Desligar **bloqueia o acesso** da pessoa ao sistema, mas **mantém o cadastro e tudo que ela criou** (AEP, AET, laudos, agenda, análises…) — é reversível. O backend passa a tratar `StatusConta = "Desligado"` revogando o papel no login (sem apagar nada). O botão **“Excluir”** continua para remoção definitiva do acesso, agora com aviso deixando claro que os dados da pessoa permanecem. *Observação: isso é o **login/acesso**; o cadastro do ergonomista (nome/assinatura usados nos laudos) é separado e não é afetado, para os laudos antigos continuarem válidos.* *(Arquivos: `api/src/shared/tenant.js`, `api/src/functions/usuarios.js`, `js/app.js`, `css/style.css`.)* **Mexe no backend — requer republicar a API.** Service worker subiu para `sige-v123`.
+
+## V 2.07 — 17/11/2026
+
+Ajustes de Contratos & Budget (Alexandre):
+
+- **Gerdau Porto duplicado removido.** Era um resíduo solto abaixo da linha de total da planilha. A soma dos contratos agora é **R$ 177.442,96** (bate com o total da própria planilha). **Gerdau Pinda** continua com as **duas unidades** (Pinda CM e Pinda CL), que são corretas.
+- **Nomes padronizados:** tudo que é **Gerdau** vira **cliente “GERDAU”** e o nome seguinte vira **unidade** (Araçá, Cosigua, Cotia, Cumbica, Pinda CM/CL, SJC, Escritório, Hana, Vitória…). **KC** passou a se chamar **Kimberly**.
+- **Dashboard do contrato (Painel) ampliada:** além de faturado×previsto e % por mês, agora traz **por cliente**, **top unidades por valor**, **por coordenador** e **por ergonomista** (soma de contratos + nº de unidades). No modo apresentação, nomes de ergonomistas/coordenadores e valores em R$ somem (clientes e % permanecem). *(`js/contratos.js`, `js/contratos-dados.js`.)* Service worker subiu para `sige-v122`.
+
+## V 2.06 — 17/11/2026
+
+- **Contratos & Budget: agrupado por cliente + pacotes (células mescladas) (Alexandre).** A aba Coordenadores passou a **agrupar por cliente** (GERDAU, CLARIANT, KC, TENARIS…) com uma linha por unidade e subtotal por cliente. Clientes em **pacote** (várias unidades num só contrato — células mescladas na planilha, ex.: CLARIANT com 6 unidades) somam o valor **uma única vez**: o valor fica na unidade principal e as demais aparecem como “(pacote)”, com os campos travados. A importação foi refeita lendo as mesclagens da planilha nova e agora traz **todas as 35 unidades** (antes o GERDAU PORTO duplicado era perdido). **Soma dos contratos correta: R$ 182.222,96.** *(`js/contratos.js`, `js/contratos-dados.js`, `css/style.css`.)* Service worker subiu para `sige-v121`.
+
+## V 2.05 — 17/11/2026
+
+Novo módulo **Contratos & Budget** + **Modo apresentação** (Alexandre).
+
+- **Aba “Contratos & Budget” (acesso restrito).** Só os usuários da lista veem e editam (padrão inicial: alexandre.berloffa e joao). Qualquer um da lista pode incluir/remover usuários na sub-aba **Acessos**. Sub-abas:
+  - **Coordenadores**: grade por cliente/contrato, todos os campos editáveis; CH Coord. (=CH×10%), Teto MO (=$ CTT×30%), Teto Benefício (=$ CTT×5%) e os Saldos são calculados. Dá para adicionar clientes e **inativar** (vai para “Clientes inativos” com o mês).
+  - **Clientes inativos**: clientes inativados, com o mês de saída; é possível **reativar**.
+  - **Análise mensal**: grade por mês com as fórmulas da planilha — B = soma dos contratos ativos (snapshot editável), C = Total Faturado, D=C/B, E=H+K, F=I+L, G=F/E, H=C×30%, I manual, J=I/H, K=C×5%, L manual, M=L/K. Botões **+ Mês** e **+ Ano** criam os períodos seguintes já com B preenchido. A coluna C tem botão **↻ (puxar do faturamento)** e link para a dashboard de faturamento.
+  - **Painel**: dashboard corporativa (faturado × previsto, % faturamento e % saldo por mês, contratos por coordenador, KPIs).
+  - Importação única da planilha original (**⬇ Importar da planilha**) com os 35 clientes e os meses já lançados.
+- **Modo apresentação (sistema todo).** Botão **“Apresentação”** no topo liga/desliga: oculta **nomes de usuários/ergonomistas** e **valores em dinheiro** em todas as telas; mantém **nomes de clientes** e **porcentagens**. Fica salvo no aparelho. *(Arquivos: `js/contratos.js` e `js/contratos-dados.js` (novos), `js/app.js`, `index.html`, `css/style.css`, `api/src/functions/entidades.js`, `js/db.js`.)*
+- **Coluna C (faturado):** a ligação automática com o sistema de faturamento ainda depende de inspecionar aquele sistema (feito quando ele estiver acessível). Por ora, o valor é digitado (com link e botão prontos para o automático). **Esta versão mexe no backend (novas coleções) — requer republicar a API.** Service worker subiu para `sige-v120`.
+
+## V 2.04 — 17/11/2026
+
+- **Gráfico “Inconsistências por mês” que não aparecia (Alexandre).** Ele era desenhado antes do seu espaço (canvas) existir na página, então saía em branco. Agora é desenhado depois que o canvas entra na tela e o gráfico de linha aparece normalmente. *(`js/kpi-operacional.js`.)* Service worker subiu para `sige-v119`.
+
+## V 2.03 — 17/11/2026
+
+- **Atualização automática do app (Alexandre).** Antes, ao publicar uma versão nova, era preciso recarregar duas vezes para o sistema atualizar (“tem que atualizar duas vezes”). Agora, assim que a versão nova é publicada, a página **recarrega sozinha uma vez** e já abre atualizada (sem recarregar na primeiríssima instalação); o app também checa por atualização ao abrir e a cada 30 min. *(`index.html`.)* **Importante:** esse comportamento passa a valer **a partir desta versão** — para pegar a 2.03 nos aparelhos que ainda estão numa versão antiga, recarregue uma vez (no celular/tablet, feche e reabra o app). Service worker subiu para `sige-v118`.
+- **Confirmação do “Cliente no KPI” ao finalizar a análise (Alexandre).** Em vez de um campo fixo no cabeçalho, ao **Salvar** a AEP ou a AET abre um **painel na própria página** (não é uma janela do navegador) perguntando qual cliente do KPI aquela análise abastece — já sugerido pelo nome do cadastro. Confirme, edite (quando o nome no KPI for diferente) ou deixe em branco para não abastecer. “Voltar a editar” cancela o salvamento. *(`js/app.js`, `js/aet.js`, `js/kpi-operacional.js`, `css/style.css`.)*
+- **Coordenador vê a agenda de qualquer ergonomista (Alexandre).** Na aba **Ergonomista › Minha agenda**, o Administrador (coordenador) ganhou um **seletor de ergonomista** e passa a visualizar a agenda de cada um (somente leitura; cada ergonomista edita a própria). *(`js/agenda-ergo.js`.)*
+
+## V 2.02 — 17/11/2026
+
+Status das avaliações + indicador na dashboard + abastecimento automático dos KPIs (Alexandre).
+
+- **Status “A validar / Concluída” nas AEP e AET (Etapa 1).** Toda AEP e AET agora tem um **Status** (inicial “A validar”; “Concluída” = já validada) e um campo de **data de conclusão** (obrigatório ao concluir — define o mês no KPI). *(`js/app.js`, `js/aet.js`.)*
+- **Novo indicador na dashboard (Visão Geral › Avaliações).** Para AEP e AET: **criadas / a validar / concluídas** (criadas = a validar + concluídas). Registros antigos sem status contam como “a validar”. *(`js/app.js`.)*
+- **Plano de Ação.** A conclusão de uma ação continua exigindo a **data de conclusão** (preenchida ao concluir), que passa a alimentar o KPI de Ações Cliente no mês da conclusão.
+- **Abastecimento automático dos KPIs operacionais (Etapa 2), a partir de novembro/2026.** No módulo KPI (Coordenação › KPI operacionais), o **Real** é preenchido com o que foi feito no SIGE, por cliente e mês:
+  - Criação de **AEP/AET** → **Análises**; conclusão de **AEP/AET** → **Validações** (mês da conclusão).
+  - **Toda ação concluída** no mês → **Ações Cliente**.
+  - **Restritos** iniciados no mês → coluna **PCD/Restritos**.
+  - **Lançamento de absenteísmo** no mês → **1** em **Outras demandas**, com a observação “lançamento de absenteísmos” (independe de quantos atestados).
+  - O valor é **somado ao que foi digitado/importado, sem duplicar** (idempotente) e **continua editável** — ajuste e Salve. Botão **“↻ Atualizar do SIGE”** relê os dados a qualquer momento.
+- **Cliente no KPI (confirmação).** AEP e AET têm um campo **“Cliente no KPI”** já sugerido com o nome do cliente (edite quando o nome no KPI for diferente); é por ele que o abastecimento casa o registro com a linha do KPI. *(`js/kpi-operacional.js`, `js/app.js`, `js/aet.js`.)*
+
+*Observação: esta versão **não** mexe no backend — os novos campos são gravados junto do registro. Basta subir os arquivos ao GitHub.* Service worker subiu para `sige-v117`.
+
+## V 2.01 — 17/11/2026
+
+- **Agenda diária do ergonomista — nova aba “Ergonomista” (Alexandre).** Nova aba no menu lateral (menu suspenso, como a Coordenação), visível para a equipe, com sub-abas por perfil:
+  - **Minha avaliação** (equipe): o ergonomista vê o resultado da própria avaliação.
+  - **Minha agenda** (equipe): registro do dia com **atividade padronizada**, **horário (início e fim)**, **duração automática** e **quantidade** — ex.: “08:00–09:00 · Montar AEP (SIGE) · 5”. Navegação por dia, total lançado × previsto no rodapé e **puxada automática do SIGE** (as montagens de AEP/AET feitas no dia entram como sugestão, já com horário e quantidade, editáveis). A agenda **começa em dezembro/2026**.
+  - **Montar agendas** (coordenador): **horas por dia da semana** de cada ergonomista (referência de “previsto” do painel) e cadastro dos **tipos de atividade** (o coordenador pode criar novas).
+  - **Painel da agenda** (coordenador): acompanhamento corporativo, geral e por ergonomista — **horas previstas × lançadas**, **aderência**, **dias com lançamento** e **distribuição por atividade** (gráficos + tabela), com filtro de mês/ano e por ergonomista.
+- Atividades padronizadas: Montar AEP/AET (SIGE), Coleta de dados (AEP/AET), Gemba, Visita a restrito, COERGO, Validação de análise, Parecer técnico, Auditoria de ação implementada, Jurídico, Reunião, Lançamento de absenteísmo, Outras demandas e Almoço.
+- Coleções novas **GLOBAIS**: `agendaErgo` (1 doc por ergonomista/dia — cada ergonomista grava a própria, o coordenador vê todas) e `agendaConfig` (horas por dia da semana, só o coordenador monta). *(Arquivos: `js/agenda-ergo.js` (novo), `js/app.js`, `index.html`, `css/style.css`, `api/src/functions/entidades.js`, `js/db.js`.)* **Inclui mudança no backend (API) — requer novo deploy da API.** Service worker subiu para `sige-v116`.
+
+## V 2.00 — 17/11/2026
+
+- **Gráficos dos KPIs: correções (Alexandre).** (1) Alguns gráficos apareciam em branco por uma corrida de layout (o canvas era medido antes do painel assentar) — agora todo gráfico do módulo é redimensionado no quadro seguinte, então todos os dados aparecem. (2) O gráfico **“Distribuição de risco no inventário”** passou a mostrar também a barra **“Reduzidos”** (quantidade de riscos reduzidos no mês). (3) Na rosca **“Composição das Ações ElevaLife”**, a legenda agora traz o **número e o % de cada item** (inclusive fatias pequenas), para nenhum dado ficar escondido. *(Arquivo: `js/kpi-operacional.js`.)* Service worker subiu para `sige-v115`.
+
 ## V 1.99 — 17/11/2026
 
 - **KPIs operacionais dentro do SIGE, substituindo a planilha (Alexandre).** Nova sub-aba **“KPI operacionais - recorrentes”** na Coordenação (só o coordenador/Administrador vê e edita). Grade mensal por cliente. Ordem das colunas: primeiro o **controle de riscos do inventário** (Altíssimo, Alto, Moderado, Baixo, Trivial e Redução), depois **Análises, Validações, Ações Cliente** (previstas × realizadas, % e totais automáticos), os contadores **Jurídico, PCD/Restritos, DDS/Treinamento/Blitz, COERGO e Outras demandas** (+ coluna **“Obs. outras demandas”** para descrever a demanda) e, por fim, **Ações ElevaLife** — cujo **“Real.” é a soma dos contadores** (por isso ficam lado a lado). Os **riscos são herdados do mês anterior** (acumulam mês a mês, atravessando anos; a Redução reinicia). Seletor de **Ano e Mês** e botão **“+ Ano”** para começar um novo ano (ex.: 2027). Gráficos: **evolução por indicador** (filtro por indicador, coluna = % do mês com o número realizadas/previstas e o % sempre visíveis, linha tracejada de **meta** — 95%, exceto Ações Cliente 75% — e resumo do total/% no ano), **composição das Ações ElevaLife** no mês e **distribuição de risco** no mês. Botão **“Importar 2026”** traz, de uma vez, os 12 meses e as inconsistências da planilha original (com os riscos de outubro já herdados por nov/dez).

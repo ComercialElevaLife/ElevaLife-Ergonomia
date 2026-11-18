@@ -91,17 +91,34 @@ const COLECOES = [
   // Coleções GLOBAIS, SÓ o Administrador (coordenador) vê e grava. Um doc por ano/mês
   // (kpiOperacional) e um doc por ano (kpiInconsistencia). Containers sob demanda.
   "kpiOperacional", "kpiInconsistencia",
+  // V 2.01: agenda diária do ergonomista. "agendaErgo" = 1 doc por ergonomista/dia
+  // (a equipe grava a própria; o Administrador vê todas, o Consultor só a dele).
+  // "agendaConfig" = horas por dia da semana de cada ergonomista (só o Administrador grava).
+  // Ambas GLOBAIS. Tipos de atividade ficam em "configuracao" (doc agendaAtividades).
+  "agendaErgo", "agendaConfig",
+  // V 2.05: Contratos & Budget (aba própria, restrita a uma lista de usuários).
+  // "contratoCoord" = 1 doc por cliente/contrato (aba Coordenadores); "budgetMensal"
+  // = 1 doc por ano/mês (aba Análise mensal); "contratoConfig" = doc "acesso" com a
+  // allowlist de usuários. Todas GLOBAIS e com acesso restrito à allowlist (padrão
+  // alexandre+joao, que bootstrapa a lista quando o doc ainda não existe).
+  "contratoCoord", "budgetMensal", "contratoConfig",
 ];
 
 // Colecoes sem dono (nenhuma amarrada a uma empresa-cliente especifica) -
 // todo usuario autenticado com papel liberado ve e edita, independente de
 // quais empresas estao vinculadas a ele. Gravadas sempre com
 // EmpresaId=EMPRESA_GLOBAL (constante fixa, nunca uma empresa real).
-const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo", "configuracao", "ergonomista", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia"];
+const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo", "configuracao", "ergonomista", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia", "agendaErgo", "agendaConfig", "contratoCoord", "budgetMensal", "contratoConfig"];
 // Colecoes em que so o Administrador grava/exclui (todos podem ler).
-const COLECOES_SO_ADMIN_GRAVA = ["configuracao", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia"];
+// V 2.01: agendaConfig (horas de cada ergonomista) so o coordenador monta;
+// agendaErgo NAO entra aqui - cada ergonomista grava a propria agenda.
+const COLECOES_SO_ADMIN_GRAVA = ["configuracao", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia", "agendaConfig"];
 // V 1.99: colecoes que SO o Administrador pode ler (KPIs operacionais - restrito ao coordenador).
 const COLECOES_SO_ADMIN_LE = ["kpiOperacional", "kpiInconsistencia"];
+// V 2.05: colecoes restritas a uma LISTA DE USUARIOS (allowlist em configuracao/contratosAcesso).
+// So quem esta na lista le e grava. Independe do papel (admin/consultor/cliente).
+const COLECOES_ACESSO_RESTRITO = ["contratoCoord", "budgetMensal", "contratoConfig"];
+const CONTRATOS_ACESSO_PADRAO = ["alexandre.berloffa@elevalife.com.br", "joao@elevalife.com.br"];
 const EMPRESA_GLOBAL = "GLOBAL";
 // V 1.7 (revisao de seguranca): colecoes que o UsuarioCliente le mas NAO grava.
 // Laudo (documento emitido e seu codigo de verificacao publico), cadastro da
@@ -274,10 +291,37 @@ async function semEmpresaExcluida(colecao, docs) {
   return (docs || []).filter((d) => !d.EmpresaId || ids.has(d.EmpresaId));
 }
 
+// V 2.05: allowlist do módulo Contratos & Budget. Fica em configuracao/contratosAcesso
+// ({ usuarios:[emails] }); se não existir, usa o padrão (alexandre + joao). Qualquer um
+// na lista pode gerenciar a lista e os dados.
+async function listaAcessoContratos() {
+  try {
+    const c = await garantirContainer("contratoConfig");
+    const doc = await lerPorId(c, "acesso");
+    const arr = doc && Array.isArray(doc.usuarios) ? doc.usuarios.filter(Boolean) : null;
+    const base = arr && arr.length ? arr : CONTRATOS_ACESSO_PADRAO;
+    return base.map((e) => String(e).toLowerCase());
+  } catch (e) {
+    return CONTRATOS_ACESSO_PADRAO.map((e) => e.toLowerCase());
+  }
+}
+async function temAcessoContratos(identidade) {
+  const lista = await listaAcessoContratos();
+  return lista.indexOf(String((identidade && identidade.email) || "").toLowerCase()) !== -1;
+}
+
 async function listarComFiltro(container, colecao, identidade) {
   // V 1.94: avaliação de ergonomista — o Administrador vê todas; qualquer outro papel vê
   // APENAS as avaliações com o e-mail dele (o ergonomista avaliado vê só a dele).
   if (colecao === "avaliacaoErgonomista") {
+    const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
+    if (identidade.papel === "Administrador") return resources;
+    const meu = String(identidade.email || "").toLowerCase();
+    return (resources || []).filter((d) => String(d.EmailErgonomista || "").toLowerCase() === meu);
+  }
+  // V 2.01: agenda diária do ergonomista — o Administrador (coordenador) vê todas,
+  // para o painel geral; qualquer outro papel vê APENAS a própria agenda.
+  if (colecao === "agendaErgo") {
     const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
     if (identidade.papel === "Administrador") return resources;
     const meu = String(identidade.email || "").toLowerCase();
@@ -432,15 +476,23 @@ async function tratar(request, context) {
     };
   }
 
-  const container = ["configuracao", "ergonomista", "colaborador", "tempoTrabalho", "acaoAbsenteismo", "psicoLaudo", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
+  const container = ["configuracao", "ergonomista", "colaborador", "tempoTrabalho", "acaoAbsenteismo", "psicoLaudo", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia", "agendaErgo", "agendaConfig", "contratoCoord", "budgetMensal", "contratoConfig"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
   const id = request.params.id;
-  if (COLECOES_SO_ADMIN_GRAVA.includes(colecao) && request.method !== "GET" && identidade.papel !== "Administrador") {
-    return { status: 403, jsonBody: { erro: "Só Administrador pode alterar as configurações do sistema." } };
-  }
 
-  // V 1.27: o Usuario Cliente so consulta (Cadastro e Registro); quem grava e a equipe ElevaLife.
-  if (request.method !== "GET" && identidade.papel === "UsuarioCliente") {
-    return { status: 403, jsonBody: { erro: "Seu perfil permite apenas consultar e baixar os dados. Alterações são feitas pela equipe ElevaLife." } };
+  // V 2.05: Contratos & Budget — acesso SÓ para quem está na allowlist (independe do papel).
+  // Governa leitura e gravação; as checagens de papel abaixo não se aplicam a estas coleções.
+  if (COLECOES_ACESSO_RESTRITO.includes(colecao)) {
+    if (!(await temAcessoContratos(identidade))) {
+      return { status: 403, jsonBody: { erro: "Acesso restrito. Peça a um usuário já liberado para incluir o seu e-mail no módulo de Contratos & Budget." } };
+    }
+  } else {
+    if (COLECOES_SO_ADMIN_GRAVA.includes(colecao) && request.method !== "GET" && identidade.papel !== "Administrador") {
+      return { status: 403, jsonBody: { erro: "Só Administrador pode alterar as configurações do sistema." } };
+    }
+    // V 1.27: o Usuario Cliente so consulta (Cadastro e Registro); quem grava e a equipe ElevaLife.
+    if (request.method !== "GET" && identidade.papel === "UsuarioCliente") {
+      return { status: 403, jsonBody: { erro: "Seu perfil permite apenas consultar e baixar os dados. Alterações são feitas pela equipe ElevaLife." } };
+    }
   }
 
   if (colecao === "cliente" && request.method !== "GET") cacheEmpresas = null;
@@ -453,9 +505,13 @@ async function tratar(request, context) {
           const visivelAvalErg = colecao === "avaliacaoErgonomista" && item
             ? (identidade.papel === "Administrador" || String(item.EmailErgonomista || "").toLowerCase() === String(identidade.email || "").toLowerCase())
             : null;
+          // V 2.01: agenda do ergonomista por id — Administrador vê qualquer uma; os demais só a própria.
+          const visivelAgenda = colecao === "agendaErgo" && item
+            ? (identidade.papel === "Administrador" || String(item.EmailErgonomista || "").toLowerCase() === String(identidade.email || "").toLowerCase())
+            : null;
           // V 1.99: KPIs - só o Administrador lê por id.
           const visivelKpi = COLECOES_SO_ADMIN_LE.includes(colecao) && item ? (identidade.papel === "Administrador") : null;
-          const visivel = item && (visivelKpi !== null ? visivelKpi : (visivelAvalErg !== null ? visivelAvalErg : (COLECOES_GLOBAIS.includes(colecao) || podeVerDocumento(identidade, colecao, item))));
+          const visivel = item && (visivelKpi !== null ? visivelKpi : (visivelAgenda !== null ? visivelAgenda : (visivelAvalErg !== null ? visivelAvalErg : (COLECOES_GLOBAIS.includes(colecao) || podeVerDocumento(identidade, colecao, item)))));
           if (!visivel) {
             return { status: 404, jsonBody: { erro: "Não encontrado." } };
           }
@@ -491,6 +547,16 @@ async function tratar(request, context) {
         // só o Administrador exclui. UsuarioCliente nunca grava (já barrado acima).
         if (colecao === "cliente" && !["Administrador", "Consultor"].includes(identidade.papel)) {
           return { status: 403, jsonBody: { erro: "Sem permissão para cadastrar uma empresa-cliente." } };
+        }
+        // V 2.01: agenda do ergonomista - quem não é Administrador só pode gravar a
+        // PRÓPRIA agenda. Força o e-mail do autor, impedindo que um ergonomista
+        // sobrescreva a agenda de outro (o campo vem do cliente, mas o servidor manda).
+        if (colecao === "agendaErgo" && identidade.papel !== "Administrador") {
+          const meu = String(identidade.email || "").toLowerCase();
+          if (corpo.EmailErgonomista && String(corpo.EmailErgonomista).toLowerCase() !== meu) {
+            return { status: 403, jsonBody: { erro: "Você só pode gravar a sua própria agenda." } };
+          }
+          corpo.EmailErgonomista = identidade.email;
         }
         const empresaId = colecao === "cliente"
           ? corpo.EmpresaId || crypto.randomUUID()
@@ -618,6 +684,11 @@ async function tratar(request, context) {
         }
         if (colecao === "cliente" && identidade.papel !== "Administrador") {
           return { status: 403, jsonBody: { erro: "Só Administrador pode excluir uma empresa-cliente." } };
+        }
+        // V 2.01: agenda do ergonomista - quem não é Administrador só exclui a própria.
+        if (colecao === "agendaErgo" && identidade.papel !== "Administrador"
+            && String(existente.EmailErgonomista || "").toLowerCase() !== String(identidade.email || "").toLowerCase()) {
+          return { status: 403, jsonBody: { erro: "Você só pode excluir a sua própria agenda." } };
         }
         // V 1.41: excluir empresa manda para a LIXEIRA (soft delete) - restaurável.
         // Os dados ficam, mas somem das telas (empresasCadastradas ignora as da lixeira).
