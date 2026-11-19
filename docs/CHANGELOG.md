@@ -2,6 +2,18 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.21 — 19/11/2026
+
+Ajustes de gráficos, R$ e organização do KPI (Alexandre):
+
+- **“% Faturamento e % saldo do budget por mês”:** o **% Faturamento** continua **linha** (azul) e o **% Saldo budget** vira **coluna** (verde). *(`js/contratos.js`.)*
+- **“Faturado × previsto por mês”:** o **Previsto** vira **linha** (cinza) e o **Faturado** continua **coluna** (vermelho), com o % em cima. *(`js/contratos.js`.)*
+- **R$ como padrão nos campos de dinheiro** também na **Análise mensal** (Total previsto, Total faturado, MO utilizada, Benef. utilizado) — juntando-se à grade de Contratos e aos valores calculados, que já mostram R$. *(`js/contratos.js`.)*
+- **Gráficos de risco do inventário: filtro de vários meses.** Agora dá para **selecionar vários meses** (multi-seleção) ou “Todos os meses”. *(`js/kpi-operacional.js`.)*
+- **KPI Recorrentes separado em duas sub-abas da Coordenação:** **“Dashboard KPI Recorrentes”** (só os gráficos) e **“Preenchimento KPI recorrentes”** (a grade de lançamento). *(`js/kpi-operacional.js`, `js/coordenacao.js`, `js/app.js`.)*
+
+Service worker subiu para `sige-v136`.
+
 ## V 2.20 — 19/11/2026
 
 - **Apresentação mais próxima da diretoria (Alexandre).** O gerador de apresentação ganhou: um slide de **Composição das Ações ElevaLife** (rosca com as porcentagens: Jurídico, PCD/Restritos, DDS/Treino/Blitz, COERGO, Outras) e **um slide por case aprovado** (até 6), com **antes/depois em imagem**, risco e impacto — no estilo dos cases da apresentação da diretoria. *(`js/apresentacao.js`.)*

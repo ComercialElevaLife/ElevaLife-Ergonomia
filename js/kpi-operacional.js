@@ -93,7 +93,7 @@
   let indEvol = "analises"; // indicador selecionado no gráfico de evolução
   let anoInc = 2026;
   // V 2.15 (Alexandre): filtro próprio dos gráficos de risco (distribuição + redução) mês a mês.
-  let riscoAno = null, riscoMes = "todos"; // riscoAno null = usa o ano do topo
+  let riscoAno = null, riscoMeses = []; // riscoAno null = usa o ano do topo; riscoMeses vazio = todos com dados
 
   async function recarregar() {
     try { await DB().recarregar(["kpiOperacional", "kpiInconsistencia"]); } catch (e) { console.error(e); }
@@ -227,7 +227,7 @@
     });
   }
 
-  function renderOperacional(area) {
+  function renderPreenchimento(area) {
     area.innerHTML = "";
     if (!ehAdmin()) { area.appendChild(cartaoVazio("KPIs operacionais", "Área restrita ao coordenador (Administrador).")); return; }
     const st = { ano: anoOp, mes: mesOp, linhas: linhasDoMes(anoOp, mesOp) };
@@ -237,17 +237,17 @@
 
     const box = h("div", "cartao col-12");
     const cab = h("div", "cadastro-cabecalho");
-    cab.appendChild(h("div", "cartao-titulo", "KPI operacionais - recorrentes"));
+    cab.appendChild(h("div", "cartao-titulo", "Preenchimento KPI recorrentes"));
     const ctrls = h("div", "kpi-ctrls");
     // ano
     const selA = h("select"); anosDisponiveis().forEach((a) => { const o = h("option", null, String(a)); o.value = a; selA.appendChild(o); });
     { const o = h("option", null, "+ Novo ano…"); o.value = "__novo"; selA.appendChild(o); }
-    selA.value = st.ano; selA.addEventListener("change", () => { if (selA.value === "__novo") { const na = proximoAno(); anosExtra.add(na); anoOp = na; mesOp = 0; } else { anoOp = Number(selA.value); mesOp = st.mes; } renderOperacional(area); });
+    selA.value = st.ano; selA.addEventListener("change", () => { if (selA.value === "__novo") { const na = proximoAno(); anosExtra.add(na); anoOp = na; mesOp = 0; } else { anoOp = Number(selA.value); mesOp = st.mes; } renderPreenchimento(area); });
     const selM = h("select"); MESES.forEach((m, i) => { const o = h("option", null, m); o.value = i; selM.appendChild(o); });
-    selM.value = st.mes; selM.addEventListener("change", () => { mesOp = Number(selM.value); anoOp = st.ano; renderOperacional(area); });
+    selM.value = st.mes; selM.addEventListener("change", () => { mesOp = Number(selM.value); anoOp = st.ano; renderPreenchimento(area); });
     ctrls.appendChild(rotuloCampo("Ano", selA)); ctrls.appendChild(rotuloCampo("Mês", selM));
     const bNovoAno = h("button", "btn-cad-secundario", "+ Ano"); bNovoAno.type = "button"; bNovoAno.title = "Começar um novo ano (ex.: 2027). Os riscos do inventário são herdados de dezembro do ano anterior.";
-    bNovoAno.addEventListener("click", () => { const na = proximoAno(); anosExtra.add(na); anoOp = na; mesOp = 0; renderOperacional(area); });
+    bNovoAno.addEventListener("click", () => { const na = proximoAno(); anosExtra.add(na); anoOp = na; mesOp = 0; renderPreenchimento(area); });
     ctrls.appendChild(bNovoAno);
     cab.appendChild(ctrls);
     box.appendChild(cab);
@@ -355,7 +355,7 @@
     const rodape = h("div"); rodape.style.cssText = "margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap";
     const bAdd = h("button", "btn-cad-secundario", "+ Cliente"); bAdd.type = "button"; bAdd.addEventListener("click", () => { st.linhas.push({ Cliente: "", Unidade: "", Gestor: "" }); redesenhar(); });
     const bSync = h("button", "btn-cad-secundario", "↻ Atualizar do SIGE"); bSync.type = "button"; bSync.title = "Relê os registros do SIGE e reaplica o abastecimento automático neste mês (sem duplicar).";
-    bSync.addEventListener("click", async () => { bSync.disabled = true; try { await DB().recarregar(["kpiOperacional", "kpiInconsistencia", "avaliacaoErgonomica", "aet", "planoAcao", "compativeis", "absenteismo", "cronograma"]); } catch (e) { console.error(e); } anoOp = st.ano; mesOp = st.mes; renderOperacional(area); if (BI.avisar) BI.avisar("KPIs atualizados com o que foi feito no SIGE."); });
+    bSync.addEventListener("click", async () => { bSync.disabled = true; try { await DB().recarregar(["kpiOperacional", "kpiInconsistencia", "avaliacaoErgonomica", "aet", "planoAcao", "compativeis", "absenteismo", "cronograma"]); } catch (e) { console.error(e); } anoOp = st.ano; mesOp = st.mes; renderPreenchimento(area); if (BI.avisar) BI.avisar("KPIs atualizados com o que foi feito no SIGE."); });
     const bSalvar = h("button", "btn-cad-primario", "Salvar mês"); bSalvar.type = "button";
     const msg = h("span", "aet-nota"); msg.style.margin = "0";
     bSalvar.addEventListener("click", async () => {
@@ -366,7 +366,7 @@
         const ex = acharOp(st.ano, st.mes);
         await DB().salvar("kpiOperacional", ex ? (ex._id || ex.id) : idOp(st.ano, st.mes), doc, !ex);
         await recarregar();
-        anoOp = st.ano; mesOp = st.mes; renderOperacional(area);
+        anoOp = st.ano; mesOp = st.mes; renderPreenchimento(area);
       } catch (e) { msg.textContent = "Erro ao salvar: " + (e && e.message ? e.message : e); msg.style.color = "#C62828"; bSalvar.disabled = false; }
     });
     rodape.appendChild(bAdd); rodape.appendChild(bSync); rodape.appendChild(bSalvar);
@@ -374,6 +374,26 @@
     rodape.appendChild(msg);
     box.appendChild(rodape);
     area.appendChild(box);
+  }
+
+  // V 2.21 (Alexandre): Dashboard KPI Recorrentes (só os gráficos) — sub-aba separada do preenchimento.
+  function renderDashboard(area) {
+    area.innerHTML = "";
+    if (!ehAdmin()) { area.appendChild(cartaoVazio("Dashboard KPI Recorrentes", "Área restrita ao coordenador (Administrador).")); return; }
+    const st = { ano: anoOp, mes: mesOp };
+    const dcab = h("div", "cartao col-12"); const cab2 = h("div", "cadastro-cabecalho");
+    cab2.appendChild(h("div", "cartao-titulo", "Dashboard KPI Recorrentes"));
+    const ctrls2 = h("div", "kpi-ctrls");
+    const selA2 = h("select"); anosDisponiveis().forEach((a) => { const o = h("option", null, String(a)); o.value = a; selA2.appendChild(o); }); selA2.value = st.ano; selA2.addEventListener("change", () => { anoOp = Number(selA2.value); mesOp = st.mes; renderDashboard(area); });
+    const selM2 = h("select"); MESES.forEach((m, i) => { const o = h("option", null, m); o.value = i; selM2.appendChild(o); }); selM2.value = st.mes; selM2.addEventListener("change", () => { mesOp = Number(selM2.value); anoOp = st.ano; renderDashboard(area); });
+    ctrls2.appendChild(rotuloCampo("Ano", selA2)); ctrls2.appendChild(rotuloCampo("Mês", selM2)); cab2.appendChild(ctrls2); dcab.appendChild(cab2);
+    const cards = h("div", "coord-kpis"); dcab.appendChild(cards);
+    const docS = acharOp(st.ano, st.mes); const linhasS = (docS && docS.Linhas) || [];
+    const kc = (v, r, cor) => { const d = h("div", "coord-kpi"); const vv = h("div", "coord-kpi-valor", v); if (cor) vv.style.color = cor; d.appendChild(vv); d.appendChild(h("div", "coord-kpi-rot", r)); return d; };
+    cards.appendChild(kc(String(new Set(linhasS.map((l) => normNome(l.Cliente)).filter(Boolean)).size), "Clientes"));
+    cards.appendChild(kc(String(linhasS.filter((l) => String(l.Cliente || "").trim()).length), "Unidades"));
+    [["analises", "Análises"], ["valid", "Validações"], ["acoesCli", "Ações Cliente"], ["acoesEleva", "Ações ElevaLife"]].forEach(([k, rot]) => { const t = totMesIndicador(st.ano, st.mes, k); cards.appendChild(kc(pctTxt(t.pct), "% " + rot + " (" + t.real + "/" + t.prev + ")", corPct(t.pct))); });
+    area.appendChild(dcab);
 
     // gráfico de evolução por indicador (filtro) + composição ElevaLife + risco
     const boxG = h("div", "cartao col-12");
@@ -402,9 +422,13 @@
     const fr = h("div"); fr.style.cssText = "display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:4px 0 8px";
     const selRA = h("select"); anosDisponiveis().forEach((a) => { const o = h("option", null, String(a)); o.value = a; if (a === riscoAno) o.selected = true; selRA.appendChild(o); });
     selRA.addEventListener("change", () => { riscoAno = Number(selRA.value); desenharRiscos(); });
-    const selRM = h("select"); { const o = h("option", null, "Todos os meses"); o.value = "todos"; selRM.appendChild(o); } MESES.forEach((m, i) => { const o = h("option", null, m); o.value = i; if (String(riscoMes) === String(i)) o.selected = true; selRM.appendChild(o); });
-    selRM.addEventListener("change", () => { riscoMes = selRM.value === "todos" ? "todos" : Number(selRM.value); desenharRiscos(); });
-    fr.appendChild(rotuloCampo("Ano", selRA)); fr.appendChild(rotuloCampo("Mês", selRM)); boxG.appendChild(fr);
+    // V 2.21 (Alexandre): seleção de VÁRIOS meses (multi-seleção). Nada marcado = todos os meses com dados.
+    const selRM = h("select"); selRM.multiple = true; selRM.size = 6; selRM.style.minWidth = "150px";
+    MESES.forEach((m, i) => { const o = h("option", null, m); o.value = i; if (riscoMeses.indexOf(i) !== -1) o.selected = true; selRM.appendChild(o); });
+    selRM.addEventListener("change", () => { riscoMeses = Array.from(selRM.selectedOptions).map((o) => Number(o.value)); desenharRiscos(); });
+    const bTodos = h("button", "btn-cad-secundario", "Todos os meses"); bTodos.type = "button"; bTodos.addEventListener("click", () => { riscoMeses = []; desenharRiscos(); Array.from(selRM.options).forEach((o) => (o.selected = false)); });
+    const lblM = h("label", "kpi-campo"); lblM.appendChild(h("span", "aet-rot", "Meses (segure Ctrl/⌘ p/ vários)")); lblM.appendChild(selRM);
+    fr.appendChild(rotuloCampo("Ano", selRA)); fr.appendChild(lblM); fr.appendChild(bTodos); boxG.appendChild(fr);
     boxG.appendChild(h("div", "cartao-titulo", "Distribuição de risco no inventário"));
     const g3 = h("div"); g3.style.cssText = "position:relative;height:300px;margin-top:4px"; const cv3 = h("canvas"); cv3.id = "kpi-riscos-mes"; g3.appendChild(cv3); boxG.appendChild(g3);
     boxG.appendChild(h("div", "cartao-titulo", "Redução de riscos por mês"));
@@ -475,8 +499,8 @@
   function desenharRiscos() {
     const ano = riscoAno; const niveis = [["riscoAltissimo", "Altíssimo", "#6A1B2A"], ["riscoAlto", "Alto", "#C62828"], ["riscoModerado", "Moderado", "#E8731A"], ["riscoBaixo", "Baixo", "#F2C200"], ["riscoTrivial", "Trivial", "#2E7D5B"]];
     let meses;
-    if (riscoMes === "todos") { meses = []; for (let m = 0; m < 12; m++) if (somaRiscosMes(ano, m)._tem) meses.push(m); if (!meses.length) meses = [mesOp]; }
-    else { meses = [riscoMes]; }
+    if (!riscoMeses.length) { meses = []; for (let m = 0; m < 12; m++) if (somaRiscosMes(ano, m)._tem) meses.push(m); if (!meses.length) meses = [mesOp]; }
+    else { meses = riscoMeses.slice().sort((a, b) => a - b); }
     const somas = meses.map((m) => somaRiscosMes(ano, m));
     const labels = meses.map((m) => MESES_CURTO[m] + "/" + String(ano).slice(2));
     grafico("kpi-riscos-mes", { type: "bar", data: { labels, datasets: niveis.map(([k, rot, cor]) => ({ label: rot, data: somas.map((s) => s[k]), backgroundColor: cor, borderRadius: 3 })) }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } }, scales: { x: { stacked: false }, y: { beginAtZero: true } } } });
@@ -629,7 +653,7 @@
       await DB().salvar("kpiInconsistencia", exi ? (exi._id || exi.id) : idInc(2026), { EmpresaId: "GLOBAL", Ano: 2026, Linhas: inc }, !exi);
       await recarregar();
       window.alert("Importação de 2026 concluída.");
-      anoOp = 2026; anoInc = 2026; BI.Coordenacao && BI.Coordenacao.render ? BI.Coordenacao.render() : renderOperacional(area);
+      anoOp = 2026; anoInc = 2026; BI.Coordenacao && BI.Coordenacao.render ? BI.Coordenacao.render() : renderPreenchimento(area);
     } catch (e) { console.error(e); window.alert("Falha na importação: " + (e && e.message ? e.message : e)); if (botao) { botao.disabled = false; botao.textContent = "⬇ Importar 2026 (planilha)"; } }
   }
 
@@ -637,5 +661,6 @@
   function cartaoVazio(tit, txt) { const c = h("div", "cartao col-12"); c.appendChild(h("div", "cartao-titulo", tit)); c.appendChild(h("div", "coord-vazio", txt)); return c; }
   function rotuloCampo(rot, el) { const l = h("label", "kpi-campo"); l.appendChild(h("span", "aet-rot", rot)); l.appendChild(el); return l; }
 
-  BI.KpiOp = { renderOperacional, renderInconsistencias };
+  // renderOperacional mantido como alias do preenchimento (compatibilidade).
+  BI.KpiOp = { renderPreenchimento, renderDashboard, renderOperacional: renderPreenchimento, renderInconsistencias };
 })(typeof window !== "undefined" ? window : this);

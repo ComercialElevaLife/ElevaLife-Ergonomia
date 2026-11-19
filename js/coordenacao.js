@@ -97,6 +97,9 @@
     if (BI.KpiOp && BI.KpiOp.renderOperacional) BI.KpiOp.renderOperacional(area);
     else area.appendChild(cartao("KPIs operacionais", null, h("div", "coord-vazio", "Módulo de KPIs indisponível.")));
   }
+  // V 2.21 (Alexandre): KPI recorrentes separado em Dashboard (gráficos) e Preenchimento (grade).
+  function renderKpiDashboard(area) { if (BI.KpiOp && BI.KpiOp.renderDashboard) BI.KpiOp.renderDashboard(area); else area.appendChild(cartao("Dashboard KPI Recorrentes", null, h("div", "coord-vazio", "Módulo indisponível."))); }
+  function renderKpiPreench(area) { if (BI.KpiOp && BI.KpiOp.renderPreenchimento) BI.KpiOp.renderPreenchimento(area); else area.appendChild(cartao("Preenchimento KPI recorrentes", null, h("div", "coord-vazio", "Módulo indisponível."))); }
   function renderKpiInc(area) {
     if (BI.KpiOp && BI.KpiOp.renderInconsistencias) BI.KpiOp.renderInconsistencias(area);
     else area.appendChild(cartao("Inconsistências Sólides", null, h("div", "coord-vazio", "Módulo de KPIs indisponível.")));
@@ -106,7 +109,8 @@
     { chave: "tempo", rotulo: "Contabilidade de tempo", montar: renderContabilidade, papeis: ["Administrador"] },
     { chave: "avaliacao", rotulo: "Avaliação de Ergonomistas", montar: renderAvalErgo, papeis: ["Administrador", "Consultor"] },
     { chave: "painel", rotulo: "Painel de avaliações", montar: renderPainelAvalErgo, papeis: ["Administrador"] },
-    { chave: "kpiop", rotulo: "KPI operacionais - recorrentes", montar: renderKpiOp, papeis: ["Administrador"] },
+    { chave: "dashboardkpi", rotulo: "Dashboard KPI Recorrentes", montar: renderKpiDashboard, papeis: ["Administrador"] },
+    { chave: "preenchimentokpi", rotulo: "Preenchimento KPI recorrentes", montar: renderKpiPreench, papeis: ["Administrador"] },
     { chave: "inconsistencias", rotulo: "Inconsistências Sólides", montar: renderKpiInc, papeis: ["Administrador"] },
     // V 2.18 (Alexandre): gerar apresentação (PPT) dos KPIs do mês.
     { chave: "apresentacao", rotulo: "Gerar apresentação", montar: (area) => { if (BI.Apresentacao) BI.Apresentacao.render(area); }, papeis: ["Administrador"] },

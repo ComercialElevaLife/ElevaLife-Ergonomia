@@ -6285,7 +6285,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (!nav || !window.BI.Coordenacao || !window.BI.Coordenacao.subabas) return;
     const subs = window.BI.Coordenacao.subabas();
     const atual = window.BI.Coordenacao.subAtiva ? window.BI.Coordenacao.subAtiva() : null;
-    const ICON = { tempo: "⏱", avaliacao: "📋", painel: "📊", kpiop: "📈", inconsistencias: "⚠️" };
+    const ICON = { tempo: "⏱", avaliacao: "📋", painel: "📊", kpiop: "📈", dashboardkpi: "📈", preenchimentokpi: "📝", inconsistencias: "⚠️", apresentacao: "📑" };
     nav.innerHTML = "";
     subs.forEach((s) => {
       const btn = document.createElement("button");

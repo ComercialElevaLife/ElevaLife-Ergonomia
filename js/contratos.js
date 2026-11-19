@@ -323,17 +323,17 @@
     function montarLinha(l) {
       const tr = h("tr");
       tr.appendChild(h("td", null, MESES[l.Mes]));
-      const tdB = h("td", "num ap-dinheiro"); tdB.appendChild(inpNum(l, "totalPrevisto")); tr.appendChild(tdB);
-      const tdC = h("td", "num ap-dinheiro"); const wrapC = h("div"); wrapC.style.cssText = "display:flex;gap:4px;align-items:center"; const iC = inpNum(l, "faturado"); wrapC.appendChild(iC); const bF = h("button", "btn-mini-fat", "↻"); bF.type = "button"; bF.title = "Abrir a dashboard do faturamento (Ergonomia · reconhecido · mês) e preencher este campo"; bF.addEventListener("click", () => puxarFaturamento(l, recalc, iC)); wrapC.appendChild(bF); tdC.appendChild(wrapC); tr.appendChild(tdC);
+      const tdB = h("td", "num ap-dinheiro"); tdB.appendChild(h("span", "contratos-rs", "R$")); tdB.appendChild(inpNum(l, "totalPrevisto")); tr.appendChild(tdB);
+      const tdC = h("td", "num ap-dinheiro"); const wrapC = h("div"); wrapC.style.cssText = "display:flex;gap:4px;align-items:center"; wrapC.appendChild(h("span", "contratos-rs", "R$")); const iC = inpNum(l, "faturado"); wrapC.appendChild(iC); const bF = h("button", "btn-mini-fat", "↻"); bF.type = "button"; bF.title = "Abrir a dashboard do faturamento (Ergonomia · reconhecido · mês) e preencher este campo"; bF.addEventListener("click", () => puxarFaturamento(l, recalc, iC)); wrapC.appendChild(bF); tdC.appendChild(wrapC); tr.appendChild(tdC);
       const tdD = h("td", "num"); const spD = h("span", "kpi-pct"); tdD.appendChild(spD); tr.appendChild(tdD);
       const tdE = h("td", "num ap-dinheiro"); tr.appendChild(tdE);
       const tdF = h("td", "num ap-dinheiro"); tr.appendChild(tdF);
       const tdG = h("td", "num"); const spG = h("span", "kpi-pct"); tdG.appendChild(spG); tr.appendChild(tdG);
       const tdH = h("td", "num ap-dinheiro"); tr.appendChild(tdH);
-      const tdI = h("td", "num ap-dinheiro"); tdI.appendChild(inpNum(l, "moUtilizada")); tr.appendChild(tdI);
+      const tdI = h("td", "num ap-dinheiro"); tdI.appendChild(h("span", "contratos-rs", "R$")); tdI.appendChild(inpNum(l, "moUtilizada")); tr.appendChild(tdI);
       const tdJ = h("td", "num"); const spJ = h("span", "kpi-pct"); tdJ.appendChild(spJ); tr.appendChild(tdJ);
       const tdK = h("td", "num ap-dinheiro"); tr.appendChild(tdK);
-      const tdL = h("td", "num ap-dinheiro"); tdL.appendChild(inpNum(l, "benUtilizado")); tr.appendChild(tdL);
+      const tdL = h("td", "num ap-dinheiro"); tdL.appendChild(h("span", "contratos-rs", "R$")); tdL.appendChild(inpNum(l, "benUtilizado")); tr.appendChild(tdL);
       const tdM = h("td", "num"); const spM = h("span", "kpi-pct"); tdM.appendChild(spM); tr.appendChild(tdM);
       const tdX = h("td"); const bx = h("button", "btn-excluir", "×"); bx.type = "button"; bx.title = "Remover mês"; bx.addEventListener("click", () => { const i = linhas.indexOf(l); if (i >= 0) { linhas.splice(i, 1); redesenhar(); } }); tdX.appendChild(bx); tr.appendChild(tdX);
       refs.push({ l, spD, tdE, tdF, spG, tdH, spJ, tdK, spM });
@@ -452,13 +452,15 @@
       // modo apresentação: mostra % faturado (sem R$)
       grafico("ct-fat-prev", { type: "bar", data: { labels, datasets: [{ label: "% faturado", data: bud.map((b) => { const d = derivadosBudget(b); return d.D == null ? 0 : Math.round(d.D * 100); }), backgroundColor: "#8E1B3A" }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { display: false } }, scales: { y: { beginAtZero: true, max: 110, title: { display: true, text: "%" } } } } });
     } else {
-      grafico("ct-fat-prev", { type: "bar", data: { labels, datasets: [{ label: "Previsto", data: previsto, backgroundColor: "#cdbfc0" }, { label: "Faturado", data: faturado, backgroundColor: "#8E1B3A" }] }, options: { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 18 } }, plugins: { legend: { position: "bottom" }, datalabels: { display: true, anchor: "end", align: "end", color: (ctx) => (ctx.datasetIndex === 0 ? "#6b5b5c" : "#8E1B3A"), font: { weight: "700", size: 11 }, formatter: (v, ctx) => { const i = ctx.dataIndex; const prev = previsto[i] || 0; if (ctx.datasetIndex === 0) return prev ? "100%" : ""; return prev ? Math.round((faturado[i] / prev) * 100) + "%" : ""; } } }, scales: { y: { beginAtZero: true, title: { display: true, text: "R$" } } } } });
+      // V 2.21 (Alexandre): "Previsto" vira LINHA (cinza) e "Faturado" fica em COLUNA (vermelho). % em cima.
+      grafico("ct-fat-prev", { type: "bar", data: { labels, datasets: [{ type: "line", label: "Previsto", data: previsto, borderColor: "#b7a7a9", backgroundColor: "#b7a7a9", pointBackgroundColor: "#b7a7a9", tension: 0.25, order: 0 }, { type: "bar", label: "Faturado", data: faturado, backgroundColor: "#8E1B3A", order: 1 }] }, options: { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 18 } }, plugins: { legend: { position: "bottom" }, datalabels: { display: true, anchor: "end", align: "end", color: (ctx) => (ctx.datasetIndex === 0 ? "#6b5b5c" : "#8E1B3A"), font: { weight: "700", size: 11 }, formatter: (v, ctx) => { const i = ctx.dataIndex; const prev = previsto[i] || 0; if (ctx.datasetIndex === 0) return prev ? "100%" : ""; return prev ? Math.round((faturado[i] / prev) * 100) + "%" : ""; } } }, scales: { y: { beginAtZero: true, title: { display: true, text: "R$" } } } } });
     }
     // V 2.14 (Alexandre): o % Faturamento/% Saldo começa no 1º mês com saldo já utilizado
     // (meses iniciais sem movimento — ex.: agosto zerado — poluíam a curva). Começa em setembro.
     let iniPct = bud.findIndex((b) => derivadosBudget(b).F > 0); if (iniPct < 0) iniPct = 0;
     const budP = bud.slice(iniPct); const labelsP = budP.map((b) => MESES_CURTO[b.Mes] + "/" + String(b.Ano).slice(2));
-    grafico("ct-pcts", { type: "line", data: { labels: labelsP, datasets: [{ label: "% Faturamento", data: budP.map((b) => { const d = derivadosBudget(b); return d.D == null ? null : Math.round(d.D * 100); }), borderColor: "#2E5A88", backgroundColor: "#2E5A88", tension: 0.3, fill: false }, { label: "% Saldo budget", data: budP.map((b) => { const d = derivadosBudget(b); return d.G == null ? null : Math.round(d.G * 100); }), borderColor: "#1E6B44", backgroundColor: "#1E6B44", tension: 0.3, fill: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" }, datalabels: { display: false } }, scales: { y: { beginAtZero: true, title: { display: true, text: "%" } } } } });
+    // V 2.21 (Alexandre): "% Faturamento" continua LINHA (azul) e "% Saldo budget" vira COLUNA (verde).
+    grafico("ct-pcts", { type: "bar", data: { labels: labelsP, datasets: [{ type: "line", label: "% Faturamento", data: budP.map((b) => { const d = derivadosBudget(b); return d.D == null ? null : Math.round(d.D * 100); }), borderColor: "#2E5A88", backgroundColor: "#2E5A88", pointBackgroundColor: "#2E5A88", tension: 0.3, fill: false, order: 0 }, { type: "bar", label: "% Saldo budget", data: budP.map((b) => { const d = derivadosBudget(b); return d.G == null ? null : Math.round(d.G * 100); }), backgroundColor: "#1E6B44", order: 1 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" }, datalabels: { display: false } }, scales: { y: { beginAtZero: true, title: { display: true, text: "%" } } } } });
     // por coordenador (no modo apresentação os nomes viram rótulos genéricos e o eixo de R$ some)
     const mapCo = {}; at.forEach((c) => { const k = c.Coordenador || "—"; mapCo[k] = (mapCo[k] || 0) + n0(c.ValorCtt); });
     const coNomes = Object.keys(mapCo); const coVals = coNomes.map((k) => Math.round(mapCo[k]));
