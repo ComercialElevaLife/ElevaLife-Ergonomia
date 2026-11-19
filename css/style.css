@@ -1089,6 +1089,10 @@ main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1600px; margin: 0 a
 .tile-total .rotulo { font-size: 12px; font-weight: 700; color: var(--texto-secundario); }
 .tile-total .valor { font-size: 26px; font-weight: 700; color: var(--texto); }
 .tile-total .sub { font-size: 12px; color: var(--cinza-quente); }
+/* V 2.26 (Alexandre): tiles de cobertura clicáveis (Já avaliados / Pendentes). */
+.tile-total.tile-clicavel { cursor: pointer; transition: transform .08s ease, box-shadow .12s ease; }
+.tile-total.tile-clicavel:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,.12); }
+.tile-total.tile-clicavel .valor { text-decoration: underline dotted; text-underline-offset: 3px; }
 
 /* ---------------------------- Diagramas corporais (SVG) ---------------------------- */
 
@@ -2366,6 +2370,8 @@ body.aet-aberta { overflow: hidden; }
 .vg-chart { position: relative; height: 165px; margin-top: 12px; }
 .vg-legenda { margin-top: 8px; font-size: 11px; gap: 6px 12px; }
 @media (max-width: 720px) { .vg-chart { height: 150px; } }
+/* V 2.23 (Alexandre): subtítulo de gráficos lado a lado (ex.: AEP × AET, Atestados × Dias perdidos). */
+.vg-chart-sub { font-size: 12px; font-weight: 600; color: var(--texto-secundario, #6b5b5c); margin-top: 10px; }
 /* V 1.35: inventario na Gestao de Riscos */
 .inventario-controles { margin: 6px 0 8px; }
 .inventario-controles input { width: 100%; max-width: 360px; padding: 7px 10px; border: 1px solid var(--linha, #e5d8d8); border-radius: 8px; font: inherit; font-size: 13px; background: var(--card, #fff); color: inherit; }

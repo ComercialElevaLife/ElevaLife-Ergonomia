@@ -1255,6 +1255,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function renderRiscoPorSetor(linhas, mapaRiscoF) {
+    // V 2.26 (Alexandre): mostra só os TOP 10 setores (por total de postos) — setores com
+    // muitos postos primeiro; o resto não polui o gráfico. Antes vinham todos os setores.
+    const totalSetor = (l) => window.BI.Calc.NIVEIS_RISCO.reduce((s, n) => s + (Number(l[n]) || 0), 0);
+    linhas = (linhas || []).slice().sort((a, b) => totalSetor(b) - totalSetor(a)).slice(0, 10);
     const labels = linhas.map((l) => l.setor);
     const datasets = window.BI.Calc.NIVEIS_RISCO.map((nivel) => ({
       label: window.BI.Calc.rotuloNivel(nivel),
@@ -1398,26 +1402,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (sub) sub.textContent = origem === "Psicossocial"
       ? "GHEs cadastrados e quantos já têm avaliação psicossocial"
       : "Postos de trabalho cadastrados e quantos já foram avaliados";
-    const cont = document.getElementById("cobertura-numeros");
-    if (cont) {
-      cont.innerHTML = "";
-      const tiles = [
-        { rotulo: cob.rotulo + " cadastrados", valor: cob.cadastrados },
-        { rotulo: "Já avaliados", valor: cob.avaliados },
-        { rotulo: "Pendentes", valor: pendentes },
-        { rotulo: "Cobertura", valor: cob.pct.toFixed(1) + "%" },
-      ];
-      tiles.forEach((it) => {
-        const tile = document.createElement("div"); tile.className = "tile-total";
-        const r = document.createElement("div"); r.className = "rotulo"; r.textContent = it.rotulo;
-        const v = document.createElement("div"); v.className = "valor"; v.textContent = String(it.valor);
-        tile.appendChild(r); tile.appendChild(v); cont.appendChild(tile);
-      });
-    }
-    const corAval = Calc.resolverCorCSS("var(--teal)");
-    const corPend = Calc.resolverCorCSS("var(--vinho-suave-2)");
-    // V 1.82 (Alexandre): clicar em "Avaliados"/"Pendentes" abre a lista de postos (ou GHEs no
-    // Psicossocial) daquele grupo.
+    // V 1.82/2.26 (Alexandre): listas para o drill-down da cobertura (postos/GHEs avaliados × pendentes).
+    // Calculadas ANTES dos tiles para que "Já avaliados" e "Pendentes" sejam clicáveis (abrem a lista).
     const ehPsico = origem === "Psicossocial";
     const chaveP = (l) => (ehPsico ? ["Cliente", "Unidade", "Setor"] : ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"]).map((d) => l[d] || "").join("||");
     const comAEP = new Set((dados.avaliacaoErgonomica || []).map(chaveP));
@@ -1431,6 +1417,32 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const avaliadosLinhas = universoLinhas.filter((c) => avalSet.has(chaveP(c)));
     const pendentesLinhas = universoLinhas.filter((c) => !avalSet.has(chaveP(c)));
     const chaveDrillCob = ehPsico ? "setor" : "cargo";
+
+    const cont = document.getElementById("cobertura-numeros");
+    if (cont) {
+      cont.innerHTML = "";
+      const tiles = [
+        { rotulo: cob.rotulo + " cadastrados", valor: cob.cadastrados },
+        { rotulo: "Já avaliados", valor: cob.avaliados, linhas: avaliadosLinhas, titulo: cob.rotulo + " avaliados" },
+        { rotulo: "Pendentes", valor: pendentes, linhas: pendentesLinhas, titulo: cob.rotulo + " pendentes de avaliação" },
+        { rotulo: "Cobertura", valor: cob.pct.toFixed(1) + "%" },
+      ];
+      tiles.forEach((it) => {
+        const tile = document.createElement("div"); tile.className = "tile-total" + (it.linhas ? " tile-clicavel" : "");
+        const r = document.createElement("div"); r.className = "rotulo"; r.textContent = it.rotulo;
+        const v = document.createElement("div"); v.className = "valor"; v.textContent = String(it.valor);
+        tile.appendChild(r); tile.appendChild(v);
+        if (it.linhas) {
+          tile.setAttribute("role", "button"); tile.tabIndex = 0; tile.title = "Clique para ver a lista";
+          const abrir = () => abrirDrillDown(it.titulo, `${it.linhas.length} ${cob.unidadeRotulo || "registro(s)"}`, chaveDrillCob, it.linhas);
+          tile.addEventListener("click", abrir);
+          tile.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrir(); } });
+        }
+        cont.appendChild(tile);
+      });
+    }
+    const corAval = Calc.resolverCorCSS("var(--teal)");
+    const corPend = Calc.resolverCorCSS("var(--vinho-suave-2)");
     criarOuAtualizarGrafico("chart-cobertura", {
       type: "bar",
       data: { labels: [cob.rotulo], datasets: [
@@ -9006,9 +9018,16 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
     // monta um cartão-resumo (cabeçalho + "Abrir →" + KPIs + mini-gráfico) e devolve a função
     // que desenha o gráfico (chamada depois que o canvas já está no DOM).
+    // V 2.23 (Alexandre): soma mensal de um campo numérico (ex.: dias perdidos = soma de "Qtd Dias").
+    const serieMensalSoma = (linhas, campoData, campoValor) => {
+      const base = Calc.serieMensal(linhas, campoData); const soma = {};
+      (linhas || []).forEach((l) => { const m = String(l[campoData] || "").slice(0, 7); if (m) soma[m] = (soma[m] || 0) + (Number(l[campoValor]) || 0); });
+      return base.map((p) => ({ mes: p.mes, qtd: soma[p.mes] || 0 }));
+    };
+
     const pendentes = [];
     function cardServico(cfg) {
-      const card = hc("div", "cartao col-6 vg-card");
+      const card = hc("div", "cartao " + (cfg.larga ? "col-12" : "col-6") + " vg-card");
       const cab = hc("div", "vg-card-cab");
       cab.appendChild(hc("h3", "vg-card-titulo", cfg.titulo));
       if (cfg.abrir) {
@@ -9025,11 +9044,26 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         kps.appendChild(d);
       });
       card.appendChild(kps);
+      // gráfico(s): 1 ou 2 lado a lado (canvas2Id)
+      const mkChart = (id, legId, titulo) => {
+        const wrap = hc("div"); wrap.style.flex = "1 1 0"; wrap.style.minWidth = "0";
+        if (titulo) wrap.appendChild(hc("div", "vg-chart-sub", titulo));
+        const box = hc("div", "vg-chart"); const cv = document.createElement("canvas"); cv.id = id; box.appendChild(cv); wrap.appendChild(box);
+        if (legId) { const lg = hc("div", "legenda vg-legenda"); lg.id = legId; wrap.appendChild(lg); }
+        return wrap;
+      };
       if (cfg.canvasId) {
-        const box = hc("div", "vg-chart");
-        const cv = document.createElement("canvas"); cv.id = cfg.canvasId; box.appendChild(cv);
-        card.appendChild(box);
-        if (cfg.legendaId) { const lg = hc("div", "legenda vg-legenda"); lg.id = cfg.legendaId; card.appendChild(lg); }
+        if (cfg.canvas2Id) {
+          const row = hc("div"); row.style.cssText = "display:flex;gap:16px;flex-wrap:wrap";
+          row.appendChild(mkChart(cfg.canvasId, cfg.legendaId, cfg.canvasTitulo));
+          row.appendChild(mkChart(cfg.canvas2Id, cfg.legenda2Id, cfg.canvas2Titulo));
+          card.appendChild(row);
+        } else {
+          const box = hc("div", "vg-chart");
+          const cv = document.createElement("canvas"); cv.id = cfg.canvasId; box.appendChild(cv);
+          card.appendChild(box);
+          if (cfg.legendaId) { const lg = hc("div", "legenda vg-legenda"); lg.id = cfg.legendaId; card.appendChild(lg); }
+        }
       }
       grade.appendChild(card);
       if (cfg.render) pendentes.push(cfg.render);
@@ -9040,13 +9074,16 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const teal = Calc.resolverCorCSS("var(--teal)");
       const vinho = Calc.resolverCorCSS("var(--vinho-medio)");
 
-      // 1) Gestão de Riscos
+      // 1) Riscos ergonômicos (por análise/posto): cada análise/posto pela sua MAIOR graduação.
+      // V 2.23 (Alexandre): o total bate com a quantidade de postos avaliados (≈ análises).
+      // V 2.26 (Alexandre): o card antigo "Gestão de Riscos" (rosca de fatores do inventário por
+      // graduação) foi REMOVIDO da Visão Geral — ficou só este, por análise/posto.
       cardServico({
-        titulo: "Gestão de Riscos", abrir: "ergo",
-        kpis: [{ num: postos.length, rot: "Postos avaliados" }, { num: postosCriticos, rot: "Postos críticos", alerta: postosCriticos > 0 }, { num: fatores, rot: "Fatores vigentes" }],
-        canvasId: "vg-riscos", legendaId: "vg-riscos-leg",
-        render: () => renderDonutNiveis("vg-riscos", "vg-riscos-leg", Calc.distribuicaoPorNivelRisco(fatoresArr, "Graduacao Risco"), "fatores", "fator(es)",
-          (n) => ({ titulo: `Inventário de Riscos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} fator(es)`, chave: "fatorRisco", linhas: fatoresArr.filter((l) => Calc.nivelCanonico(l["Graduacao Risco"]) === n.nivel) })),
+        titulo: "Riscos ergonômicos (por análise/posto)", abrir: "ergo",
+        kpis: [{ num: postos.length, rot: "Análises / postos" }, { num: postosCriticos, rot: "Alto / Muito Alto", alerta: postosCriticos > 0 }, { num: fatores, rot: "Fatores vigentes" }],
+        canvasId: "vg-risco-posto", legendaId: "vg-risco-posto-leg",
+        render: () => renderDonutNiveis("vg-risco-posto", "vg-risco-posto-leg", Calc.distribuicaoPorNivelRisco(postos, "Risco Global"), "análises/postos", "posto(s)",
+          (n) => ({ titulo: `Risco ${Calc.rotuloNivel(n.nivel)} — análises/postos`, subtitulo: `${n.qtd} posto(s)`, chave: "riscoPosto", linhas: postos.filter((p) => Calc.nivelCanonico(p["Risco Global"]) === n.nivel) })),
       });
 
       // 2) Plano de Ação
@@ -9069,24 +9106,32 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           { num: sAEP.criada, rot: "AEP criadas" }, { num: sAEP.aValidar, rot: "AEP a validar" }, { num: sAEP.concluida, rot: "AEP concluídas" },
           { num: sAET.criada, rot: "AET criadas" }, { num: sAET.aValidar, rot: "AET a validar" }, { num: sAET.concluida, rot: "AET concluídas" },
         ],
-        canvasId: "vg-aval",
-        render: () => renderLinhaMensal("vg-aval", Calc.serieMensal(avaliacaoArr, "Data Avaliacao"), "AEPs criadas", teal, avaliacaoArr, "Data Avaliacao", "avaliacaoErgonomica"),
+        canvasId: "vg-aval", canvasTitulo: "AEPs criadas mês a mês",
+        canvas2Id: "vg-aval-aet", canvas2Titulo: "AETs criadas mês a mês",
+        render: () => {
+          renderLinhaMensal("vg-aval", Calc.serieMensal(avaliacaoArr, "Data Avaliacao"), "AEPs criadas", teal, avaliacaoArr, "Data Avaliacao", "avaliacaoErgonomica");
+          renderLinhaMensal("vg-aval-aet", Calc.serieMensal(aetArr, "Data Analise"), "AETs criadas", vinho, aetArr, "Data Analise", "aet");
+        },
       });
 
-      // 4) Restritos
+      // 4) Restritos — V 2.23 (Alexandre): ocupa uma linha inteira (card largo).
       if (servicoNoDashboard("compativeis")) cardServico({
-        titulo: "Restritos", abrir: "compativeis",
+        titulo: "Restritos", abrir: "compativeis", larga: true,
         kpis: [{ num: restritos, rot: "Em restrição / acompanhamento" }],
         canvasId: "vg-restr",
         render: () => renderLinhaMensal("vg-restr", Calc.serieMensal(compativeisArr, "Inicio Restricao"), "Restrições iniciadas", teal, compativeisArr, "Inicio Restricao", "compativeis"),
       });
 
-      // 5) Absenteísmo
+      // 5) Absenteísmo — V 2.23: atestados mês a mês + dias perdidos mês a mês (lado a lado).
       if (servicoNoDashboard("medocup")) cardServico({
-        titulo: "Absenteísmo", abrir: "medocup",
+        titulo: "Absenteísmo", abrir: "medocup", larga: true,
         kpis: [{ num: atest.length, rot: "Atestados" }, { num: diasPerdidos, rot: "Dias perdidos" }],
-        canvasId: "vg-absent",
-        render: () => renderLinhaMensal("vg-absent", Calc.serieMensal(atest, "Dt Afastamento"), "Atestados", vinho, atest, "Dt Afastamento", "absenteismo"),
+        canvasId: "vg-absent", canvasTitulo: "Atestados mês a mês",
+        canvas2Id: "vg-absent-dias", canvas2Titulo: "Dias perdidos mês a mês",
+        render: () => {
+          renderLinhaMensal("vg-absent", Calc.serieMensal(atest, "Dt Afastamento"), "Atestados", vinho, atest, "Dt Afastamento", "absenteismo");
+          renderLinhaMensal("vg-absent-dias", serieMensalSoma(atest, "Dt Afastamento", "Qtd Dias"), "Dias perdidos", teal, atest, "Dt Afastamento", "absenteismo");
+        },
       });
 
       // desenha os mini-gráficos (canvas já no DOM)
@@ -9695,6 +9740,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       titulo: `Inventário de Riscos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} fator(es) de risco`, chave: "fatorRisco", linhas: fatorRiscoF.filter((l) => Calc.nivelCanonico(l["Graduacao Risco"]) === n.nivel) }));
     renderTabelaInventario(fatorRiscoF);
     renderEvolucaoRiscos(Calc.evolucaoMensalRiscos(fatorRiscoTodosF, hoje, 24));
+    // V 2.27 (Alexandre): evolução da QUANTIDADE de fatores identificados por mês (linha simples).
+    renderLinhaMensal("chart-evolucao-fatores", Calc.serieMensal(fatorRiscoTodosF, "Dt Identificacao"), "Fatores identificados", Calc.resolverCorCSS("var(--vinho-medio)"), fatorRiscoTodosF, "Dt Identificacao", "fatorRisco");
     // Status do Inventario fica no Plano de Acao (com o filtro de origem daquela aba)
     const fatorRiscoPlanoF = porOrigemAba(fatorRiscoGeralF, "registro");
     renderDonutFatorRiscoStatus(Calc.distribuicaoPorStatus(fatorRiscoPlanoF, "Status", STATUS_FATOR_RISCO_POOL), fatorRiscoPlanoF);

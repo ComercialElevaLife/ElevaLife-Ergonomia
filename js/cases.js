@@ -145,9 +145,10 @@
     campoSelect(grid, "Risco antigo", RISCOS, l.RiscoAntigo, (v) => { l.RiscoAntigo = v; });
     campoSelect(grid, "Risco atual", RISCOS, l.RiscoAtual, (v) => { l.RiscoAtual = v; });
     // Impacto
-    const impSel = campoSelect(grid, "Impacto", IMPACTOS.concat(["Outro"]), (IMPACTOS.indexOf(l.ImpactoTipo) === -1 && l.ImpactoTipo ? "Outro" : l.ImpactoTipo), (v) => { l.ImpactoTipo = v; descWrap.style.display = (v === "Outro") ? "" : "none"; });
-    const descWrap = h("div", "case-campo"); descWrap.style.display = (IMPACTOS.indexOf(l.ImpactoTipo) === -1 && l.ImpactoTipo) ? "" : "none";
-    descWrap.appendChild(h("span", "aet-rot", "Descreva o impacto")); const iDesc = h("input", "kpi-inp kpi-inp-txt"); iDesc.value = (IMPACTOS.indexOf(l.ImpactoTipo) === -1 ? l.ImpactoTipo : "") || l.ImpactoDesc || ""; iDesc.addEventListener("input", () => { l.ImpactoDesc = iDesc.value; }); descWrap.appendChild(iDesc); grid.appendChild(descWrap);
+    // V 2.23 (Alexandre): a descrição do impacto é SEMPRE pedida (não só no "Outro").
+    const impSel = campoSelect(grid, "Impacto", IMPACTOS.concat(["Outro"]), (IMPACTOS.indexOf(l.ImpactoTipo) === -1 && l.ImpactoTipo ? "Outro" : l.ImpactoTipo), (v) => { l.ImpactoTipo = v; });
+    const descWrap = h("div", "case-campo");
+    descWrap.appendChild(h("span", "aet-rot", "Descreva o impacto *")); const iDesc = h("input", "kpi-inp kpi-inp-txt"); iDesc.placeholder = "Ex.: redução de 85% no tempo de execução"; iDesc.value = (IMPACTOS.indexOf(l.ImpactoTipo) === -1 ? l.ImpactoTipo : "") || l.ImpactoDesc || ""; iDesc.addEventListener("input", () => { l.ImpactoDesc = iDesc.value; }); descWrap.appendChild(iDesc); grid.appendChild(descWrap);
 
     box.appendChild(grid);
 
@@ -168,7 +169,7 @@
         const cid = idDoCliente(l.Cliente);
         const doc = {
           EmpresaId: cid || "GLOBAL", Cliente: String(l.Cliente).trim(), Unidade: l.Unidade || "", DataCase: l.DataCase,
-          RiscoAntigo: l.RiscoAntigo || "", RiscoAtual: l.RiscoAtual || "", ImpactoTipo: l.ImpactoTipo || "", ImpactoDesc: l.ImpactoTipo === "Outro" ? (iDesc.value || "") : (l.ImpactoDesc || ""),
+          RiscoAntigo: l.RiscoAntigo || "", RiscoAtual: l.RiscoAtual || "", ImpactoTipo: l.ImpactoTipo || "", ImpactoDesc: iDesc.value || l.ImpactoDesc || "",
           MidiaAntesChave: l.MidiaAntesChave || "", MidiaAntesTipo: l.MidiaAntesTipo || "", MidiaDepoisChave: l.MidiaDepoisChave || "", MidiaDepoisTipo: l.MidiaDepoisTipo || "",
           Status: novo ? "Pendente" : (l.Status || "Pendente"), EmailErgonomista: novo ? emailAtual() : (l.EmailErgonomista || emailAtual()),
         };

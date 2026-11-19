@@ -2,6 +2,63 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.27 — 19/11/2026
+
+Overhaul Gestão de Riscos — fase 3 (Alexandre):
+
+- **Evolução mensal dos fatores:** novo gráfico (linha) com a **quantidade de fatores de risco identificados em cada mês** (todos os níveis), logo abaixo da “Evolução mensal dos riscos” (que é por nível). Clicar num mês abre os fatores daquele mês. Aparece na dashboard de Gestão de Riscos e responde à origem (AEP/AET/Psicossocial). *(`index.html`, `js/app.js`.)*
+
+Service worker subiu para `sige-v142`. *(Inclui tudo da v2.24 → v2.26.)*
+
+## V 2.26 — 19/11/2026
+
+Overhaul Gestão de Riscos — fase 2 (Alexandre):
+
+- **Visão Geral:** removido o card de **inventário** (“Gestão de Riscos” = rosca de fatores por graduação). Ficou só o card **“Riscos ergonômicos (por análise/posto)”**, que agora também mostra o KPI **Fatores vigentes**. *(`js/app.js`.)*
+- **Risco por setor (aba Gestão de Riscos):** o gráfico passou a mostrar só os **top 10 setores** (os com mais postos), em vez de todos. Vale para Gestão de Riscos, AEP, AET e Psicossocial (o mesmo gráfico responde à origem). *(`js/app.js`.)*
+- **Cobertura clicável:** os números **“Já avaliados”** e **“Pendentes”** do cartão de cobertura agora são **clicáveis** e abrem a lista de postos/GHEs daquele grupo (como já acontecia no gráfico ao lado). *(`js/app.js`, `css/style.css`.)*
+
+> Já existiam e foram mantidos: **top 3 setores**, **evolução dos riscos** e o número de **avaliações registradas**. Ficou pendente de alinhamento o que “evolução dos fatores” deve mostrar além da evolução dos riscos.
+
+Service worker subiu para `sige-v141`.
+
+## V 2.25 — 19/11/2026
+
+Painel de Contratos — hover (tooltip) refeito + modo apresentação sem vazar R$ (Alexandre):
+
+- **Modo apresentação não vaza mais valores no hover.** Todos os gráficos do painel passaram a usar o tooltip **nativo** do Chart.js (o tooltip global mostrava os R$ ao passar o mouse, mesmo apresentando). Agora, no modo apresentação, o hover mostra só **% / diferenças relativas** — nunca R$. *(`js/contratos.js`.)*
+- **Faturado × previsto:** linha de **100% (meta)** nos **dois modos** (no normal é a linha “Previsto (100%)” tracejada; na apresentação, uma linha tracejada de 100% sobre as barras de %). O **hover mostra a diferença previsto − faturado** e o % atingido.
+- **% Faturamento / % saldo:** o hover mostra o **%** nos dois modos; no modo normal acrescenta o **valor faturado** e o **gasto (MO+BEN)** do mês.
+- **Somas por coordenador, cliente e unidade:** cada barra agora tem o **% do total** em cima e no hover (R$ só no modo normal).
+- **Por ergonomista (contratos):** hover mostra o **% do total** (R$ só no modo normal).
+- **Por ergonomista (MO/BEN):** o hover mostra a **diferença disponível (teto − consumido)** e o **% disponível** sobre o total da ElevaLife e sobre o total dos contratos do filtro — **sem a linha de “Total”**.
+
+Service worker subiu para `sige-v140`. *(Esta versão inclui também tudo da v2.24.)*
+
+## V 2.24 — 19/11/2026
+
+Dashboard KPI Recorrentes em página única + aviso de atualização (Alexandre):
+
+- **Dashboard KPI Recorrentes numa única página:** acabaram os chips de alternância. Agora **Análises, Validações, Ações Cliente, Ações ElevaLife e Riscos ergonômicos** aparecem todos juntos, um embaixo do outro. *(`js/kpi-operacional.js`.)*
+- **Filtro de meses virou lista suspensa com checkbox** (dá para tickar vários meses) e ele atualiza **todos os gráficos** da página — antes só mexia nos riscos. Tem opção **“Todos os meses”**. O popover fica aberto enquanto você marca.
+- **Composição das Ações ElevaLife** ganhou **filtro de mês próprio** (um seletor só dele) — você escolhe o mês e vê a composição daquele mês.
+- **Inconsistências Sólides** continua ao final da página.
+- **Aviso de atualização:** quando sai uma nova versão, em vez de a página recarregar na hora (e o ergonomista perder o que estava preenchendo), aparece um **quadro avisando para salvar**, com contagem de **2 minutos**. Dá para **atualizar agora** depois de salvar; passados os 2 min a página recarrega sozinha. *(`index.html`.)*
+
+Service worker subiu para `sige-v139`.
+
+## V 2.23 — 19/11/2026
+
+Dashboard Geral + ajustes (Alexandre):
+
+- **Visão Geral:** novo card **“Riscos ergonômicos (por análise/posto)”** — cada análise/posto entra pela **maior graduação**; o total bate com os postos avaliados. *(`js/app.js`.)*
+- **Avaliações (AEP/AET):** agora mostra **AEPs criadas mês a mês** e **AETs criadas mês a mês** lado a lado.
+- **Restritos** passou a ocupar **uma linha inteira**; e o card **Absenteísmo** mostra **Atestados mês a mês** + **Dias perdidos mês a mês** lado a lado. *(`css/style.css`.)*
+- **Cases:** a **descrição do impacto** passou a ser pedida **sempre** (antes só no “Outro”). *(`js/cases.js`.)*
+- **Painel de Contratos:** removidos os cards **“% faturado (últ. mês)”** e **“% saldo budget (últ. mês)”**. *(`js/contratos.js`.)*
+
+Service worker subiu para `sige-v138`.
+
 ## V 2.22 — 19/11/2026
 
 Dashboard KPI Recorrentes e Preenchimento (Alexandre):

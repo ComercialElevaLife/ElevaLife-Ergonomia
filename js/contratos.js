@@ -406,6 +406,10 @@
   function renderPainel(area) {
     area.innerHTML = "";
     const ap = apresenta();
+    // V 2.25 (Alexandre): tooltip NATIVO do Chart.js (external:null) — o tooltip externo global
+    // mostrava os R$ no hover mesmo no modo apresentação. Aqui cada gráfico usa callbacks próprios
+    // que escondem os R$ quando está apresentando e mostram só % / diferenças relativas.
+    const tip = (cfg) => Object.assign({ enabled: true, external: null }, cfg || {});
     area.appendChild(barraFiltros(() => renderPainel(area)));
     // KPIs gerais
     const kcard = h("div", "cartao col-12");
@@ -431,8 +435,6 @@
     kg.appendChild(kpi(pctTxt(pct(somaMO, somaTetoMO)), "% MO utilizada"));
     kg.appendChild(kpi(moeda(somaBEN), "BEN atual (soma)", true));
     kg.appendChild(kpi(pctTxt(pct(somaBEN, somaTetoBEN)), "% BEN utilizada"));
-    kg.appendChild(kpi(dUlt ? pctTxt(dUlt.D) : "—", "% faturado (últ. mês)"));
-    kg.appendChild(kpi(dUlt ? pctTxt(dUlt.G) : "—", "% saldo budget (últ. mês)"));
     kcard.appendChild(kg); area.appendChild(kcard);
 
     // Gráfico 1: faturado × previsto por mês
@@ -448,37 +450,51 @@
     const labels = bud.map((b) => MESES_CURTO[b.Mes] + "/" + String(b.Ano).slice(2));
     const previsto = bud.map((b) => Math.round(n0(b.totalPrevisto)));
     const faturado = bud.map((b) => Math.round(n0(b.faturado)));
+    const pctFat = bud.map((b) => { const d = derivadosBudget(b); return d.D == null ? 0 : Math.round(d.D * 100); });
     if (ap) {
-      // modo apresentação: mostra % faturado (sem R$)
-      grafico("ct-fat-prev", { type: "bar", data: { labels, datasets: [{ label: "% faturado", data: bud.map((b) => { const d = derivadosBudget(b); return d.D == null ? 0 : Math.round(d.D * 100); }), backgroundColor: "#8E1B3A" }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { display: false } }, scales: { y: { beginAtZero: true, max: 110, title: { display: true, text: "%" } } } } });
+      // V 2.25 (Alexandre): modo apresentação — barras de % faturado + LINHA tracejada de 100% (meta).
+      // Hover mostra o % faturado e quanto falta para 100% (nunca R$).
+      grafico("ct-fat-prev", { type: "bar", data: { labels, datasets: [
+        { type: "bar", label: "% faturado", data: pctFat, backgroundColor: "#8E1B3A", order: 1 },
+        { type: "line", label: "Meta 100%", data: labels.map(() => 100), borderColor: "#444", borderDash: [6, 4], pointRadius: 0, fill: false, order: 0 },
+      ] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" }, datalabels: { display: (ctx) => ctx.dataset.type === "bar", anchor: "end", align: "end", clip: false, color: "#5a2a33", font: { weight: "700", size: 11 }, formatter: (v) => v + "%" }, tooltip: tip({ callbacks: { label: (ctx) => (ctx.dataset.type === "line" ? "Meta: 100%" : "% faturado: " + ctx.parsed.y + "%"), afterLabel: (ctx) => (ctx.dataset.type === "bar" ? "Faltam " + Math.max(0, 100 - ctx.parsed.y) + "% para 100%" : "") } }) }, scales: { y: { beginAtZero: true, max: 110, title: { display: true, text: "%" } } } } });
     } else {
-      // V 2.21 (Alexandre): "Previsto" vira LINHA (cinza) e "Faturado" fica em COLUNA (vermelho). % em cima.
-      grafico("ct-fat-prev", { type: "bar", data: { labels, datasets: [{ type: "line", label: "Previsto", data: previsto, borderColor: "#b7a7a9", backgroundColor: "#b7a7a9", pointBackgroundColor: "#b7a7a9", tension: 0.25, order: 0 }, { type: "bar", label: "Faturado", data: faturado, backgroundColor: "#8E1B3A", order: 1 }] }, options: { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 18 } }, plugins: { legend: { position: "bottom" }, datalabels: { display: true, anchor: "end", align: "end", color: (ctx) => (ctx.datasetIndex === 0 ? "#6b5b5c" : "#8E1B3A"), font: { weight: "700", size: 11 }, formatter: (v, ctx) => { const i = ctx.dataIndex; const prev = previsto[i] || 0; if (ctx.datasetIndex === 0) return prev ? "100%" : ""; return prev ? Math.round((faturado[i] / prev) * 100) + "%" : ""; } } }, scales: { y: { beginAtZero: true, title: { display: true, text: "R$" } } } } });
+      // V 2.21/2.25 (Alexandre): "Previsto" é LINHA (cinza, = 100% / meta) e "Faturado" COLUNA (vermelho); % em cima.
+      // Hover mostra os R$ e a DIFERENÇA (previsto − faturado) com o % atingido.
+      grafico("ct-fat-prev", { type: "bar", data: { labels, datasets: [{ type: "line", label: "Previsto (100%)", data: previsto, borderColor: "#b7a7a9", backgroundColor: "#b7a7a9", pointBackgroundColor: "#b7a7a9", borderDash: [6, 4], tension: 0.25, order: 0 }, { type: "bar", label: "Faturado", data: faturado, backgroundColor: "#8E1B3A", order: 1 }] }, options: { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 18 } }, plugins: { legend: { position: "bottom" }, datalabels: { display: true, anchor: "end", align: "end", color: (ctx) => (ctx.datasetIndex === 0 ? "#6b5b5c" : "#8E1B3A"), font: { weight: "700", size: 11 }, formatter: (v, ctx) => { const i = ctx.dataIndex; const prev = previsto[i] || 0; if (ctx.datasetIndex === 0) return prev ? "100%" : ""; return prev ? Math.round((faturado[i] / prev) * 100) + "%" : ""; } }, tooltip: tip({ callbacks: { label: (ctx) => (ctx.dataset.label || "") + ": " + moeda(ctx.parsed.y), afterBody: (items) => { const i = items[0].dataIndex; const prev = previsto[i] || 0, fat = faturado[i] || 0; const dif = prev - fat; const w = prev ? Math.round((fat / prev) * 100) : 0; return ["Diferença (previsto − faturado): " + moeda(dif), "Faturado = " + w + "% do previsto"]; } } }) }, scales: { y: { beginAtZero: true, title: { display: true, text: "R$" } } } } });
     }
     // V 2.14 (Alexandre): o % Faturamento/% Saldo começa no 1º mês com saldo já utilizado
     // (meses iniciais sem movimento — ex.: agosto zerado — poluíam a curva). Começa em setembro.
     let iniPct = bud.findIndex((b) => derivadosBudget(b).F > 0); if (iniPct < 0) iniPct = 0;
     const budP = bud.slice(iniPct); const labelsP = budP.map((b) => MESES_CURTO[b.Mes] + "/" + String(b.Ano).slice(2));
-    // V 2.21 (Alexandre): "% Faturamento" continua LINHA (azul) e "% Saldo budget" vira COLUNA (verde).
-    grafico("ct-pcts", { type: "bar", data: { labels: labelsP, datasets: [{ type: "line", label: "% Faturamento", data: budP.map((b) => { const d = derivadosBudget(b); return d.D == null ? null : Math.round(d.D * 100); }), borderColor: "#2E5A88", backgroundColor: "#2E5A88", pointBackgroundColor: "#2E5A88", tension: 0.3, fill: false, order: 0 }, { type: "bar", label: "% Saldo budget", data: budP.map((b) => { const d = derivadosBudget(b); return d.G == null ? null : Math.round(d.G * 100); }), backgroundColor: "#1E6B44", order: 1 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" }, datalabels: { display: false } }, scales: { y: { beginAtZero: true, title: { display: true, text: "%" } } } } });
+    const cFatP = budP.map((b) => derivadosBudget(b).C);     // faturado (R$) do mês
+    const fGastoP = budP.map((b) => derivadosBudget(b).F);   // gasto = MO + BEN consumidos (R$)
+    // V 2.21/2.25 (Alexandre): "% Faturamento" LINHA (azul) e "% Saldo budget" COLUNA (verde).
+    // Hover mostra o % em ambos os modos; no modo normal acrescenta o valor faturado e o gasto.
+    grafico("ct-pcts", { type: "bar", data: { labels: labelsP, datasets: [{ type: "line", label: "% Faturamento", data: budP.map((b) => { const d = derivadosBudget(b); return d.D == null ? null : Math.round(d.D * 100); }), borderColor: "#2E5A88", backgroundColor: "#2E5A88", pointBackgroundColor: "#2E5A88", tension: 0.3, fill: false, order: 0 }, { type: "bar", label: "% Saldo budget", data: budP.map((b) => { const d = derivadosBudget(b); return d.G == null ? null : Math.round(d.G * 100); }), backgroundColor: "#1E6B44", order: 1 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" }, datalabels: { display: false }, tooltip: tip({ callbacks: { label: (ctx) => { const v = ctx.parsed.y; return (ctx.dataset.label || "") + ": " + (v == null ? "—" : v + "%"); }, afterLabel: (ctx) => { if (ap || ctx.dataset.label !== "% Faturamento") return ""; const i = ctx.dataIndex; return ["Faturado: " + moeda(cFatP[i]), "Gasto (MO+BEN): " + moeda(fGastoP[i])]; } } }) }, scales: { y: { beginAtZero: true, title: { display: true, text: "%" } } } } });
     // por coordenador (no modo apresentação os nomes viram rótulos genéricos e o eixo de R$ some)
     const mapCo = {}; at.forEach((c) => { const k = c.Coordenador || "—"; mapCo[k] = (mapCo[k] || 0) + n0(c.ValorCtt); });
     const coNomes = Object.keys(mapCo); const coVals = coNomes.map((k) => Math.round(mapCo[k]));
     const coLabels = ap ? coNomes.map((_, i) => "Coordenador " + (i + 1)) : coNomes;
-    grafico("ct-coord", { type: "bar", data: { labels: coLabels, datasets: [{ label: "Soma de contratos", data: coVals, backgroundColor: "#6A4C93", borderRadius: 4 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { display: false }, tooltip: { enabled: !ap } }, scales: { x: { beginAtZero: true, display: !ap } } } });
+    // V 2.25 (Alexandre): rótulo de % do total em cima da barra + hover com R$ (modo normal) e % (sempre).
+    const totCo = coVals.reduce((s, v) => s + v, 0);
+    grafico("ct-coord", { type: "bar", data: { labels: coLabels, datasets: [{ label: "Soma de contratos", data: coVals, backgroundColor: "#6A4C93", borderRadius: 4 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, layout: { padding: { right: 48 } }, plugins: { legend: { display: false }, datalabels: { display: true, anchor: "end", align: "end", clip: false, color: "#4a3a6b", font: { weight: "700", size: 11 }, formatter: (v) => (totCo ? Math.round((v / totCo) * 100) + "%" : "") }, tooltip: tip({ callbacks: { label: (ctx) => { const v = ctx.parsed.x; const p = totCo ? Math.round((v / totCo) * 100) : 0; return ap ? (p + "% do total") : (moeda(v) + " (" + p + "% do total)"); } } }) }, scales: { x: { beginAtZero: true, display: !ap } } } });
 
     // ---- Por CLIENTE (grupo). Nomes de clientes NÃO somem no modo apresentação; o eixo R$ some.
     const cardCli = h("div", "cartao col-12"); cardCli.appendChild(h("div", "cartao-titulo", "Soma de contratos por cliente" + (ap ? " (valores ocultos)" : " (R$)")));
     const bc = h("div"); bc.style.cssText = "position:relative;height:340px"; const cc = h("canvas"); cc.id = "ct-cliente"; bc.appendChild(cc); cardCli.appendChild(bc); area.appendChild(cardCli);
     const mapCli = {}; at.forEach((c) => { const k = grupoLinha(c); mapCli[k] = (mapCli[k] || 0) + n0(c.ValorCtt); });
     const cliNomes = Object.keys(mapCli).sort((a, b) => mapCli[b] - mapCli[a]);
-    grafico("ct-cliente", { type: "bar", data: { labels: cliNomes, datasets: [{ label: "Soma de contratos", data: cliNomes.map((k) => Math.round(mapCli[k])), backgroundColor: "#8E1B3A", borderRadius: 4 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { display: false }, tooltip: { enabled: !ap } }, scales: { x: { beginAtZero: true, display: !ap, title: { display: !ap, text: "R$" } } } } });
+    const cliVals = cliNomes.map((k) => Math.round(mapCli[k])); const totCli = cliVals.reduce((s, v) => s + v, 0);
+    grafico("ct-cliente", { type: "bar", data: { labels: cliNomes, datasets: [{ label: "Soma de contratos", data: cliVals, backgroundColor: "#8E1B3A", borderRadius: 4 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, layout: { padding: { right: 48 } }, plugins: { legend: { display: false }, datalabels: { display: true, anchor: "end", align: "end", clip: false, color: "#8E1B3A", font: { weight: "700", size: 11 }, formatter: (v) => (totCli ? Math.round((v / totCli) * 100) + "%" : "") }, tooltip: tip({ callbacks: { label: (ctx) => { const v = ctx.parsed.x; const p = totCli ? Math.round((v / totCli) * 100) : 0; return ap ? (p + "% do total") : (moeda(v) + " (" + p + "% do total)"); } } }) }, scales: { x: { beginAtZero: true, display: !ap, title: { display: !ap, text: "R$" } } } } });
 
     // ---- Por UNIDADE (top 15 por valor). Rótulo "Cliente · Unidade". Clientes/unidades não somem; R$ some.
     const cardUni = h("div", "cartao col-12"); cardUni.appendChild(h("div", "cartao-titulo", "Top unidades por valor de contrato" + (ap ? " (valores ocultos)" : " (R$)")));
     const bu = h("div"); bu.style.cssText = "position:relative;height:420px"; const cu = h("canvas"); cu.id = "ct-unidade"; bu.appendChild(cu); cardUni.appendChild(bu); area.appendChild(cardUni);
     const urows = at.filter((c) => n0(c.ValorCtt) > 0).map((c) => ({ rot: grupoLinha(c) + " · " + (c.Unidade || "—"), v: n0(c.ValorCtt) })).sort((a, b) => b.v - a.v).slice(0, 15);
-    grafico("ct-unidade", { type: "bar", data: { labels: urows.map((x) => x.rot), datasets: [{ label: "Valor do contrato", data: urows.map((x) => Math.round(x.v)), backgroundColor: "#0E7C86", borderRadius: 4 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { display: false }, tooltip: { enabled: !ap } }, scales: { x: { beginAtZero: true, display: !ap, title: { display: !ap, text: "R$" } } } } });
+    // % calculado sobre o total de TODOS os contratos do filtro (não só o top 15).
+    const totUniGeral = at.reduce((s, c) => s + n0(c.ValorCtt), 0);
+    grafico("ct-unidade", { type: "bar", data: { labels: urows.map((x) => x.rot), datasets: [{ label: "Valor do contrato", data: urows.map((x) => Math.round(x.v)), backgroundColor: "#0E7C86", borderRadius: 4 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, layout: { padding: { right: 48 } }, plugins: { legend: { display: false }, datalabels: { display: true, anchor: "end", align: "end", clip: false, color: "#0E7C86", font: { weight: "700", size: 11 }, formatter: (v) => (totUniGeral ? Math.round((v / totUniGeral) * 100) + "%" : "") }, tooltip: tip({ callbacks: { label: (ctx) => { const v = ctx.parsed.x; const p = totUniGeral ? Math.round((v / totUniGeral) * 100) : 0; return ap ? (p + "% do total") : (moeda(v) + " (" + p + "% do total)"); } } }) }, scales: { x: { beginAtZero: true, display: !ap, title: { display: !ap, text: "R$" } } } } });
 
     // ---- Por ERGONOMISTA: soma de contratos + nº de unidades. Nomes de ergonomistas SOMEM no modo apresentação.
     const cardErg = h("div", "cartao col-12"); cardErg.appendChild(h("div", "cartao-titulo", "Por ergonomista — soma de contratos e nº de unidades" + (ap ? " (nomes/valores ocultos)" : "")));
@@ -486,7 +502,8 @@
     const mapErg = {}; at.forEach((c) => { const k = c.Ergonomista || "—"; const e = mapErg[k] || (mapErg[k] = { soma: 0, n: 0 }); e.soma += n0(c.ValorCtt); e.n += 1; });
     const ergNomes = Object.keys(mapErg).sort((a, b) => mapErg[b].soma - mapErg[a].soma);
     const ergLabels = ap ? ergNomes.map((_, i) => "Ergonomista " + (i + 1)) : ergNomes;
-    grafico("ct-ergo", { type: "bar", data: { labels: ergLabels, datasets: [{ label: "Soma de contratos (R$)", yAxisID: "y", data: ergNomes.map((k) => Math.round(mapErg[k].soma)), backgroundColor: "#8E1B3A", borderRadius: 4 }, { label: "Nº de unidades", yAxisID: "y1", type: "line", data: ergNomes.map((k) => mapErg[k].n), borderColor: "#1E6B44", backgroundColor: "#1E6B44", tension: 0.3 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" }, datalabels: { display: false }, tooltip: { enabled: true } }, scales: { y: { beginAtZero: true, display: !ap, position: "left", title: { display: !ap, text: "R$" } }, y1: { beginAtZero: true, position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "unidades" } } } } });
+    const totErg = ergNomes.reduce((s, k) => s + mapErg[k].soma, 0);
+    grafico("ct-ergo", { type: "bar", data: { labels: ergLabels, datasets: [{ label: "Soma de contratos (R$)", yAxisID: "y", data: ergNomes.map((k) => Math.round(mapErg[k].soma)), backgroundColor: "#8E1B3A", borderRadius: 4 }, { label: "Nº de unidades", yAxisID: "y1", type: "line", data: ergNomes.map((k) => mapErg[k].n), borderColor: "#1E6B44", backgroundColor: "#1E6B44", tension: 0.3 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" }, datalabels: { display: false }, tooltip: tip({ callbacks: { label: (ctx) => { if ((ctx.dataset.label || "").indexOf("unidades") >= 0) return ctx.parsed.y + " unidade(s)"; const v = ctx.parsed.y; const p = totErg ? Math.round((v / totErg) * 100) : 0; return ap ? ("Contratos: " + p + "% do total") : ("Contratos: " + moeda(v) + " (" + p + "% do total)"); } } }) }, scales: { y: { beginAtZero: true, display: !ap, position: "left", title: { display: !ap, text: "R$" } }, y1: { beginAtZero: true, position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "unidades" } } } } });
 
     // ---- Por ERGONOMISTA: MO e BEN — disponível (teto) × consumido. V 2.14 (Alexandre).
     const cardMB = h("div", "cartao col-12"); cardMB.appendChild(h("div", "cartao-titulo", "Por ergonomista — MO e BEN: disponível (teto) × consumido" + (ap ? " (valores ocultos)" : " (R$)")));
@@ -494,12 +511,20 @@
     const mapMB = {}; at.forEach((c) => { const k = c.Ergonomista || "—"; const d = derivadosCoord(c); const e = mapMB[k] || (mapMB[k] = { tMO: 0, cMO: 0, tBEN: 0, cBEN: 0 }); e.tMO += d.tetoMO; e.cMO += n0(c.MOAtual); e.tBEN += d.tetoBen; e.cBEN += n0(c.BenefAtual); });
     const mbNomes = Object.keys(mapMB).sort((a, b) => mapMB[b].tMO - mapMB[a].tMO);
     const mbLabels = ap ? mbNomes.map((_, i) => "Ergonomista " + (i + 1)) : mbNomes;
+    // V 2.25 (Alexandre): hover mostra a DIFERENÇA disponível (teto − consumido) e o % desse
+    // disponível sobre o total da ElevaLife (todos os contratos) e sobre o total dos contratos do
+    // filtro atual. Sem a linha de "Total" (um único bloco por ergonomista).
+    const totalEleva = somaContratos();   // todos os contratos ativos (ignora filtro) = total ElevaLife
+    const totalCtt = somaC;               // total dos contratos do recorte atual
     grafico("ct-ergo-mobe", { type: "bar", data: { labels: mbLabels, datasets: [
       { label: "Teto MO (disponível)", data: mbNomes.map((k) => Math.round(mapMB[k].tMO)), backgroundColor: "#cdbfc0" },
       { label: "MO consumida", data: mbNomes.map((k) => Math.round(mapMB[k].cMO)), backgroundColor: "#8E1B3A" },
       { label: "Teto BEN (disponível)", data: mbNomes.map((k) => Math.round(mapMB[k].tBEN)), backgroundColor: "#bcd6c6" },
       { label: "BEN consumido", data: mbNomes.map((k) => Math.round(mapMB[k].cBEN)), backgroundColor: "#1E6B44" },
-    ] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" }, datalabels: { display: false }, tooltip: { enabled: true } }, scales: { y: { beginAtZero: true, display: !ap, title: { display: !ap, text: "R$" } } } } });
+    ] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" }, datalabels: { display: false }, tooltip: tip({ displayColors: false, filter: (it) => it.datasetIndex === 0, callbacks: {
+      title: (items) => mbLabels[items[0].dataIndex],
+      label: (ctx) => { const i = ctx.dataIndex; const e = mapMB[mbNomes[i]]; const dMO = e.tMO - e.cMO, dBEN = e.tBEN - e.cBEN, disp = dMO + dBEN; const pEl = totalEleva ? Math.round((disp / totalEleva) * 100) : 0; const pCt = totalCtt ? Math.round((disp / totalCtt) * 100) : 0; const L = []; if (!ap) { L.push("MO: teto " + moeda(e.tMO) + " · usado " + moeda(e.cMO)); L.push("   → disponível MO: " + moeda(dMO)); L.push("BEN: teto " + moeda(e.tBEN) + " · usado " + moeda(e.cBEN)); L.push("   → disponível BEN: " + moeda(dBEN)); L.push("Disponível total: " + moeda(disp)); } L.push("% disponível vs ElevaLife: " + pEl + "%"); L.push("% disponível vs contratos (filtro): " + pCt + "%"); return L; },
+    } }) }, scales: { y: { beginAtZero: true, display: !ap, title: { display: !ap, text: "R$" } } } } });
   }
 
   // ================================================================= Acessos (allowlist)
