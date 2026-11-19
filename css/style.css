@@ -2508,6 +2508,13 @@ table.kpi-grade thead th { background: var(--vinho, #6b2f37); color: #fff; posit
 .kpi-pct { font-weight: 700; }
 table.kpi-grade tr.kpi-total td { background: var(--fundo-suave, #f5efea); font-variant-numeric: tabular-nums; }
 table.kpi-grade tbody tr:hover { background: #fcf7f5; }
+/* V 2.22 (Alexandre): no Preenchimento/Inconsistências, cabeçalho (linha vermelha) e 1ª coluna
+   (Cliente/Colaborador) ficam fixos ao rolar. */
+table.kpi-grade-fixa thead th { position: sticky; top: 0; z-index: 5; }
+table.kpi-grade-fixa thead tr:nth-child(2) th { top: 27px; }
+table.kpi-grade-fixa th:first-child, table.kpi-grade-fixa td:first-child { position: sticky; left: 0; z-index: 4; background: var(--card, #fff); }
+table.kpi-grade-fixa thead th:first-child { z-index: 7; background: var(--vinho, #6b2f37); }
+table.kpi-grade-fixa tr.kpi-total td:first-child { background: var(--fundo-suave, #f5efea); }
 .kpi-chip-ativo { background: var(--vinho, #6b2f37) !important; color: #fff !important; border-color: var(--vinho, #6b2f37) !important; }
 .coord-kpi { background: var(--card, #fff); border: 1px solid var(--linha, #e5d8d8); border-radius: 12px; padding: 14px 16px; }
 .coord-kpi .coord-kpi-valor { font-size: 24px; font-weight: 800; color: var(--vinho-escuro, #5a2a33); }

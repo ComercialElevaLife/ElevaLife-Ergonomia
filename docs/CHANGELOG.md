@@ -2,6 +2,17 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.22 — 19/11/2026
+
+Dashboard KPI Recorrentes e Preenchimento (Alexandre):
+
+- **Dashboard com filtro único no topo** (Ano + vários meses) — o filtro antigo que não ajudava foi removido; o de baixo subiu e virou o único, melhorado (multi-mês + “Todos os meses”). Cards e composição agregam os meses escolhidos. *(`js/kpi-operacional.js`.)*
+- **Visões em chips:** Análises, Validações, Ações Cliente, Ações ElevaLife, **Riscos ergonômicos** e **Inconsistências Sólides**. Cada gráfico só aparece quando a visão é escolhida. Os gráficos de **risco** (distribuição + redução) e de **inconsistências** (mês + por colaborador) passaram a viver aqui.
+- A sub-aba **Inconsistências Sólides** fica agora só com o **preenchimento** (a grade); os gráficos dela foram para o Dashboard.
+- **Preenchimento KPI:** a **coluna Cliente** e a **linha de cabeçalho (vermelha)** ficam **fixas** ao rolar para o lado/baixo. E a **Unidade** preenchida num mês passa a valer para os **meses seguintes** (outubro como base), **sem alterar os anteriores**. *(`js/kpi-operacional.js`, `css/style.css`.)*
+
+Service worker subiu para `sige-v137`.
+
 ## V 2.21 — 19/11/2026
 
 Ajustes de gráficos, R$ e organização do KPI (Alexandre):

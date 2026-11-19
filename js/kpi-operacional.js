@@ -94,6 +94,7 @@
   let anoInc = 2026;
   // V 2.15 (Alexandre): filtro próprio dos gráficos de risco (distribuição + redução) mês a mês.
   let riscoAno = null, riscoMeses = []; // riscoAno null = usa o ano do topo; riscoMeses vazio = todos com dados
+  let viewDash = "analises"; // V 2.22: visão escolhida no Dashboard KPI Recorrentes
 
   async function recarregar() {
     try { await DB().recarregar(["kpiOperacional", "kpiInconsistencia"]); } catch (e) { console.error(e); }
@@ -102,9 +103,25 @@
   // ================================================================= KPIs operacionais
   const CAMPOS_RISCO = ["riscoAltissimo", "riscoAlto", "riscoModerado", "riscoBaixo", "riscoTrivial"];
   function mesAnterior(ano, mes) { return mes === 0 ? { ano: ano - 1, mes: 11 } : { ano: ano, mes: mes - 1 }; }
+  // V 2.22 (Alexandre): Unidade preenchida num mês vale para os SEGUINTES (nunca para os anteriores).
+  // Busca a Unidade de um cliente no mês anterior mais recente que a tenha preenchida.
+  function unidadePrioriDe(ano, mes, cliente) {
+    const nc = String(cliente == null ? "" : cliente).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+    if (!nc) return "";
+    let a = ano, m = mes;
+    for (let i = 0; i < 24; i++) {
+      const pm = mesAnterior(a, m); a = pm.ano; m = pm.mes; const d = acharOp(a, m);
+      if (d && Array.isArray(d.Linhas)) {
+        const ln = d.Linhas.find((l) => String(l.Cliente || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim() === nc && String(l.Unidade || "").trim());
+        if (ln) return ln.Unidade;
+      }
+    }
+    return "";
+  }
+  function herdarUnidades(linhas, ano, mes) { linhas.forEach((l) => { if (!String(l.Unidade || "").trim()) { const u = unidadePrioriDe(ano, mes, l.Cliente); if (u) l.Unidade = u; } }); return linhas; }
   function linhasDoMes(ano, mes) {
     const doc = acharOp(ano, mes);
-    if (doc && Array.isArray(doc.Linhas)) return doc.Linhas.map((l) => Object.assign({}, l));
+    if (doc && Array.isArray(doc.Linhas)) return herdarUnidades(doc.Linhas.map((l) => Object.assign({}, l)), ano, mes);
     // V 1.99: mês ainda sem dados — herda a lista de clientes/gestores E os RISCOS do
     // inventário do mês anterior (os riscos acumulam de mês para mês, atravessando anos;
     // a Redução e os demais KPIs reiniciam zerados). Ex.: outubro → novembro → dezembro → jan/2027.
@@ -113,7 +130,7 @@
       const pm = mesAnterior(a, m); a = pm.ano; m = pm.mes;
       const d = acharOp(a, m);
       if (d && d.Linhas && d.Linhas.length) {
-        return d.Linhas.map((l) => { const o = { Cliente: l.Cliente, Unidade: l.Unidade, Gestor: l.Gestor }; CAMPOS_RISCO.forEach((k) => (o[k] = n0(l[k]))); return o; });
+        return herdarUnidades(d.Linhas.map((l) => { const o = { Cliente: l.Cliente, Unidade: l.Unidade, Gestor: l.Gestor }; CAMPOS_RISCO.forEach((k) => (o[k] = n0(l[k]))); return o; }), ano, mes);
       }
     }
     return [];
@@ -259,7 +276,7 @@
     // V 2.12 (Alexandre): datalist compartilhado com os clientes do cadastro + contador de ids.
     let _dlSeq = 0;
     const dlCli = h("datalist"); dlCli.id = "kpi-cli-dl"; clientesCadastro().forEach((c) => { const o = h("option"); o.value = c.nome; dlCli.appendChild(o); }); box.appendChild(dlCli);
-    const wrap = h("div", "tabela-scroll"); const tb = h("table", "tabela-dados kpi-grade");
+    const wrap = h("div", "tabela-scroll"); const tb = h("table", "tabela-dados kpi-grade kpi-grade-fixa");
     const thead = h("thead"); const tr1 = h("tr");
     const thCli = h("th", null, "Cliente"); thCli.rowSpan = 2; tr1.appendChild(thCli);
     const thUni = h("th", null, "Unidade"); thUni.rowSpan = 2; tr1.appendChild(thUni);
@@ -376,69 +393,86 @@
     area.appendChild(box);
   }
 
-  // V 2.21 (Alexandre): Dashboard KPI Recorrentes (só os gráficos) — sub-aba separada do preenchimento.
+  // meses com doc de KPI no ano; seleção efetiva do dashboard (vazio = todos com dados).
+  function mesesComDados(ano) { const a = []; for (let m = 0; m < 12; m++) { const d = acharOp(ano, m); if (d && d.Linhas && d.Linhas.length) a.push(m); } return a; }
+  function mesesDash(ano) { if (riscoMeses.length) return riscoMeses.slice().sort((a, b) => a - b); const cd = mesesComDados(ano); return cd.length ? cd : [mesOp]; }
+  function aggInd(ano, meses, chave) { let p = 0, r = 0; meses.forEach((m) => { const t = totMesIndicador(ano, m, chave); p += t.prev; r += t.real; }); return { prev: p, real: r, pct: p > 0 ? r / p : null }; }
+
+  // V 2.22 (Alexandre): Dashboard KPI Recorrentes — filtro único (ano + vários meses) no topo e
+  // "visões" em chips: 4 indicadores + Riscos ergonômicos + Inconsistências Sólides.
   function renderDashboard(area) {
     area.innerHTML = "";
     if (!ehAdmin()) { area.appendChild(cartaoVazio("Dashboard KPI Recorrentes", "Área restrita ao coordenador (Administrador).")); return; }
-    const st = { ano: anoOp, mes: mesOp };
+    riscoAno = anoOp;
+    const meses = mesesDash(anoOp);
+    const rotuloMeses = riscoMeses.length ? riscoMeses.slice().sort((a, b) => a - b).map((m) => MESES_CURTO[m]).join(", ") : "todos os meses";
+
+    // ---- filtro único (ano + vários meses) no topo
     const dcab = h("div", "cartao col-12"); const cab2 = h("div", "cadastro-cabecalho");
     cab2.appendChild(h("div", "cartao-titulo", "Dashboard KPI Recorrentes"));
-    const ctrls2 = h("div", "kpi-ctrls");
-    const selA2 = h("select"); anosDisponiveis().forEach((a) => { const o = h("option", null, String(a)); o.value = a; selA2.appendChild(o); }); selA2.value = st.ano; selA2.addEventListener("change", () => { anoOp = Number(selA2.value); mesOp = st.mes; renderDashboard(area); });
-    const selM2 = h("select"); MESES.forEach((m, i) => { const o = h("option", null, m); o.value = i; selM2.appendChild(o); }); selM2.value = st.mes; selM2.addEventListener("change", () => { mesOp = Number(selM2.value); anoOp = st.ano; renderDashboard(area); });
-    ctrls2.appendChild(rotuloCampo("Ano", selA2)); ctrls2.appendChild(rotuloCampo("Mês", selM2)); cab2.appendChild(ctrls2); dcab.appendChild(cab2);
+    const frTop = h("div", "kpi-ctrls"); frTop.style.flexWrap = "wrap";
+    const selA = h("select"); anosDisponiveis().forEach((a) => { const o = h("option", null, String(a)); o.value = a; if (a === anoOp) o.selected = true; selA.appendChild(o); });
+    selA.addEventListener("change", () => { anoOp = Number(selA.value); renderDashboard(area); });
+    const selM = h("select"); selM.multiple = true; selM.size = 4; selM.style.minWidth = "160px";
+    MESES.forEach((m, i) => { const o = h("option", null, m); o.value = i; if (riscoMeses.indexOf(i) !== -1) o.selected = true; selM.appendChild(o); });
+    selM.addEventListener("change", () => { riscoMeses = Array.from(selM.selectedOptions).map((o) => Number(o.value)); renderDashboard(area); });
+    const bTodos = h("button", "btn-cad-secundario", "Todos os meses"); bTodos.type = "button"; bTodos.addEventListener("click", () => { riscoMeses = []; renderDashboard(area); });
+    frTop.appendChild(rotuloCampo("Ano", selA)); frTop.appendChild(rotuloCampo("Meses (Ctrl/⌘ p/ vários)", selM)); frTop.appendChild(bTodos);
+    cab2.appendChild(frTop); dcab.appendChild(cab2);
+
+    // ---- cards (agregados pelos meses selecionados)
     const cards = h("div", "coord-kpis"); dcab.appendChild(cards);
-    const docS = acharOp(st.ano, st.mes); const linhasS = (docS && docS.Linhas) || [];
     const kc = (v, r, cor) => { const d = h("div", "coord-kpi"); const vv = h("div", "coord-kpi-valor", v); if (cor) vv.style.color = cor; d.appendChild(vv); d.appendChild(h("div", "coord-kpi-rot", r)); return d; };
-    cards.appendChild(kc(String(new Set(linhasS.map((l) => normNome(l.Cliente)).filter(Boolean)).size), "Clientes"));
-    cards.appendChild(kc(String(linhasS.filter((l) => String(l.Cliente || "").trim()).length), "Unidades"));
-    [["analises", "Análises"], ["valid", "Validações"], ["acoesCli", "Ações Cliente"], ["acoesEleva", "Ações ElevaLife"]].forEach(([k, rot]) => { const t = totMesIndicador(st.ano, st.mes, k); cards.appendChild(kc(pctTxt(t.pct), "% " + rot + " (" + t.real + "/" + t.prev + ")", corPct(t.pct))); });
+    const ultimoMes = meses[meses.length - 1]; const docU = acharOp(anoOp, ultimoMes); const linhasU = (docU && docU.Linhas) || [];
+    cards.appendChild(kc(String(new Set(linhasU.map((l) => normNome(l.Cliente)).filter(Boolean)).size), "Clientes"));
+    cards.appendChild(kc(String(linhasU.filter((l) => String(l.Cliente || "").trim()).length), "Unidades"));
+    [["analises", "Análises"], ["valid", "Validações"], ["acoesCli", "Ações Cliente"], ["acoesEleva", "Ações ElevaLife"]].forEach(([k, rot]) => { const t = aggInd(anoOp, meses, k); cards.appendChild(kc(pctTxt(t.pct), "% " + rot + " (" + t.real + "/" + t.prev + ")", corPct(t.pct))); });
     area.appendChild(dcab);
 
-    // gráfico de evolução por indicador (filtro) + composição ElevaLife + risco
-    const boxG = h("div", "cartao col-12");
-    boxG.appendChild(h("div", "cartao-titulo", "Evolução por indicador · " + st.ano));
-    boxG.appendChild(h("p", "aet-nota", "Coluna = % realizado no mês (com o número realizadas/previstas) · linha tracejada = meta (95%, exceto Ações Cliente = 75%). Escolha o indicador:"));
-    const chips = h("div"); chips.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px";
-    const resumoEl = h("div", "aet-rot"); resumoEl.style.cssText = "font-weight:700;margin:4px 0 8px";
-    const INDS = [["analises", "Análises"], ["valid", "Validações"], ["acoesCli", "Ações Cliente"], ["acoesEleva", "Ações ElevaLife"]];
-    INDS.forEach(([k, rot]) => {
-      const b = h("button", "btn-cad-secundario", rot); b.type = "button"; if (k === indEvol) b.classList.add("kpi-chip-ativo");
-      b.addEventListener("click", () => { indEvol = k; Array.from(chips.children).forEach((c) => c.classList.remove("kpi-chip-ativo")); b.classList.add("kpi-chip-ativo"); desenharEvolucao(st.ano, resumoEl); atualizarEleva(); });
-      chips.appendChild(b);
-    });
-    boxG.appendChild(chips); boxG.appendChild(resumoEl);
-    const gE = h("div"); gE.style.cssText = "position:relative;height:320px"; const cvE = h("canvas"); cvE.id = "kpi-combo"; gE.appendChild(cvE); boxG.appendChild(gE);
-    // Donut de composição das Ações ElevaLife — só aparece quando o indicador escolhido é "Ações ElevaLife".
-    const elevaWrap = h("div");
-    elevaWrap.appendChild(h("div", "cartao-titulo", "Composição das Ações ElevaLife · " + MESES[st.mes] + "/" + st.ano));
-    const ge = h("div"); ge.style.cssText = "position:relative;height:320px;margin-top:8px"; const cve = h("canvas"); cve.id = "kpi-eleva-comp"; ge.appendChild(cve); elevaWrap.appendChild(ge);
-    boxG.appendChild(elevaWrap);
-    function atualizarEleva() { const vis = indEvol === "acoesEleva"; elevaWrap.style.display = vis ? "" : "none"; if (vis) desenharDonutEleva(st.ano, st.mes); }
+    // ---- chips de visão + área do gráfico
+    const boxV = h("div", "cartao col-12");
+    const chips = h("div"); chips.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px";
+    const VIEWS = [["analises", "Análises"], ["valid", "Validações"], ["acoesCli", "Ações Cliente"], ["acoesEleva", "Ações ElevaLife"], ["riscos", "Riscos ergonômicos"], ["inconsistencias", "Inconsistências Sólides"]];
+    VIEWS.forEach(([k, rot]) => { const b = h("button", "btn-cad-secundario", rot); b.type = "button"; if (k === viewDash) b.classList.add("kpi-chip-ativo"); b.addEventListener("click", () => { viewDash = k; renderDashboard(area); }); chips.appendChild(b); });
+    const areaG = h("div");
+    boxV.appendChild(chips); boxV.appendChild(areaG); area.appendChild(boxV);
 
-    // ---- Gráficos de risco do inventário: mês a mês + redução, com filtro de ano/mês. V 2.15 (Alexandre).
-    if (riscoAno == null) riscoAno = st.ano;
-    boxG.appendChild(h("div", "cartao-titulo", "Riscos do inventário — por mês"));
-    const fr = h("div"); fr.style.cssText = "display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:4px 0 8px";
-    const selRA = h("select"); anosDisponiveis().forEach((a) => { const o = h("option", null, String(a)); o.value = a; if (a === riscoAno) o.selected = true; selRA.appendChild(o); });
-    selRA.addEventListener("change", () => { riscoAno = Number(selRA.value); desenharRiscos(); });
-    // V 2.21 (Alexandre): seleção de VÁRIOS meses (multi-seleção). Nada marcado = todos os meses com dados.
-    const selRM = h("select"); selRM.multiple = true; selRM.size = 6; selRM.style.minWidth = "150px";
-    MESES.forEach((m, i) => { const o = h("option", null, m); o.value = i; if (riscoMeses.indexOf(i) !== -1) o.selected = true; selRM.appendChild(o); });
-    selRM.addEventListener("change", () => { riscoMeses = Array.from(selRM.selectedOptions).map((o) => Number(o.value)); desenharRiscos(); });
-    const bTodos = h("button", "btn-cad-secundario", "Todos os meses"); bTodos.type = "button"; bTodos.addEventListener("click", () => { riscoMeses = []; desenharRiscos(); Array.from(selRM.options).forEach((o) => (o.selected = false)); });
-    const lblM = h("label", "kpi-campo"); lblM.appendChild(h("span", "aet-rot", "Meses (segure Ctrl/⌘ p/ vários)")); lblM.appendChild(selRM);
-    fr.appendChild(rotuloCampo("Ano", selRA)); fr.appendChild(lblM); fr.appendChild(bTodos); boxG.appendChild(fr);
-    boxG.appendChild(h("div", "cartao-titulo", "Distribuição de risco no inventário"));
-    const g3 = h("div"); g3.style.cssText = "position:relative;height:300px;margin-top:4px"; const cv3 = h("canvas"); cv3.id = "kpi-riscos-mes"; g3.appendChild(cv3); boxG.appendChild(g3);
-    boxG.appendChild(h("div", "cartao-titulo", "Redução de riscos por mês"));
-    const g4 = h("div"); g4.style.cssText = "position:relative;height:260px;margin-top:4px"; const cv4 = h("canvas"); cv4.id = "kpi-reducao-mes"; g4.appendChild(cv4); boxG.appendChild(g4);
-    area.appendChild(boxG);
-    desenharEvolucao(st.ano, resumoEl);
-    atualizarEleva();
-    desenharRiscos();
-    // expõe para o handler dos chips do indicador alternar o donut
-    boxG._atualizarEleva = atualizarEleva;
+    if (viewDash === "riscos") {
+      areaG.appendChild(h("div", "cartao-titulo", "Distribuição de risco no inventário · " + rotuloMeses));
+      const g3 = h("div"); g3.style.cssText = "position:relative;height:320px;margin-top:4px"; const cv3 = h("canvas"); cv3.id = "kpi-riscos-mes"; g3.appendChild(cv3); areaG.appendChild(g3);
+      areaG.appendChild(h("div", "cartao-titulo", "Redução de riscos por mês"));
+      const g4 = h("div"); g4.style.cssText = "position:relative;height:280px;margin-top:4px"; const cv4 = h("canvas"); cv4.id = "kpi-reducao-mes"; g4.appendChild(cv4); areaG.appendChild(g4);
+      desenharRiscos();
+    } else if (viewDash === "inconsistencias") {
+      areaG.appendChild(h("div", "cartao-titulo", "Inconsistências por mês · " + anoOp));
+      const g1 = h("div"); g1.style.cssText = "position:relative;height:280px"; const c1 = h("canvas"); c1.id = "inc-mes"; g1.appendChild(c1); areaG.appendChild(g1);
+      areaG.appendChild(h("div", "cartao-titulo", "Por colaborador (total no ano) · " + anoOp));
+      const g2 = h("div"); g2.style.cssText = "position:relative;margin-top:8px"; const c2 = h("canvas"); c2.id = "inc-colab"; g2.appendChild(c2); areaG.appendChild(g2);
+      desenharIncCharts(anoOp);
+    } else {
+      indEvol = viewDash;
+      areaG.appendChild(h("div", "cartao-titulo", "Evolução por indicador · " + anoOp));
+      areaG.appendChild(h("p", "aet-nota", "Coluna = % realizado no mês (realizadas/previstas) · linha tracejada = meta (95%, exceto Ações Cliente = 75%)."));
+      const resumoEl = h("div", "aet-rot"); resumoEl.style.cssText = "font-weight:700;margin:4px 0 8px"; areaG.appendChild(resumoEl);
+      const gE = h("div"); gE.style.cssText = "position:relative;height:340px"; const cvE = h("canvas"); cvE.id = "kpi-combo"; gE.appendChild(cvE); areaG.appendChild(gE);
+      if (viewDash === "acoesEleva") {
+        areaG.appendChild(h("div", "cartao-titulo", "Composição das Ações ElevaLife · " + rotuloMeses));
+        const ge = h("div"); ge.style.cssText = "position:relative;height:340px;margin-top:8px"; const cve = h("canvas"); cve.id = "kpi-eleva-comp"; ge.appendChild(cve); areaG.appendChild(ge);
+      }
+      desenharEvolucao(anoOp, resumoEl);
+      if (viewDash === "acoesEleva") desenharDonutEleva(anoOp, meses);
+    }
+  }
+  // V 2.22: desenha os dois gráficos de Inconsistências (mês + por colaborador) no ano.
+  function desenharIncCharts(ano) {
+    const linhas = linhasInc(ano);
+    const totMes = Array(12).fill(0); linhas.forEach((l) => { for (let m = 0; m < 12; m++) totMes[m] += n0(l.meses[m]); });
+    desenharGraficosInc(totMes);
+    const porColab = linhas.map((l) => ({ nome: l.Colaborador || "—", total: (l.meses || []).reduce((s, v) => s + n0(v), 0) })).filter((x) => x.total > 0).sort((a, b) => b.total - a.total);
+    const apI = !!(BI.apresentacaoAtiva && BI.apresentacaoAtiva());
+    const labels = apI ? porColab.map((_, i) => "Colaborador " + (i + 1)) : porColab.map((x) => x.nome);
+    const cv = document.getElementById("inc-colab"); if (cv && cv.parentElement) cv.parentElement.style.height = Math.max(280, porColab.length * 26 + 60) + "px";
+    grafico("inc-colab", { type: "bar", data: { labels, datasets: [{ label: "Inconsistências no ano", data: porColab.map((x) => x.total), backgroundColor: "#C0392B", borderRadius: 4 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true }, y: { ticks: { autoSkip: false, font: { size: 11 } } } } } });
   }
 
   // Totais do indicador em um mês: { prev, real, pct(0-1 ou null) }.
@@ -486,9 +520,9 @@
     });
   }
   // Donut da composição das Ações ElevaLife — com TODAS as porcentagens (rótulo fora da fatia).
-  function desenharDonutEleva(ano, mes) {
-    const doc = acharOp(ano, mes);
-    const comp = CONTADORES.map((c) => ({ rot: c.rotulo, val: (doc && doc.Linhas || []).reduce((s, l) => s + n0(l[c.chave]), 0) }));
+  function desenharDonutEleva(ano, meses) {
+    const ms = Array.isArray(meses) ? meses : [meses];
+    const comp = CONTADORES.map((c) => ({ rot: c.rotulo, val: ms.reduce((acc, m) => { const doc = acharOp(ano, m); return acc + (doc && doc.Linhas || []).reduce((s, l) => s + n0(l[c.chave]), 0); }, 0) }));
     const coresC = ["#8B3A42", "#E8731A", "#3A6EA5", "#2E7D5B", "#7A5195"];
     const totComp = comp.reduce((s, x) => s + x.val, 0);
     grafico("kpi-eleva-comp", { type: "doughnut", data: { labels: comp.map((x) => x.rot), datasets: [{ data: comp.map((x) => x.val), backgroundColor: coresC }] }, options: { responsive: true, maintainAspectRatio: false, layout: { padding: 24 }, plugins: { legend: { position: "right", labels: { generateLabels: (chart) => { const d = chart.data; return d.labels.map((l, i) => { const v = d.datasets[0].data[i]; const pc = totComp ? Math.round((v / totComp) * 100) : 0; return { text: l + " — " + v + " (" + pc + "%)", fillStyle: d.datasets[0].backgroundColor[i], strokeStyle: d.datasets[0].backgroundColor[i], index: i }; }); } } }, datalabels: { display: (ctx) => n0(ctx.dataset.data[ctx.dataIndex]) > 0, anchor: "end", align: "end", offset: 6, clamp: true, color: "#3a2a2e", backgroundColor: "rgba(255,255,255,.85)", borderRadius: 4, padding: 2, font: { size: 11, weight: "700" }, formatter: (v) => (totComp ? Math.round((v / totComp) * 100) + "%" : "") } } } });
@@ -530,7 +564,7 @@
     box.appendChild(cab);
     box.appendChild(h("p", "aet-nota", "Inconsistências sólides confirmadas por colaborador (aprovações/exclusões de ponto, foto em local inadequado, erros do colaborador, etc.). Uma contagem por mês — digite “NA” no mês em que o colaborador não fazia parte do time (fica em preto e sai das somas)."));
 
-    const wrap = h("div", "tabela-scroll"); const tb = h("table", "tabela-dados kpi-grade");
+    const wrap = h("div", "tabela-scroll"); const tb = h("table", "tabela-dados kpi-grade kpi-grade-fixa");
     const thead = h("thead"); const trh = h("tr");
     ["Colaborador", "Coordenador"].forEach((c) => trh.appendChild(h("th", null, c)));
     MESES_CURTO.forEach((m) => trh.appendChild(h("th", null, m)));
@@ -600,29 +634,8 @@
     rodape.appendChild(msg);
     box.appendChild(rodape);
     area.appendChild(box);
-
-    const boxG = h("div", "cartao col-12");
-    boxG.appendChild(h("div", "cartao-titulo", "Inconsistências por mês · " + st.ano));
-    const g1 = h("div"); g1.style.cssText = "position:relative;height:280px"; const cv1 = h("canvas"); cv1.id = "inc-mes"; g1.appendChild(cv1); boxG.appendChild(g1);
-    boxG.appendChild(h("div", "cartao-titulo", "Por colaborador (total no ano) · " + st.ano));
-    const g2 = h("div"); g2.style.cssText = "position:relative;margin-top:8px"; const cv2 = h("canvas"); cv2.id = "inc-colab"; g2.appendChild(cv2); boxG.appendChild(g2);
-    area.appendChild(boxG);
-    // V 2.03 (Alexandre): "Inconsistências por mês" saía em branco porque era desenhado
-    // dentro de redesenhar()/recomputar() ANTES do canvas entrar no DOM. Agora, com os
-    // canvases já na página, recalculamos o total por mês e desenhamos o gráfico de linha.
-    const totMes = Array(12).fill(0);
-    st.linhas.forEach((l) => { for (let m = 0; m < 12; m++) totMes[m] += n0(l.meses[m]); });
-    desenharGraficosInc(totMes);
-    // barras por colaborador
-    const porColab = st.linhas.map((l) => ({ nome: l.Colaborador || "—", total: l.meses.reduce((s, v) => s + n0(v), 0) })).filter((x) => x.total > 0).sort((a, b) => b.total - a.total);
-    // V 2.10 (Alexandre): mostrar TODOS os nomes. Antes a altura era fixa (420px) e o
-    // Chart.js escondia rótulos alternados (autoSkip) quando havia muitos colaboradores.
-    // Agora a altura cresce com a quantidade de colaboradores e o autoSkip fica desligado.
-    g2.style.height = Math.max(280, porColab.length * 26 + 60) + "px";
-    // V 2.15 (Alexandre): no modo apresentação os nomes dos colaboradores viram rótulos genéricos.
-    const apI = !!(BI.apresentacaoAtiva && BI.apresentacaoAtiva());
-    const colabLabels = apI ? porColab.map((_, i) => "Colaborador " + (i + 1)) : porColab.map((x) => x.nome);
-    grafico("inc-colab", { type: "bar", data: { labels: colabLabels, datasets: [{ label: "Inconsistências no ano", data: porColab.map((x) => x.total), backgroundColor: "#C0392B", borderRadius: 4 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true }, y: { ticks: { autoSkip: false, font: { size: 11 } } } } } });
+    // V 2.22 (Alexandre): os gráficos de inconsistências foram para o Dashboard KPI Recorrentes
+    // (visão "Inconsistências Sólides"). Esta sub-aba fica só com o preenchimento (a grade).
   }
   function desenharGraficosInc(totMes) {
     grafico("inc-mes", { type: "line", data: { labels: MESES_CURTO.slice(), datasets: [{ label: "Inconsistências", data: totMes.map((v) => v), borderColor: "#C0392B", backgroundColor: "#C0392B", tension: 0.3, fill: false }] }, options: { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 18 } }, plugins: { legend: { display: false }, datalabels: { display: true, align: "top", anchor: "end", color: "#C0392B", font: { weight: "600", size: 11 }, formatter: (v) => (v == null ? "" : v) } }, scales: { y: { beginAtZero: true } } } });
