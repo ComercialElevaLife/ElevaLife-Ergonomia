@@ -635,14 +635,8 @@
 
     async function salvar() {
       const erro = validar(); if (erro) { msg.hidden = false; msg.className = "aet-msg erro"; msg.textContent = erro; msg.scrollIntoView({ block: "nearest" }); return; }
-      // V 2.03 (Alexandre): ao finalizar a AET, confirma o cliente do KPI num painel na própria
-      // página (Etapa 2). "Voltar a editar" cancela o salvamento.
-      if (BI.confirmarKpiCliente) {
-        const sug = String(st.KpiCliente || st.Cliente || "").trim();
-        const vConf = await BI.confirmarKpiCliente({ tipo: "AET", sugestao: sug });
-        if (vConf === false) return;
-        st.KpiCliente = vConf;
-      }
+      // V 2.12 (Alexandre): vínculo com o KPI agora é por linha do KPI (cliente+unidade), então
+      // não se pergunta mais o cliente do KPI ao finalizar a AET — a contagem é automática.
       bSalvar.disabled = true; msg.hidden = false; msg.className = "aet-msg"; msg.textContent = "Salvando a AET…";
       try {
         // V 1.38: unidade/setor/posto/cargo novos entram no Cadastro Empresa

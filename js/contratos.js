@@ -82,8 +82,36 @@
   // ================================================================= sub-abas
   let subAtiva = "coordenadores";
   let anoBud = (new Date().getFullYear());
+
+  // V 2.14 (Alexandre): filtro compartilhado (cliente/unidade/ergonomista) aplicado na grade
+  // de Contratos E no Painel, para ver só as linhas/números daquele recorte.
+  let filtro = { cliente: "", unidade: "", ergonomista: "" };
+  function aplicaFiltro(lista) {
+    return lista.filter((c) =>
+      (!filtro.cliente || grupoLinha(c) === filtro.cliente) &&
+      (!filtro.unidade || String(c.Unidade || "").trim() === filtro.unidade) &&
+      (!filtro.ergonomista || String(c.Ergonomista || "").trim() === filtro.ergonomista));
+  }
+  function barraFiltros(aoMudar) {
+    const bar = h("div", "contratos-filtros");
+    const ats = ativos();
+    const uniq = (campo, fn) => Array.from(new Set(ats.filter(fn || (() => true)).map((c) => String(campo === "cliente" ? grupoLinha(c) : (c[campo] || "")).trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const mk = (rot, chave, opcoes) => {
+      const wrap = h("label", "contratos-filtro"); wrap.appendChild(h("span", "contratos-filtro-rot", rot));
+      const sel = h("select", "kpi-inp"); const o0 = h("option", null, "Todos"); o0.value = ""; sel.appendChild(o0);
+      opcoes.forEach((v) => { const o = h("option", null, v); o.value = v; if (filtro[chave] === v) o.selected = true; sel.appendChild(o); });
+      sel.addEventListener("change", () => { filtro[chave] = sel.value; if (chave === "cliente") filtro.unidade = ""; aoMudar(); });
+      wrap.appendChild(sel); return wrap;
+    };
+    bar.appendChild(mk("Cliente", "cliente", uniq("cliente")));
+    bar.appendChild(mk("Unidade", "unidade", uniq("Unidade", (c) => !filtro.cliente || grupoLinha(c) === filtro.cliente)));
+    bar.appendChild(mk("Ergonomista", "ergonomista", uniq("Ergonomista")));
+    const bl = h("button", "btn-cad-secundario", "Limpar filtros"); bl.type = "button"; bl.addEventListener("click", () => { filtro = { cliente: "", unidade: "", ergonomista: "" }; aoMudar(); });
+    bar.appendChild(bl);
+    return bar;
+  }
   const SUBABAS = [
-    { chave: "coordenadores", rotulo: "Coordenadores", montar: renderCoordenadores },
+    { chave: "coordenadores", rotulo: "Contratos", montar: renderCoordenadores },
     { chave: "inativos", rotulo: "Clientes inativos", montar: renderInativos },
     { chave: "analise", rotulo: "Análise mensal", montar: renderAnalise },
     { chave: "painel", rotulo: "Painel", montar: renderPainel },
@@ -106,11 +134,12 @@
   function renderCoordenadores(area) {
     area.innerHTML = "";
     const box = h("div", "cartao col-12");
-    const cab = h("div", "cadastro-cabecalho"); cab.appendChild(h("div", "cartao-titulo", "Coordenadores — contratos por cliente"));
+    const cab = h("div", "cadastro-cabecalho"); cab.appendChild(h("div", "cartao-titulo", "Contratos por cliente"));
     box.appendChild(cab);
     box.appendChild(h("div", "coord-sub", "Agrupado por cliente, uma linha por unidade. CH Coord. (=CH×10%), Teto MO (=$ CTT×30%), Teto Benefício (=$ CTT×5%) e Saldos são calculados. Cliente em pacote (várias unidades num só contrato) soma o valor UMA vez: o valor fica na unidade principal e as demais aparecem como “(pacote)”. Use o × para inativar. Clique em Salvar."));
+    box.appendChild(barraFiltros(() => renderCoordenadores(area)));
 
-    const linhas = ativos().map((c) => Object.assign({}, c));
+    const linhas = aplicaFiltro(ativos()).map((c) => Object.assign({}, c));
     // Ordena por grupo de cliente → cliente → unidade, para agrupar na tela.
     linhas.sort((a, b) => grupoLinha(a).localeCompare(grupoLinha(b)) || String(a.Cliente || "").localeCompare(String(b.Cliente || "")) || String(a.Unidade || "").localeCompare(String(b.Unidade || "")));
     // Primário de cada pacote (quem carrega o valor): o 1º com ValorCtt definido, senão o 1º do pacote.
@@ -138,12 +167,12 @@
       const tdCH = h("td", "num"); tdCH.appendChild(inp(l, "CHSem", "number", "kpi-inp-qtd", sec)); tr.appendChild(tdCH);
       const tdCHc = h("td", "num"); tr.appendChild(tdCHc);
       const tdCo = h("td", "ap-nome"); tdCo.appendChild(inp(l, "Coordenador", "text", "kpi-inp-txt")); tr.appendChild(tdCo);
-      const tdCtt = h("td", "num ap-dinheiro"); tdCtt.appendChild(inp(l, "ValorCtt", "number", "", sec)); tr.appendChild(tdCtt);
+      const tdCtt = h("td", "num ap-dinheiro"); if (!sec) tdCtt.appendChild(h("span", "contratos-rs", "R$")); tdCtt.appendChild(inp(l, "ValorCtt", "number", "", sec)); tr.appendChild(tdCtt);
       const tdV = h("td"); { const i = h("input", "kpi-inp"); i.type = "date"; i.value = l.VencContrato || ""; if (sec) { i.readOnly = true; i.classList.add("kpi-inp-ro"); } else { i.addEventListener("input", () => { l.VencContrato = i.value; }); } tdV.appendChild(i); } tr.appendChild(tdV);
       const tdTMO = h("td", "num ap-dinheiro"); tr.appendChild(tdTMO);
-      const tdMO = h("td", "num ap-dinheiro"); tdMO.appendChild(inp(l, "MOAtual", "number")); tr.appendChild(tdMO);
+      const tdMO = h("td", "num ap-dinheiro"); tdMO.appendChild(h("span", "contratos-rs", "R$")); tdMO.appendChild(inp(l, "MOAtual", "number")); tr.appendChild(tdMO);
       const tdTB = h("td", "num ap-dinheiro"); tr.appendChild(tdTB);
-      const tdB = h("td", "num ap-dinheiro"); tdB.appendChild(inp(l, "BenefAtual", "number")); tr.appendChild(tdB);
+      const tdB = h("td", "num ap-dinheiro"); tdB.appendChild(h("span", "contratos-rs", "R$")); tdB.appendChild(inp(l, "BenefAtual", "number")); tr.appendChild(tdB);
       const tdSMO = h("td", "num ap-dinheiro"); tr.appendChild(tdSMO);
       const tdSB = h("td", "num ap-dinheiro"); tr.appendChild(tdSB);
       const tdST = h("td", "num ap-dinheiro"); tr.appendChild(tdST);
@@ -377,13 +406,19 @@
   function renderPainel(area) {
     area.innerHTML = "";
     const ap = apresenta();
+    area.appendChild(barraFiltros(() => renderPainel(area)));
     // KPIs gerais
     const kcard = h("div", "cartao col-12");
     kcard.appendChild(h("div", "cartao-titulo", "Painel de Contratos & Budget"));
     const kg = h("div", "coord-kpis");
     const kpi = (v, r, din) => { const d = h("div", "coord-kpi"); d.appendChild(h("div", "coord-kpi-valor" + (din ? " ap-dinheiro" : ""), v)); d.appendChild(h("div", "coord-kpi-rot", r)); return d; };
-    const at = ativos();
-    const somaC = somaContratos();
+    const at = aplicaFiltro(ativos());
+    const somaC = at.reduce((s, c) => s + n0(c.ValorCtt), 0);
+    // Somas de MO/BEN (teto e consumido) respeitando o filtro — V 2.14 (Alexandre).
+    const somaTetoMO = at.reduce((s, c) => s + derivadosCoord(c).tetoMO, 0);
+    const somaMO = at.reduce((s, c) => s + n0(c.MOAtual), 0);
+    const somaTetoBEN = at.reduce((s, c) => s + derivadosCoord(c).tetoBen, 0);
+    const somaBEN = at.reduce((s, c) => s + n0(c.BenefAtual), 0);
     // último mês com budget
     const bud = docsBudget().slice().sort((a, b) => (a.Ano - b.Ano) || (a.Mes - b.Mes));
     const ultimo = bud[bud.length - 1];
@@ -392,6 +427,10 @@
     kg.appendChild(kpi(String(nCli), "Clientes"));
     kg.appendChild(kpi(String(at.length), "Unidades"));
     kg.appendChild(kpi(moeda(somaC), "Soma dos contratos (previsto)", true));
+    kg.appendChild(kpi(moeda(somaMO), "MO atual (soma)", true));
+    kg.appendChild(kpi(pctTxt(pct(somaMO, somaTetoMO)), "% MO utilizada"));
+    kg.appendChild(kpi(moeda(somaBEN), "BEN atual (soma)", true));
+    kg.appendChild(kpi(pctTxt(pct(somaBEN, somaTetoBEN)), "% BEN utilizada"));
     kg.appendChild(kpi(dUlt ? pctTxt(dUlt.D) : "—", "% faturado (últ. mês)"));
     kg.appendChild(kpi(dUlt ? pctTxt(dUlt.G) : "—", "% saldo budget (últ. mês)"));
     kcard.appendChild(kg); area.appendChild(kcard);
@@ -413,9 +452,13 @@
       // modo apresentação: mostra % faturado (sem R$)
       grafico("ct-fat-prev", { type: "bar", data: { labels, datasets: [{ label: "% faturado", data: bud.map((b) => { const d = derivadosBudget(b); return d.D == null ? 0 : Math.round(d.D * 100); }), backgroundColor: "#8E1B3A" }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { display: false } }, scales: { y: { beginAtZero: true, max: 110, title: { display: true, text: "%" } } } } });
     } else {
-      grafico("ct-fat-prev", { type: "bar", data: { labels, datasets: [{ label: "Previsto", data: previsto, backgroundColor: "#cdbfc0" }, { label: "Faturado", data: faturado, backgroundColor: "#8E1B3A" }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" }, datalabels: { display: false } }, scales: { y: { beginAtZero: true, title: { display: true, text: "R$" } } } } });
+      grafico("ct-fat-prev", { type: "bar", data: { labels, datasets: [{ label: "Previsto", data: previsto, backgroundColor: "#cdbfc0" }, { label: "Faturado", data: faturado, backgroundColor: "#8E1B3A" }] }, options: { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 18 } }, plugins: { legend: { position: "bottom" }, datalabels: { display: true, anchor: "end", align: "end", color: (ctx) => (ctx.datasetIndex === 0 ? "#6b5b5c" : "#8E1B3A"), font: { weight: "700", size: 11 }, formatter: (v, ctx) => { const i = ctx.dataIndex; const prev = previsto[i] || 0; if (ctx.datasetIndex === 0) return prev ? "100%" : ""; return prev ? Math.round((faturado[i] / prev) * 100) + "%" : ""; } } }, scales: { y: { beginAtZero: true, title: { display: true, text: "R$" } } } } });
     }
-    grafico("ct-pcts", { type: "line", data: { labels, datasets: [{ label: "% Faturamento", data: bud.map((b) => { const d = derivadosBudget(b); return d.D == null ? null : Math.round(d.D * 100); }), borderColor: "#2E5A88", backgroundColor: "#2E5A88", tension: 0.3, fill: false }, { label: "% Saldo budget", data: bud.map((b) => { const d = derivadosBudget(b); return d.G == null ? null : Math.round(d.G * 100); }), borderColor: "#1E6B44", backgroundColor: "#1E6B44", tension: 0.3, fill: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" }, datalabels: { display: false } }, scales: { y: { beginAtZero: true, title: { display: true, text: "%" } } } } });
+    // V 2.14 (Alexandre): o % Faturamento/% Saldo começa no 1º mês com saldo já utilizado
+    // (meses iniciais sem movimento — ex.: agosto zerado — poluíam a curva). Começa em setembro.
+    let iniPct = bud.findIndex((b) => derivadosBudget(b).F > 0); if (iniPct < 0) iniPct = 0;
+    const budP = bud.slice(iniPct); const labelsP = budP.map((b) => MESES_CURTO[b.Mes] + "/" + String(b.Ano).slice(2));
+    grafico("ct-pcts", { type: "line", data: { labels: labelsP, datasets: [{ label: "% Faturamento", data: budP.map((b) => { const d = derivadosBudget(b); return d.D == null ? null : Math.round(d.D * 100); }), borderColor: "#2E5A88", backgroundColor: "#2E5A88", tension: 0.3, fill: false }, { label: "% Saldo budget", data: budP.map((b) => { const d = derivadosBudget(b); return d.G == null ? null : Math.round(d.G * 100); }), borderColor: "#1E6B44", backgroundColor: "#1E6B44", tension: 0.3, fill: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" }, datalabels: { display: false } }, scales: { y: { beginAtZero: true, title: { display: true, text: "%" } } } } });
     // por coordenador (no modo apresentação os nomes viram rótulos genéricos e o eixo de R$ some)
     const mapCo = {}; at.forEach((c) => { const k = c.Coordenador || "—"; mapCo[k] = (mapCo[k] || 0) + n0(c.ValorCtt); });
     const coNomes = Object.keys(mapCo); const coVals = coNomes.map((k) => Math.round(mapCo[k]));
@@ -442,6 +485,19 @@
     const ergNomes = Object.keys(mapErg).sort((a, b) => mapErg[b].soma - mapErg[a].soma);
     const ergLabels = ap ? ergNomes.map((_, i) => "Ergonomista " + (i + 1)) : ergNomes;
     grafico("ct-ergo", { type: "bar", data: { labels: ergLabels, datasets: [{ label: "Soma de contratos (R$)", yAxisID: "y", data: ergNomes.map((k) => Math.round(mapErg[k].soma)), backgroundColor: "#8E1B3A", borderRadius: 4 }, { label: "Nº de unidades", yAxisID: "y1", type: "line", data: ergNomes.map((k) => mapErg[k].n), borderColor: "#1E6B44", backgroundColor: "#1E6B44", tension: 0.3 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" }, datalabels: { display: false }, tooltip: { enabled: true } }, scales: { y: { beginAtZero: true, display: !ap, position: "left", title: { display: !ap, text: "R$" } }, y1: { beginAtZero: true, position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "unidades" } } } } });
+
+    // ---- Por ERGONOMISTA: MO e BEN — disponível (teto) × consumido. V 2.14 (Alexandre).
+    const cardMB = h("div", "cartao col-12"); cardMB.appendChild(h("div", "cartao-titulo", "Por ergonomista — MO e BEN: disponível (teto) × consumido" + (ap ? " (valores ocultos)" : " (R$)")));
+    const bmb = h("div"); bmb.style.cssText = "position:relative;height:360px"; const cmb = h("canvas"); cmb.id = "ct-ergo-mobe"; bmb.appendChild(cmb); cardMB.appendChild(bmb); area.appendChild(cardMB);
+    const mapMB = {}; at.forEach((c) => { const k = c.Ergonomista || "—"; const d = derivadosCoord(c); const e = mapMB[k] || (mapMB[k] = { tMO: 0, cMO: 0, tBEN: 0, cBEN: 0 }); e.tMO += d.tetoMO; e.cMO += n0(c.MOAtual); e.tBEN += d.tetoBen; e.cBEN += n0(c.BenefAtual); });
+    const mbNomes = Object.keys(mapMB).sort((a, b) => mapMB[b].tMO - mapMB[a].tMO);
+    const mbLabels = ap ? mbNomes.map((_, i) => "Ergonomista " + (i + 1)) : mbNomes;
+    grafico("ct-ergo-mobe", { type: "bar", data: { labels: mbLabels, datasets: [
+      { label: "Teto MO (disponível)", data: mbNomes.map((k) => Math.round(mapMB[k].tMO)), backgroundColor: "#cdbfc0" },
+      { label: "MO consumida", data: mbNomes.map((k) => Math.round(mapMB[k].cMO)), backgroundColor: "#8E1B3A" },
+      { label: "Teto BEN (disponível)", data: mbNomes.map((k) => Math.round(mapMB[k].tBEN)), backgroundColor: "#bcd6c6" },
+      { label: "BEN consumido", data: mbNomes.map((k) => Math.round(mapMB[k].cBEN)), backgroundColor: "#1E6B44" },
+    ] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" }, datalabels: { display: false }, tooltip: { enabled: true } }, scales: { y: { beginAtZero: true, display: !ap, title: { display: !ap, text: "R$" } } } } });
   }
 
   // ================================================================= Acessos (allowlist)

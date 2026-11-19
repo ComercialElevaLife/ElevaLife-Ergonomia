@@ -2,6 +2,97 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.20 — 19/11/2026
+
+- **Apresentação mais próxima da diretoria (Alexandre).** O gerador de apresentação ganhou: um slide de **Composição das Ações ElevaLife** (rosca com as porcentagens: Jurídico, PCD/Restritos, DDS/Treino/Blitz, COERGO, Outras) e **um slide por case aprovado** (até 6), com **antes/depois em imagem**, risco e impacto — no estilo dos cases da apresentação da diretoria. *(`js/apresentacao.js`.)*
+
+Service worker subiu para `sige-v135`.
+
+## V 2.19 — 19/11/2026
+
+- **Cronograma de Avaliações: importação por planilha (Alexandre).** Além do cadastro manual, agora há **“⬆ Importar planilha”** (e **“⬇ Modelo”**) no cronograma de Avaliações. A planilha (Excel/CSV) com colunas **Cliente, Unidade, Setor, Cargo, Posto, Qtd** é lida e **agrupada por cliente+unidade** (as linhas viram os itens de setor/cargo/posto, somando o Total necessário). Depois é só conferir e Salvar. *(`js/cronogramas.js`.)*
+
+Service worker subiu para `sige-v134`.
+
+## V 2.18 — 19/11/2026
+
+Bloco Gerar apresentação (Alexandre) — sub-aba da Coordenação:
+
+- **Nova sub-aba “Gerar apresentação”** (Coordenação). Com um clique, monta um **PowerPoint padrão Eleva** com os KPIs do mês escolhido (ano/mês): capa, divisor “Recorrentes”, **performance dos 4 indicadores** (previsto × realizado, com % e gráfico), **riscos do inventário**, **inconsistências Sólides** (ano), **faturamento** e **gastos** (quando há budget), **cases aprovados** do mês e encerramento. *(Versão simplificada, no espírito da apresentação mensal da diretoria; evolui depois para ficar idêntica.)* Usa a biblioteca PptxGenJS. *(`js/apresentacao.js`, `js/coordenacao.js`, `index.html`.)*
+
+Service worker subiu para `sige-v133`.
+
+## V 2.17 — 19/11/2026
+
+Bloco CASES (Alexandre) — aba nova de reporte de cases:
+
+- **Nova aba “Cases”** (equipe; escondida para o cliente). O ergonomista reporta um case com **cliente**, **unidade**, **data**, **risco antigo → atual**, **impacto** (redução de tempo, melhora de produtividade ou “Outro”) e **mídia do ANTES e do DEPOIS** — **foto ou vídeo por upload**.
+- **Aprovação do coordenador:** o case nasce “Pendente”. Só depois de **Aprovado** (por quem está na lista de aprovadores — padrão: o Administrador; dá para editar a lista) ele conta. Há também Reprovar.
+- **KPI:** nova coluna **“Cases reportados”** no KPI recorrente, abastecida automaticamente pelos cases **aprovados** no mês (pela data do case), respeitando o vínculo **cliente+unidade**.
+- **PPT de 1 slide padrão Eleva**: botão “Gerar PPT” em cada case monta um slide com antes/depois (imagens; vídeo entra como aviso), risco e impacto. Biblioteca **PptxGenJS** incluída em `vendor/libs/`.
+- Coleções novas no backend: **`caseErgo`** (1 doc por case, por cliente) e **`caseConfig`** (aprovadores, GLOBAL). *(`js/cases.js`, `js/kpi-operacional.js`, `js/app.js`, `js/db.js`, `api/src/functions/entidades.js`, `index.html`, `css/style.css`, `vendor/libs/pptxgen.bundle.js`.)* **Mexe no backend — requer republicar a API.**
+
+Service worker subiu para `sige-v132`.
+
+## V 2.16 — 19/11/2026
+
+Bloco Cronogramas (Alexandre) — módulo novo, sub-aba do Ergonomista:
+
+- **Nova sub-aba “Cronogramas”** (Ergonomista), com três cronogramas: **Avaliações**, **Validação** e **Blitz ergonômica**. Um cronograma por ergonomista/ano; cada linha marca **cliente+unidade** (regra de vínculo do KPI).
+- **Avaliações:** para cada cliente+unidade, detalhe de **setores/cargos/postos + quantidade** (a soma vira o “Total necessário”). A **meta mensal** (coordenador) abastece o **previsto de Análises** do KPI; o **real** do mês vem automaticamente das AEP **criadas** no mês.
+- **Validação:** total = AEP criadas no sistema (cliente+unidade). Meta mensal (coordenador) → **previsto de Validações**; real do mês = AEP que viram **“Concluída”**.
+- **Blitz:** sem total. Meta mensal (coordenador) → **previsto de Ações ElevaLife**; o ergonomista preenche o **real** mês a mês, que abastece a coluna **“DDS / Treinamento / Blitz”** do KPI.
+- Abastecimento do KPI é **idempotente** (não duplica) e **só** para linhas com cliente E unidade. Nova coleção **`cronograma`** no backend. *(`js/cronogramas.js`, `js/kpi-operacional.js`, `js/agenda-ergo.js`, `js/db.js`, `api/src/functions/entidades.js`, `index.html`.)* **Mexe no backend — requer republicar a API.**
+- *Pendente da próxima iteração:* importação do cadastro de avaliações **por planilha** (hoje o cadastro é manual).
+
+Service worker subiu para `sige-v131`.
+
+## V 2.15 — 19/11/2026
+
+Bloco Gráficos KPI/Coordenação (Alexandre):
+
+- **Risco do inventário mês a mês.** O gráfico de distribuição de risco passou a mostrar **mês a mês** dentro do ano (2026 começa em outubro, quando há dados), com uma série por nível (Altíssimo…Trivial). *(`js/kpi-operacional.js`.)*
+- **Gráfico separado de “Redução de riscos por mês”** (comparação mês a mês).
+- **Filtro de Ano e Mês** para os dois gráficos de risco (Mês = “Todos os meses” mostra o ano inteiro).
+- **Donut “Composição das Ações ElevaLife”:** mostra **todas as porcentagens** (rótulo numa caixinha fora da fatia) e **só aparece quando o indicador escolhido em cima é “Ações ElevaLife”**.
+- **Modo apresentação corrigido na Inconsistência Sólides:** nomes de colaborador/coordenador agora somem (grade) e o gráfico “Por colaborador” usa rótulos genéricos (“Colaborador 1, 2…”).
+
+Service worker subiu para `sige-v130`.
+
+## V 2.14 — 18/11/2026
+
+Bloco Contratos (Alexandre):
+
+- **Dashboard em tela cheia.** O `main` era um item flex sem largura definida e, em abas de conteúdo estreito (como o Painel de Contratos), encolhia e ficava “centralizado”. Agora ocupa toda a largura, como as outras dashboards. *(`css/style.css`.)*
+- **Filtro por Cliente / Unidade / Ergonomista** na aba Contratos e no Painel — aplica nas **linhas da grade** e em **todos os números/gráficos** do painel (some só o que for do recorte). Botão “Limpar filtros”. *(`js/contratos.js`.)*
+- **Cards de soma de MO atual e BEN atual** (com % utilizada) no Painel.
+- **Gráfico novo: por ergonomista — MO e BEN disponível (teto) × consumido**, pelos clientes/unidades que ele atende.
+- **R$ padronizado**: os campos editáveis (\\$ CTT, MO atual, Benef. atual) agora mostram **R$** antes do número, igual aos calculados.
+- **“% Faturamento e % saldo do budget” começa em setembro** (ignora meses iniciais sem saldo utilizado).
+
+Service worker subiu para `sige-v129`.
+
+## V 2.13 — 18/11/2026
+
+Ajustes de gráficos e rótulos (Alexandre) — primeiro bloco do pacote grande:
+
+- **“Inconsistências por mês”: números sempre visíveis** em cima de cada ponto (sem precisar passar o mouse). *(`js/kpi-operacional.js`.)*
+- **“Faturado × previsto por mês”: % em cima das barras** — a cinza (previsto) marca 100% e a vermelha mostra o % faturado em relação ao previsto. *(`js/contratos.js`.)*
+- **Aba “Coordenadores” renomeada para “Contratos”.** *(`js/contratos.js`.)*
+
+Service worker subiu para `sige-v128`.
+
+## V 2.12 — 18/11/2026
+
+Vínculo do KPI por linha (cliente + unidade) — Alexandre:
+
+- **Planilha de KPI: vincular Cliente e Unidade por linha.** Cada linha do KPI operacional ganhou os campos **Cliente** e **Unidade** (com sugestões do cadastro). É esse vínculo que define o que abastece a linha. **Linha sem Cliente E Unidade = 100% manual.** Cliente/unidade que não alimenta nenhuma linha não tem problema. *(`js/kpi-operacional.js`.)*
+- **Abastecimento automático agora casa por cliente + unidade** (antes era só pelo nome do cliente). Só **AEP/AET novas** contam em Análises (editar uma já existente não conta de novo, pois a contagem é por data de criação); Validações, pelas concluídas.
+- **Ações Cliente — Previsto automático.** O Previsto passa a ser a quantidade de ações do Plano de Ação com **vencimento (Dt Programada) no mês** daquele cliente/unidade; o Real continua sendo as ações concluídas no mês.
+- **Fim do pop-up de KPI ao finalizar AEP/AET.** Como o vínculo agora está na planilha de KPI, a caixa que perguntava “qual cliente do KPI” ao salvar a análise foi **removida**. *(`js/app.js`, `js/aet.js`.)*
+
+Service worker subiu para `sige-v127`.
+
 ## V 2.11 — 18/11/2026
 
 - **Fechar a análise: opção “Não vincular a nenhum KPI” (Alexandre).** No painel que aparece ao finalizar uma AEP/AET (confirmação do cliente do KPI), além de “Confirmar e salvar” e “Voltar a editar”, agora há o botão **“Não vincular a nenhum KPI”**. Serve para análises que não entram no KPI recorrente (ex.: time de pontuais): a análise é salva normalmente, só não abastece nenhum KPI operacional. *(`js/app.js`.)* Service worker subiu para `sige-v126`.

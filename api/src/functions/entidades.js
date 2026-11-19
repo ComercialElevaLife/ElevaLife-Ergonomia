@@ -102,13 +102,18 @@ const COLECOES = [
   // allowlist de usuários. Todas GLOBAIS e com acesso restrito à allowlist (padrão
   // alexandre+joao, que bootstrapa a lista quando o doc ainda não existe).
   "contratoCoord", "budgetMensal", "contratoConfig",
+  // V 2.16: cronograma (avaliações/validação/blitz) por ergonomista/ano. GLOBAL; a equipe grava.
+  "cronograma",
+  // V 2.17: cases. "caseErgo" = 1 doc por case (amarrado ao cliente/EmpresaId); "caseConfig" =
+  // doc "aprovadores" (GLOBAL) com a lista de quem pode aprovar.
+  "caseErgo", "caseConfig",
 ];
 
 // Colecoes sem dono (nenhuma amarrada a uma empresa-cliente especifica) -
 // todo usuario autenticado com papel liberado ve e edita, independente de
 // quais empresas estao vinculadas a ele. Gravadas sempre com
 // EmpresaId=EMPRESA_GLOBAL (constante fixa, nunca uma empresa real).
-const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo", "configuracao", "ergonomista", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia", "agendaErgo", "agendaConfig", "contratoCoord", "budgetMensal", "contratoConfig"];
+const COLECOES_GLOBAIS = ["certificadoCalibracao", "modeloLaudo", "configuracao", "ergonomista", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia", "agendaErgo", "agendaConfig", "contratoCoord", "budgetMensal", "contratoConfig", "cronograma", "caseConfig"];
 // Colecoes em que so o Administrador grava/exclui (todos podem ler).
 // V 2.01: agendaConfig (horas de cada ergonomista) so o coordenador monta;
 // agendaErgo NAO entra aqui - cada ergonomista grava a propria agenda.
@@ -476,7 +481,7 @@ async function tratar(request, context) {
     };
   }
 
-  const container = ["configuracao", "ergonomista", "colaborador", "tempoTrabalho", "acaoAbsenteismo", "psicoLaudo", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia", "agendaErgo", "agendaConfig", "contratoCoord", "budgetMensal", "contratoConfig"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
+  const container = ["configuracao", "ergonomista", "colaborador", "tempoTrabalho", "acaoAbsenteismo", "psicoLaudo", "avaliacaoErgonomista", "kpiOperacional", "kpiInconsistencia", "agendaErgo", "agendaConfig", "contratoCoord", "budgetMensal", "contratoConfig", "cronograma", "caseErgo", "caseConfig"].includes(colecao) ? await garantirContainer(colecao) : obterContainer(colecao);
   const id = request.params.id;
 
   // V 2.05: Contratos & Budget — acesso SÓ para quem está na allowlist (independe do papel).

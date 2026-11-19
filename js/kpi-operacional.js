@@ -41,7 +41,7 @@
     { chave: "riscoTrivial", rotulo: "Trivial" },
     { chave: "reducaoRisco", rotulo: "Redução do risco" },
   ];
-  const CAMPOS_NUM = GRUPOS.flatMap((grp) => [grp.prev, grp.real]).concat([ELEVA.prev]).concat(RISCOS.map((r) => r.chave)).concat(CONTADORES.map((c) => c.chave));
+  const CAMPOS_NUM = GRUPOS.flatMap((grp) => [grp.prev, grp.real]).concat([ELEVA.prev]).concat(RISCOS.map((r) => r.chave)).concat(CONTADORES.map((c) => c.chave)).concat(["casesReportados"]);
   // "Realizadas" de Ações ElevaLife = soma dos contadores.
   const elevaReal = (l) => CONTADORES.reduce((s, c) => s + n0(l[c.chave]), 0);
 
@@ -92,6 +92,8 @@
   let anoOp = 2026, mesOp = (new Date().getMonth());
   let indEvol = "analises"; // indicador selecionado no gráfico de evolução
   let anoInc = 2026;
+  // V 2.15 (Alexandre): filtro próprio dos gráficos de risco (distribuição + redução) mês a mês.
+  let riscoAno = null, riscoMes = "todos"; // riscoAno null = usa o ano do topo
 
   async function recarregar() {
     try { await DB().recarregar(["kpiOperacional", "kpiInconsistencia"]); } catch (e) { console.error(e); }
@@ -111,7 +113,7 @@
       const pm = mesAnterior(a, m); a = pm.ano; m = pm.mes;
       const d = acharOp(a, m);
       if (d && d.Linhas && d.Linhas.length) {
-        return d.Linhas.map((l) => { const o = { Cliente: l.Cliente, Gestor: l.Gestor }; CAMPOS_RISCO.forEach((k) => (o[k] = n0(l[k]))); return o; });
+        return d.Linhas.map((l) => { const o = { Cliente: l.Cliente, Unidade: l.Unidade, Gestor: l.Gestor }; CAMPOS_RISCO.forEach((k) => (o[k] = n0(l[k]))); return o; });
       }
     }
     return [];
@@ -131,8 +133,16 @@
     { campo: "analisesReal", tipo: "analises" },
     { campo: "validReal", tipo: "valid" },
     { campo: "acoesCliReal", tipo: "acoesCli" },
+    { campo: "acoesCliPrev", tipo: "acoesCliPrev" }, // V 2.12: Previsto de Ações Cliente vem do vencimento no Plano de Ação
     { campo: "pcd", tipo: "pcd" },
     { campo: "outras", tipo: "outras" },
+    // V 2.16: previstos vindos dos Cronogramas (meta mensal por cliente+unidade) + blitz real → DDS.
+    { campo: "analisesPrev", tipo: "cronAnalisesPrev" },
+    { campo: "validPrev", tipo: "cronValidPrev" },
+    { campo: ELEVA.prev, tipo: "cronBlitzPrev" },
+    { campo: "dds", tipo: "cronBlitzReal" },
+    // V 2.17: cases aprovados no mês → coluna "Cases reportados" (por cliente+unidade).
+    { campo: "casesReportados", tipo: "casesRep" },
   ];
   const OBS_ABSENTEISMO = "lançamento de absenteísmos";
   function normNome(s) { return String(s == null ? "" : s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
@@ -141,13 +151,29 @@
   // Cliente usado no casamento com a linha do KPI: se o registro TEM o campo KpiCliente
   // (definido na confirmação ao finalizar), usa-o — mesmo vazio (vazio = não abastece).
   // Registros antigos, sem esse campo, continuam casando pelo próprio Cliente.
-  const clienteKpiDe = (r) => normNome(Object.prototype.hasOwnProperty.call(r, "KpiCliente") ? r.KpiCliente : r.Cliente);
+  // V 2.12 (Alexandre): o vínculo passou a ser por LINHA do KPI (cliente + unidade),
+  // definido na própria planilha — não mais perguntado ao ergonomista ao finalizar.
+  // Chave de casamento = cliente + unidade (normalizados). Sem unidade não casa.
+  const chaveCliUni = (cli, uni) => { const c = normNome(cli), u = normNome(uni); return (c && u) ? (c + "||" + u) : ""; };
 
-  // Agrega os registros do SIGE do mês escolhido por cliente (normalizado).
+  // Clientes e unidades do cadastro (para os seletores da planilha de KPI).
+  function clientesCadastro() {
+    return ((BI.dados && BI.dados.cliente) || []).map((c) => ({ id: c.id || c._id, nome: c.Cliente })).filter((c) => c.nome)
+      .sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"));
+  }
+  function unidadesDoCliente(nomeCliente) {
+    const nc = normNome(nomeCliente); if (!nc) return [];
+    const cli = clientesCadastro().find((c) => normNome(c.nome) === nc); if (!cli) return [];
+    const eidDe = (u) => u.EmpresaId || (BI.DB && BI.DB.idCliente ? BI.DB.idCliente(u) : "");
+    return ((BI.dados && BI.dados.unidade) || []).filter((u) => eidDe(u) === cli.id).map((u) => u.Unidade).filter(Boolean)
+      .sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+  }
+
+  // Agrega os registros do SIGE do mês escolhido por cliente+unidade (normalizados).
   function autoKpiDoMes(ano, mes) {
     const alvo = ano + "-" + String(mes + 1).padStart(2, "0");
     const mapa = {};
-    const bucket = (r) => { const k = clienteKpiDe(r); if (!k) return null; return (mapa[k] = mapa[k] || { analises: 0, valid: 0, acoesCli: 0, pcd: 0, absent: 0 }); };
+    const bucket = (r) => { const k = chaveCliUni(r.Cliente, r.Unidade); if (!k) return null; return (mapa[k] = mapa[k] || { analises: 0, valid: 0, acoesCli: 0, acoesCliPrev: 0, pcd: 0, absent: 0 }); };
     const D = (BI.dados) || {};
     // AEP: criação (Data Avaliacao) → Análises; conclusão (Dt Conclusao Avaliacao) → Validações
     (D.avaliacaoErgonomica || []).forEach((a) => {
@@ -160,7 +186,10 @@
       if (String(a["Status Avaliacao"] || "") === "Concluída" && mesDe(a["Dt Conclusao Avaliacao"]) === alvo) { const b = bucket(a); if (b) b.valid++; }
     });
     // Plano de Ação: TODA ação concluída no mês (Dt Conclusao) → Ações Cliente
-    (D.planoAcao || []).forEach((a) => { if (acaoConcluida(a) && mesDe(a["Dt Conclusao"]) === alvo) { const b = bucket(a); if (b) b.acoesCli++; } });
+    (D.planoAcao || []).forEach((a) => {
+      if (acaoConcluida(a) && mesDe(a["Dt Conclusao"]) === alvo) { const b = bucket(a); if (b) b.acoesCli++; } // Real: ações concluídas no mês
+      if (mesDe(a["Dt Programada"]) === alvo) { const b = bucket(a); if (b) b.acoesCliPrev++; } // V 2.12: Previsto = ações com vencimento no mês
+    });
     // Restritos (compativeis) iniciados no mês → coluna PCD/Restritos
     (D.compativeis || []).forEach((r) => { if (mesDe(r["Inicio Restricao"]) === alvo) { const b = bucket(r); if (b) b.pcd++; } });
     // Absenteísmo lançado no mês → 1 em Outras demandas (independe da quantidade)
@@ -172,9 +201,18 @@
   function aplicarAutoNasLinhas(linhas, ano, mes) {
     if (!autoAtivo(ano, mes)) return;
     const mapa = autoKpiDoMes(ano, mes);
+    // V 2.16: previsto vindo dos Cronogramas (meta mensal por cliente+unidade) + blitz real → DDS.
+    const cron = (BI.Cronogramas && BI.Cronogramas.previstoDoMes) ? BI.Cronogramas.previstoDoMes(ano, mes) : {};
+    const cases = (BI.Cases && BI.Cases.reportadosDoMes) ? BI.Cases.reportadosDoMes(ano, mes) : {};
     linhas.forEach((l) => {
-      const auto = mapa[normNome(l.Cliente)] || { analises: 0, valid: 0, acoesCli: 0, pcd: 0, absent: 0 };
-      const novo = { analises: auto.analises, valid: auto.valid, acoesCli: auto.acoesCli, pcd: auto.pcd, outras: auto.absent ? 1 : 0 };
+      // V 2.12 (Alexandre): só abastece a linha que tem cliente E unidade vinculados.
+      // Linha sem vínculo (sem unidade) fica 100% manual.
+      const chave = chaveCliUni(l.Cliente, l.Unidade);
+      const auto = (chave && mapa[chave]) || { analises: 0, valid: 0, acoesCli: 0, acoesCliPrev: 0, pcd: 0, absent: 0 };
+      const cv = (chave && cron[chave]) || { analisesPrev: 0, validPrev: 0, acoesElevaPrev: 0, dds: 0 };
+      const novo = { analises: auto.analises, valid: auto.valid, acoesCli: auto.acoesCli, acoesCliPrev: auto.acoesCliPrev, pcd: auto.pcd, outras: auto.absent ? 1 : 0,
+        cronAnalisesPrev: cv.analisesPrev, cronValidPrev: cv.validPrev, cronBlitzPrev: cv.acoesElevaPrev, cronBlitzReal: cv.dds,
+        casesRep: (chave && cases[chave]) || 0 };
       AUTO_METRICAS.forEach((m) => {
         const chaveAuto = "_auto_" + m.campo;
         const base = n0(l[m.campo]) - n0(l[chaveAuto]); // parte manual/importada
@@ -214,17 +252,22 @@
     cab.appendChild(ctrls);
     box.appendChild(cab);
     box.appendChild(h("p", "aet-nota", "Grade por cliente. Os riscos do inventário vêm primeiro e são herdados do mês anterior (edite ao mudar). “Ações ElevaLife · Real.” é a soma de Jurídico + PCD + DDS + COERGO + Outras demandas. % e totais são automáticos — edite e clique em Salvar."));
-    if (autoAtivo(st.ano, st.mes)) box.appendChild(h("p", "aet-nota", "Abastecimento automático (a partir de nov/2026): Análises e Validações vêm da criação/conclusão das AEP/AET; Ações Cliente, das ações concluídas no mês; PCD/Restritos, dos restritos do mês; e Outras demandas recebe 1 quando houve lançamento de absenteísmo. O valor é somado ao que você digitou (sem duplicar) e continua editável — ajuste e Salve."));
+    if (autoAtivo(st.ano, st.mes)) box.appendChild(h("p", "aet-nota", "Abastecimento automático (a partir de nov/2026): cada linha só é abastecida se tiver Cliente E Unidade vinculados — sem vínculo, a linha é 100% manual. Análises vêm das AEP/AET criadas no mês (editar uma já existente não conta de novo) e Validações, das concluídas; Ações Cliente: Previsto = ações com vencimento no mês no Plano de Ação, Real = ações concluídas; PCD/Restritos, dos restritos do mês; e Outras demandas recebe 1 quando houve lançamento de absenteísmo. O valor é somado ao que você digitou (sem duplicar) e continua editável — ajuste e Salve."));
 
     const cards = h("div", "coord-kpis"); box.appendChild(cards);
 
+    // V 2.12 (Alexandre): datalist compartilhado com os clientes do cadastro + contador de ids.
+    let _dlSeq = 0;
+    const dlCli = h("datalist"); dlCli.id = "kpi-cli-dl"; clientesCadastro().forEach((c) => { const o = h("option"); o.value = c.nome; dlCli.appendChild(o); }); box.appendChild(dlCli);
     const wrap = h("div", "tabela-scroll"); const tb = h("table", "tabela-dados kpi-grade");
     const thead = h("thead"); const tr1 = h("tr");
     const thCli = h("th", null, "Cliente"); thCli.rowSpan = 2; tr1.appendChild(thCli);
+    const thUni = h("th", null, "Unidade"); thUni.rowSpan = 2; tr1.appendChild(thUni);
     const thGes = h("th", null, "Gestor"); thGes.rowSpan = 2; tr1.appendChild(thGes);
     const thR = h("th", null, "Riscos (inventário)"); thR.colSpan = RISCOS.length; thR.style.textAlign = "center"; tr1.appendChild(thR);
     GRUPOS.forEach((grp) => { const th = h("th", null, grp.rotulo); th.colSpan = 3; th.style.textAlign = "center"; tr1.appendChild(th); });
     CONTADORES.forEach((c) => { const th = h("th", null, c.rotulo); th.rowSpan = 2; tr1.appendChild(th); });
+    const thCases = h("th", null, "Cases reportados"); thCases.rowSpan = 2; tr1.appendChild(thCases);
     const thObs = h("th", null, "Obs. outras demandas"); thObs.rowSpan = 2; tr1.appendChild(thObs);
     const thE = h("th", null, ELEVA.rotulo); thE.colSpan = 3; thE.style.textAlign = "center"; tr1.appendChild(thE);
     const thAcao = h("th", null, ""); thAcao.rowSpan = 2; tr1.appendChild(thAcao);
@@ -243,7 +286,15 @@
     }
     function montarLinha(l) {
       const tr = h("tr");
-      const tdC = h("td"); const inC = h("input"); inC.type = "text"; inC.value = l.Cliente || ""; inC.className = "kpi-inp kpi-inp-txt"; inC.addEventListener("input", () => { l.Cliente = inC.value; }); tdC.appendChild(inC); tr.appendChild(tdC);
+      // V 2.12 (Alexandre): Cliente e Unidade são o VÍNCULO que abastece a linha (datalists do cadastro).
+      const tdC = h("td"); const inC = h("input"); inC.type = "text"; inC.value = l.Cliente || ""; inC.className = "kpi-inp kpi-inp-txt"; inC.setAttribute("list", "kpi-cli-dl"); inC.placeholder = "cliente"; tdC.appendChild(inC); tr.appendChild(tdC);
+      const tdU = h("td"); const inU = h("input"); inU.type = "text"; inU.value = l.Unidade || ""; inU.className = "kpi-inp kpi-inp-txt"; inU.placeholder = "unidade (p/ abastecer)";
+      const dlU = h("datalist"); dlU.id = "kpi-uni-dl-" + (_dlSeq++); inU.setAttribute("list", dlU.id);
+      const encherUnidades = () => { dlU.innerHTML = ""; unidadesDoCliente(inC.value).forEach((u) => { const o = h("option"); o.value = u; dlU.appendChild(o); }); };
+      encherUnidades();
+      inC.addEventListener("input", () => { l.Cliente = inC.value; encherUnidades(); });
+      inU.addEventListener("input", () => { l.Unidade = inU.value; });
+      tdU.appendChild(inU); tdU.appendChild(dlU); tr.appendChild(tdU);
       const tdG = h("td"); const inG = h("input"); inG.type = "text"; inG.value = l.Gestor || ""; inG.className = "kpi-inp kpi-inp-txt"; inG.addEventListener("input", () => { l.Gestor = inG.value; }); tdG.appendChild(inG); tr.appendChild(tdG);
       RISCOS.forEach((r) => { const td = h("td"); td.appendChild(inputNum(l, r.chave)); tr.appendChild(td); });
       const refs = {};
@@ -253,6 +304,7 @@
         const tdPct = h("td"); const sp = h("span", "kpi-pct"); tdPct.appendChild(sp); tr.appendChild(tdPct); refs[grp.chave] = sp;
       });
       CONTADORES.forEach((c) => { const td = h("td"); td.appendChild(inputNum(l, c.chave)); tr.appendChild(td); });
+      { const td = h("td"); td.appendChild(inputNum(l, "casesReportados")); tr.appendChild(td); } // V 2.17: Cases reportados (abastecido por cases aprovados)
       const tdO = h("td"); const inO = h("input"); inO.type = "text"; inO.value = l.outrasObs || ""; inO.className = "kpi-inp kpi-inp-obs"; inO.placeholder = "descreva a demanda"; inO.addEventListener("input", () => { l.outrasObs = inO.value; }); tdO.appendChild(inO); tr.appendChild(tdO);
       // Ações ElevaLife: Prev. editável, Real. = soma dos contadores (automático), %
       const tdEP = h("td"); tdEP.appendChild(inputNum(l, ELEVA.prev)); tr.appendChild(tdEP);
@@ -268,10 +320,11 @@
     function montarTotal() {
       if (trTotal) trTotal.remove();
       trTotal = h("tr", "kpi-total");
-      const tdT = h("td", null, "TOTAL"); tdT.style.fontWeight = "700"; trTotal.appendChild(tdT); trTotal.appendChild(h("td"));
+      const tdT = h("td", null, "TOTAL"); tdT.style.fontWeight = "700"; trTotal.appendChild(tdT); trTotal.appendChild(h("td")); trTotal.appendChild(h("td"));
       RISCOS.forEach((r) => { const td = h("td", null, "0"); td.style.fontWeight = "700"; trTotal.appendChild(td); refTotais[r.chave] = td; });
       GRUPOS.forEach((grp) => { const p = h("td", null, "0"); const r = h("td", null, "0"); const pc = h("td"); const sp = h("span", "kpi-pct"); pc.appendChild(sp); trTotal.appendChild(p); trTotal.appendChild(r); trTotal.appendChild(pc); refTotais[grp.chave] = { p, r, pc: sp }; });
       CONTADORES.forEach((c) => { const td = h("td", null, "0"); trTotal.appendChild(td); refTotais[c.chave] = td; });
+      { const td = h("td", null, "0"); td.style.fontWeight = "700"; trTotal.appendChild(td); refTotais.casesReportados = td; }
       trTotal.appendChild(h("td")); // obs
       const ep = h("td", null, "0"); ep.style.fontWeight = "700"; const er = h("td", null, "0"); er.style.fontWeight = "700"; const epc = h("td"); const esp = h("span", "kpi-pct"); epc.appendChild(esp); trTotal.appendChild(ep); trTotal.appendChild(er); trTotal.appendChild(epc); refTotais.__eleva = { p: ep, r: er, pc: esp };
       trTotal.appendChild(h("td")); // ação
@@ -287,6 +340,7 @@
       RISCOS.forEach((r) => { refTotais[r.chave].textContent = tot[r.chave]; });
       GRUPOS.forEach((grp) => { const t = refTotais[grp.chave]; t.p.textContent = tot[grp.prev]; t.r.textContent = tot[grp.real]; const p = pct(tot[grp.real], tot[grp.prev]); t.pc.textContent = pctTxt(p); t.pc.style.color = corPct(p); });
       CONTADORES.forEach((c) => { refTotais[c.chave].textContent = tot[c.chave]; });
+      if (refTotais.casesReportados) refTotais.casesReportados.textContent = tot.casesReportados;
       { const t = refTotais.__eleva; t.p.textContent = tot[ELEVA.prev]; t.r.textContent = totElevaReal; const p = pct(totElevaReal, tot[ELEVA.prev]); t.pc.textContent = pctTxt(p); t.pc.style.color = corPct(p); }
       // cartões
       cards.innerHTML = "";
@@ -299,16 +353,16 @@
     wrap.appendChild(tb); box.appendChild(wrap);
 
     const rodape = h("div"); rodape.style.cssText = "margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap";
-    const bAdd = h("button", "btn-cad-secundario", "+ Cliente"); bAdd.type = "button"; bAdd.addEventListener("click", () => { st.linhas.push({ Cliente: "", Gestor: "" }); redesenhar(); });
+    const bAdd = h("button", "btn-cad-secundario", "+ Cliente"); bAdd.type = "button"; bAdd.addEventListener("click", () => { st.linhas.push({ Cliente: "", Unidade: "", Gestor: "" }); redesenhar(); });
     const bSync = h("button", "btn-cad-secundario", "↻ Atualizar do SIGE"); bSync.type = "button"; bSync.title = "Relê os registros do SIGE e reaplica o abastecimento automático neste mês (sem duplicar).";
-    bSync.addEventListener("click", async () => { bSync.disabled = true; try { await DB().recarregar(["kpiOperacional", "kpiInconsistencia", "avaliacaoErgonomica", "aet", "planoAcao", "compativeis", "absenteismo"]); } catch (e) { console.error(e); } anoOp = st.ano; mesOp = st.mes; renderOperacional(area); if (BI.avisar) BI.avisar("KPIs atualizados com o que foi feito no SIGE."); });
+    bSync.addEventListener("click", async () => { bSync.disabled = true; try { await DB().recarregar(["kpiOperacional", "kpiInconsistencia", "avaliacaoErgonomica", "aet", "planoAcao", "compativeis", "absenteismo", "cronograma"]); } catch (e) { console.error(e); } anoOp = st.ano; mesOp = st.mes; renderOperacional(area); if (BI.avisar) BI.avisar("KPIs atualizados com o que foi feito no SIGE."); });
     const bSalvar = h("button", "btn-cad-primario", "Salvar mês"); bSalvar.type = "button";
     const msg = h("span", "aet-nota"); msg.style.margin = "0";
     bSalvar.addEventListener("click", async () => {
       bSalvar.disabled = true; msg.textContent = "Salvando…"; msg.style.color = "";
       try {
         const limpas = st.linhas.filter((l) => String(l.Cliente || "").trim());
-        const doc = { EmpresaId: "GLOBAL", Ano: st.ano, Mes: st.mes, Linhas: limpas.map((l) => { const o = { Cliente: String(l.Cliente).trim(), Gestor: String(l.Gestor || "").trim() }; CAMPOS_NUM.forEach((c) => (o[c] = n0(l[c]))); o.acoesElevaReal = elevaReal(l); o.outrasObs = String(l.outrasObs || "").trim(); AUTO_METRICAS.forEach((m) => { o["_auto_" + m.campo] = n0(l["_auto_" + m.campo]); }); return o; }) };
+        const doc = { EmpresaId: "GLOBAL", Ano: st.ano, Mes: st.mes, Linhas: limpas.map((l) => { const o = { Cliente: String(l.Cliente).trim(), Unidade: String(l.Unidade || "").trim(), Gestor: String(l.Gestor || "").trim() }; CAMPOS_NUM.forEach((c) => (o[c] = n0(l[c]))); o.acoesElevaReal = elevaReal(l); o.outrasObs = String(l.outrasObs || "").trim(); AUTO_METRICAS.forEach((m) => { o["_auto_" + m.campo] = n0(l["_auto_" + m.campo]); }); return o; }) };
         const ex = acharOp(st.ano, st.mes);
         await DB().salvar("kpiOperacional", ex ? (ex._id || ex.id) : idOp(st.ano, st.mes), doc, !ex);
         await recarregar();
@@ -330,18 +384,37 @@
     const INDS = [["analises", "Análises"], ["valid", "Validações"], ["acoesCli", "Ações Cliente"], ["acoesEleva", "Ações ElevaLife"]];
     INDS.forEach(([k, rot]) => {
       const b = h("button", "btn-cad-secundario", rot); b.type = "button"; if (k === indEvol) b.classList.add("kpi-chip-ativo");
-      b.addEventListener("click", () => { indEvol = k; Array.from(chips.children).forEach((c) => c.classList.remove("kpi-chip-ativo")); b.classList.add("kpi-chip-ativo"); desenharEvolucao(st.ano, resumoEl); });
+      b.addEventListener("click", () => { indEvol = k; Array.from(chips.children).forEach((c) => c.classList.remove("kpi-chip-ativo")); b.classList.add("kpi-chip-ativo"); desenharEvolucao(st.ano, resumoEl); atualizarEleva(); });
       chips.appendChild(b);
     });
     boxG.appendChild(chips); boxG.appendChild(resumoEl);
     const gE = h("div"); gE.style.cssText = "position:relative;height:320px"; const cvE = h("canvas"); cvE.id = "kpi-combo"; gE.appendChild(cvE); boxG.appendChild(gE);
-    boxG.appendChild(h("div", "cartao-titulo", "Composição das Ações ElevaLife · " + MESES[st.mes] + "/" + st.ano));
-    const ge = h("div"); ge.style.cssText = "position:relative;height:300px;margin-top:8px"; const cve = h("canvas"); cve.id = "kpi-eleva-comp"; ge.appendChild(cve); boxG.appendChild(ge);
-    boxG.appendChild(h("div", "cartao-titulo", "Distribuição de risco no inventário · " + MESES[st.mes] + "/" + st.ano));
-    const g3 = h("div"); g3.style.cssText = "position:relative;height:280px;margin-top:8px"; const cv3 = h("canvas"); cv3.id = "kpi-riscos-mes"; g3.appendChild(cv3); boxG.appendChild(g3);
+    // Donut de composição das Ações ElevaLife — só aparece quando o indicador escolhido é "Ações ElevaLife".
+    const elevaWrap = h("div");
+    elevaWrap.appendChild(h("div", "cartao-titulo", "Composição das Ações ElevaLife · " + MESES[st.mes] + "/" + st.ano));
+    const ge = h("div"); ge.style.cssText = "position:relative;height:320px;margin-top:8px"; const cve = h("canvas"); cve.id = "kpi-eleva-comp"; ge.appendChild(cve); elevaWrap.appendChild(ge);
+    boxG.appendChild(elevaWrap);
+    function atualizarEleva() { const vis = indEvol === "acoesEleva"; elevaWrap.style.display = vis ? "" : "none"; if (vis) desenharDonutEleva(st.ano, st.mes); }
+
+    // ---- Gráficos de risco do inventário: mês a mês + redução, com filtro de ano/mês. V 2.15 (Alexandre).
+    if (riscoAno == null) riscoAno = st.ano;
+    boxG.appendChild(h("div", "cartao-titulo", "Riscos do inventário — por mês"));
+    const fr = h("div"); fr.style.cssText = "display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:4px 0 8px";
+    const selRA = h("select"); anosDisponiveis().forEach((a) => { const o = h("option", null, String(a)); o.value = a; if (a === riscoAno) o.selected = true; selRA.appendChild(o); });
+    selRA.addEventListener("change", () => { riscoAno = Number(selRA.value); desenharRiscos(); });
+    const selRM = h("select"); { const o = h("option", null, "Todos os meses"); o.value = "todos"; selRM.appendChild(o); } MESES.forEach((m, i) => { const o = h("option", null, m); o.value = i; if (String(riscoMes) === String(i)) o.selected = true; selRM.appendChild(o); });
+    selRM.addEventListener("change", () => { riscoMes = selRM.value === "todos" ? "todos" : Number(selRM.value); desenharRiscos(); });
+    fr.appendChild(rotuloCampo("Ano", selRA)); fr.appendChild(rotuloCampo("Mês", selRM)); boxG.appendChild(fr);
+    boxG.appendChild(h("div", "cartao-titulo", "Distribuição de risco no inventário"));
+    const g3 = h("div"); g3.style.cssText = "position:relative;height:300px;margin-top:4px"; const cv3 = h("canvas"); cv3.id = "kpi-riscos-mes"; g3.appendChild(cv3); boxG.appendChild(g3);
+    boxG.appendChild(h("div", "cartao-titulo", "Redução de riscos por mês"));
+    const g4 = h("div"); g4.style.cssText = "position:relative;height:260px;margin-top:4px"; const cv4 = h("canvas"); cv4.id = "kpi-reducao-mes"; g4.appendChild(cv4); boxG.appendChild(g4);
     area.appendChild(boxG);
     desenharEvolucao(st.ano, resumoEl);
-    desenharGraficosOp(st.ano, st.mes);
+    atualizarEleva();
+    desenharRiscos();
+    // expõe para o handler dos chips do indicador alternar o donut
+    boxG._atualizarEleva = atualizarEleva;
   }
 
   // Totais do indicador em um mês: { prev, real, pct(0-1 ou null) }.
@@ -388,16 +461,26 @@
       },
     });
   }
-  function desenharGraficosOp(ano, mes) {
+  // Donut da composição das Ações ElevaLife — com TODAS as porcentagens (rótulo fora da fatia).
+  function desenharDonutEleva(ano, mes) {
     const doc = acharOp(ano, mes);
     const comp = CONTADORES.map((c) => ({ rot: c.rotulo, val: (doc && doc.Linhas || []).reduce((s, l) => s + n0(l[c.chave]), 0) }));
     const coresC = ["#8B3A42", "#E8731A", "#3A6EA5", "#2E7D5B", "#7A5195"];
     const totComp = comp.reduce((s, x) => s + x.val, 0);
-    grafico("kpi-eleva-comp", { type: "doughnut", data: { labels: comp.map((x) => x.rot), datasets: [{ data: comp.map((x) => x.val), backgroundColor: coresC }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "right", labels: { generateLabels: (chart) => { const d = chart.data; return d.labels.map((l, i) => { const v = d.datasets[0].data[i]; const pc = totComp ? Math.round((v / totComp) * 100) : 0; return { text: l + " — " + v + " (" + pc + "%)", fillStyle: d.datasets[0].backgroundColor[i], strokeStyle: d.datasets[0].backgroundColor[i], index: i }; }); } } } } } });
-    const nivs = [["riscoAltissimo", "Altíssimo", "#6A1B2A"], ["riscoAlto", "Alto", "#C62828"], ["riscoModerado", "Moderado", "#E8731A"], ["riscoBaixo", "Baixo", "#F2C200"], ["riscoTrivial", "Trivial", "#2E7D5B"], ["reducaoRisco", "Reduzidos", "#1565C0"]];
-    const somaR = {}; nivs.forEach(([k]) => (somaR[k] = 0));
-    (doc && doc.Linhas || []).forEach((l) => nivs.forEach(([k]) => (somaR[k] += n0(l[k]))));
-    grafico("kpi-riscos-mes", { type: "bar", data: { labels: nivs.map((x) => x[1]), datasets: [{ label: "Riscos", data: nivs.map((x) => somaR[x[0]]), backgroundColor: nivs.map((x) => x[2]), borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
+    grafico("kpi-eleva-comp", { type: "doughnut", data: { labels: comp.map((x) => x.rot), datasets: [{ data: comp.map((x) => x.val), backgroundColor: coresC }] }, options: { responsive: true, maintainAspectRatio: false, layout: { padding: 24 }, plugins: { legend: { position: "right", labels: { generateLabels: (chart) => { const d = chart.data; return d.labels.map((l, i) => { const v = d.datasets[0].data[i]; const pc = totComp ? Math.round((v / totComp) * 100) : 0; return { text: l + " — " + v + " (" + pc + "%)", fillStyle: d.datasets[0].backgroundColor[i], strokeStyle: d.datasets[0].backgroundColor[i], index: i }; }); } } }, datalabels: { display: (ctx) => n0(ctx.dataset.data[ctx.dataIndex]) > 0, anchor: "end", align: "end", offset: 6, clamp: true, color: "#3a2a2e", backgroundColor: "rgba(255,255,255,.85)", borderRadius: 4, padding: 2, font: { size: 11, weight: "700" }, formatter: (v) => (totComp ? Math.round((v / totComp) * 100) + "%" : "") } } } });
+  }
+  // Soma dos níveis de risco de um mês (todas as linhas do doc daquele mês).
+  function somaRiscosMes(ano, m) { const doc = acharOp(ano, m); const chaves = CAMPOS_RISCO.concat(["reducaoRisco"]); const r = {}; chaves.forEach((k) => (r[k] = 0)); (doc && doc.Linhas || []).forEach((l) => chaves.forEach((k) => (r[k] += n0(l[k])))); r._tem = !!(doc && doc.Linhas && doc.Linhas.length); return r; }
+  // Distribuição de risco (mês a mês) + redução por mês, conforme filtro riscoAno/riscoMes.
+  function desenharRiscos() {
+    const ano = riscoAno; const niveis = [["riscoAltissimo", "Altíssimo", "#6A1B2A"], ["riscoAlto", "Alto", "#C62828"], ["riscoModerado", "Moderado", "#E8731A"], ["riscoBaixo", "Baixo", "#F2C200"], ["riscoTrivial", "Trivial", "#2E7D5B"]];
+    let meses;
+    if (riscoMes === "todos") { meses = []; for (let m = 0; m < 12; m++) if (somaRiscosMes(ano, m)._tem) meses.push(m); if (!meses.length) meses = [mesOp]; }
+    else { meses = [riscoMes]; }
+    const somas = meses.map((m) => somaRiscosMes(ano, m));
+    const labels = meses.map((m) => MESES_CURTO[m] + "/" + String(ano).slice(2));
+    grafico("kpi-riscos-mes", { type: "bar", data: { labels, datasets: niveis.map(([k, rot, cor]) => ({ label: rot, data: somas.map((s) => s[k]), backgroundColor: cor, borderRadius: 3 })) }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } }, scales: { x: { stacked: false }, y: { beginAtZero: true } } } });
+    grafico("kpi-reducao-mes", { type: "bar", data: { labels, datasets: [{ label: "Riscos reduzidos", data: somas.map((s) => s.reducaoRisco), backgroundColor: "#1565C0", borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
   }
 
   // ================================================================= Inconsistências Sólides
@@ -433,8 +516,9 @@
     const refsTot = []; const refTotMes = []; let refTotGeral = null;
     function montarLinha(l) {
       const tr = h("tr");
-      const tdN = h("td"); const inN = h("input"); inN.type = "text"; inN.value = l.Colaborador || ""; inN.className = "kpi-inp kpi-inp-txt"; inN.addEventListener("input", () => { l.Colaborador = inN.value; }); tdN.appendChild(inN); tr.appendChild(tdN);
-      const tdC = h("td"); const inC = h("input"); inC.type = "text"; inC.value = l.Coordenador || ""; inC.className = "kpi-inp kpi-inp-txt"; inC.addEventListener("input", () => { l.Coordenador = inC.value; }); tdC.appendChild(inC); tr.appendChild(tdC);
+      // V 2.15 (Alexandre): nomes de colaborador/coordenador somem no modo apresentação (ap-nome).
+      const tdN = h("td", "ap-nome"); const inN = h("input"); inN.type = "text"; inN.value = l.Colaborador || ""; inN.className = "kpi-inp kpi-inp-txt"; inN.addEventListener("input", () => { l.Colaborador = inN.value; }); tdN.appendChild(inN); tr.appendChild(tdN);
+      const tdC = h("td", "ap-nome"); const inC = h("input"); inC.type = "text"; inC.value = l.Coordenador || ""; inC.className = "kpi-inp kpi-inp-txt"; inC.addEventListener("input", () => { l.Coordenador = inC.value; }); tdC.appendChild(inC); tr.appendChild(tdC);
       for (let m = 0; m < 12; m++) {
         const td = h("td"); const inp = h("input"); inp.type = "text"; inp.inputMode = "numeric"; inp.className = "kpi-inp"; inp.title = 'Número de inconsistências, ou "NA" se o colaborador não fazia parte do time no mês';
         inp.value = isNA(l.meses[m]) ? "NA" : n0(l.meses[m]);
@@ -511,10 +595,13 @@
     // Chart.js escondia rótulos alternados (autoSkip) quando havia muitos colaboradores.
     // Agora a altura cresce com a quantidade de colaboradores e o autoSkip fica desligado.
     g2.style.height = Math.max(280, porColab.length * 26 + 60) + "px";
-    grafico("inc-colab", { type: "bar", data: { labels: porColab.map((x) => x.nome), datasets: [{ label: "Inconsistências no ano", data: porColab.map((x) => x.total), backgroundColor: "#C0392B", borderRadius: 4 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true }, y: { ticks: { autoSkip: false, font: { size: 11 } } } } } });
+    // V 2.15 (Alexandre): no modo apresentação os nomes dos colaboradores viram rótulos genéricos.
+    const apI = !!(BI.apresentacaoAtiva && BI.apresentacaoAtiva());
+    const colabLabels = apI ? porColab.map((_, i) => "Colaborador " + (i + 1)) : porColab.map((x) => x.nome);
+    grafico("inc-colab", { type: "bar", data: { labels: colabLabels, datasets: [{ label: "Inconsistências no ano", data: porColab.map((x) => x.total), backgroundColor: "#C0392B", borderRadius: 4 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true }, y: { ticks: { autoSkip: false, font: { size: 11 } } } } } });
   }
   function desenharGraficosInc(totMes) {
-    grafico("inc-mes", { type: "line", data: { labels: MESES_CURTO.slice(), datasets: [{ label: "Inconsistências", data: totMes.map((v) => v), borderColor: "#C0392B", backgroundColor: "#C0392B", tension: 0.3, fill: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
+    grafico("inc-mes", { type: "line", data: { labels: MESES_CURTO.slice(), datasets: [{ label: "Inconsistências", data: totMes.map((v) => v), borderColor: "#C0392B", backgroundColor: "#C0392B", tension: 0.3, fill: false }] }, options: { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 18 } }, plugins: { legend: { display: false }, datalabels: { display: true, align: "top", anchor: "end", color: "#C0392B", font: { weight: "600", size: 11 }, formatter: (v) => (v == null ? "" : v) } }, scales: { y: { beginAtZero: true } } } });
   }
 
   // ------------------------------------------------------------------ importação 2026

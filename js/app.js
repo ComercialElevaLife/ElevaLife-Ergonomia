@@ -5182,16 +5182,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         const extras = (form._campos["Cargos"] && Array.isArray(form._campos["Cargos"].value)) ? form._campos["Cargos"].value : [];
         dados.Cargos = Array.from(new Set([dados.Cargo].concat(extras))).filter(Boolean);
       },
-      // V 2.03 (Alexandre): ao finalizar (Salvar) a AEP, abre o painel na própria página
-      // para confirmar o cliente do KPI (Etapa 2). Cancelar volta a editar sem salvar.
-      aoConfirmarAntes: async (form, dados) => {
-        if (!window.BI.confirmarKpiCliente) return true;
-        const sug = String(dados.KpiCliente || dados.Cliente || "").trim();
-        const v = await window.BI.confirmarKpiCliente({ tipo: "AEP", sugestao: sug });
-        if (v === false) return false;
-        dados.KpiCliente = v;
-        return true;
-      },
+      // V 2.12 (Alexandre): o vínculo com o KPI passou a ser por LINHA do KPI (cliente+unidade,
+      // na planilha de KPI operacional), então NÃO se pergunta mais o cliente do KPI ao finalizar
+      // a AEP. A contagem do KPI vem da própria AEP (cliente/unidade + datas), de forma automática.
+      aoConfirmarAntes: async () => true,
       // Pedido do Leo (28/09/2026): "achei muito longa a tela, tem que
       // ficar rolando a tela... faz varias abas" - as 3 secoes do form (ver
       // camposAvaliacaoErgonomica) viram abas clicaveis em vez de ficarem
@@ -8054,6 +8048,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (aba === "coordenacao" && window.BI.Coordenacao) { try { montarSidebarCoordenacao(); window.BI.Coordenacao.render(); } catch (e) { console.error(e); } }
     if (aba === "ergonomista" && window.BI.AgendaErgo) { try { montarSidebarErgonomista(); window.BI.AgendaErgo.render(); } catch (e) { console.error(e); } }
     if (aba === "contratos" && window.BI.Contratos) { try { montarSidebarContratos(); window.BI.Contratos.render(); } catch (e) { console.error(e); } }
+    if (aba === "cases" && window.BI.Cases) { try { window.BI.Cases.render(); } catch (e) { console.error(e); } }
     if (aba === "notificacoes") { try { renderNotificacoes(); } catch (e) { console.error(e); } }
     if (aba === "dashboard") { try { montarDashboard(); mostrarDash(dashAtual); } catch (e) { console.error(e); } }
     // V 1.80 (Alexandre - desempenho): as tabelas de cadastro (e a lista do Plano de Ação) não são

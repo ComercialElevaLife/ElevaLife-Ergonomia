@@ -191,6 +191,8 @@
     { chave: "minhaagenda", rotulo: "Minha agenda", montar: renderMinhaAgenda, papeis: ["Administrador", "Consultor"] },
     { chave: "montaragendas", rotulo: "Montar agendas", montar: renderMontarAgendas, papeis: ["Administrador"] },
     { chave: "painel", rotulo: "Painel da agenda", montar: renderPainel, papeis: ["Administrador"] },
+    // V 2.16 (Alexandre): Cronogramas (avaliações/validação/blitz) — módulo próprio (js/cronogramas.js).
+    { chave: "cronogramas", rotulo: "Cronogramas", montar: (area) => { if (BI.Cronogramas) BI.Cronogramas.render(area); }, papeis: ["Administrador", "Consultor"] },
   ];
   function subabasVisiveis() { const p = papelAtual(); return SUBABAS.filter((s) => s.papeis.indexOf(p) !== -1); }
 

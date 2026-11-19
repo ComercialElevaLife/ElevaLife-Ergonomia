@@ -939,7 +939,12 @@ h1, h2, h3, .titulo-marca {
 
 /* 1600px (era 1400px) - pedido do Leo pra dar mais largura pras tabelas
    de Registro/Cadastro, que tem bastante coluna. */
-main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1600px; margin: 0 auto; }
+/* V 2.14 (Alexandre): main é item de um flex em coluna (.area-principal). Com
+   "margin: 0 auto" e sem largura definida, um flex item encolhe para o conteúdo e
+   se centraliza — por isso abas de conteúdo estreito (ex.: dashboard de Contratos)
+   ficavam "centralizadas"/estreitas. width:100% dá largura definida (ocupa tudo) e
+   o max-width + margin auto só centralizam em telas muito largas (> 1600px). */
+main { padding: 16px clamp(14px, 3vw, 32px) 40px; max-width: 1600px; margin: 0 auto; width: 100%; box-sizing: border-box; }
 
 .grade {
   display: grid;
@@ -2127,6 +2132,7 @@ body.hist-aberto { overflow: hidden; }
 }
 
 /* V 1.27 - perfil Usuario Cliente: sem Cadastro; Registro somente consulta e Excel */
+body.perfil-cliente [data-aba="cases"],
 body.perfil-cliente .sidebar-nav-grupo[data-grupo-nav="cadastro"],
 body.perfil-cliente .sidebar-nav-grupo[data-grupo-nav="interno"],
 body.perfil-cliente .laudo-emissao,
@@ -2546,6 +2552,33 @@ table.kpi-grade tbody tr:hover { background: #fcf7f5; }
 .kpi-inp-qtd { width: 56px; text-align: right; }
 .contratos-grade .kpi-inp-ro { background: var(--fundo, #f6f1ed); color: var(--texto-suave, #9a8a8c); border-style: dashed; }
 /* V 2.10: rolagem interna + cabeçalho fixo (nomes das colunas sempre visíveis ao descer). */
+/* V 2.14 (Alexandre): barra de filtros (cliente/unidade/ergonomista) + prefixo R$ nos campos. */
+.contratos-filtros { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin: 4px 0 12px; }
+.contratos-filtro { display: flex; flex-direction: column; gap: 3px; min-width: 150px; }
+.contratos-filtro-rot { font-size: 11.5px; font-weight: 600; color: var(--texto-secundario, #6b5b5c); }
+.contratos-filtro select { min-width: 150px; }
+.contratos-rs { color: #6b5b5c; font-weight: 600; font-size: 11px; margin-right: 3px; }
+/* V 2.17 (Alexandre): CASES */
+.case-card { border: 1px solid var(--linha, #e6dcdc); border-radius: 12px; padding: 14px 16px; margin-top: 12px; background: var(--card, #fff); }
+.case-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.case-tit { font-weight: 700; font-size: 15px; }
+.case-uni, .case-data { font-weight: 500; color: var(--texto-secundario, #6b5b5c); }
+.case-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+.case-pendente { background: #FFF3CD; color: #8a6d00; }
+.case-aprovado { background: #e7f3ec; color: #1E6B44; }
+.case-reprovado { background: #fdecec; color: #C62828; }
+.case-midias, .case-form-midias { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0; }
+.case-midia-rot, .case-up .aet-rot { font-weight: 600; font-size: 12.5px; margin-bottom: 4px; }
+.case-midia-el { width: 100%; max-height: 240px; object-fit: contain; border-radius: 8px; background: #f3efef; }
+.case-midia-vazia { color: #9a8b89; font-size: 13px; padding: 20px; text-align: center; background: #f6f1ed; border-radius: 8px; }
+.case-info { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; font-size: 13.5px; }
+.case-rot { font-weight: 700; color: var(--vinho-escuro, #5a2a33); }
+.case-acoes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.case-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.case-campo { display: flex; flex-direction: column; gap: 3px; }
+.case-up { border: 1px dashed var(--linha, #ddd); border-radius: 10px; padding: 10px; }
+.case-up-prev { margin: 6px 0; }
+@media (max-width: 640px) { .case-midias, .case-form-midias { grid-template-columns: 1fr; } }
 .contratos-scroll { max-height: 72vh; overflow: auto; }
 table.contratos-grade thead th { position: sticky; top: 0; z-index: 5; }
 /* Saldos: positivo = verde destacado; zerado/negativo = vermelho destacado. */

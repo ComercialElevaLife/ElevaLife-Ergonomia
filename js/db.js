@@ -75,6 +75,10 @@
     // ve todas. "agendaConfig" = horas por dia da semana de cada ergonomista (so o
     // coordenador monta). Filtros por EmailErgonomista no backend - ver entidades.js.
     "agendaErgo", "agendaConfig",
+    // V 2.16: cronograma (avaliações/validação/blitz por ergonomista/ano). GLOBAL.
+    "cronograma",
+    // V 2.17: cases (reporte antes/depois) — caseErgo por cliente; caseConfig = aprovadores (GLOBAL).
+    "caseErgo", "caseConfig",
     // V 2.05: Contratos & Budget (aba própria, restrita a uma lista de usuários).
     // GLOBAIS. contratoCoord = clientes/contratos; budgetMensal = análise mensal;
     // contratoConfig = doc "acesso" com a allowlist. O backend só devolve/aceita

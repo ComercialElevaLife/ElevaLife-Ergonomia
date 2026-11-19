@@ -108,6 +108,8 @@
     { chave: "painel", rotulo: "Painel de avaliações", montar: renderPainelAvalErgo, papeis: ["Administrador"] },
     { chave: "kpiop", rotulo: "KPI operacionais - recorrentes", montar: renderKpiOp, papeis: ["Administrador"] },
     { chave: "inconsistencias", rotulo: "Inconsistências Sólides", montar: renderKpiInc, papeis: ["Administrador"] },
+    // V 2.18 (Alexandre): gerar apresentação (PPT) dos KPIs do mês.
+    { chave: "apresentacao", rotulo: "Gerar apresentação", montar: (area) => { if (BI.Apresentacao) BI.Apresentacao.render(area); }, papeis: ["Administrador"] },
   ];
 
   function papelAtual() { const i = BI.DB && BI.DB.estado && BI.DB.estado.identidade; return i ? i.papel : "Administrador"; }
