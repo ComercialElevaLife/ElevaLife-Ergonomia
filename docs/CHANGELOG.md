@@ -2,6 +2,16 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.30 — 23/11/2026
+
+Fatores vigentes = só os com graduação + rótulos dos donuts (Alexandre):
+
+- **“Fatores vigentes” agora conta só fatores COM graduação** (bate com o gráfico). Antes o KPI contava todos os ativos (ex.: 7.083) e o gráfico só os graduados (ex.: 6.371) — a diferença eram fatores ativos **sem graduação**, que não deviam contar como vigentes. *(`js/calc.js`, `js/app.js`.)*
+- **Fatores sem graduação viram notificação:** nova lista em **Notificações › “Fatores sem graduação — revisar”** (origem, empresa, unidade, local, fator, ergonomista) com botão **Abrir**. Cada ergonomista vê só os dos seus clientes. *(`js/app.js`.)*
+- **Rótulos dos donuts (Dashboard):** cada fatia agora mostra **número + %** e **aparece sempre** — fatias pequenas (Alto/Muito Alto) saem **para fora** do donut em vez de sumir. O **%** passou a ser calculado sobre os valores **reais**, então **bate com a legenda** (antes o donut usava o valor “inflado” das fatias pequenas e mostrava um % diferente). *(`js/app.js`.)*
+
+Service worker subiu para `sige-v145`. *(Inclui tudo da v2.24 → v2.29.)*
+
 ## V 2.29 — 23/11/2026
 
 Riscos ergonômicos POR AVALIAÇÃO + fatores de risco (Alexandre):

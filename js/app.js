@@ -278,18 +278,28 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         },
       };
 
+      // V 2.30 (Alexandre): rótulo da fatia mostra NÚMERO + % e aparece SEMPRE (fatias pequenas vão
+      // para fora do donut). O % é calculado sobre os valores REAIS (_reais quando existe), então bate
+      // com a legenda — antes era calculado sobre o valor inflado das fatias pequenas (não batia).
+      const somaReais = (ds) => { const arr = ds && (ds._reais || ds.data) || []; return arr.reduce((s, v) => s + (Number(v) || 0), 0); };
+      const realDaFatia = (ds, i) => { if (!ds) return 0; return (ds._reais && ds._reais[i] != null) ? Number(ds._reais[i]) : Number((ds.data || [])[i]); };
+      // fatia "pequena" no desenho (não cabe rótulo dentro) → joga para fora.
+      const fatiaPequena = (ctx) => { const ds = ctx && ctx.dataset; if (!ds || !ds.data) return false; const soma = ds.data.reduce((s, v) => s + (Number(v) || 0), 0); const v = Number(ds.data[ctx.dataIndex]) || 0; return !soma || (v / soma) < 0.12; };
       const rotuloFatia = {
         display: true,
-        color: "#fff",
-        anchor: "center",
-        align: "center",
-        font: { size: 11, weight: "600" },
+        clip: false,
+        anchor: (ctx) => fatiaPequena(ctx) ? "end" : "center",
+        align: (ctx) => fatiaPequena(ctx) ? "end" : "center",
+        offset: (ctx) => fatiaPequena(ctx) ? 8 : 0,
+        color: (ctx) => fatiaPequena(ctx) ? corTextoSecundario() : "#fff",
+        font: { size: 11, weight: "700" },
+        textAlign: "center",
         formatter: (valor, ctx) => {
-          const n = Number(valor);
-          const total = (ctx.dataset.data || []).reduce((soma, v) => soma + (Number(v) || 0), 0);
-          if (!n || !total) return "";
-          const pct = (n / total) * 100;
-          return pct < 6 ? "" : `${pct.toFixed(0)}%`;
+          const ds = ctx && ctx.dataset; if (!ds) return "";
+          const reais = realDaFatia(ds, ctx.dataIndex);
+          const base = somaReais(ds);
+          if (!reais || !base) return "";
+          return reais.toLocaleString("pt-BR") + "\n" + ((reais / base) * 100).toFixed(0) + "%";
         },
       };
       Chart.overrides.doughnut.plugins.datalabels = rotuloFatia;
@@ -995,7 +1005,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       type: "doughnut",
       data: { labels, datasets: [{ data: valoresVis, _reais: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
       plugins: [pluginTotalCentro],
-      options: comCliqueDrillDown({ cutout: "64%", interaction: { mode: "nearest", intersect: true }, plugins: { totalCentro: { rotulo: rotuloCentro, total: total }, tooltip: { enabled: false, external: tooltipExterno } } },
+      options: comCliqueDrillDown({ cutout: "64%", layout: { padding: 30 }, interaction: { mode: "nearest", intersect: true }, plugins: { totalCentro: { rotulo: rotuloCentro, total: total }, tooltip: { enabled: false, external: tooltipExterno } } },
         (el) => aoClicar(itens[el.index])),
     });
     renderizarLegenda(legendaId, niveis.map((n) => ({ label: `${C.rotuloNivel(n.nivel)}: ${n.qtd} ${unidade}${total ? " (" + ((n.qtd / total) * 100).toFixed(0) + "%)" : ""}`, cor: corDoNivel(n) })));
@@ -1162,6 +1172,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
       options: comCliqueDrillDown({
         cutout: "62%",
+        layout: { padding: 30 },
         interaction: { mode: "nearest", intersect: true },
         plugins: { tooltip: { enabled: false, external: tooltipExterno } },
       }, (el) => {
@@ -1340,6 +1351,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
       options: comCliqueDrillDown({
         cutout: "62%",
+        layout: { padding: 30 },
         interaction: { mode: "nearest", intersect: true },
         plugins: { tooltip: { enabled: false, external: tooltipExterno } },
       }, (el) => {
@@ -8566,12 +8578,23 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       ergonomista: a.Ergonomista || a["Ergonomista Responsavel"] || a.Autor || "",
     }));
   }
+  // V 2.30 (Alexandre): fatores ATIVOS sem graduação — não entram em "Fatores vigentes" nem nos
+  // gráficos; o ergonomista precisa lançar a graduação. (Dados já vêm filtrados por cliente.)
+  function fatoresSemGraduacaoNotif() {
+    const C = window.BI.Calc; if (!C || !C.temGraduacao) return [];
+    return (window.BI.dados.fatorRisco || []).filter((f) => C.riscoAtivo(f) && !C.temGraduacao(f)).map((f) => ({
+      id: f._id || f.id, cliente: f.Cliente || "-", unidade: f.Unidade || "-",
+      local: [f.Setor, f["Posto Trabalho"], C.rotuloCargos ? C.rotuloCargos(f) : f.Cargo].filter(Boolean).join(" › "),
+      fator: f.Fator || f["Fator Risco Nome"] || "-", origem: C.origemDe(f),
+      ergonomista: f.Ergonomista || f["Ergonomista Responsavel"] || f.Autor || "",
+    }));
+  }
   function atualizarBadgeAbaNotificacoes() {
     const badge = document.getElementById("badge-aba-notificacoes");
     if (!badge) return;
     try {
       const c = contarNotificacoes();
-      const n = c.atrasadas.length + c.perto.length + (ehEquipeNotif() ? analisesIncompletasNotif().length + pendenciasImportacaoNotif().length + avaliacoesSemFatorNotif().length : 0);
+      const n = c.atrasadas.length + c.perto.length + (ehEquipeNotif() ? analisesIncompletasNotif().length + pendenciasImportacaoNotif().length + avaliacoesSemFatorNotif().length + fatoresSemGraduacaoNotif().length : 0);
       badge.hidden = n === 0; badge.textContent = n > 99 ? "99+" : String(n);
     } catch (e) { badge.hidden = true; }
   }
@@ -8695,6 +8718,32 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           tbodyS.appendChild(tr);
         });
         tbS.appendChild(tbodyS); wrapS.appendChild(tbS); el.appendChild(wrapS);
+      }
+
+      // V 2.30 (Alexandre): fatores ativos sem graduação — o ergonomista precisa definir a graduação.
+      const semGrad = fatoresSemGraduacaoNotif();
+      el.appendChild(h("h3", "notif-sub", `Fatores sem graduação — revisar (${semGrad.length})`));
+      if (!semGrad.length) {
+        el.appendChild(h("p", "aet-nota", "Todo fator de risco ativo dos seus clientes tem graduação. 👍"));
+      } else {
+        el.appendChild(h("p", "aet-nota", "Estes fatores estão ativos mas sem graduação, então não entram em “Fatores vigentes” nem nos gráficos. Abra e defina a graduação."));
+        const wrapG = h("div", "tabela-scroll"); const tbG = h("table", "tabela-dados");
+        const thG = h("thead"); const trG0 = h("tr"); ["Origem", "Empresa", "Unidade", "Setor › posto › cargo", "Fator", "Ergonomista", ""].forEach((t) => trG0.appendChild(h("th", null, t))); thG.appendChild(trG0); tbG.appendChild(thG);
+        const tbodyG = h("tbody");
+        semGrad.slice(0, 300).forEach((x) => {
+          const tr = h("tr");
+          tr.appendChild(h("td", null, x.origem));
+          tr.appendChild(h("td", null, x.cliente));
+          tr.appendChild(h("td", null, x.unidade || "-"));
+          tr.appendChild(h("td", null, x.local || "-"));
+          tr.appendChild(h("td", null, x.fator || "-"));
+          tr.appendChild(h("td", null, x.ergonomista || "-"));
+          const td = h("td"); const b = h("button", "btn-cad-secundario", "Abrir"); b.type = "button";
+          b.addEventListener("click", () => { const f = (window.BI.dados.fatorRisco || []).find((r) => (r._id || r.id) === x.id); if (f) { try { abrirDetalheRisco(f); } catch (e) { console.error("abrir fator", e); } } });
+          td.appendChild(b); tr.appendChild(td);
+          tbodyG.appendChild(tr);
+        });
+        tbG.appendChild(tbodyG); wrapG.appendChild(tbG); el.appendChild(wrapG);
       }
     }
   }
@@ -9042,7 +9091,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       postos = F(postos, ["Dt Avaliacao"]);
       postosCriticos = postos.filter((p) => p["Risco Global"] === "Alto" || p["Risco Global"] === "Muito Alto").length;
     } catch (e) { /* */ }
-    try { fatoresArr = F(dados.fatorRisco || [], ["Dt Identificacao"]).filter((l) => Calc.riscoAtivo(l)); } catch (e) { /* */ }
+    // V 2.30 (Alexandre): "Fatores vigentes" = ativos COM graduação (bate com o gráfico). Os ativos
+    // sem graduação viram pendência/notificação (ver avaliacoesSemGraduacaoNotif), não entram aqui.
+    try { fatoresArr = F(dados.fatorRisco || [], ["Dt Identificacao"]).filter((l) => Calc.riscoAtivo(l) && Calc.temGraduacao(l)); } catch (e) { /* */ }
     const fatores = fatoresArr.length;
 
     const avaliacaoArr = F(dados.avaliacaoErgonomica || [], ["Data Avaliacao"]);

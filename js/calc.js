@@ -895,6 +895,9 @@
   // o mais recente; um risco eliminado ("Risco Eliminado" = Sim) sai das contagens e do laudo vigente.
   // ------------------------------------------------------------------
   const riscoAtivo = (f) => !!f && f["Existe Fator Risco"] !== "Nao" && f["Risco Eliminado"] !== "Sim";
+  // V 2.30 (Alexandre): fator "vigente" de verdade só quando TEM graduação reconhecida. Fatores
+  // ativos sem graduação não entram no "Fatores vigentes" nem nos gráficos (viram pendência).
+  const temGraduacao = (f) => !!f && NIVEIS_RISCO.indexOf(nivelCanonico(f["Graduacao Risco"])) >= 0;
   const dataInicioRisco = (f) => (f && (f["Dt Identificacao"] || String(f._criadoEm || "").slice(0, 10))) || "";
   function eventosRisco(f) { return ((f && f["Historico Risco"]) || []).filter((e) => e && e.data).slice().sort((a, b) => String(a.data).localeCompare(String(b.data))); }
   function graduacaoInicial(f) { const ev = eventosRisco(f); return f["Graduacao Inicial"] || (ev.length ? ev[0].de : f["Graduacao Risco"]) || ""; }
@@ -1272,6 +1275,7 @@
     ORIGENS,
     origemDe,
     riscoAtivo,
+    temGraduacao,
     eventosRisco,
     graduacaoInicial,
     graduacaoNaData,
