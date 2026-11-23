@@ -283,16 +283,16 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       // com a legenda — antes era calculado sobre o valor inflado das fatias pequenas (não batia).
       const somaReais = (ds) => { const arr = ds && (ds._reais || ds.data) || []; return arr.reduce((s, v) => s + (Number(v) || 0), 0); };
       const realDaFatia = (ds, i) => { if (!ds) return 0; return (ds._reais && ds._reais[i] != null) ? Number(ds._reais[i]) : Number((ds.data || [])[i]); };
-      // fatia "pequena" no desenho (não cabe rótulo dentro) → joga para fora.
-      const fatiaPequena = (ctx) => { const ds = ctx && ctx.dataset; if (!ds || !ds.data) return false; const soma = ds.data.reduce((s, v) => s + (Number(v) || 0), 0); const v = Number(ds.data[ctx.dataIndex]) || 0; return !soma || (v / soma) < 0.12; };
+      // V 2.31 (Alexandre): o rótulo (número + %) aparece DENTRO só quando a fatia é grande o
+      // bastante para caber legível. As fatias pequenas (ex.: Alto/Muito Alto) NÃO ganham rótulo no
+      // desenho — ficavam se sobrepondo e ilegíveis; elas aparecem na LEGENDA, com número + %.
+      const fatiaGrande = (ctx) => { const ds = ctx && ctx.dataset; if (!ds || !ds.data) return false; const soma = ds.data.reduce((s, v) => s + (Number(v) || 0), 0); const v = Number(ds.data[ctx.dataIndex]) || 0; return soma > 0 && (v / soma) >= 0.14; };
       const rotuloFatia = {
-        display: true,
-        clip: false,
-        anchor: (ctx) => fatiaPequena(ctx) ? "end" : "center",
-        align: (ctx) => fatiaPequena(ctx) ? "end" : "center",
-        offset: (ctx) => fatiaPequena(ctx) ? 8 : 0,
-        color: (ctx) => fatiaPequena(ctx) ? corTextoSecundario() : "#fff",
-        font: { size: 11, weight: "700" },
+        display: (ctx) => fatiaGrande(ctx),
+        color: "#fff",
+        anchor: "center",
+        align: "center",
+        font: { size: 12, weight: "700" },
         textAlign: "center",
         formatter: (valor, ctx) => {
           const ds = ctx && ctx.dataset; if (!ds) return "";
@@ -1005,10 +1005,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       type: "doughnut",
       data: { labels, datasets: [{ data: valoresVis, _reais: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
       plugins: [pluginTotalCentro],
-      options: comCliqueDrillDown({ cutout: "64%", layout: { padding: 30 }, interaction: { mode: "nearest", intersect: true }, plugins: { totalCentro: { rotulo: rotuloCentro, total: total }, tooltip: { enabled: false, external: tooltipExterno } } },
+      options: comCliqueDrillDown({ cutout: "64%", layout: { padding: 8 }, interaction: { mode: "nearest", intersect: true }, plugins: { totalCentro: { rotulo: rotuloCentro, total: total }, tooltip: { enabled: false, external: tooltipExterno } } },
         (el) => aoClicar(itens[el.index])),
     });
-    renderizarLegenda(legendaId, niveis.map((n) => ({ label: `${C.rotuloNivel(n.nivel)}: ${n.qtd} ${unidade}${total ? " (" + ((n.qtd / total) * 100).toFixed(0) + "%)" : ""}`, cor: corDoNivel(n) })));
+    renderizarLegenda(legendaId, niveis.map((n) => ({ label: `${C.rotuloNivel(n.nivel)}: ${n.qtd.toLocaleString("pt-BR")} ${unidade}${total ? " (" + ((n.qtd / total) * 100).toFixed(0) + "%)" : ""}`, cor: corDoNivel(n) })));
   }
 
   // Drill-down em secoes (V 1.35: composicao de um mes da evolucao dos riscos).
@@ -1172,7 +1172,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
       options: comCliqueDrillDown({
         cutout: "62%",
-        layout: { padding: 30 },
+        layout: { padding: 8 },
         interaction: { mode: "nearest", intersect: true },
         plugins: { tooltip: { enabled: false, external: tooltipExterno } },
       }, (el) => {
@@ -1351,7 +1351,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
       options: comCliqueDrillDown({
         cutout: "62%",
-        layout: { padding: 30 },
+        layout: { padding: 8 },
         interaction: { mode: "nearest", intersect: true },
         plugins: { tooltip: { enabled: false, external: tooltipExterno } },
       }, (el) => {

@@ -2,6 +2,15 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.31 — 23/11/2026
+
+Visualização dos donuts do Dashboard melhorada (Alexandre):
+
+- Os rótulos das fatias pequenas (Alto/Muito Alto) estavam **se sobrepondo** quando jogados para fora (ficava ilegível). Agora o rótulo **número + %** aparece **dentro** apenas das fatias **grandes** (que cabem sem poluir); as fatias pequenas aparecem como arco colorido e ficam **na legenda**, que mostra **número + %** de todos os níveis, sempre visível. *(`js/app.js`.)*
+- O **%** dos rótulos e da legenda continua calculado sobre os valores **reais** (bate entre si). Números grandes com separador de milhar na legenda.
+
+Service worker subiu para `sige-v146`. *(Inclui tudo da v2.24 → v2.30.)*
+
 ## V 2.30 — 23/11/2026
 
 Fatores vigentes = só os com graduação + rótulos dos donuts (Alexandre):
