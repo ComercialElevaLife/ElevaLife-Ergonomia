@@ -2,6 +2,16 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.32 — 23/11/2026
+
+Donuts do Dashboard padronizados — rótulos fora, em todas as fatias (Alexandre):
+
+- Os rótulos (**número + %**) agora ficam **fora** do donut, em **todas** as fatias, ligados por uma **linha-guia** à fatia, em **letra preta e pequena** (mas legível). *(`js/app.js`.)*
+- **Sem sobreposição:** as fatias pequenas (Alto/Muito Alto) têm os rótulos **empilhados** de cada lado sem colar um no outro (antes, fora do gráfico, viravam um amontoado ilegível).
+- Padronizado nos donuts da **Visão Geral** e da **Gestão de Riscos** (riscos por avaliação, fatores/inventário, status do plano e status do inventário). O **%** usa os valores reais, batendo com a legenda.
+
+Service worker subiu para `sige-v147`. *(Inclui tudo da v2.24 → v2.31.)*
+
 ## V 2.31 — 23/11/2026
 
 Visualização dos donuts do Dashboard melhorada (Alexandre):

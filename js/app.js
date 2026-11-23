@@ -278,32 +278,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         },
       };
 
-      // V 2.30 (Alexandre): rótulo da fatia mostra NÚMERO + % e aparece SEMPRE (fatias pequenas vão
-      // para fora do donut). O % é calculado sobre os valores REAIS (_reais quando existe), então bate
-      // com a legenda — antes era calculado sobre o valor inflado das fatias pequenas (não batia).
-      const somaReais = (ds) => { const arr = ds && (ds._reais || ds.data) || []; return arr.reduce((s, v) => s + (Number(v) || 0), 0); };
-      const realDaFatia = (ds, i) => { if (!ds) return 0; return (ds._reais && ds._reais[i] != null) ? Number(ds._reais[i]) : Number((ds.data || [])[i]); };
-      // V 2.31 (Alexandre): o rótulo (número + %) aparece DENTRO só quando a fatia é grande o
-      // bastante para caber legível. As fatias pequenas (ex.: Alto/Muito Alto) NÃO ganham rótulo no
-      // desenho — ficavam se sobrepondo e ilegíveis; elas aparecem na LEGENDA, com número + %.
-      const fatiaGrande = (ctx) => { const ds = ctx && ctx.dataset; if (!ds || !ds.data) return false; const soma = ds.data.reduce((s, v) => s + (Number(v) || 0), 0); const v = Number(ds.data[ctx.dataIndex]) || 0; return soma > 0 && (v / soma) >= 0.14; };
-      const rotuloFatia = {
-        display: (ctx) => fatiaGrande(ctx),
-        color: "#fff",
-        anchor: "center",
-        align: "center",
-        font: { size: 12, weight: "700" },
-        textAlign: "center",
-        formatter: (valor, ctx) => {
-          const ds = ctx && ctx.dataset; if (!ds) return "";
-          const reais = realDaFatia(ds, ctx.dataIndex);
-          const base = somaReais(ds);
-          if (!reais || !base) return "";
-          return reais.toLocaleString("pt-BR") + "\n" + ((reais / base) * 100).toFixed(0) + "%";
-        },
-      };
-      Chart.overrides.doughnut.plugins.datalabels = rotuloFatia;
-      Chart.overrides.pie.plugins.datalabels = rotuloFatia;
+      // V 2.32 (Alexandre): os rótulos das fatias (número + %) NÃO ficam mais dentro do donut — são
+      // desenhados FORA, em todas as fatias, com linha-guia e sem sobreposição, pelo plugin
+      // "rotulosFora" (ver abaixo). Aqui o datalabels embutido fica desligado para não duplicar.
+      Chart.overrides.doughnut.plugins.datalabels = { display: false };
+      Chart.overrides.pie.plugins.datalabels = { display: false };
       Chart.overrides.line.plugins.datalabels = { display: false };
     }
   }
@@ -989,6 +968,53 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       ctx.restore();
     },
   };
+  // V 2.32 (Alexandre): rótulos FORA do donut (número + %), em TODAS as fatias, com linha-guia e
+  // anti-sobreposição (empurra os rótulos de cada lado para não colar um no outro). Letra preta e
+  // pequena, mas legível. Usa os valores REAIS (_reais) para número e % — batem com a legenda.
+  const pluginRotulosFora = {
+    id: "rotulosFora",
+    afterDatasetsDraw(chart) {
+      const meta = chart.getDatasetMeta(0); if (!meta || !meta.data || !meta.data.length) return;
+      const ds = chart.data.datasets[0] || {};
+      const reais = Array.isArray(ds._reais) ? ds._reais : (ds.data || []);
+      const total = reais.reduce((a, b) => a + (Number(b) || 0), 0); if (!total) return;
+      const ctx = chart.ctx;
+      const el0 = meta.data[0]; const cx = el0.x, cy = el0.y; const rOuter = el0.outerRadius;
+      const GAP = 8, LINHA = 15;
+      const esq = [], dir = [];
+      meta.data.forEach((arc, i) => {
+        const real = Number(reais[i]) || 0; if (real <= 0) return;
+        const ang = (arc.startAngle + arc.endAngle) / 2; const cos = Math.cos(ang), sin = Math.sin(ang);
+        const pct = Math.round((real / total) * 100);
+        const cor = Array.isArray(ds.backgroundColor) ? ds.backgroundColor[i] : ds.backgroundColor;
+        const item = { cos, sin, texto: real.toLocaleString("pt-BR") + " · " + pct + "%", cor: cor || "#999", x0: cx + cos * rOuter, y0: cy + sin * rOuter, yAlvo: cy + sin * (rOuter + GAP) };
+        (cos >= 0 ? dir : esq).push(item);
+      });
+      ctx.save();
+      ctx.font = "600 10px Montserrat, system-ui, sans-serif";
+      const topo = (chart.chartArea ? chart.chartArea.top : 0) + 2;
+      const base = (chart.chartArea ? chart.chartArea.bottom : chart.height) - 2;
+      const lado = (arr, sinal) => {
+        if (!arr.length) return;
+        arr.sort((a, b) => a.yAlvo - b.yAlvo);
+        let y = topo;
+        arr.forEach((it) => { it.y = Math.max(it.yAlvo, y); y = it.y + LINHA; });
+        const over = arr[arr.length - 1].y - base; if (over > 0) arr.forEach((it) => (it.y -= over));
+        if (arr[0].y < topo) { const d = topo - arr[0].y; arr.forEach((it) => (it.y += d)); }
+        const xCotovelo = cx + sinal * (rOuter + GAP + 10);
+        const xTexto = cx + sinal * (rOuter + GAP + 15);
+        ctx.textBaseline = "middle"; ctx.textAlign = sinal >= 0 ? "left" : "right";
+        arr.forEach((it) => {
+          ctx.beginPath(); ctx.moveTo(it.x0, it.y0); ctx.lineTo(xCotovelo, it.y); ctx.lineTo(xTexto - sinal * 3, it.y);
+          ctx.strokeStyle = it.cor; ctx.lineWidth = 1; ctx.globalAlpha = 0.75; ctx.stroke(); ctx.globalAlpha = 1;
+          ctx.fillStyle = "#222"; ctx.fillText(it.texto, xTexto, it.y);
+        });
+      };
+      lado(dir, 1); lado(esq, -1);
+      ctx.restore();
+    },
+  };
+
   function renderDonutNiveis(canvasId, legendaId, niveis, rotuloCentro, unidade, aoClicar) {
     const C = window.BI.Calc;
     // V 1.72: fatia "Sem risco" (postos avaliados/cadastrados sem fator) em cinza.
@@ -1004,8 +1030,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     criarOuAtualizarGrafico(canvasId, {
       type: "doughnut",
       data: { labels, datasets: [{ data: valoresVis, _reais: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
-      plugins: [pluginTotalCentro],
-      options: comCliqueDrillDown({ cutout: "64%", layout: { padding: 8 }, interaction: { mode: "nearest", intersect: true }, plugins: { totalCentro: { rotulo: rotuloCentro, total: total }, tooltip: { enabled: false, external: tooltipExterno } } },
+      plugins: [pluginTotalCentro, pluginRotulosFora],
+      options: comCliqueDrillDown({ cutout: "64%", layout: { padding: { left: 84, right: 84, top: 12, bottom: 12 } }, interaction: { mode: "nearest", intersect: true }, plugins: { totalCentro: { rotulo: rotuloCentro, total: total }, tooltip: { enabled: false, external: tooltipExterno } } },
         (el) => aoClicar(itens[el.index])),
     });
     renderizarLegenda(legendaId, niveis.map((n) => ({ label: `${C.rotuloNivel(n.nivel)}: ${n.qtd.toLocaleString("pt-BR")} ${unidade}${total ? " (" + ((n.qtd / total) * 100).toFixed(0) + "%)" : ""}`, cor: corDoNivel(n) })));
@@ -1170,9 +1196,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     criarOuAtualizarGrafico(canvasId, {
       type: "doughnut",
       data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
+      plugins: [pluginRotulosFora],
       options: comCliqueDrillDown({
         cutout: "62%",
-        layout: { padding: 8 },
+        layout: { padding: { left: 84, right: 84, top: 12, bottom: 12 } },
         interaction: { mode: "nearest", intersect: true },
         plugins: { tooltip: { enabled: false, external: tooltipExterno } },
       }, (el) => {
@@ -1349,9 +1376,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     criarOuAtualizarGrafico("chart-fatorrisco-status", {
       type: "doughnut",
       data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderColor: corSurfaceCard(), borderWidth: 2 }] },
+      plugins: [pluginRotulosFora],
       options: comCliqueDrillDown({
         cutout: "62%",
-        layout: { padding: 8 },
+        layout: { padding: { left: 84, right: 84, top: 12, bottom: 12 } },
         interaction: { mode: "nearest", intersect: true },
         plugins: { tooltip: { enabled: false, external: tooltipExterno } },
       }, (el) => {
