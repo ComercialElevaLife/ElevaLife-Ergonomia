@@ -2553,6 +2553,11 @@ table.kpi-grade-fixa tr.kpi-total td:first-child { background: var(--fundo-suave
 .agenda-msg { font-size: 13px; }
 .agenda-rodape { margin-top: 8px; }
 .agenda-cfg-hora { width: 64px; text-align: right; }
+/* V 2.28 (Alexandre): ergonomista desativado/removido da agenda (linha esmaecida). */
+.agenda-cfg-tabela tr.agenda-cfg-inativa > td { opacity: .5; }
+.agenda-cfg-tabela tr.agenda-cfg-inativa > td:last-child,
+.agenda-cfg-tabela tr.agenda-cfg-inativa > td:nth-child(11) { opacity: 1; }
+.agenda-mostrar-removidos { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--texto-secundario); cursor: pointer; margin-left: 8px; }
 .agenda-grafico-box { position: relative; height: 320px; }
 .agenda-grafico-doughnut { height: 340px; }
 

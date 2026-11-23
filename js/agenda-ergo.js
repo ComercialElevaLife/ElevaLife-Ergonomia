@@ -96,7 +96,8 @@
       const em = String(c.EmailErgonomista || "").toLowerCase(); if (!em) return;
       mapa[em] = { email: em, nome: c.Nome || nomeDe(em) };
     });
-    return Object.keys(mapa).map((k) => mapa[k]).sort((a, b) => String(a.nome).localeCompare(String(b.nome)));
+    // V 2.28 (Alexandre): tira do Painel/gráficos quem está desativado ou removido da agenda.
+    return Object.keys(mapa).map((k) => mapa[k]).filter((e) => ergoVisivelPainel(e.email)).sort((a, b) => String(a.nome).localeCompare(String(b.nome)));
   }
   // Config da agenda correspondente a uma linha de ergonomista do Cadastro Interno.
   // Reconhece tanto o formato novo (ErgoRef = e-mail do ergonomista) quanto o antigo (chave pelo e-mail).
@@ -105,6 +106,14 @@
     return docsConfig().find((c) => String(c.ErgoRef || "").toLowerCase() === e)
       || docsConfig().find((c) => (c._id || c.id) === idCfg(e));
   }
+
+  // V 2.28 (Alexandre): ativar/desativar e excluir (ocultar) ergonomista da agenda.
+  //   Ativo === false → some dos gráficos/Painel (mas continua na tabela de config, para reativar).
+  //   RemovidoAgenda  → some dos gráficos E da tabela de config (reversível em "Mostrar removidos").
+  // Sem config, o ergonomista é considerado ativo e não removido (comportamento antigo).
+  function cfgAtivaAgenda(cfg) { return !cfg || cfg.Ativo !== false; }
+  function cfgRemovidaAgenda(cfg) { return !!(cfg && cfg.RemovidoAgenda); }
+  function ergoVisivelPainel(ergoEmail) { const c = cfgDoErgo(ergoEmail) || acharCfg(ergoEmail); return cfgAtivaAgenda(c) && !cfgRemovidaAgenda(c); }
 
   // --------------------------------------------------- datas / horário
   function hojeISO() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
@@ -185,6 +194,7 @@
   let mesPainel = (hojeISO() >= INICIO_AGENDA) ? (new Date().getMonth()) : 11;
   let anoPainel = (hojeISO() >= INICIO_AGENDA) ? (new Date().getFullYear()) : 2026;
   let ergoPainel = "__todos__";
+  let _mostrarRemovidos = false; // V 2.28: mostrar na tabela de config os ergonomistas removidos da agenda
 
   const SUBABAS = [
     { chave: "minhaaval", rotulo: "Minha avaliação", montar: renderMinhaAval, papeis: ["Administrador", "Consultor"] },
@@ -396,13 +406,31 @@
     const wrap = h("div", "coord-tabela-wrap");
     const t = h("table", "coord-tabela agenda-cfg-tabela");
     const thead = h("thead"); const trh = h("tr");
-    const cols = ["Ergonomista", "Usuário (login)"].concat(DIAS_CURTO).concat(["Semana"]);
+    const cols = ["Ergonomista", "Usuário (login)"].concat(DIAS_CURTO).concat(["Semana", "Ativa", "Ações"]);
     cols.forEach((c, i) => { const th = h("th", i > 1 ? "num" : null, c); trh.appendChild(th); });
     thead.appendChild(trh); t.appendChild(thead);
     const tb = h("tbody");
     const estado = {}; // ergoEmail -> [7]
     const vinculo = {}; // ergoEmail -> login escolhido
-    ergos.forEach((e) => {
+    // V 2.28 (Alexandre): esconde os removidos (a menos que "Mostrar removidos" esteja ligado).
+    const ergosVisiveis = ergos.filter((e) => _mostrarRemovidos || !cfgRemovidaAgenda(cfgDoErgo(e.email)));
+    // Salva um flag (Ativo / RemovidoAgenda) do ergonomista sem mexer nas horas já gravadas.
+    async function salvarFlagAgenda(e, patch) {
+      if (!podeGravar()) { if (BI.avisar) BI.avisar("Banco indisponível nesta visualização."); return; }
+      const cfg = cfgDoErgo(e.email);
+      const login = (vinculo[e.email] || (cfg && cfg.EmailUsuario) || "");
+      const donoEmail = (cfg && cfg.EmailErgonomista) || login || e.email;
+      const doc = Object.assign({
+        EmpresaId: "GLOBAL", EmailErgonomista: donoEmail, EmailUsuario: login,
+        ErgoRef: e.email, Nome: e.nome,
+        horasPorDia: (cfg && Array.isArray(cfg.horasPorDia)) ? cfg.horasPorDia : (estado[e.email] || [0, 0, 0, 0, 0, 0, 0]),
+        Ativo: cfgAtivaAgenda(cfg), RemovidoAgenda: cfgRemovidaAgenda(cfg),
+      }, patch);
+      const id = cfg ? (cfg._id || cfg.id) : idCfg(donoEmail);
+      try { await DB().salvar("agendaConfig", id, doc, !cfg); await recarregar(["agendaConfig"]); renderMontarAgendas(area); }
+      catch (err) { console.error("flag agenda", err); if (BI.avisar) BI.avisar("Erro ao salvar: " + (err && err.message ? err.message : err)); }
+    }
+    ergosVisiveis.forEach((e) => {
       const cfg = cfgDoErgo(e.email);
       estado[e.email] = (cfg && Array.isArray(cfg.horasPorDia)) ? [0, 1, 2, 3, 4, 5, 6].map((i) => n0(cfg.horasPorDia[i])) : horasPorDiaDe(e.email);
       // Vínculo atual: EmailUsuario salvo; se não houver, sugere o usuário com o mesmo e-mail do ergonomista.
@@ -427,6 +455,26 @@
         td.appendChild(i); tr.appendChild(td);
       }
       tr.appendChild(tdSemana); recalcSemana();
+      // V 2.28 (Alexandre): Ativa (desativado some dos gráficos) + Excluir/Restaurar da agenda.
+      const ativa = cfgAtivaAgenda(cfg);
+      const removida = cfgRemovidaAgenda(cfg);
+      if (!ativa || removida) tr.classList.add("agenda-cfg-inativa");
+      const tdAtiva = h("td", "num");
+      const chk = h("input"); chk.type = "checkbox"; chk.checked = ativa;
+      chk.title = ativa ? "Ativa na agenda — aparece nos gráficos. Desmarque para desativar." : "Desativada — fora dos gráficos. Marque para reativar.";
+      chk.addEventListener("change", () => salvarFlagAgenda(e, { Ativo: chk.checked }));
+      tdAtiva.appendChild(chk); tr.appendChild(tdAtiva);
+      const tdAcoes = h("td", "num");
+      if (removida) {
+        const bR = h("button", "btn-cad-secundario", "Restaurar"); bR.type = "button";
+        bR.addEventListener("click", () => salvarFlagAgenda(e, { RemovidoAgenda: false }));
+        tdAcoes.appendChild(bR);
+      } else {
+        const bX = h("button", "btn-excluir", "×"); bX.type = "button"; bX.title = "Excluir da agenda";
+        bX.addEventListener("click", () => { if (window.confirm(`Excluir "${e.nome}" da agenda?\n\nEle some dos gráficos e desta lista (dá para restaurar em "Mostrar removidos"). As horas e lançamentos já salvos não são apagados.`)) salvarFlagAgenda(e, { RemovidoAgenda: true }); });
+        tdAcoes.appendChild(bX);
+      }
+      tr.appendChild(tdAcoes);
       tb.appendChild(tr);
     });
     t.appendChild(tb); wrap.appendChild(t); card.appendChild(wrap);
@@ -438,13 +486,14 @@
       if (!podeGravar()) { msg.textContent = "Banco indisponível nesta visualização."; msg.style.color = "#C62828"; return; }
       bSalvar.disabled = true; msg.style.color = "#1E6B44"; msg.textContent = "Salvando…";
       try {
-        for (const e of ergos) {
+        for (const e of ergosVisiveis) {
           // V 2.10 (Alexandre): a agenda é gravada pela conta de LOGIN vinculada (o backend
           // força EmailErgonomista = login de quem grava), então a config fica na chave do login.
           const login = vinculo[e.email] || "";
           const donoEmail = login || e.email; // sem vínculo, mantém a chave pelo e-mail do ergonomista
           const cfgAnt = cfgDoErgo(e.email);
-          const doc = { EmpresaId: "GLOBAL", EmailErgonomista: donoEmail, EmailUsuario: login, ErgoRef: e.email, Nome: e.nome, horasPorDia: estado[e.email] };
+          // V 2.28 (Alexandre): preserva os flags Ativo/RemovidoAgenda ao salvar as horas.
+          const doc = { EmpresaId: "GLOBAL", EmailErgonomista: donoEmail, EmailUsuario: login, ErgoRef: e.email, Nome: e.nome, horasPorDia: estado[e.email], Ativo: cfgAtivaAgenda(cfgAnt), RemovidoAgenda: cfgRemovidaAgenda(cfgAnt) };
           const alvo = acharCfg(donoEmail);
           await DB().salvar("agendaConfig", alvo ? (alvo._id || alvo.id) : idCfg(donoEmail), doc, !alvo);
           // Se o dono mudou, remove a config antiga (evita horas/agenda em duas chaves).
@@ -459,6 +508,15 @@
       } catch (e) { console.error("cfg salvar", e); msg.textContent = "Erro ao salvar: " + (e && e.message ? e.message : e); msg.style.color = "#C62828"; bSalvar.disabled = false; }
     });
     acoes.appendChild(bSalvar); acoes.appendChild(msg);
+    // V 2.28 (Alexandre): mostrar/ocultar os ergonomistas removidos da agenda (para restaurar).
+    const nRemovidos = ergos.filter((e) => cfgRemovidaAgenda(cfgDoErgo(e.email))).length;
+    if (nRemovidos || _mostrarRemovidos) {
+      const lblRem = h("label", "agenda-mostrar-removidos");
+      const cRem = h("input"); cRem.type = "checkbox"; cRem.checked = _mostrarRemovidos;
+      cRem.addEventListener("change", () => { _mostrarRemovidos = cRem.checked; renderMontarAgendas(area); });
+      lblRem.appendChild(cRem); lblRem.appendChild(document.createTextNode(" Mostrar removidos (" + nRemovidos + ")"));
+      acoes.appendChild(lblRem);
+    }
     card.appendChild(acoes);
     area.appendChild(card);
 

@@ -2,6 +2,27 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.29 — 23/11/2026
+
+Riscos ergonômicos POR AVALIAÇÃO + fatores de risco (Alexandre):
+
+- **Riscos ergonômicos (por avaliação):** o gráfico passou a contar **por avaliação (AEP + AET)**, não mais por posto. Cada avaliação entra pela **maior graduação** dos fatores do seu posto (casando pela origem, para a AEP não herdar fator de AET). *(`js/calc.js`, `js/app.js`.)*
+- **Avaliação sem fator fica de fora e vira notificação:** avaliações sem nenhum fator de risco **não entram** no gráfico e aparecem em **Notificações › “Avaliações sem fator de risco — revisar”**, com empresa, unidade, local e ergonomista, e botão **Abrir** para corrigir. Como os dados já vêm filtrados por cliente, cada ergonomista vê só as suas. *(`js/app.js`.)*
+- **Fatores de risco (inventário):** voltou à **Visão Geral** o gráfico de pizza dos **fatores vigentes por graduação** (quantos Alto, Moderado, Baixo, Muito Alto).
+- **Na Gestão de Riscos:** o antigo **“Risco Global dos Postos”** foi **substituído** pelo **“Riscos ergonômicos (por avaliação)”**, respeitando o filtro de origem — **Todas / AEP / AET**, e no **Psicossocial** conta **por GHE avaliado**. O gráfico de fatores (Inventário – Graduação) continua lá. *(`index.html`, `js/app.js`.)*
+
+Service worker subiu para `sige-v144`. *(Inclui tudo da v2.24 → v2.28.)*
+
+## V 2.28 — 19/11/2026
+
+Agenda › Horas por dia da semana — ativar/desativar e excluir ergonomista (Alexandre):
+
+- **Ativar/desativar:** cada ergonomista tem agora uma caixinha **“Ativa”**. Ao **desativar**, ele **some dos gráficos** (seletor e Painel da agenda), mas continua na tabela (esmaecido) para reativar quando quiser. *(`js/agenda-ergo.js`, `css/style.css`.)*
+- **Excluir:** botão **×** remove o ergonomista da agenda — ele some dos gráficos **e** da lista. É reversível: aparece a opção **“Mostrar removidos”**, de onde dá para **Restaurar**. As horas e lançamentos já salvos não são apagados. *(`js/agenda-ergo.js`.)*
+- O “Salvar horas” passou a preservar esses estados e a salvar só as linhas visíveis.
+
+Service worker subiu para `sige-v143`. *(Inclui tudo da v2.24 → v2.27.)*
+
 ## V 2.27 — 19/11/2026
 
 Overhaul Gestão de Riscos — fase 3 (Alexandre):

@@ -740,6 +740,47 @@
     return base.concat([{ nivel: SEM_RISCO, qtd: semRisco, pct: total ? (semRisco / total) * 100 : 0, semRisco: true }]);
   }
 
+  // V 2.29 (Alexandre): risco ergonômico POR AVALIAÇÃO (AEP/AET ou GHE no psico). Cada avaliação
+  // recebe a MAIOR graduação dos fatores do seu posto/GHE (casando também pela ORIGEM, para a AEP
+  // não herdar fator de AET no mesmo posto). Avaliações SEM nenhum fator ficam de FORA do gráfico
+  // (retornadas em "semFator" para virar notificação). O total do gráfico = avaliações com fator.
+  // Cada avaliação pode trazer a._org ("AEP"/"AET"/"Psicossocial"); senão usa origemDe.
+  function riscoDasAvaliacoes(analises, fatores) {
+    const chave = (l, org) => [l.Cliente, l.Unidade, l.Setor, l["Posto Trabalho"] || "", l.Cargo || "", org].join("||");
+    const riscoPorChave = {};
+    (fatores || []).forEach((f) => {
+      if (!riscoAtivo(f)) return;
+      const canon = nivelCanonico(f["Graduacao Risco"]);
+      if (NIVEIS_RISCO.indexOf(canon) < 0) return;
+      const k = chave(f, origemDe(f));
+      if (!(k in riscoPorChave) || NIVEIS_RISCO.indexOf(canon) > NIVEIS_RISCO.indexOf(nivelCanonico(riscoPorChave[k]))) riscoPorChave[k] = f["Graduacao Risco"];
+    });
+    const porNivel = {}; NIVEIS_RISCO.forEach((n) => (porNivel[n] = 0));
+    const semFator = []; let com = 0;
+    (analises || []).forEach((a) => {
+      const org = a._org || origemDe(a);
+      const n = riscoPorChave[chave(a, org)];
+      const canon = n ? nivelCanonico(n) : null;
+      if (canon && canon in porNivel) { porNivel[canon] += 1; com += 1; } else semFator.push(a);
+    });
+    const niveis = NIVEIS_RISCO.map((n) => ({ nivel: n, qtd: porNivel[n], pct: com ? (porNivel[n] / com) * 100 : 0 }));
+    return { niveis, total: com, semFator };
+  }
+  // Nível (canônico) de uma avaliação específica — usado no drill-down do gráfico por avaliação.
+  function nivelDaAvaliacao(a, fatores) {
+    const org = a._org || origemDe(a);
+    const alvo = [a.Cliente, a.Unidade, a.Setor, a["Posto Trabalho"] || "", a.Cargo || "", org].join("||");
+    let melhor = null;
+    (fatores || []).forEach((f) => {
+      if (!riscoAtivo(f)) return;
+      const canon = nivelCanonico(f["Graduacao Risco"]);
+      if (NIVEIS_RISCO.indexOf(canon) < 0) return;
+      const k = [f.Cliente, f.Unidade, f.Setor, f["Posto Trabalho"] || "", f.Cargo || "", origemDe(f)].join("||");
+      if (k === alvo && (melhor == null || NIVEIS_RISCO.indexOf(canon) > NIVEIS_RISCO.indexOf(melhor))) melhor = canon;
+    });
+    return melhor;
+  }
+
   function topSetores(mapaRiscoF, n) {
     const porSetor = {};
     mapaRiscoF.forEach((l) => {
@@ -1280,6 +1321,8 @@
     mapaRiscoGlobal,
     mapaRiscoGlobalSemRisco,
     mapaRiscoDasAnalises,
+    riscoDasAvaliacoes,
+    nivelDaAvaliacao,
     SEM_RISCO,
     topSetores,
     distribuicaoPorNivelRisco,

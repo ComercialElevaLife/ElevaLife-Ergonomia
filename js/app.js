@@ -8550,12 +8550,28 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     });
     return out;
   }
+  // V 2.29 (Alexandre): avaliações (AEP/AET) SEM nenhum fator de risco ativo no seu posto. Ficam de
+  // fora do gráfico "Riscos ergonômicos (por avaliação)" e viram aviso para o ergonomista corrigir.
+  // Os dados já vêm filtrados pelos clientes de cada ergonomista, então cada um vê só os seus.
+  function avaliacoesSemFatorNotif() {
+    const C = window.BI.Calc; if (!C || !C.riscoDasAvaliacoes) return [];
+    const fatores = window.BI.dados.fatorRisco || [];
+    const analises = (window.BI.dados.avaliacaoErgonomica || []).map((a) => Object.assign({ _org: "AEP", _tipo: "AEP" }, a))
+      .concat((window.BI.dados.aet || []).map((a) => Object.assign({ _org: "AET", _tipo: "AET" }, a)));
+    const ra = C.riscoDasAvaliacoes(analises, fatores);
+    return ra.semFator.map((a) => ({
+      tipo: a._tipo, id: a._id || a.id, nr: Number(a["Nr Avaliacao"] || a["Nr AET"]) || null,
+      cliente: a.Cliente || "-", unidade: a.Unidade || "-",
+      local: [a.Setor, a["Posto Trabalho"], C.rotuloCargos ? C.rotuloCargos(a) : a.Cargo].filter(Boolean).join(" › "),
+      ergonomista: a.Ergonomista || a["Ergonomista Responsavel"] || a.Autor || "",
+    }));
+  }
   function atualizarBadgeAbaNotificacoes() {
     const badge = document.getElementById("badge-aba-notificacoes");
     if (!badge) return;
     try {
       const c = contarNotificacoes();
-      const n = c.atrasadas.length + c.perto.length + (ehEquipeNotif() ? analisesIncompletasNotif().length + pendenciasImportacaoNotif().length : 0);
+      const n = c.atrasadas.length + c.perto.length + (ehEquipeNotif() ? analisesIncompletasNotif().length + pendenciasImportacaoNotif().length + avaliacoesSemFatorNotif().length : 0);
       badge.hidden = n === 0; badge.textContent = n > 99 ? "99+" : String(n);
     } catch (e) { badge.hidden = true; }
   }
@@ -8642,6 +8658,43 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           tbodyP.appendChild(tr);
         });
         tbP.appendChild(tbodyP); wrapP.appendChild(tbP); el.appendChild(wrapP);
+      }
+
+      // V 2.29 (Alexandre): avaliações sem fator de risco — o ergonomista precisa revisar/lançar.
+      const semFat = avaliacoesSemFatorNotif();
+      el.appendChild(h("h3", "notif-sub", `Avaliações sem fator de risco — revisar (${semFat.length})`));
+      if (!semFat.length) {
+        el.appendChild(h("p", "aet-nota", "Toda AEP/AET dos seus clientes tem ao menos um fator de risco lançado. 👍"));
+      } else {
+        el.appendChild(h("p", "aet-nota", "Estas avaliações não têm nenhum fator de risco lançado, então ficam de fora do gráfico “Riscos ergonômicos (por avaliação)”. Abra e lance os fatores (ou confirme que realmente não há risco)."));
+        const wrapS = h("div", "tabela-scroll"); const tbS = h("table", "tabela-dados");
+        const thS = h("thead"); const trS0 = h("tr"); ["Tipo", "Nº", "Empresa", "Unidade", "Setor › posto › cargo", "Ergonomista", ""].forEach((t) => trS0.appendChild(h("th", null, t))); thS.appendChild(trS0); tbS.appendChild(thS);
+        const tbodyS = h("tbody");
+        const nrTxtS = (x) => x.nr ? `${x.tipo}-${String(x.nr).padStart(3, "0")}` : "—";
+        const abrirAval = (x) => {
+          if (x.tipo === "AEP") {
+            try { window.BI.abrirAba("aep", "avaliacaoErgonomica"); } catch (e) { ativarAba("aep"); }
+            try { abrirFormEditar("avaliacaoErgonomica", x.id); } catch (e) { console.error("abrir AEP", e); }
+          } else {
+            ativarAba("aet");
+            const rec = (window.BI.dados.aet || []).find((r) => (r._id || r.id) === x.id);
+            if (rec && window.BI.AET && window.BI.AET.abrirEditor) { try { window.BI.AET.abrirEditor(rec); } catch (e) { console.error("abrir AET", e); } }
+          }
+        };
+        semFat.slice(0, 300).forEach((x) => {
+          const tr = h("tr");
+          tr.appendChild(h("td", null, x.tipo));
+          tr.appendChild(h("td", null, nrTxtS(x)));
+          tr.appendChild(h("td", null, x.cliente));
+          tr.appendChild(h("td", null, x.unidade || "-"));
+          tr.appendChild(h("td", null, x.local || "-"));
+          tr.appendChild(h("td", null, x.ergonomista || "-"));
+          const td = h("td"); const b = h("button", "btn-cad-secundario", "Abrir"); b.type = "button";
+          b.addEventListener("click", () => abrirAval(x));
+          td.appendChild(b); tr.appendChild(td);
+          tbodyS.appendChild(tr);
+        });
+        tbS.appendChild(tbodyS); wrapS.appendChild(tbS); el.appendChild(wrapS);
       }
     }
   }
@@ -9074,16 +9127,29 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const teal = Calc.resolverCorCSS("var(--teal)");
       const vinho = Calc.resolverCorCSS("var(--vinho-medio)");
 
-      // 1) Riscos ergonômicos (por análise/posto): cada análise/posto pela sua MAIOR graduação.
-      // V 2.23 (Alexandre): o total bate com a quantidade de postos avaliados (≈ análises).
-      // V 2.26 (Alexandre): o card antigo "Gestão de Riscos" (rosca de fatores do inventário por
-      // graduação) foi REMOVIDO da Visão Geral — ficou só este, por análise/posto.
+      // 1) Riscos ergonômicos (POR AVALIAÇÃO) — V 2.29 (Alexandre): cada AEP/AET conta pela MAIOR
+      // graduação dos fatores do seu posto (casando pela origem). Avaliações SEM fator ficam de fora
+      // (viram pendência/notificação). O total = avaliações com risco.
+      const analisesVG = avaliacaoArr.map((a) => Object.assign({ _org: "AEP" }, a)).concat(aetArr.map((a) => Object.assign({ _org: "AET" }, a)));
+      const raVG = Calc.riscoDasAvaliacoes(analisesVG, fatoresArr);
+      const critVG = raVG.niveis.reduce((s, n) => s + ((n.nivel === "Alto" || n.nivel === "Muito Alto") ? n.qtd : 0), 0);
       cardServico({
-        titulo: "Riscos ergonômicos (por análise/posto)", abrir: "ergo",
-        kpis: [{ num: postos.length, rot: "Análises / postos" }, { num: postosCriticos, rot: "Alto / Muito Alto", alerta: postosCriticos > 0 }, { num: fatores, rot: "Fatores vigentes" }],
-        canvasId: "vg-risco-posto", legendaId: "vg-risco-posto-leg",
-        render: () => renderDonutNiveis("vg-risco-posto", "vg-risco-posto-leg", Calc.distribuicaoPorNivelRisco(postos, "Risco Global"), "análises/postos", "posto(s)",
-          (n) => ({ titulo: `Risco ${Calc.rotuloNivel(n.nivel)} — análises/postos`, subtitulo: `${n.qtd} posto(s)`, chave: "riscoPosto", linhas: postos.filter((p) => Calc.nivelCanonico(p["Risco Global"]) === n.nivel) })),
+        titulo: "Riscos ergonômicos (por avaliação)", abrir: "ergo",
+        kpis: [{ num: raVG.total, rot: "Avaliações com risco" }, { num: critVG, rot: "Alto / Muito Alto", alerta: critVG > 0 }, { num: raVG.semFator.length, rot: "Sem fator (pendente)", alerta: raVG.semFator.length > 0 }],
+        canvasId: "vg-risco-aval", legendaId: "vg-risco-aval-leg",
+        render: () => renderDonutNiveis("vg-risco-aval", "vg-risco-aval-leg", raVG.niveis, "avaliações", "avaliação(ões)",
+          (n) => ({ titulo: `Risco ${Calc.rotuloNivel(n.nivel)} — avaliações`, subtitulo: `${n.qtd} avaliação(ões)`, chave: "riscoPosto", linhas: analisesVG.filter((a) => Calc.nivelDaAvaliacao(a, fatoresArr) === n.nivel) })),
+      });
+
+      // 1b) Fatores de risco (inventário) — V 2.29 (Alexandre): voltou à Visão Geral. Pizza dos
+      // fatores vigentes por graduação (quantos Alto, Moderado, Baixo, Muito Alto).
+      const fatCritVG = fatoresArr.reduce((s, l) => { const c = Calc.nivelCanonico(l["Graduacao Risco"]); return s + ((c === "Alto" || c === "Muito Alto") ? 1 : 0); }, 0);
+      cardServico({
+        titulo: "Fatores de risco (inventário)", abrir: "ergo",
+        kpis: [{ num: fatores, rot: "Fatores vigentes" }, { num: fatCritVG, rot: "Alto / Muito Alto", alerta: fatCritVG > 0 }],
+        canvasId: "vg-fatores", legendaId: "vg-fatores-leg",
+        render: () => renderDonutNiveis("vg-fatores", "vg-fatores-leg", Calc.distribuicaoPorNivelRisco(fatoresArr, "Graduacao Risco"), "fatores", "fator(es)",
+          (n) => ({ titulo: `Inventário de Riscos - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} fator(es)`, chave: "fatorRisco", linhas: fatoresArr.filter((l) => Calc.nivelCanonico(l["Graduacao Risco"]) === n.nivel) })),
       });
 
       // 2) Plano de Ação
@@ -9695,24 +9761,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const planoAcaoFCriticos = planoAcaoFComRisco.filter((a) => a["Risco Global"] === "Alto" || a["Risco Global"] === "Muito Alto");
 
     renderCoberturaPostos(estadoOrigemAba.ergo, filtros);
-    // V 1.72: fatia "Sem risco" = postos cadastrados (filtrados) sem fator de risco - total bate com a cobertura.
-    const kPG = (l) => ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].map((d) => l[d] || "").join("||");
-    const universoCargoR = Calc.filtrar(window.BI.dados.cargo || [], filtros, []);
-    // V 1.95 (Alexandre): no Psicossocial a Gestão de Riscos mostra só os GHEs efetivamente
-    // avaliados (com risco) - sem a fatia/linhas "Sem risco" dos postos cadastrados, que não
-    // fazem sentido no módulo (a cobertura, que é por GHE, continua no cartão de cobertura).
-    const ehPsicoErgo = estadoOrigemAba.ergo === "Psicossocial";
-    // V 1.98 (Alexandre): esconder a fatia/linhas "Sem risco" sempre que uma origem
-    // específica (AEP, AET ou Psicossocial) estiver selecionada — mostra só os avaliados
-    // com risco, igual ao psicossocial. Em "Todas" mantém a visão geral (com "Sem risco").
-    const ocultarSemRisco = !!estadoOrigemAba.ergo;
-    const universoSemRiscoR = ocultarSemRisco ? [] : universoCargoR;
-    const comRiscoR = new Set(mapaRiscoF.map(kPG));
-    const semRiscoLinhasR = universoSemRiscoR.filter((c) => !comRiscoR.has(kPG(c))).map((c) => ({ Cliente: c.Cliente, Unidade: c.Unidade, Setor: c.Setor, "Posto Trabalho": c["Posto Trabalho"], Cargo: c.Cargo, "Risco Global": "Sem risco", "Fator Mais Grave": "-", Fatores: 0 }));
-    let distRiscoGlobalR = Calc.mapaRiscoGlobalSemRisco(mapaRiscoF, universoSemRiscoR);
-    if (ocultarSemRisco) distRiscoGlobalR = distRiscoGlobalR.filter((n) => !n.semRisco);
-    renderDonutNiveis("chart-risco-global", "legenda-risco-global", distRiscoGlobalR, ehPsicoErgo ? "GHEs" : "postos", ehPsicoErgo ? "GHE(s)" : "posto(s)", (n) => ({
-      titulo: `Risco Global ${ehPsicoErgo ? "dos GHEs" : "dos Postos"} - ${Calc.rotuloNivel(n.nivel)}`, subtitulo: `${n.qtd} ${ehPsicoErgo ? "GHE(s)" : "posto(s) de trabalho"}`, chave: "riscoPosto", linhas: n.semRisco ? semRiscoLinhasR : mapaRiscoF.filter((l) => l["Risco Global"] === n.nivel) }));
+    // V 2.29 (Alexandre): "chart-risco-global" passou a ser RISCO POR AVALIAÇÃO (substitui o antigo
+    // "Risco Global dos Postos"). Ver render mais abaixo, depois que as avaliações/fatores por origem
+    // (avaliacaoMesF / aetF / fatorRiscoF) já estão calculados.
     renderTopSetores(Calc.topSetores(mapaRiscoF, 3), mapaRiscoF);
     renderDonutStatus("chart-plano-global", "legenda-plano-global", Calc.statusPlanoAcao(planoAcaoF, hoje), planoAcaoF, hoje);
     renderDonutStatus("chart-plano-criticos", "legenda-plano-criticos", Calc.planoAcaoPostosCriticos(planoAcaoFComRisco, hoje), planoAcaoFCriticos, hoje);
@@ -9734,6 +9785,20 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const origemErgo = estadoOrigemAba.ergo;
     const aetF = origemErgo && origemErgo !== "AET" ? [] : Calc.filtrar(window.BI.dados.aet || [], filtros, ["Data Analise"]);
     const avaliacaoMesF = origemErgo && origemErgo !== "AEP" ? [] : avaliacaoF;
+
+    // V 2.29 (Alexandre): RISCO POR AVALIAÇÃO (chart-risco-global). Cada AEP/AET conta pela maior
+    // graduação dos fatores do seu posto (no Psicossocial, cada GHE avaliado). Avaliações sem fator
+    // ficam de fora (viram notificação). Respeita o filtro de origem (Todas/AEP/AET/Psicossocial).
+    const ehPsicoErgoR = origemErgo === "Psicossocial";
+    const analisesRiscoR = ehPsicoErgoR
+      ? Calc.filtrar(window.BI.dados.setor || [], filtros, []).filter((s) => s["Tipo Setor"] === "GHE").map((g) => Object.assign({ _org: "Psicossocial" }, g))
+      : avaliacaoMesF.map((a) => Object.assign({ _org: "AEP" }, a)).concat(aetF.map((a) => Object.assign({ _org: "AET" }, a)));
+    const raGR = Calc.riscoDasAvaliacoes(analisesRiscoR, fatorRiscoF);
+    const unidRiscoR = ehPsicoErgoR ? "GHE(s)" : "avaliação(ões)";
+    renderDonutNiveis("chart-risco-global", "legenda-risco-global", raGR.niveis, ehPsicoErgoR ? "GHEs avaliados" : "avaliações", unidRiscoR, (n) => ({
+      titulo: `Risco ${Calc.rotuloNivel(n.nivel)} — ${ehPsicoErgoR ? "GHEs" : "avaliações"}`, subtitulo: `${n.qtd} ${unidRiscoR}`, chave: "riscoPosto",
+      linhas: analisesRiscoR.filter((a) => Calc.nivelDaAvaliacao(a, fatorRiscoF) === n.nivel).map((a) => Object.assign({}, a, { "Risco Global": Calc.nivelDaAvaliacao(a, fatorRiscoF) })),
+    }));
 
     // V 1.35: Inventario em rosca (total no centro) e em tabela; sairam os Prazos e as AETs anexadas.
     renderDonutNiveis("chart-fatorrisco-graduacao", "legenda-fatorrisco-graduacao", Calc.distribuicaoPorNivelRisco(fatorRiscoF, "Graduacao Risco"), "fatores", "fator(es)", (n) => ({
