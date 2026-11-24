@@ -18,7 +18,9 @@
   const Calc = () => BI.Calc;
   const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
-  const limpa = (s) => String(s || "").replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, " ").replace(/[ \t]+/g, " ").replace(/\s*\n\s*/g, "\n").trim();
+  // V 2.41 (Alexandre): tira a URL/pagina\u00e7\u00e3o do rodap\u00e9 do laudo antigo (que grudava no meio do texto)
+  // j\u00e1 na importa\u00e7\u00e3o, para n\u00e3o entrar mais no sistema.
+  const limpa = (s) => (Calc().limparUrlLaudo ? Calc().limparUrlLaudo(String(s || "")) : String(s || "")).replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, " ").replace(/[ \t]+/g, " ").replace(/\s*\n\s*/g, "\n").trim();
 
   // ------------------------------------------------------------------ leitura do PDF: texto (linhas) e fotos
   function mul(a, b) { return [a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1], a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3], a[0] * b[4] + a[2] * b[5] + a[4], a[1] * b[4] + a[3] * b[5] + a[5]]; }
@@ -203,7 +205,15 @@
   }
   const SIN_ESCALA = { leve: "Baixa", baixo: "Baixa", baixa: "Baixa", trivial: "Muito Baixa", irrelevante: "Muito Baixa", "muito baixo": "Muito Baixa", "muito baixa": "Muito Baixa", toleravel: "Baixa", medio: "Media", media: "Media", moderado: "Media", moderada: "Media", serio: "Alta", seria: "Alta", alto: "Alta", alta: "Alta", grave: "Alta", critico: "Muito Alta", critica: "Muito Alta", gravissimo: "Muito Alta", gravissima: "Muito Alta", intoleravel: "Muito Alta", "muito alto": "Muito Alta", "muito alta": "Muito Alta" };
   function escalaSige(mz, txt) {
-    const esc = Calc().escalaDaMatriz(mz); const v = SIN_ESCALA[norm(txt)] || ""; if (!v) return "";
+    if (!txt) return "";
+    const esc = Calc().escalaDaMatriz(mz);
+    // V 2.40 (Alexandre): PRIMEIRO tenta os rótulos PRÓPRIOS da matriz (ex.: Gerdau usa Brando/Moderado/
+    // Sério/Crítico/Muito Crítico para a severidade). Isso evita o erro do dicionário genérico, que não
+    // conhecia "Brando" (ficava vazio) e deslocava Moderado/Sério/Crítico um nível acima.
+    const porRotulo = Calc().valorDaEscalaPorRotulo ? Calc().valorDaEscalaPorRotulo(mz, txt) : "";
+    if (porRotulo) return porRotulo;
+    // Fallback: dicionário genérico de sinônimos (para laudos que usam termos comuns).
+    const v = SIN_ESCALA[norm(txt)] || ""; if (!v) return "";
     if (esc.includes(v)) return v;
     const ordem = ["Muito Baixa", "Baixa", "Media", "Alta", "Muito Alta"]; const i = ordem.indexOf(v);
     let melhor = esc[0]; let d0 = 99; esc.forEach((e) => { const d = Math.abs(ordem.indexOf(e) - i); if (d < d0) { d0 = d; melhor = e; } }); return melhor;

@@ -2,6 +2,62 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.42 — 24/11/2026
+
+Empresa Demonstrativa — base completa para apresentações comerciais (Alexandre):
+
+- O antigo botão “empresa de exemplo” (só psicossocial, restrito ao Alexandre) virou **“✨ Criar/recriar Empresa Demonstrativa”**, agora visível para **qualquer Administrador** (Cadastro → Empresas). Recria do zero se já existir. *(`js/app.js`.)*
+- Cria a **“Empresa Demonstrativa”** com dados fictícios **completos** cobrindo todos os módulos, para demonstração comercial:
+  - **40 AEPs** (2 unidades, 9 setores, 40 postos/cargos), **103 fatores de risco** cobrindo **todas as graduações** (Muito Baixo → Altíssimo) e **104 ações** no Plano de Ação cobrindo **todos os status** (Não iniciada, Em andamento, Atrasada, Concluída, Concluída com atraso, Concluída sem evidência — com evidência-demo anexada nas concluídas).
+  - **12 AETs** (com atividades e fatores), que também entram na Gestão de Riscos (Origem AET).
+  - **Riscos Psicossociais**: 5 GHEs cobrindo as 5 faixas de risco.
+  - **34 registros de absenteísmo** e **16 restritos**.
+  - Matriz 5x5, todos os serviços habilitados.
+- Validada de ponta a ponta: geração sem erros, todas as ações passam na regra do servidor (evidência/justificativa), e os painéis renderizam normalmente filtrando pela empresa.
+
+Service worker subiu para `sige-v157`.
+
+## V 2.41 — 24/11/2026
+
+Nomes de severidade da matriz na planilha + limpeza da URL do laudo antigo (Alexandre):
+
+- **Planilha de riscos — severidade/probabilidade com os nomes da matriz do cliente.** A coluna Criticidade (e a Probabilidade) agora sai com os **nomes próprios da matriz** (ex.: Gerdau — Brando/Moderado/Sério/Crítico/Muito Crítico), e não mais o valor interno (Muito Baixa/Baixa/…). O valor gravado continua o interno; é só exibição, igual ao que aparece no sistema. *(`js/app.js`.)*
+- **Bug da URL do laudo antigo no meio do texto.** Na importação de PDF, o rodapé do sistema antigo (ex.: `https://elevalife-digital.com.br/sistema-gestao-integrada/laudo 57/130`) grudava no meio de textos (Descrição da Atividade, etc.). Corrigido em três frentes: *(1)* a **importação** agora remove essa URL/paginação na entrada (`js/calc.js` `limparUrlLaudo`, `js/aep-laudo-import.js`); *(2)* a **planilha** também remove (`limparTextoLaudo`); *(3)* novo botão de Administrador **“🧽 Limpar URLs do laudo antigo”** (no Cadastro de Empresas) que varre **todas as análises** (AEPs, fatores e ações), remove só a URL e grava apenas o que mudou — sem alterar o resto. *(`js/app.js` `limparUrlsImportadas`.)*
+
+Service worker subiu para `sige-v156`.
+
+## V 2.40 — 24/11/2026
+
+Importação de laudo (PDF): severidade lida pelos rótulos próprios da matriz (Alexandre):
+
+- **Correção do leitor de laudo.** A importação de AEP usava um dicionário genérico de sinônimos para a severidade (criticidade). Esse dicionário **não conhecia “Brando”** (a severidade mais baixa da escala Gerdau), então o campo ficava **vazio**; e mapeava **Moderado/Sério/Crítico um nível acima** do correto. Agora o leitor usa **primeiro os rótulos próprios da matriz** do cliente (ex.: Gerdau — Brando→Muito Baixa, Moderado→Baixa, Sério→Media, Crítico→Alta, Muito Crítico→Muito Alta) e só recorre ao dicionário genérico se não casar. *(`js/calc.js` `valorDaEscalaPorRotulo`, `js/aep-laudo-import.js`.)*
+- Validado contra o laudo real da Gerdau Araçariguama: em todos os fatores, a graduação recalculada com a severidade lida **bate exatamente** com a graduação do laudo.
+- **Importante (dados já no sistema):** esta correção vale para os **próximos** laudos importados. Os fatores já importados com a severidade vazia aparecem na notificação “Fatores sem criticidade” (v2.39) para o ergonomista preencher; se preferir, **reimportar os laudos** agora (com o leitor corrigido) preenche a severidade certa de uma vez — tanto os “Brando” vazios quanto os Moderado/Sério/Crítico que estavam deslocados.
+
+Service worker subiu para `sige-v155`.
+
+## V 2.39 — 24/11/2026
+
+Notificação: fatores sem criticidade (severidade) (Alexandre):
+
+- Nova notificação **“Fatores sem criticidade (severidade) — revisar”** na aba **Notificações** e na tela de pendências que abre no login. Lista os fatores de risco **ativos, com graduação, mas sem a criticidade** preenchida — caso típico de laudo antigo importado em que a importação não capturou a célula da severidade. Mostra empresa, unidade, setor › posto › cargo, fator, graduação, probabilidade e ergonomista, com botão **“Abrir”** que leva direto ao fator para preencher. *(`js/app.js`, `fatoresSemCriticidadeNotif`.)*
+- Entra na contagem do sininho/aba (badge) junto com as demais pendências do ergonomista. Fatores **sem graduação** continuam na sua própria notificação; **eliminados** e os que **já têm criticidade** não aparecem aqui.
+- **Nada é reconstruído ou estimado**: a severidade que falta é preenchida pelo próprio ergonomista (ou virá correta numa futura reimportação do laudo). A planilha de riscos (v2.38) segue mostrando exatamente o que está gravado.
+
+Service worker subiu para `sige-v154`.
+
+## V 2.38 — 24/11/2026
+
+Planilha de riscos — campos limpos, nº da EP, criticidade do sistema, status/responsável/prazo da ação (Alexandre):
+
+- **Cada coluna traz só o seu próprio texto.** Alguns laudos de AEP foram importados com “lixo” de PDF grudado no fim do texto (depois da ação/dos controles vinha o cabeçalho da seção — “4.29. Setor … - Cargo” — e todo o contexto da avaliação: Data da avaliação, Setor, Cargo, Jornada, Descrição da Atividade, Imagens…). A planilha agora **corta tudo a partir desses marcadores**, deixando em “Ação” e “Controles administrativos e organizacionais” apenas o texto real. Afetava poucos fatores, mas aparecia feio. *(`js/app.js`, `limparTextoLaudo`.)*
+- **Nº da análise** passou a sair como **“AEP-###” / “AET-###”** (ex.: `AEP-869`) e usa o **maior número registrado naquele posto** (a avaliação mais recente), em vez de um número solto. O fator não guarda o nº da EP; a ligação é feita por Cliente/Unidade/Setor/Posto/Cargo.
+- **Criticidade (severidade):** a coluna traz **exatamente o que está gravado no fator** (campo “Criticidade”). Não é reconstruída nem estimada. Alguns fatores vieram sem criticidade porque a importação do laudo (PDF) não conseguiu capturar aquela célula — a graduação, nesses casos, foi lida direto do texto do laudo, independente da criticidade. Onde o sistema não tem o dado, a coluna fica em branco.
+- **Status agora é o status da AÇÃO** (Não iniciada / Em andamento / Atrasada / Concluída…), não mais o status do fator. Fator eliminado aparece como “Eliminado”; fator sem ação fica em branco.
+- **Duas colunas novas: “Responsável” e “Prazo”** da ação. Ficam **em branco nas ações “não iniciadas”** (como você pediu) e preenchidas nas demais.
+
+Service worker subiu para `sige-v153`. *(Inclui tudo da v2.24 → v2.37.)*
+
 ## V 2.37 — 24/11/2026
 
 Planilha de riscos — aba única, eliminados e ações concluídas (Alexandre):

@@ -230,6 +230,35 @@
     if (p < 0 || g < 0) return null;
     return Object.assign({ nivel: m.niveis[m.grade[p][g].nivelIdx] }, m.grade[p][g]);
   }
+  // V 2.40 (Alexandre): lookup REVERSO — de um RÓTULO (como aparece no laudo) para o VALOR interno
+  // da escala ("Muito Baixa".."Muito Alta"). Essencial para importar laudos cuja severidade usa os
+  // nomes próprios da matriz (ex.: Gerdau — Brando/Moderado/Sério/Crítico/Muito Crítico), em vez do
+  // dicionário genérico de sinônimos. Casa sem depender de acento/maiúsculas. Retorna "" se não casar.
+  function valorDaEscalaPorRotulo(nomeMatriz, rotulo) {
+    if (!rotulo) return "";
+    const m = matrizPorNome(nomeMatriz);
+    const norm = (x) => String(x == null ? "" : x).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+    const alvo = norm(rotulo);
+    if (!alvo) return "";
+    // 1) rótulos de severidade próprios da matriz (ex.: Gerdau); 2) rótulos de probabilidade; 3) o próprio valor da escala.
+    for (const mapa of [m.rotulosSeveridade, m.rotulos]) {
+      if (!mapa) continue;
+      for (const k of Object.keys(mapa)) { if (norm(mapa[k]) === alvo) return k; }
+    }
+    const v = (m.escala || []).find((e) => norm(e) === alvo); if (v) return v;
+    return "";
+  }
+  // V 2.41 (Alexandre): remove o "lixo" de rodapé que a importação de PDF do sistema antigo grudava no
+  // meio dos textos — a URL/paginação do laudo antigo (ex.: "https://elevalife-digital.com.br/
+  // sistema-gestao-integrada/laudo 57/130"). Tira qualquer URL http(s) (opcionalmente seguida do
+  // marcador de página "N/M") e marcadores soltos "laudo N/M". NÃO mexe no resto do texto.
+  function limparUrlLaudo(txt) {
+    if (txt == null) return "";
+    return String(txt)
+      .replace(/https?:\/\/\S+(?:\s+\d+\s*\/\s*\d+)?/gi, " ")
+      .replace(/\blaudo\s+\d+\s*\/\s*\d+\b/gi, " ")
+      .replace(/[ \t]{2,}/g, " ");
+  }
   // V 1.32: graduacoes da matriz (da menor para a maior) e posicao de qualquer graduacao numa escala
   // unica de 0 a 4 (muito baixo/trivial/irrelevante ... muito alto/altissimo/intoleravel), para comparar
   // niveis de matrizes diferentes e os niveis gerais do painel.
@@ -1315,7 +1344,7 @@
     MATRIZ_PADRAO,
     NOMES_CLASSIFICACAO_AET,
     classificarTextoAET,
-    escalaDaMatriz, rotuloEscala, niveisDaMatriz, ordemNivel,
+    escalaDaMatriz, rotuloEscala, valorDaEscalaPorRotulo, limparUrlLaudo, niveisDaMatriz, ordemNivel,
     TODOS_NIVEIS: Array.from(new Set(NIVEIS_RISCO.concat(...Object.values(MATRIZES_RISCO).map((m) => m.niveis)))),
     nivelDaMatriz,
     pontuacaoDaMatriz,
