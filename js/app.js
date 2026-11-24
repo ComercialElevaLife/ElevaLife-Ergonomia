@@ -7677,22 +7677,27 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
             "Caracteristicas Trabalhadores": "Equipe mista, maioria com mais de 2 anos de casa.", "Historico Acidentes": idx % 5 === 0 ? "Afastamento por lombalgia registrado no último ano." : "Sem histórico relevante.",
           }, base, chave));
 
-          const nF = 1 + (idx % 3); // 1 a 3 fatores por AEP
+          // Variedade + casos propositalmente INCOMPLETOS (minoria) para demonstrar as pendências:
+          const semFator = idx === 7 || idx === 26; // AEP sem fator -> notificação "avaliações sem fator"
+          const nF = semFator ? 0 : (1 + ((idx * 7 + 3) % 4)); // 1 a 4 fatores, variado
           for (let k = 0; k < nF; k++) {
             const faixa = FAIXAS[(idx + k) % FAIXAS.length];
             const cat = FATORES[fatSeq % FATORES.length];
-            const grad = Calc.nivelDaMatriz(MZ, faixa.prob, faixa.crit);
-            const pont = Calc.pontuacaoDaMatriz ? Calc.pontuacaoDaMatriz(MZ, faixa.prob, faixa.crit) : null;
+            const semGrad = (idx === 11 && k === 0) || (idx === 30 && k === 0); // fator sem graduação
+            const semCrit = (idx === 15 && k === 0) || (idx === 33 && k === 0); // fator com graduação, sem criticidade
+            const grad = semGrad ? "" : Calc.nivelDaMatriz(MZ, faixa.prob, faixa.crit);
+            const pont = (semGrad || !Calc.pontuacaoDaMatriz) ? null : Calc.pontuacaoDaMatriz(MZ, faixa.prob, faixa.crit);
             const fid = "demo-fat-" + (++fatSeq);
             await api("POST", "/fatorRisco", Object.assign({
               id: fid, Grupo: cat.grupo, Fator: cat.fator, "Existe Fator Risco": "Sim",
               "Circunstancia Geradora": cat.circ, Consequencia: cat.cons, "Medida Controle Existente": cat.medida, "Controles Administrativos": cat.ctrl,
-              Criticidade: faixa.crit, Probabilidade: faixa.prob, "Pontuacao Risco": pont, "Graduacao Risco": grad, "Graduacao Inicial": grad, Matriz: MZ,
+              Criticidade: (semGrad || semCrit) ? "" : faixa.crit, Probabilidade: semGrad ? "" : faixa.prob, "Pontuacao Risco": (semGrad || semCrit) ? null : pont, "Graduacao Risco": grad, "Graduacao Inicial": grad, Matriz: MZ,
               Status: "Em andamento", "Segmento Corporal": cat.seg, "Dt Identificacao": diasAtras(150 - idx * 3), Origem: "AEP",
             }, base, chave));
             nFat++;
+            if (semGrad || semCrit) continue; // fatores incompletos não geram ação (viram pendência)
             const gradIdx = niveis.indexOf(grad);
-            const nA = gradIdx <= 0 ? 0 : 1 + (k % 2); // Muito Baixo não gera ação
+            const nA = gradIdx <= 0 ? 0 : 1 + ((idx + k) % 3); // 0 a 3 ações, variado (Muito Baixo não gera ação)
             for (let a = 0; a < nA; a++) {
               const tipo = TIPOS[(acCenario) % TIPOS.length];
               const sc = acaoCampos(acCenario % 6); acCenario++;
@@ -7769,53 +7774,72 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         }
       }
 
-      // ---- Colaboradores + GHEs + Riscos Psicossociais ----
+      // ---- Colaboradores operacionais + HHT / Taxa de frequência (variado por setor) ----
+      setBtn("Colaboradores e taxa de frequência…");
+      const mesKey = (m) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - m); return d.toISOString().slice(0, 7); }; // "YYYY-MM"
+      const diaNoMes = (m, dia) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - m); d.setDate(dia); return d.toISOString().slice(0, 10); };
+      const MESES = [5, 4, 3, 2, 1, 0];
+      let nColOp = 0, nHHT = 0, matOp = 10000;
+      for (let si = 0; si < SETORES.length; si++) {
+        const s = SETORES[si];
+        const qtd = 8 + ((si * 5 + 3) % 23); // 8..30 colaboradores por setor (variado)
+        for (let i = 0; i < Math.min(qtd, 10); i++) { matOp++; nColOp++; await api("POST", "/colaborador", Object.assign({ id: "demo-colop-" + matOp, Unidade: s.un, Setor: s.setor, Matricula: String(matOp), Nome: "Colaborador " + s.setor + " " + (i + 1) }, base)); }
+        for (const m of MESES) { nHHT++; await api("POST", "/diasUteis", Object.assign({ id: "demo-hht-" + slugLocal(s.un + s.setor) + "-" + mesKey(m), Unidade: s.un, Setor: s.setor, "Ano/Mes Uteis": mesKey(m), "Qtd Colaboradores": qtd, "Qtd Dias Uteis": 19 + ((si + m) % 4) }, base)); }
+      }
+
+      // ---- GHEs + Riscos Psicossociais (estudo completo, respondentes variados) ----
       setBtn("Riscos Psicossociais…");
       for (const gh of GHES) await api("POST", "/setor", Object.assign({ id: "demo-se-" + slugLocal(gh.unidade + gh.setor), Unidade: gh.unidade, Setor: gh.setor, "Tipo Setor": "GHE" }, base));
       let mat = 5000; const porGhe = {};
-      for (const gh of GHES) {
-        porGhe[gh.setor] = [];
-        for (let i = 0; i < 5; i++) { mat++; const m = String(mat); porGhe[gh.setor].push(m); await api("POST", "/colaborador", Object.assign({ id: "demo-col-" + m, Unidade: gh.unidade, Setor: gh.setor, Matricula: m, Nome: "Colaborador Demo " + m }, base)); }
+      for (let gi = 0; gi < GHES.length; gi++) {
+        const gh = GHES[gi]; porGhe[gh.setor] = [];
+        const nResp = 4 + (gi % 4); // 4..7 respondentes por GHE (variado)
+        for (let i = 0; i < nResp; i++) { mat++; const m = String(mat); porGhe[gh.setor].push(m); await api("POST", "/colaborador", Object.assign({ id: "demo-col-" + m, Unidade: gh.unidade, Setor: gh.setor, Matricula: m, Nome: "Colaborador Demo " + m }, base)); }
       }
       const nPsico = await criarPsicoExemplo(api, cid, CLI, GHES, porGhe);
 
-      // ---- Absenteísmo ----
+      // ---- Absenteísmo (variado por setor, espalhado nos últimos 6 meses; segmento + dias sempre preenchidos
+      //      para o gráfico de dias perdidos por segmento bater com o total e a taxa de frequência ter evolução) ----
       setBtn("Absenteísmo…");
-      const CIDS = [["M54.5", "Lombar"], ["M75.1", "Ombro"], ["M65.9", "Punho"], ["M23.2", "Joelho"], ["M54.2", "Cervical"], ["M51.1", "Lombar"], ["G56.0", "Punho"], ["M70.0", "Membros Superiores"]];
-      let nAbs = 0;
-      const setoresOp = SETORES.filter((s) => s.setor !== "Recursos Humanos");
-      for (let i = 0; i < 34; i++) {
-        const s = setoresOp[i % setoresOp.length]; const po = s.postos[i % s.postos.length];
-        const cd = CIDS[i % CIDS.length];
-        nAbs++;
-        await api("POST", "/absenteismo", Object.assign({
-          id: "demo-abs-" + nAbs, Unidade: s.un, Setor: s.setor, "Posto Trabalho": po[0], Cargo: po[1],
-          Matricula: String(7000 + i), Nome: "Colaborador Afastado " + (i + 1), "Cod CID": cd[0], "Regiao Corporal": cd[1],
-          "Dt Afastamento": diasAtras(10 + i * 5), "Qtd Dias": 1 + (i % 15), "Dt Retorno": diasAtras(10 + i * 5 - (1 + (i % 15))),
-        }, base));
+      const CIDS = [["M54.5", "Lombar"], ["M75.1", "Ombro"], ["M65.9", "Punho"], ["M23.2", "Joelho"], ["M54.2", "Cervical"], ["M51.1", "Coluna"], ["G56.0", "Mao"], ["M70.0", "Membros Superiores"], ["M77.1", "Cotovelo"], ["M62.6", "Membros Inferiores"]];
+      const setoresOp = SETORES;
+      let nAbs = 0, matAbs = 20000;
+      for (let si = 0; si < setoresOp.length; si++) {
+        const s = setoresOp[si]; const qtd = 2 + ((si * 3 + 1) % 7); // 2..8 atestados por setor (variado)
+        for (let i = 0; i < qtd; i++) {
+          const po = s.postos[i % s.postos.length]; const cd = CIDS[(si + i) % CIDS.length]; const m = (si + i) % 6; matAbs++; nAbs++;
+          await api("POST", "/absenteismo", Object.assign({
+            id: "demo-abs-" + nAbs, Unidade: s.un, Setor: s.setor, "Posto Trabalho": po[0], Cargo: po[1],
+            Matricula: String(matAbs), Nome: "Colaborador " + s.setor + " " + (i + 1), "Cod CID": cd[0], "Regiao Corporal": cd[1],
+            "Dt Afastamento": diaNoMes(m, 3 + (i * 4) % 24), "Qtd Dias": 1 + ((si + i * 3) % 12),
+          }, base));
+        }
       }
 
-      // ---- Restritos (compatíveis) ----
+      // ---- Restritos (variado por setor; TODAS as dimensões preenchidas para os gráficos baterem) ----
       setBtn("Restritos…");
       const STR = (typeof STATUS_RESTRICAO_POOL !== "undefined") ? STATUS_RESTRICAO_POOL : ["Ativa", "Em Avaliacao", "Encerrada"];
       const TUR = (typeof TURNOS_POOL !== "undefined") ? TURNOS_POOL : ["1o Turno", "2o Turno", "3o Turno"];
       const GEN = (typeof GENEROS_POOL !== "undefined") ? GENEROS_POOL : ["Masculino", "Feminino"];
-      let nRes = 0;
-      for (let i = 0; i < 16; i++) {
-        const s = setoresOp[i % setoresOp.length]; const po = s.postos[i % s.postos.length]; const cd = CIDS[i % CIDS.length];
-        nRes++;
-        await api("POST", "/compativeis", Object.assign({
-          id: "demo-res-" + nRes, Unidade: s.un, Setor: s.setor, "Posto Trabalho": po[0], Cargo: po[1],
-          "Status Restricao": STR[i % STR.length], Matricula: String(8000 + i), Funcionario: "Colaborador Restrito " + (i + 1),
-          "Turno Trabalho": TUR[i % TUR.length], Genero: GEN[i % GEN.length], Idade: 28 + (i % 25), "Tempo Empresa (meses)": 6 + i * 3,
-          "Segmento Corporal": cd[1], "Restricao Medica": "Restrição para esforço físico intenso e posturas inadequadas.", "Queixa Principal": "Dor em " + cd[1].toLowerCase() + ".",
-          "Inicio Restricao": diasAtras(20 + i * 7), "Historico Restricao": i % 2 ? "Sim" : "Nao", "Atividade Compativel": "Sim", "Atividade Compativel (recomendada)": "Atividades administrativas leves, sem levantamento de carga.",
-        }, base));
+      let nRes = 0, matRes = 30000;
+      const RES_QTD = [3, 1, 4, 2, 5, 1, 3, 2, 4]; // nº de restritos por setor (variado, não uniforme)
+      for (let si = 0; si < setoresOp.length; si++) {
+        const s = setoresOp[si]; const qtd = RES_QTD[si % RES_QTD.length]; // restritos por setor (variado)
+        for (let i = 0; i < qtd; i++) {
+          const po = s.postos[i % s.postos.length]; const cd = CIDS[(si * 2 + i) % CIDS.length]; matRes++; nRes++;
+          await api("POST", "/compativeis", Object.assign({
+            id: "demo-res-" + nRes, Unidade: s.un, Setor: s.setor, "Posto Trabalho": po[0], Cargo: po[1],
+            "Status Restricao": STR[(si + i) % STR.length], Matricula: String(matRes), Funcionario: "Colaborador Restrito " + nRes,
+            "Turno Trabalho": TUR[(si + i) % TUR.length], Genero: GEN[(si + i) % GEN.length], Idade: 25 + ((si * 3 + i * 7) % 35), "Tempo Empresa (meses)": 3 + ((si + i) * 7) % 180,
+            "Segmento Corporal": cd[1], "Restricao Medica": "Restrição para esforço físico intenso e posturas inadequadas.", "Queixa Principal": "Dor em " + cd[1].toLowerCase() + ".",
+            "Inicio Restricao": diaNoMes((si + i) % 6, 5 + (i * 5) % 20), "Historico Restricao": (si + i) % 2 ? "Sim" : "Nao", "Atividade Compativel": (si + i) % 3 ? "Sim" : "Nao", "Atividade Compativel (recomendada)": "Atividades administrativas leves, sem levantamento de carga.",
+          }, base));
+        }
       }
 
       if (window.BI.DB.recarregarTudo) await window.BI.DB.recarregarTudo();
       if (window.BI.avisar) window.BI.avisar("Empresa Demonstrativa criada. Selecione “" + CLI + "” nos filtros para apresentar.");
-      window.alert("Empresa Demonstrativa criada com dados fictícios completos:\n• " + nAEP + " AEPs, " + nFat + " fatores de risco e " + nAc + " ações (todas as faixas de risco e status).\n• " + nAET + " AETs.\n• Riscos Psicossociais: " + GHES.length + " GHEs e " + nPsico + " respostas.\n• " + nAbs + " registros de absenteísmo e " + nRes + " restritos.\n\nSelecione “" + CLI + "” nos filtros para apresentar.");
+      window.alert("Empresa Demonstrativa criada com dados fictícios completos:\n• 2 unidades, " + nColOp + " colaboradores e " + nHHT + " lançamentos de HHT (taxa de frequência com evolução).\n• " + nAEP + " AEPs, " + nFat + " fatores e " + nAc + " ações (todas as faixas e status) — inclui alguns casos propositalmente incompletos (sem fator / sem graduação / sem criticidade) para mostrar as pendências.\n• " + nAET + " AETs.\n• Riscos Psicossociais: " + GHES.length + " GHEs e " + nPsico + " respostas.\n• " + nAbs + " atestados de absenteísmo e " + nRes + " restritos.\n\nSelecione “" + CLI + "” nos filtros para apresentar.");
     } catch (e) {
       console.error("Empresa Demonstrativa", e); window.alert("Não foi possível criar a Empresa Demonstrativa: " + (e && e.message ? e.message : e));
     }
@@ -10482,7 +10506,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // Status do Inventario fica no Plano de Acao (com o filtro de origem daquela aba)
     const fatorRiscoPlanoF = porOrigemAba(fatorRiscoGeralF, "registro");
     renderDonutFatorRiscoStatus(Calc.distribuicaoPorStatus(fatorRiscoPlanoF, "Status", STATUS_FATOR_RISCO_POOL), fatorRiscoPlanoF);
-    renderTilesAvaliacaoCobertura(Calc.coberturaAvaliacao(avaliacaoMesF, Calc.filtrar(window.BI.dados.cargo || [], filtros, [])));
+    // V 2.45 (Alexandre): na aba "Todas", um posto com AEP OU AET conta como avaliado (antes só AEP).
+    // avaliacaoMesF já é só-AEP/vazio e aetF só-AET/vazio conforme a origem, então a união cobre os 3 casos
+    // (Todas = AEP+AET, AEP = só AEP, AET = só AET).
+    renderTilesAvaliacaoCobertura(Calc.coberturaAvaliacao(avaliacaoMesF.concat(aetF), Calc.filtrar(window.BI.dados.cargo || [], filtros, [])));
     renderLinhaMensal("chart-aep-mensal", Calc.serieMensal(avaliacaoMesF, "Data Avaliacao"), "AEPs realizadas", Calc.resolverCorCSS("var(--teal)"), avaliacaoMesF, "Data Avaliacao", "avaliacaoErgonomica");
     renderLinhaMensal("chart-aet-mensal", Calc.serieMensal(aetF, "Data Analise"), "AETs realizadas", Calc.resolverCorCSS("var(--vinho-medio)"), aetF, "Data Analise", "aet");
 

@@ -2,6 +2,21 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.45 — 24/11/2026
+
+Cobertura AEP/AET e Empresa Demonstrativa completa (Alexandre):
+
+- **Cobertura de avaliações — na aba "Todas", um posto com AEP OU AET já conta como avaliado.** Antes os tiles de cobertura contavam só AEP; agora, em "Todas", o posto coberto por AEP **ou** por AET entra como avaliado (na aba AEP conta só AEP, na AET só AET). *(`js/app.js`.)*
+- **Empresa Demonstrativa muito mais completa, para mostrar TODAS as funções** — tudo com números **variados** (não uniformes) para os gráficos fazerem sentido:
+  - **2 unidades**, ~114 colaboradores e **taxa de frequência com evolução** (lançamentos de HHT/Dias Úteis por setor nos últimos 6 meses, casando com os atestados).
+  - **Absenteísmo variado por setor**, com segmento corporal e dias sempre preenchidos — o **gráfico de dias perdidos por segmento bate com o total**.
+  - **Restritos variados por setor**, com todas as dimensões preenchidas (status, turno, gênero, segmento, datas) — os gráficos de restritos reconciliam.
+  - **Estudo psicossocial completo** (GHEs nas 5 faixas, respondentes variados e ISO 45003).
+  - **Mostra os dois estados**: a maior parte "tudo certo" e alguns casos **propositalmente incompletos** (AEP sem fator, fator sem graduação, fator sem criticidade) para demonstrar as **pendências/notificações**.
+  - AEPs, fatores e ações continuam cobrindo todas as graduações e todos os status.
+
+Service worker subiu para `sige-v160`.
+
 ## V 2.44 — 24/11/2026
 
 Reimportação inteligente de laudo (só preenche o que falta) (Alexandre):
