@@ -2,6 +2,16 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.49 — 24/11/2026
+
+Aviso de atualização com "Minimizar" (Alexandre):
+
+- O aviso de nova versão deixou de ser um overlay que **bloqueava a tela**. Agora tem o botão **"Minimizar (salvo depois)"**: ele fecha o aviso e deixa um **lembrete pequeno no canto** ("Atualização disponível · Atualizar"), para o ergonomista **terminar e salvar** o que estava fazendo sem pressa. Minimizar **para o relógio** (não recarrega sozinho).
+- Quando a pessoa clica em **"Atualizar"** (no lembrete ou no aviso), o sistema **espera o save em voo terminar** antes de recarregar — não perde o último lançamento.
+- Continua tendo o "Já salvei — atualizar agora" e, se ninguém interagir com o aviso cheio, ele atualiza sozinho em 2 minutos (como antes). *(`index.html`.)*
+
+Service worker subiu para `sige-v164`.
+
 ## V 2.48 — 24/11/2026
 
 Empresa Demonstrativa 100% completa — pronta para apresentar (Alexandre):

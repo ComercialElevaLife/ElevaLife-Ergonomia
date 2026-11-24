@@ -837,9 +837,42 @@
         // Avisa que saiu atualização, dá 2 minutos para salvar e então recarrega sozinho.
         avisarAtualizacaoSige();
       });
+      // V 2.49 (Alexandre): o aviso de atualização vira um modal que PODE SER MINIMIZADO. Assim o
+      // ergonomista fecha o overlay (que bloqueava a tela), termina e SALVA o que estava fazendo, e só
+      // então clica em "Atualizar". Minimizar PARA o relógio (não recarrega sozinho). Ao atualizar, o
+      // sistema ESPERA o save em voo terminar antes de recarregar (não perde o último lançamento).
       function avisarAtualizacaoSige() {
-        if (document.getElementById("sige-update-overlay")) return;
-        var restante = 120;
+        if (document.getElementById("sige-update-overlay") || document.getElementById("sige-update-pill")) return;
+        var restante = 120, timer = null, recarregando = false;
+        function temPendencia() { try { return !!(window.BI && window.BI.DB && window.BI.DB.temGravacaoPendente && window.BI.DB.temGravacaoPendente()); } catch (e) { return false; } }
+        // Antes de recarregar, ESPERA o save terminar (fetch online em voo ou item na fila offline).
+        function recarregarComSeguranca(setStatus) {
+          if (recarregando) return; recarregando = true;
+          if (timer) { clearInterval(timer); timer = null; }
+          var inicio = Date.now();
+          (function esperar() {
+            if (temPendencia() && (Date.now() - inicio) < 30000) {
+              if (setStatus) setStatus("Salvando o seu último lançamento…");
+              setTimeout(esperar, 400); return;
+            }
+            window.location.reload();
+          })();
+        }
+        // Aviso pequeno (minimizado) no canto: fica até o usuário clicar em Atualizar; não recarrega sozinho.
+        function mostrarPill() {
+          var o = document.getElementById("sige-update-overlay"); if (o) o.remove();
+          if (timer) { clearInterval(timer); timer = null; }
+          if (document.getElementById("sige-update-pill")) return;
+          var pill = document.createElement("div"); pill.id = "sige-update-pill";
+          pill.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:100000;background:#fff;border:1px solid #e3dcd6;border-left:5px solid #6b2f37;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:10px 12px;display:flex;align-items:center;gap:10px;font-family:system-ui,-apple-system,sans-serif;max-width:92vw";
+          var txt = document.createElement("div"); txt.style.cssText = "font-size:13px;color:#444;line-height:1.3";
+          txt.innerHTML = "<b style='color:#6b2f37'>Atualização disponível</b><br><span style='font-size:12px;color:#777'>Salve o seu trabalho e clique em Atualizar.</span>";
+          var b = document.createElement("button"); b.type = "button"; b.textContent = "Atualizar";
+          b.style.cssText = "background:#6b2f37;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer;white-space:nowrap";
+          b.onclick = function () { b.disabled = true; b.style.opacity = "0.6"; b.style.cursor = "default"; b.textContent = "Salvando…"; recarregarComSeguranca(function (s) { txt.innerHTML = "<b style='color:#6b2f37'>" + s + "</b><br><span style='font-size:12px;color:#777'>A página atualiza em seguida — não feche.</span>"; }); };
+          pill.appendChild(txt); pill.appendChild(b);
+          (document.body || document.documentElement).appendChild(pill);
+        }
         var ov = document.createElement("div"); ov.id = "sige-update-overlay";
         ov.style.cssText = "position:fixed;inset:0;z-index:100000;background:rgba(40,20,24,.5);display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,-apple-system,sans-serif";
         var card = document.createElement("div");
@@ -847,33 +880,20 @@
         var tt = document.createElement("div"); tt.textContent = "Nova atualização disponível"; tt.style.cssText = "font-size:18px;font-weight:700;color:#6b2f37;margin-bottom:10px";
         var p = document.createElement("p"); p.style.cssText = "font-size:14px;color:#444;line-height:1.55;margin:0 0 18px";
         var cont = document.createElement("span"); cont.style.cssText = "font-weight:700;color:#6b2f37";
-        p.appendChild(document.createTextNode("Uma nova versão do S.I.G.E está disponível. Salve o que você está fazendo — a página será atualizada automaticamente em "));
-        p.appendChild(cont); p.appendChild(document.createTextNode(". Depois de salvar, você também pode atualizar agora."));
-        var row = document.createElement("div"); row.style.cssText = "display:flex;gap:10px;justify-content:flex-end";
+        p.appendChild(document.createTextNode("Uma nova versão do S.I.G.E está disponível. Você pode atualizar agora, ou "));
+        var strong = document.createElement("b"); strong.textContent = "minimizar este aviso para terminar e salvar o que está fazendo"; p.appendChild(strong);
+        p.appendChild(document.createTextNode(" e atualizar quando quiser. Sem interação, a página atualiza sozinha em "));
+        p.appendChild(cont); p.appendChild(document.createTextNode("."));
+        var row = document.createElement("div"); row.style.cssText = "display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap";
+        var bDepois = document.createElement("button"); bDepois.type = "button"; bDepois.textContent = "Minimizar (salvo depois)";
+        bDepois.style.cssText = "background:#eee;color:#444;border:0;border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer";
+        bDepois.onclick = mostrarPill;
         var bAgora = document.createElement("button"); bAgora.type = "button"; bAgora.textContent = "Já salvei — atualizar agora";
         bAgora.style.cssText = "background:#6b2f37;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer";
-        var recarregando = false; var timer = null;
-        function temPendencia() { try { return !!(window.BI && window.BI.DB && window.BI.DB.temGravacaoPendente && window.BI.DB.temGravacaoPendente()); } catch (e) { return false; } }
-        // V 2.33 (Alexandre): antes de recarregar, ESPERA o save terminar (fetch online em voo ou
-        // item na fila offline) para não perder a análise que o ergonomista acabou de salvar.
-        function recarregarComSeguranca() {
-          if (recarregando) return; recarregando = true;
-          if (timer) { clearInterval(timer); timer = null; }
-          var inicio = Date.now();
-          (function esperar() {
-            if (temPendencia() && (Date.now() - inicio) < 30000) {
-              tt.textContent = "Salvando antes de atualizar…";
-              p.textContent = "Estamos terminando de salvar o seu último lançamento. A página atualiza em seguida — não feche.";
-              bAgora.disabled = true; bAgora.style.opacity = "0.6"; bAgora.style.cursor = "default"; bAgora.textContent = "Salvando…";
-              setTimeout(esperar, 400); return;
-            }
-            window.location.reload();
-          })();
-        }
-        bAgora.onclick = recarregarComSeguranca;
-        row.appendChild(bAgora); card.appendChild(tt); card.appendChild(p); card.appendChild(row); ov.appendChild(card);
+        bAgora.onclick = function () { bDepois.disabled = true; bAgora.disabled = true; bAgora.style.opacity = "0.6"; bAgora.style.cursor = "default"; bAgora.textContent = "Salvando…"; recarregarComSeguranca(function (s) { tt.textContent = s; p.textContent = "A página atualiza em seguida — não feche."; }); };
+        row.appendChild(bDepois); row.appendChild(bAgora); card.appendChild(tt); card.appendChild(p); card.appendChild(row); ov.appendChild(card);
         (document.body || document.documentElement).appendChild(ov);
-        function tick() { var mm = Math.floor(restante / 60), ss = restante % 60; cont.textContent = mm + ":" + String(ss).padStart(2, "0"); if (restante <= 0) { recarregarComSeguranca(); return; } restante -= 1; }
+        function tick() { var mm = Math.floor(restante / 60), ss = restante % 60; cont.textContent = mm + ":" + String(ss).padStart(2, "0"); if (restante <= 0) { recarregarComSeguranca(function (s) { tt.textContent = s; p.textContent = "A página atualiza em seguida — não feche."; }); return; } restante -= 1; }
         tick(); timer = setInterval(tick, 1000);
       }
       navigator.serviceWorker.register("/sw.js").then(function (reg) {
