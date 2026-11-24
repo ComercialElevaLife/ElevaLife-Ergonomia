@@ -2,6 +2,20 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.48 — 24/11/2026
+
+Empresa Demonstrativa 100% completa — pronta para apresentar (Alexandre):
+
+- **2 unidades, 5 setores por unidade, 15 postos por unidade (30 postos no total).** TODO posto tem **AEP e AET** (antes a AET ficava só em alguns postos, então “sumia” em certos filtros). Cobertura **100%** em todas as abas (Todas, AEP, AET, Psicossocial). Acabaram os “clica num tem, clica no outro não tem”.
+- **Psicossocial completo nas 2 unidades e aparecendo no dashboard.** A causa de não aparecer: o dashboard do módulo Psicossocial lê a coleção **`psicoLaudo`** (laudo HSE-IT), que não estava sendo criada. Agora a demo cria: **laudo psicossocial** (tabela de 7 dimensões HSE-IT por unidade/grupo, com cores), **fatores Origem Psicossocial** (Gestão de Riscos) e o **questionário HSE-IT** (respondentes).
+- **Riscos AET aparecem em qualquer filtro** (60 fatores de AET, em todos os postos, com unidade/setor preenchidos).
+- **Absenteísmo do ano de 2026 inteiro** (espalhado nos meses, variado por setor) + **taxa de frequência com evolução** (HHT por setor nos 12 meses). **10 restritos** completos. Dias perdidos por segmento batem com o total.
+- **Colaboradores** cadastrados por setor (operacionais + respondentes do HSE).
+- **Tudo preenchido, sem pendências** (já que o foco agora é apresentar “tudo certo”).
+- **Performance:** criação em **lotes paralelos** (antes ~800 chamadas em sequência, que travavam) — ficou em segundos.
+
+Service worker subiu para `sige-v163`.
+
 ## V 2.47 — 24/11/2026
 
 Empresa Demonstrativa: cobertura, psicossocial integrado, pendências e performance (Alexandre):
