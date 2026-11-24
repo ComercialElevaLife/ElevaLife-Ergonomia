@@ -232,7 +232,11 @@
   // ------------------------------------------------------------------ tela (cartao dentro de AEP › Importar Excel)
   // V 1.46 (Alexandre): a importacao e automatica - traz TUDO do PDF (dados, fotos, fatores e acoes),
   // sem opcoes para o usuario; o PDF antigo nao fica guardado no sistema.
-  const est = { arquivo: null, lido: null, res: null, msg: "", erro: false, ocupado: false, escolhas: {}, sobrescrever: true, criarFatores: true, converterAcoes: true, guardarLaudo: false, cliente: "", unidade: "", log: [] };
+  // V 2.44 (Alexandre): sobrescrever = false por padrão (REIMPORTAÇÃO INTELIGENTE). Subir o mesmo laudo
+  // de novo NÃO estraga o que já está no sistema: só PREENCHE o que está faltando (campos vazios, fatores
+  // novos, criticidade/graduação que não tinham sido capturadas). AEPs e fatores existentes são casados
+  // (por posto e por nome do fator) e atualizados no lugar — nunca duplicados.
+  const est = { arquivo: null, lido: null, res: null, msg: "", erro: false, ocupado: false, escolhas: {}, sobrescrever: false, criarFatores: true, converterAcoes: true, guardarLaudo: false, cliente: "", unidade: "", log: [] };
   function montar(el) {
     if (!el) return; el.innerHTML = "";
     el.appendChild(h("div", "importar-opcao-titulo", "📄 Laudo da AEP do sistema anterior (PDF)"));
@@ -398,6 +402,16 @@
             const d2 = {}; Object.keys(ex).forEach((k) => { if (k[0] !== "_" && k !== "id") d2[k] = ex[k]; });
             let mudou = false; Object.keys(vals).forEach((k) => { if (vals[k] && (est.sobrescrever || !d2[k])) { d2[k] = vals[k]; mudou = true; } });
             if (!d2["Segmento Corporal"]) { const s = segmentoDe(f.Consequencia); if (s) { d2["Segmento Corporal"] = s; mudou = true; } }
+            // V 2.44 (Alexandre): REIMPORTAÇÃO INTELIGENTE — preenche a criticidade/probabilidade/graduação
+            // que estiverem FALTANDO no fator já existente (ex.: severidade que não foi capturada antes),
+            // SEM sobrescrever o que já está preenchido (a menos que "sobrescrever" esteja ligado).
+            const critL = escalaSige(mz, f._crit), probL = escalaSige(mz, f._prob);
+            const gradL = f["Graduacao Risco"] || (critL && probL ? C.nivelDaMatriz(mz, probL, critL) : "");
+            const porL = (k, v) => { if (v && (est.sobrescrever || !d2[k])) { d2[k] = v; mudou = true; } };
+            porL("Criticidade", critL); porL("Probabilidade", probL); porL("Graduacao Risco", gradL);
+            if (gradL && (est.sobrescrever || !d2["Graduacao Inicial"])) { d2["Graduacao Inicial"] = gradL; mudou = true; }
+            if (critL && probL && (est.sobrescrever || !d2["Pontuacao Risco"])) { const pt = C.pontuacaoDaMatriz(mz, probL, critL); if (pt != null) { d2["Pontuacao Risco"] = pt; mudou = true; } }
+            if (!d2.Matriz && mz) { d2.Matriz = mz; mudou = true; }
             if (mudou) { await BI.DB.salvar("fatorRisco", ex._id, d2); nFatComp++; }
             nAc += await levarAcoes(ex._id, Object.assign({}, ex, vals), x.v);
             continue;

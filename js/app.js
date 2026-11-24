@@ -6569,6 +6569,14 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         bUrl.hidden = !ehAdministradorAtual();
         bUrl.addEventListener("click", () => limparUrlsImportadas(bUrl));
         cab.appendChild(bUrl);
+        // V 2.43 (Alexandre): limpar fatores/ações órfãos (de avaliações excluídas).
+        const bOrfaos = document.createElement("button");
+        bOrfaos.type = "button"; bOrfaos.className = "btn-cad-secundario"; bOrfaos.id = "btn-limpar-orfaos";
+        bOrfaos.textContent = "🧹 Limpar fatores/ações órfãos";
+        bOrfaos.title = "Remove de todas as empresas os fatores de risco e ações que sobraram de avaliações (AEP/AET) já excluídas — o que aparecia 'solto' no Inventário e no Plano de Ação.";
+        bOrfaos.hidden = !ehAdministradorAtual();
+        bOrfaos.addEventListener("click", () => limparOrfaos(bOrfaos));
+        cab.appendChild(bOrfaos);
       }
       if (!cfg.semNovo) cab.appendChild(btnNovo);
 
@@ -7089,6 +7097,31 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     document.body.appendChild(ov); sel.focus();
   }
 
+  // V 2.43 (Alexandre): exclusão em CASCATA de AEP e de fator de risco, para não deixar ações/fatores
+  // órfãos no Plano de Ação e na Gestão de Riscos. Mesma lógica da AET (excluirAET): ações "intocadas"
+  // (sem responsável, datas, status ou evidência) são apagadas; ações já trabalhadas ficam como histórico
+  // (e o filtro defensivo da lista do Plano de Ação esconde as que ficaram sem fator).
+  function chavePostoCad(l) { return ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].map((d) => l[d] || "").join("||"); }
+  function acaoIntocadaCad(r) { return !r["Responsavel Acao"] && !r["E-mail Responsavel"] && !r["Dt Programada"] && !r["Dt Conclusao"] && (!r["Status Execucao"] || r["Status Execucao"] === "Nao iniciada") && !(Array.isArray(r.Evidencias) && r.Evidencias.length); }
+  async function excluirAcoesDoFator(fatorId, soIntocadas) {
+    const acoes = (window.BI.dados.planoAcao || []).filter((a) => a["Fator Risco Id"] === fatorId);
+    for (const ac of acoes) { if (!soIntocadas || acaoIntocadaCad(ac)) await window.BI.DB.excluir("planoAcao", ac._id || ac.id); }
+  }
+  async function excluirFatorEmCascata(fator, soIntocadas) {
+    await excluirAcoesDoFator(fator._id || fator.id, soIntocadas);
+    await window.BI.DB.excluir("fatorRisco", fator._id || fator.id);
+  }
+  async function excluirAEPEmCascata(aep) {
+    const id = aep._id || aep.id; const k = chavePostoCad(aep);
+    // Só apaga os fatores do posto se NÃO sobrar outra AEP no mesmo posto (senão são dela).
+    const outraNoPosto = (window.BI.dados.avaliacaoErgonomica || []).some((a) => (a._id || a.id) !== id && chavePostoCad(a) === k);
+    if (!outraNoPosto) {
+      const fatores = (window.BI.dados.fatorRisco || []).filter((f) => window.BI.Calc.origemDe(f) === "AEP" && chavePostoCad(f) === k);
+      for (const f of fatores) await excluirFatorEmCascata(f, true);
+    }
+    await window.BI.DB.excluir("avaliacaoErgonomica", id);
+  }
+
   function excluirRegistro(chave, id) {
     if (ehUsuarioCliente()) return;
     if (!window.BI.DB.estado.disponivel) return;
@@ -7112,6 +7145,15 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       cascataExcluirHierarquia(chave, registro).catch((e) => {
         mostrarErro("Erro ao excluir em cascata: " + (e && e.message ? e.message : String(e)));
       });
+      return;
+    }
+    // V 2.43 (Alexandre): AEP e fator saem em cascata (não deixam ações/fatores órfãos).
+    if (chave === "avaliacaoErgonomica" && registro) {
+      excluirAEPEmCascata(registro).catch((e) => mostrarErro("Erro ao excluir a avaliação: " + (e && e.message ? e.message : String(e))));
+      return;
+    }
+    if (chave === "fatorRisco" && registro) {
+      excluirFatorEmCascata(registro, true).catch((e) => mostrarErro("Erro ao excluir o fator: " + (e && e.message ? e.message : String(e))));
       return;
     }
     window.BI.DB.excluir(chave, id).catch((e) => {
@@ -7834,6 +7876,32 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (botao) { botao.disabled = false; botao.textContent = "🧽 Limpar URLs do laudo antigo"; }
   }
 
+  // V 2.43 (Alexandre): remove fatores e ações ÓRFÃOS — os que ficaram no banco de avaliações (AEP/AET)
+  // que foram excluídas sem cascata. Fator órfão: Origem AEP sem nenhuma AEP no mesmo posto, ou Origem
+  // AET cujo "AET Id" não existe mais. Ação órfã: ligada a um fator que não existe mais (exceto psicossocial).
+  async function limparOrfaos(botao) {
+    if (!ehAdministradorAtual()) return;
+    if (!window.BI.DB.estado.disponivel || window.BI.DB.estado.somenteLeitura) { window.alert("Banco indisponível nesta visualização."); return; }
+    const Calc = window.BI.Calc;
+    const aeps = window.BI.dados.avaliacaoErgonomica || [], aets = window.BI.dados.aet || [], fatores = window.BI.dados.fatorRisco || [], acoes = window.BI.dados.planoAcao || [];
+    const postosComAEP = new Set(aeps.map(chavePostoCad));
+    const idsAET = new Set(aets.map((a) => a._id || a.id));
+    const fatOrfaos = fatores.filter((f) => { const o = Calc.origemDe(f); if (o === "AEP") return !postosComAEP.has(chavePostoCad(f)); if (o === "AET") return !idsAET.has(f["AET Id"]); return false; });
+    const fatOrfaoIds = new Set(fatOrfaos.map((f) => f._id || f.id));
+    const vivosRestantes = new Set(fatores.filter((f) => !fatOrfaoIds.has(f._id || f.id)).map((f) => f._id || f.id));
+    const acOrfas = acoes.filter((a) => a.Origem !== "Riscos Psicossociais" && a["Fator Risco Id"] && !vivosRestantes.has(a["Fator Risco Id"]));
+    if (!fatOrfaos.length && !acOrfas.length) { window.alert("Nenhum fator ou ação órfão encontrado — tudo está ligado a uma avaliação existente. 👍"); return; }
+    if (!window.confirm(`Encontrei ${fatOrfaos.length} fator(es) de risco e ${acOrfas.length} ação(ões) ÓRFÃOS (sobraram de avaliações já excluídas).\n\nExcluir definitivamente? Remove o que ficou solto no Inventário de Riscos e no Plano de Ação.`)) return;
+    const setBtn = (t) => { if (botao) { botao.disabled = true; botao.textContent = t; } };
+    let okF = 0, okA = 0, erro = 0;
+    for (let i = 0; i < acOrfas.length; i++) { setBtn(`Ações ${i + 1}/${acOrfas.length}…`); try { await window.BI.DB.excluir("planoAcao", acOrfas[i]._id || acOrfas[i].id); okA++; } catch (e) { console.error("orfao acao", e); erro++; } }
+    for (let i = 0; i < fatOrfaos.length; i++) { setBtn(`Fatores ${i + 1}/${fatOrfaos.length}…`); try { await window.BI.DB.excluir("fatorRisco", fatOrfaos[i]._id || fatOrfaos[i].id); okF++; } catch (e) { console.error("orfao fator", e); erro++; } }
+    if (window.BI.DB.recarregarTudo) await window.BI.DB.recarregarTudo();
+    if (window.BI.avisar) window.BI.avisar(`Limpeza concluída: ${okF} fator(es) e ${okA} ação(ões) órfãos removidos.`);
+    window.alert(`Limpeza concluída: ${okF} fator(es) e ${okA} ação(ões) órfãos removidos${erro ? `, ${erro} com erro (veja o console)` : ""}.`);
+    if (botao) { botao.disabled = false; botao.textContent = "🧹 Limpar fatores/ações órfãos"; }
+  }
+
   // Dimensão de cada um dos 35 itens do HSE-IT (ordem do instrumento, ver psicossocial.html).
   // Os itens das dimensões negativas (Demandas, Relacionamentos) são invertidos no cálculo
   // (favorabilidade = 6 - resposta). Por isso, para um GHE cair na graduação G (1..5) com nota
@@ -7887,6 +7955,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const bl = document.getElementById("btn-lixeira-cliente"); if (bl) bl.hidden = !ehAdministradorAtual();
       const be = document.getElementById("btn-exemplo-elevalife"); if (be) be.hidden = !ehAdministradorAtual();
       const bu = document.getElementById("btn-limpar-url-laudo"); if (bu) bu.hidden = !ehAdministradorAtual();
+      const bof = document.getElementById("btn-limpar-orfaos"); if (bof) bof.hidden = !ehAdministradorAtual();
     }
     if (chave === "planoAcao") { try { renderPlanoLista(); } catch (e) { console.error(e); } }
     if (chave === "avaliacaoErgonomica") { try { atualizarAvisoMigracaoAEP(); } catch (e) { console.error(e); } }
@@ -8910,7 +8979,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       const hojeMs = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
 
       const itens = planos
-        .filter((p) => p["Dt Programada"] && !p["Dt Conclusao"])
+        .filter((p) => p["Dt Programada"] && !p["Dt Conclusao"] && !acaoOrfaCad(p))
         .map((p) => {
           const partes = String(p["Dt Programada"]).slice(0, 10).split("-").map(Number);
           if (partes.length !== 3 || partes.some((n) => Number.isNaN(n))) return null;
@@ -8972,7 +9041,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const norma = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
     const hoje = new Date(); const hojeMs = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
     const prazoMs = (p) => { const m = String(p["Dt Programada"] || "").slice(0, 10).split("-").map(Number); if (m.length !== 3 || m.some(Number.isNaN)) return null; return Date.UTC(m[0], m[1] - 1, m[2]); };
-    const planos = (window.BI.dados.planoAcao || []).filter((p) => !p["Dt Conclusao"]);
+    const planos = (window.BI.dados.planoAcao || []).filter((p) => !p["Dt Conclusao"] && !acaoOrfaCad(p));
     const naoIniciadas = planos.filter((p) => norma(p["Status Execucao"]) === "nao iniciada");
     const atrasadas = planos.filter((p) => { const d = prazoMs(p); return d != null && d < hojeMs; });
     const perto = planos.filter((p) => { const d = prazoMs(p); return d != null && d >= hojeMs && (d - hojeMs) <= 7 * 86400000; });
@@ -10100,9 +10169,17 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // do risco) abre o formulario da acao.
   // ------------------------------------------------------------------
   const estadoPlanoLista = { cl: "", u: "", g: "", o: "", st: "", q: "" };
+  // V 2.43 (Alexandre): ação ÓRFÃ = tem vínculo com um fator de risco que não existe mais (o fator/
+  // a avaliação foi excluído). Some das listas/indicadores do Plano de Ação. Ações sem "Fator Risco Id"
+  // (ex.: psicossocial) nunca são consideradas órfãs.
+  function acaoOrfaCad(a) {
+    if (!a || a.Origem === "Riscos Psicossociais") return false;
+    const fid = a["Fator Risco Id"]; if (!fid) return false;
+    return !(window.BI.dados.fatorRisco || []).some((f) => (f._id || f.id) === fid);
+  }
   function filtroListaPlano(lista) {
     const f = estadoPlanoLista; const hoje = hojeMeiaNoite();
-    return (lista || []).filter((a) => (!f.cl || a.Cliente === f.cl) && (!f.u || a.Unidade === f.u) && (!f.g || a.Setor === f.g) && (!f.st || window.BI.Calc.statusDaLinhaAcao(a, hoje) === f.st)
+    return (lista || []).filter((a) => !acaoOrfaCad(a) && (!f.cl || a.Cliente === f.cl) && (!f.u || a.Unidade === f.u) && (!f.g || a.Setor === f.g) && (!f.st || window.BI.Calc.statusDaLinhaAcao(a, hoje) === f.st)
       && (!f.q || [a["Nr Acao"], a["Acao Recomendada"], a["Fator Risco Nome"], a["Responsavel Acao"], a["E-mail Responsavel"], a["Posto Trabalho"], a.Setor].join(" ").toLowerCase().includes(f.q.toLowerCase())));
   }
   const EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;

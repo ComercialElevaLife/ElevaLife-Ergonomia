@@ -2,6 +2,28 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.44 — 24/11/2026
+
+Reimportação inteligente de laudo (só preenche o que falta) (Alexandre):
+
+- Subir **o mesmo laudo de novo** passou a ser seguro: o sistema **identifica** a AEP (pelo posto: Cliente/Unidade/Setor/Posto/Cargo) e cada fator (pelo nome) e **atualiza no lugar** — **nunca duplica** avaliações nem fatores, e **não recria** ações que já existem.
+- **Não estraga o que já está preenchido.** A importação passou a ser **só-preenchimento** por padrão (antes ela sobrescrevia): campos do cabeçalho e textos dos fatores que já têm conteúdo são mantidos; só os **vazios** são preenchidos com o laudo. *(`js/aep-laudo-import.js` — `sobrescrever: false`.)*
+- **Recupera a criticidade/graduação que faltava.** No fator já existente, se a **severidade, a probabilidade ou a graduação** estiverem em branco, a reimportação agora **preenche** a partir do laudo (usando a leitura correta da escala da matriz — v2.40, ex.: Gerdau Brando/Moderado/Sério/Crítico). Isso resolve, via reimportação, os fatores que tinham entrado sem severidade.
+- A tela de **Conferência** continua mostrando, posto a posto, qual AEP do sistema cada seção do laudo vai atualizar — dá pra revisar/trocar antes de confirmar.
+
+Service worker subiu para `sige-v159`.
+
+## V 2.43 — 24/11/2026
+
+Exclusão em cascata + limpeza de fatores/ações órfãos (Alexandre):
+
+- **Excluir uma AEP agora leva junto os fatores e as ações daquele posto** (como a AET já fazia). Antes, excluir a avaliação deixava os fatores de risco no Inventário e as ações no Plano de Ação — "soltos" (órfãos). Ações já trabalhadas (com responsável, prazo, conclusão ou evidência) ficam como histórico, mas **não aparecem mais** no Plano de Ação ativo. Só apaga os fatores do posto se não houver outra AEP no mesmo posto. *(`js/app.js`.)*
+- **Excluir um fator de risco** também leva junto as ações dele (as intocadas).
+- **Filtro defensivo:** o Plano de Ação (lista, indicadores, sininho e contagem de notificações) passou a **esconder ações órfãs** — ligadas a um fator que não existe mais. Ações de psicossocial nunca são afetadas.
+- **Novo botão de Administrador "🧹 Limpar fatores/ações órfãos"** (Cadastro → Empresas): remove de todas as empresas o que ficou solto de avaliações já excluídas — fator Origem AEP sem nenhuma AEP no posto, fator Origem AET cujo "AET Id" sumiu, e ações ligadas a fatores que não existem mais. Mostra a contagem e pede confirmação. *(`js/app.js` `limparOrfaos`.)*
+
+Service worker subiu para `sige-v158`.
+
 ## V 2.42 — 24/11/2026
 
 Empresa Demonstrativa — base completa para apresentações comerciais (Alexandre):
