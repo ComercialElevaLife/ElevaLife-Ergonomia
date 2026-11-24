@@ -8229,6 +8229,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
 
   function exportarExcel() {
     const chave = abaAtualChave();
+    // V 2.37 (Alexandre): na Gestão de Riscos o Excel é a PLANILHA FORMATADA do inventário (aba única,
+    // só as colunas pedidas, graduação pintada) — não mais as abas cruas "Risco por Posto"/"Plano Ação".
+    if (chave === "ergo") { exportarResumoRiscosExcel().catch((e) => mostrarErro("Erro ao gerar a planilha: " + (e && e.message ? e.message : String(e)))); return; }
     const chavesTabela = TABELAS_POR_ABA[chave];
     if (!chavesTabela) return;
     if (typeof XLSX === "undefined") {
@@ -8468,7 +8471,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (typeof ExcelJS === "undefined") { mostrarErro("A biblioteca Excel (ExcelJS) não carregou (script externo bloqueado ou indisponível)."); return; }
     const Calc = window.BI.Calc; const filtros = window.BI.filtros || {};
     const origemAba = estadoOrigemAba.ergo;
-    let fatores = Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, ["Dt Identificacao"]).filter((f) => Calc.riscoAtivo(f));
+    // V 2.37 (Alexandre): inclui também os riscos ELIMINADOS (antes só os ativos). Fatores marcados
+    // "Existe Fator de Risco = Não" continuam de fora (não são risco). As ações concluídas já entram
+    // naturalmente (acoesDoFator traz todas) e saem marcadas "· concluída".
+    let fatores = Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, ["Dt Identificacao"]).filter((f) => f["Existe Fator Risco"] !== "Nao");
     if (origemAba) fatores = fatores.filter((f) => Calc.origemDe(f) === origemAba);
     fatores = fatores.slice().sort((a, b) => String(a.Cliente || "").localeCompare(String(b.Cliente || ""), "pt-BR") || String(a.Unidade || "").localeCompare(String(b.Unidade || ""), "pt-BR") || String(a.Setor || "").localeCompare(String(b.Setor || ""), "pt-BR"));
     // nº da análise por posto (AEP e AET), casando por Cliente/Unidade/Setor/Posto/Cargo.
@@ -8485,7 +8491,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const linhaDe = (f, acaoTxt) => [
       f.Cliente || "", f.Unidade || "", Calc.origemDe(f), nrAnalise(f), f.Setor || "", f.Cargo || "", f["Posto Trabalho"] || "",
       f.Grupo || "", f.Fator || "", f["Circunstancia Geradora"] || "", f["Medida Controle Existente"] || "",
-      f.Criticidade || "", f.Probabilidade || "", f["Graduacao Risco"] || "", acaoTxt, f["Controles Administrativos"] || "", f.Status || "",
+      f.Criticidade || "", f.Probabilidade || "", (f["Risco Eliminado"] === "Sim" ? "Eliminado" : (f["Graduacao Risco"] || "")), acaoTxt, f["Controles Administrativos"] || "", (f["Risco Eliminado"] === "Sim" ? "Eliminado" : (f.Status || "")),
     ];
     const linhas = [];
     fatores.forEach((f) => {
@@ -8523,8 +8529,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         c.alignment = { vertical: "top", wrapText: true, horizontal: (col === 3 || col === 4 || col === 12 || col === 13) ? "center" : "left" };
         if (i % 2 === 1) c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7F2EE" } };
       });
-      const grad = arr[idxGrad - 1]; const hx = grad ? Calc.corRiscoHex(grad) : null;
-      if (hx) { const cell = row.getCell(idxGrad); const argb = "FF" + String(hx).replace("#", "").toUpperCase(); cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb } }; cell.font = { bold: true, size: 10, name: "Calibri", color: { argb: corTexto(hx) } }; cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }; }
+      const grad = arr[idxGrad - 1];
+      // Eliminado → cinza-azulado (teal); demais → cor da graduação do risco.
+      let fillHex = grad === "Eliminado" ? "3E7B7E" : (grad ? (Calc.corRiscoHex(grad) ? String(Calc.corRiscoHex(grad)).replace("#", "") : null) : null);
+      if (fillHex) { const cell = row.getCell(idxGrad); cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + fillHex.toUpperCase() } }; cell.font = { bold: true, size: 10, name: "Calibri", color: { argb: corTexto(fillHex) } }; cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }; }
     });
     if (!linhas.length) { ws.mergeCells(3, 1, 3, nCols); const v = ws.getCell(3, 1); v.value = "Nenhum risco para os filtros atuais."; v.alignment = { horizontal: "center" }; v.font = { italic: true, color: { argb: "FF8A7A78" } }; }
     ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: nCols } };

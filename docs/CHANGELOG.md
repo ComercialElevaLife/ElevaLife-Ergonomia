@@ -2,6 +2,15 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.37 — 24/11/2026
+
+Planilha de riscos — aba única, eliminados e ações concluídas (Alexandre):
+
+- Na **Gestão de Riscos**, o botão **“⬇ Excel”** da barra de cima passou a gerar **a mesma planilha formatada** do botão “Planilha de riscos” — **uma aba só** (“Resumo de Riscos”), com apenas as colunas pedidas. Acabaram as abas cruas “Risco por Posto” e “Plano Ação” e as colunas extras do inventário. *(`js/app.js`.)*
+- A planilha agora inclui os **riscos eliminados** (graduação “Eliminado”, pintada de cinza-azulado) e as **ações concluídas** (marcadas “· concluída” na coluna Ação) — inclusive a ação que eliminou o risco. Fatores marcados “Existe Fator de Risco = Não” continuam fora.
+
+Service worker subiu para `sige-v152`. *(Inclui tudo da v2.24 → v2.36.)*
+
 ## V 2.36 — 24/11/2026
 
 Exportar planilha de riscos (Excel formatado) na Gestão de Riscos (Alexandre):
