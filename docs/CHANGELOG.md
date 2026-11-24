@@ -2,6 +2,28 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.47 — 24/11/2026
+
+Empresa Demonstrativa: cobertura, psicossocial integrado, pendências e performance (Alexandre):
+
+- **Bug da cobertura corrigido (postos cadastrados × avaliados).** Os cargos da demo estavam sendo criados sem o "Posto de Trabalho", então a chave não batia com as avaliações e dava "0 avaliados" mesmo havendo riscos. Agora os cargos saem completos — a cobertura mostra o número certo (AEP, AET, Total e Psicossocial).
+- **Riscos Psicossociais integrados e aparecendo no dashboard.** Acabaram os "GHE — Setor" separados: o psicossocial usa o **mesmo cadastro de setor** da AEP/AET (gestão integrada — o setor é marcado como GHE). A demo cria **fatores Origem Psicossocial** (aparecem na Gestão de Riscos e na cobertura) **e** o estudo **HSE-IT** completo nos mesmos setores.
+- **Mostra os dois estados também na cobertura:** há **postos cadastrados SEM avaliação** (pendentes), inclusive um posto **só com AET** (que, na aba "Todas", conta como avaliado, mas fica pendente na aba "AEP"), e um **GHE sem estudo psicossocial** (pendente na cobertura do Psicossocial).
+- **Notificação "sem criticidade" também ignora fatores Psicossociais** (a graduação vem do HSE, não de severidade × probabilidade).
+- **Performance:** a criação da demo passou a rodar em **lotes paralelos** (antes eram ~800 chamadas em sequência, que travavam bastante) — números e ids atribuídos na hora para não haver corrida. Ficou muito mais rápida.
+- Tudo com números **variados** por setor e **consistentes** entre os gráficos (dias perdidos por segmento = total; taxa de frequência com evolução nos 6 meses).
+
+Service worker subiu para `sige-v162`.
+
+## V 2.46 — 24/11/2026
+
+Notificação "sem criticidade" não cobra severidade de AET por ferramenta (Alexandre):
+
+- **Correção.** A notificação "Fatores sem criticidade (severidade)" passou a **desconsiderar** os fatores de **AET avaliados por ferramenta ergonômica** (OCRA, REBA, RULA, etc.). Nessas AETs a graduação vem do **resultado da ferramenta**, não do cruzamento severidade × probabilidade — então a falta de criticidade é o comportamento correto, não uma pendência. O critério: o fator só é cobrado se foi avaliado pela **matriz de risco** ("Metodologia AET" = Matriz de risco, ou fator de AEP). *(`js/app.js` `fatorPrecisaCriticidade`.)*
+- **Empresa Demonstrativa:** metade das AETs agora é gerada **por ferramenta** (graduação da ferramenta, sem severidade/probabilidade) e metade **por matriz** — para mostrar os dois métodos e confirmar que a notificação só cobra os de matriz.
+
+Service worker subiu para `sige-v161`.
+
 ## V 2.45 — 24/11/2026
 
 Cobertura AEP/AET e Empresa Demonstrativa completa (Alexandre):
