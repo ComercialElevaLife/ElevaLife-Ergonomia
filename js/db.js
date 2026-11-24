@@ -396,6 +396,10 @@
   }
 
   let filaCache = []; // espelho em memoria da fila (a verdade fica no IndexedDB)
+  // V 2.33 (Alexandre): contador de gravações ONLINE em voo (fetch direto, que NÃO passa pela fila
+  // durável). Usado para o aviso de atualização só recarregar depois que o save terminar — antes,
+  // o reload cortava o fetch no meio e a análise salva se perdia.
+  let gravacoesEmVoo = 0;
   const ouvintesFila = [];
   const urlsLocais = new Map(); // id da foto local -> URL temporaria para exibir
   let monitorIniciado = false;
@@ -967,32 +971,39 @@
       if (capaz && semInternetAgora()) return enfileirar(colecaoChave, id, dados, forcarCriacao);
       if (!capaz && semInternetAgora()) throw new Error(MSG_PRECISA_INTERNET);
       const rota = "/api/" + encodeURIComponent(colecaoChave) + (criar ? "" : "/" + encodeURIComponent(id));
-      let resp;
+      // V 2.33 (Alexandre): conta como gravação em voo até o fetch terminar e o cache local atualizar,
+      // para o aviso de atualização esperar o save concluir antes de recarregar a página.
+      gravacoesEmVoo++;
       try {
-        resp = await fetch(rota, {
-          method: criar ? "POST" : "PUT",
-          credentials: "same-origin",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(criar ? Object.assign({ id }, corpo) : corpo),
-        });
-      } catch (erroRede) {
-        if (!ehErroDeRede(erroRede)) throw erroRede;
-        estado.offlineAgora = true;
-        avisarFila();
-        if (capaz) return enfileirar(colecaoChave, id, dados, forcarCriacao);
-        throw new Error(MSG_PRECISA_INTERNET);
+        let resp;
+        try {
+          resp = await fetch(rota, {
+            method: criar ? "POST" : "PUT",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(criar ? Object.assign({ id }, corpo) : corpo),
+          });
+        } catch (erroRede) {
+          if (!ehErroDeRede(erroRede)) throw erroRede;
+          estado.offlineAgora = true;
+          avisarFila();
+          if (capaz) return enfileirar(colecaoChave, id, dados, forcarCriacao);
+          throw new Error(MSG_PRECISA_INTERNET);
+        }
+        if (resp.status === 401 && capaz) {
+          marcarSessaoExpirada();
+          return enfileirar(colecaoChave, id, dados, forcarCriacao);
+        }
+        if (!resp.ok) throw new Error(await corpoDeErro(resp));
+        const salvo = await resp.json();
+        // V 1.57 (Alexandre - lentidão ao salvar): antes recarregávamos a coleção
+        // INTEIRA do servidor a cada gravação (lento com muitos registros). Agora só o
+        // registro salvo entra/atualiza no cache local, instantaneamente.
+        atualizarRegistroLocal(colecaoChave, salvo, id);
+        return salvo.id;
+      } finally {
+        gravacoesEmVoo--;
       }
-      if (resp.status === 401 && capaz) {
-        marcarSessaoExpirada();
-        return enfileirar(colecaoChave, id, dados, forcarCriacao);
-      }
-      if (!resp.ok) throw new Error(await corpoDeErro(resp));
-      const salvo = await resp.json();
-      // V 1.57 (Alexandre - lentidão ao salvar): antes recarregávamos a coleção
-      // INTEIRA do servidor a cada gravação (lento com muitos registros). Agora só o
-      // registro salvo entra/atualiza no cache local, instantaneamente.
-      atualizarRegistroLocal(colecaoChave, salvo, id);
-      return salvo.id;
     }
 
     if (!estado.db) throw new Error("Banco de dados indisponível nesta visualização.");
@@ -1251,8 +1262,13 @@
           avancar();
         }
       }
-      await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador()]);
-      await recarregarColecaoApi(colecaoChave);
+      gravacoesEmVoo++;
+      try {
+        await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador()]);
+        await recarregarColecaoApi(colecaoChave);
+      } finally {
+        gravacoesEmVoo--;
+      }
       falhas.sort((a, b) => a.indice - b.indice);
       return { falhas };
     }
@@ -1306,6 +1322,9 @@
     salvar,
     salvarEmLote,
     excluir,
+    // V 2.33 (Alexandre): há gravação pendente? (fetch online em voo OU itens na fila offline).
+    // O aviso de atualização usa isto para só recarregar depois que o save terminar.
+    temGravacaoPendente: () => gravacoesEmVoo > 0 || filaCache.length > 0,
     recarregarTudo: carregarTudoOuCopia, // V 1.37
     excluirEmLote,
     moverUnidade, // V 1.74

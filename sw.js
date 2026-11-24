@@ -20,7 +20,7 @@
 
 "use strict";
 
-const VERSAO = "sige-v147";
+const VERSAO = "sige-v151";
 const CACHE_SITE = `${VERSAO}-site`;
 const CACHE_EXTERNO = `${VERSAO}-externo`;
 
@@ -69,6 +69,7 @@ const ARQUIVOS_BASE = [
   "/vendor/libs/chartjs-plugin-datalabels.min.js",
   "/vendor/libs/jspdf.umd.min.js",
   "/vendor/libs/xlsx.full.min.js",
+  "/vendor/libs/exceljs.min.js",
   "/vendor/libs/pdf.min.js",
   "/vendor/libs/pdf.worker.min.js",
   "/vendor/libs/qrcode.min.js",

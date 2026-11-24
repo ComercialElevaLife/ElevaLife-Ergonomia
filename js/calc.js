@@ -13,7 +13,9 @@
   const DIMENSOES = ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Atividade"];
 
   const NIVEIS_RISCO = ["Baixo", "Medio", "Alto", "Muito Alto"];
-  const STATUS_ACAO_ORDEM = ["Nao Iniciado", "Em Andamento", "Atrasada", "Concluida com atraso", "Concluida"];
+  // V 2.35 (Alexandre): "Concluida sem evidencia" = ação concluída mas com a evidência pendente
+  // (aguardando aprovação do ADM, ou o ADM deu prazo para anexar). Vira categoria própria nos gráficos.
+  const STATUS_ACAO_ORDEM = ["Nao Iniciado", "Em Andamento", "Atrasada", "Concluida sem evidencia", "Concluida com atraso", "Concluida"];
 
   // As 12 dimensoes do Mapa de Risco (conforme RD) - usadas para calcular
   // "Risco Global" automaticamente na tela de cadastro (nunca digitado a mao).
@@ -379,6 +381,7 @@
     "Nao Iniciado": "var(--acao-nao-iniciado)",
     "Em Andamento": "var(--acao-andamento)",
     "Atrasada": "var(--acao-atrasada)",
+    "Concluida sem evidencia": "#C77700",
     "Concluida com atraso": "var(--acao-atraso)",
     "Concluida": "var(--acao-concluida)",
     "Ativa": "var(--acao-andamento)",
@@ -534,10 +537,26 @@
   // V 1.2: o status exibido leva em conta a "Status Execucao" informada pela
   // pessoa (Nao iniciada / Em andamento / Concluida). "Em andamento" marcado
   // antes do prazo aparece como Em Andamento; prazo vencido continua Atrasada.
+  // V 2.35 (Alexandre): ação concluída SEM evidência válida e ainda pendente (ergonomista aguardando
+  // aprovação do ADM, ou o ADM deu prazo para anexar). Se o ADM aceitou "de fato sem evidência"
+  // (_dispensa.definitiva) ou já tem evidência, NÃO conta aqui (é Concluída normal). Ações antigas
+  // sem evidência (legado, sem flag nenhuma) também NÃO entram.
+  function temEvidenciaAcao(l) { return !!(l && Array.isArray(l.Evidencias) && l.Evidencias.length); }
+  function concluidaSemEvidencia(l) {
+    if (!l) return false;
+    const concl = !!(l["Dt Conclusao"] || l["Status Execucao"] === "Concluida");
+    if (!concl || temEvidenciaAcao(l)) return false;
+    const d = l._dispensa;
+    if (d && d.definitiva && !d.regularizadaEm) return false;
+    if (l["Aprovacao Pendente"] === "Sim") return true;
+    if (d && d.prazo && !d.regularizadaEm) return true;
+    return false;
+  }
   function statusDaLinhaAcao(linha, hoje) {
     const base = calcularStatusAcao(linha["Dt Programada"], linha["Dt Conclusao"], hoje);
     // V 1.29: com prazo definido (e nao concluida, nao vencida) a acao esta Em andamento.
     if (base === "Nao Iniciado" && (linha["Status Execucao"] === "Em andamento" || linha["Dt Programada"])) return "Em Andamento";
+    if ((base === "Concluida" || base === "Concluida com atraso") && concluidaSemEvidencia(linha)) return "Concluida sem evidencia";
     return base;
   }
 
@@ -1303,6 +1322,8 @@
     matrizDoCliente,
     modeloLaudoAET, ehModeloUnimed, NIVEIS_OCRA_UNIMED, corRiscoOcra, cargosDe, rotuloCargos,
     STATUS_ACAO_ORDEM,
+    concluidaSemEvidencia,
+    temEvidenciaAcao,
     STATUS_RESTRICAO_ORDEM,
     resolverCorCSS,
     corStatus,

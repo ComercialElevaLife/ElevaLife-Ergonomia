@@ -2,6 +2,47 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.36 — 24/11/2026
+
+Exportar planilha de riscos (Excel formatado) na Gestão de Riscos (Alexandre):
+
+- Novo botão **“⬇ Planilha de riscos (Excel)”** na aba Gestão de Riscos. Gera um **.xlsx formatado no padrão ElevaLife** (faixa de título vinho, cabeçalho vinho com texto branco, zebra, bordas) com o **resumo de todos os riscos**, respeitando os filtros atuais (cliente/unidade e origem AEP/AET/Psicossocial). *(`index.html`, `js/app.js`, `css/style.css`.)*
+- Colunas: Cliente, Unidade, Origem, Nº da análise, Setor, Cargo, Posto de trabalho, Grupo do fator de risco, Fator de risco, Circunstância geradora, Medida de controle existente, Criticidade, Probabilidade, **Graduação do risco (pintada com a cor da graduação)**, Ação, Controles administrativos e organizacionais, Status.
+- **Uma linha por fator**; se o fator tem **mais de uma ação**, vira **mais de uma linha** (repetindo as demais informações).
+- Passou a carregar a biblioteca **ExcelJS** (já vendorada) para o estilo/cores. *(`index.html`, `sw.js`.)*
+
+Service worker subiu para `sige-v151`. *(Inclui tudo da v2.24 → v2.35.)*
+
+## V 2.35 — 24/11/2026
+
+Novo status "Concluída sem evidência" nos gráficos do Plano de Ação (Alexandre):
+
+- Ação concluída mas com a **evidência pendente** (ergonomista aguardando aprovação do ADM, ou o ADM deu prazo para anexar) agora é uma **categoria própria** nos gráficos de status do Plano de Ação — cor âmbar, rótulo “Concluída sem evidência”. *(`js/calc.js`, `js/rotulos.js`.)*
+- Ações **com evidência**, ou que o ADM **aceitou de fato sem evidência**, ou antigas (legado), continuam como **Concluída** normal.
+
+Primeira parte do pacote de conclusão do Plano de Ação. As próximas (justificativa obrigatória do ergonomista, aprovação do ADM com dois botões, redirect ao inventário para reavaliar o risco, e “Eliminado” nos donuts) vêm em seguida.
+
+Service worker subiu para `sige-v150`. *(Inclui tudo da v2.24 → v2.34.)*
+
+## V 2.34 — 24/11/2026
+
+Tela de notificações ao entrar no sistema (Alexandre):
+
+- Ao entrar no SIGE, abre automaticamente uma **tela (modal) com as pendências de ajuste** do usuário logado, reunindo num lugar só: ações atrasadas, ações perto do vencimento, análises faltando informações/fotos, avaliações sem fator de risco, fatores sem graduação e importações pendentes. *(`js/app.js`.)*
+- Cada item é clicável e leva à aba **Notificações**; botões **“Ver notificações”** e **“Agora não”**. Só aparece quando há algo pendente (não incomoda quando está tudo em dia). Como os dados já vêm filtrados por cliente, cada ergonomista vê só as suas.
+
+Service worker subiu para `sige-v149`. *(Inclui tudo da v2.24 → v2.33.)*
+
+## V 2.33 — 23/11/2026
+
+Aviso de atualização não perde mais o que foi salvo (Alexandre):
+
+- **Bug:** quando o aviso de nova versão aparecia e o ergonomista salvava a análise, ao atualizar a análise **não ficava salva**. Causa: o salvamento online é um `fetch` direto (não passa pela fila offline), e o reload da página **cortava o `fetch` no meio**. *(`js/db.js`, `index.html`.)*
+- **Correção:** o aviso agora **espera o salvamento terminar antes de recarregar** — tanto no botão “Já salvei — atualizar agora” quanto na atualização automática ao fim dos 2 minutos. Enquanto termina de salvar, mostra “Salvando antes de atualizar…” e só então recarrega. Cobre o `fetch` online em voo e itens ainda na fila offline (espera até 30s por segurança).
+- Novo `BI.DB.temGravacaoPendente()` indica se há gravação em andamento.
+
+Service worker subiu para `sige-v148`. *(Inclui tudo da v2.24 → v2.32.)*
+
 ## V 2.32 — 23/11/2026
 
 Donuts do Dashboard padronizados — rótulos fora, em todas as fatias (Alexandre):

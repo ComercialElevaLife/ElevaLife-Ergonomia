@@ -678,6 +678,10 @@ h1, h2, h3, .titulo-marca {
 }
 .btn-exportar:hover:not(:disabled) { background: var(--creme); border-color: var(--teal-escuro); color: var(--teal-escuro); }
 .btn-exportar:disabled { opacity: 0.4; cursor: not-allowed; }
+/* V 2.36 (Alexandre): barra do botão de exportar o resumo de riscos (Gestão de Riscos). */
+.barra-resumo-riscos { display: flex; justify-content: flex-end; margin: 0 0 4px; }
+.barra-resumo-riscos .btn-exportar { background: var(--vinho-medio, #8E1B3A); color: #fff; border-color: var(--vinho-medio, #8E1B3A); }
+.barra-resumo-riscos .btn-exportar:hover:not(:disabled) { background: var(--vinho-escuro, #6b2f37); color: #fff; border-color: var(--vinho-escuro, #6b2f37); }
 
 @media (max-width: 900px) {
   .sidebar {

@@ -8447,9 +8447,103 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     doc.save(`bi-ergonomia-${chave}-${dataArquivo}.pdf`);
   }
 
+  // V 2.36 (Alexandre): baixa um Blob como arquivo (usado pela planilha ExcelJS do resumo de riscos).
+  function baixarBlobArquivo(blob, nome) {
+    const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = nome;
+    document.body.appendChild(a); a.click(); setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) { /* */ } a.remove(); }, 1500);
+  }
+  // Texto curto de uma ação para a coluna "Ação" da planilha.
+  function descreverAcaoResumo(a) {
+    const AC = window.BI.Acoes;
+    const tipo = AC && AC.rotuloTipo ? (AC.rotuloTipo(a["Tipo Acao"]) || a["Categoria Acao"] || "") : (a["Categoria Acao"] || "");
+    const txt = a["Acao Recomendada"] || a.descricao || "";
+    const prazo = a["Dt Programada"] ? " · prazo " + (window.BI.Datas ? window.BI.Datas.isoParaBR(a["Dt Programada"]) : a["Dt Programada"]) : "";
+    const concl = (AC && AC.estaConcluida && AC.estaConcluida(a)) ? " · concluída" : "";
+    return [tipo ? tipo + ": " : "", txt].join("") + prazo + concl;
+  }
+  // V 2.36 (Alexandre): planilha Excel formatada (padrão ElevaLife) com o RESUMO DE RISCOS.
+  // Uma linha por fator; se o fator tem várias ações, uma linha por ação (repetindo o resto).
+  // A coluna "Graduação do risco" é pintada com a cor da graduação. Respeita os filtros atuais.
+  async function exportarResumoRiscosExcel() {
+    if (typeof ExcelJS === "undefined") { mostrarErro("A biblioteca Excel (ExcelJS) não carregou (script externo bloqueado ou indisponível)."); return; }
+    const Calc = window.BI.Calc; const filtros = window.BI.filtros || {};
+    const origemAba = estadoOrigemAba.ergo;
+    let fatores = Calc.filtrar(window.BI.dados.fatorRisco || [], filtros, ["Dt Identificacao"]).filter((f) => Calc.riscoAtivo(f));
+    if (origemAba) fatores = fatores.filter((f) => Calc.origemDe(f) === origemAba);
+    fatores = fatores.slice().sort((a, b) => String(a.Cliente || "").localeCompare(String(b.Cliente || ""), "pt-BR") || String(a.Unidade || "").localeCompare(String(b.Unidade || ""), "pt-BR") || String(a.Setor || "").localeCompare(String(b.Setor || ""), "pt-BR"));
+    // nº da análise por posto (AEP e AET), casando por Cliente/Unidade/Setor/Posto/Cargo.
+    const kPosto = (l) => ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"].map((d) => l[d] || "").join("||");
+    const nrAEP = {}; (window.BI.dados.avaliacaoErgonomica || []).forEach((a) => { const n = a["Nr Avaliacao"]; if (n) nrAEP[kPosto(a)] = n; });
+    const nrAET = {}; (window.BI.dados.aet || []).forEach((a) => { const n = a["Nr AET"] || a["Nr Avaliacao"]; if (n) nrAET[kPosto(a)] = n; });
+    const nrAnalise = (f) => { const o = Calc.origemDe(f); const k = kPosto(f); return o === "AET" ? (nrAET[k] || "") : o === "AEP" ? (nrAEP[k] || "") : ""; };
+
+    const COLS = [
+      ["Cliente", 20], ["Unidade", 18], ["Origem", 12], ["Nº da análise", 11], ["Setor", 18], ["Cargo", 20], ["Posto de trabalho", 22],
+      ["Grupo do fator de risco", 22], ["Fator de risco", 24], ["Circunstância geradora", 30], ["Medida de controle existente", 30],
+      ["Criticidade", 14], ["Probabilidade", 14], ["Graduação do risco", 16], ["Ação", 42], ["Controles administrativos e organizacionais", 30], ["Status", 14],
+    ];
+    const linhaDe = (f, acaoTxt) => [
+      f.Cliente || "", f.Unidade || "", Calc.origemDe(f), nrAnalise(f), f.Setor || "", f.Cargo || "", f["Posto Trabalho"] || "",
+      f.Grupo || "", f.Fator || "", f["Circunstancia Geradora"] || "", f["Medida Controle Existente"] || "",
+      f.Criticidade || "", f.Probabilidade || "", f["Graduacao Risco"] || "", acaoTxt, f["Controles Administrativos"] || "", f.Status || "",
+    ];
+    const linhas = [];
+    fatores.forEach((f) => {
+      const acoes = (window.BI.Acoes && window.BI.Acoes.acoesDoFator) ? window.BI.Acoes.acoesDoFator(f._id || f.id) : [];
+      if (acoes.length) acoes.forEach((a) => linhas.push(linhaDe(f, descreverAcaoResumo(a))));
+      else linhas.push(linhaDe(f, ""));
+    });
+
+    const wb = new ExcelJS.Workbook(); wb.creator = "SIGE · ElevaLife";
+    const ws = wb.addWorksheet("Resumo de Riscos", { views: [{ state: "frozen", ySplit: 2 }] });
+    ws.columns = COLS.map(([h, w]) => ({ width: w }));
+    const nCols = COLS.length;
+    const VINHO = "FF8E1B3A", VINHO_ESC = "FF6B2F37";
+    const borda = { top: { style: "thin", color: { argb: "FFD9CFC9" } }, left: { style: "thin", color: { argb: "FFD9CFC9" } }, bottom: { style: "thin", color: { argb: "FFD9CFC9" } }, right: { style: "thin", color: { argb: "FFD9CFC9" } } };
+    // Linha 1: título
+    const cliFiltro = filtros && filtros.cliente && filtros.cliente.length === 1 ? filtros.cliente[0] : (filtros && filtros.cl) || "";
+    const titulo = "ElevaLife · Resumo de Gestão de Riscos" + (origemAba ? " — " + origemAba : "") + (cliFiltro ? " — " + cliFiltro : "") + "  ·  " + new Date().toLocaleDateString("pt-BR");
+    ws.mergeCells(1, 1, 1, nCols);
+    const tCell = ws.getCell(1, 1); tCell.value = titulo;
+    tCell.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" }, name: "Calibri" };
+    tCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: VINHO_ESC } };
+    tCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+    ws.getRow(1).height = 26;
+    // Linha 2: cabeçalho
+    const hdr = ws.getRow(2); COLS.forEach(([h], i) => { const c = hdr.getCell(i + 1); c.value = h; });
+    hdr.eachCell((c) => { c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: VINHO } }; c.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 10.5, name: "Calibri" }; c.alignment = { vertical: "middle", horizontal: "center", wrapText: true }; c.border = borda; });
+    hdr.height = 30;
+    // Dados
+    const idxGrad = 14; // "Graduação do risco"
+    const corTexto = (hex) => { const h = String(hex).replace("#", ""); const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16); const lum = (0.299 * r + 0.587 * g + 0.114 * b); return lum > 150 ? "FF3A2B2B" : "FFFFFFFF"; };
+    linhas.forEach((arr, i) => {
+      const row = ws.addRow(arr);
+      row.eachCell((c, col) => {
+        c.border = borda; c.font = { size: 10, name: "Calibri" };
+        c.alignment = { vertical: "top", wrapText: true, horizontal: (col === 3 || col === 4 || col === 12 || col === 13) ? "center" : "left" };
+        if (i % 2 === 1) c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7F2EE" } };
+      });
+      const grad = arr[idxGrad - 1]; const hx = grad ? Calc.corRiscoHex(grad) : null;
+      if (hx) { const cell = row.getCell(idxGrad); const argb = "FF" + String(hx).replace("#", "").toUpperCase(); cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb } }; cell.font = { bold: true, size: 10, name: "Calibri", color: { argb: corTexto(hx) } }; cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }; }
+    });
+    if (!linhas.length) { ws.mergeCells(3, 1, 3, nCols); const v = ws.getCell(3, 1); v.value = "Nenhum risco para os filtros atuais."; v.alignment = { horizontal: "center" }; v.font = { italic: true, color: { argb: "FF8A7A78" } }; }
+    ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: nCols } };
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const dataArq = new Date().toISOString().slice(0, 10);
+    baixarBlobArquivo(blob, `sige-resumo-riscos-${dataArq}.xlsx`);
+    if (window.BI.avisar) window.BI.avisar(`Planilha de riscos gerada (${linhas.length} linha${linhas.length === 1 ? "" : "s"}).`);
+  }
+
   function configurarExportacao() {
     const btnPdf = document.getElementById("btn-exportar-pdf");
     const btnExcel = document.getElementById("btn-exportar-excel");
+    const btnResumo = document.getElementById("btn-resumo-riscos-excel");
+    if (btnResumo) btnResumo.addEventListener("click", () => {
+      btnResumo.disabled = true;
+      exportarResumoRiscosExcel().catch((e) => mostrarErro("Erro ao gerar a planilha: " + (e && e.message ? e.message : String(e)))).finally(() => { btnResumo.disabled = false; });
+    });
     if (btnPdf) {
       btnPdf.addEventListener("click", () => {
         exportarPDF().catch((e) => mostrarErro("Erro ao gerar PDF: " + (e && e.message ? e.message : String(e))));
@@ -9288,6 +9382,61 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       vazio.textContent = "Sem dados para o filtro atual.";
       grade.appendChild(vazio);
     }
+  }
+
+  // V 2.34 (Alexandre): ao entrar no sistema, abre uma tela (modal) com as pendências de AJUSTE do
+  // usuário logado — tudo num lugar só. Reaproveita as mesmas fontes da aba Notificações. Mostra
+  // uma vez por carregamento; se não houver nada pendente, não aparece.
+  let _notifEntradaMostrada = false;
+  function mostrarNotificacoesAoEntrar() {
+    if (_notifEntradaMostrada || !ehEquipeNotif()) return;
+    if (document.getElementById("sige-notif-entrada")) return;
+    let c, inc = [], semFat = [], semGrad = [], pend = [];
+    try { c = contarNotificacoes(); } catch (e) { c = { atrasadas: [], perto: [], naoIniciadas: [] }; }
+    try { inc = analisesIncompletasNotif(); } catch (e) { /* */ }
+    try { semFat = avaliacoesSemFatorNotif(); } catch (e) { /* */ }
+    try { semGrad = fatoresSemGraduacaoNotif(); } catch (e) { /* */ }
+    try { pend = pendenciasImportacaoNotif(); } catch (e) { /* */ }
+    const grupos = [
+      { rot: "Ações atrasadas", n: c.atrasadas.length, cor: "#b02a37" },
+      { rot: "Ações perto do vencimento (7 dias)", n: c.perto.length, cor: "#1f6f8b" },
+      { rot: "Análises faltando informações ou fotos", n: inc.length, cor: "#8a6d3b" },
+      { rot: "Avaliações sem fator de risco", n: semFat.length, cor: "#8a6d3b" },
+      { rot: "Fatores sem graduação", n: semGrad.length, cor: "#8a6d3b" },
+      { rot: "Importações com pendência", n: pend.length, cor: "#8a6d3b" },
+    ].filter((g) => g.n > 0);
+    const total = grupos.reduce((s, g) => s + g.n, 0);
+    _notifEntradaMostrada = true;
+    if (!total) return; // nada pendente: não incomoda
+    const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+    const ov = document.createElement("div"); ov.id = "sige-notif-entrada";
+    ov.style.cssText = "position:fixed;inset:0;z-index:99990;background:rgba(40,20,24,.5);display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,-apple-system,sans-serif";
+    const card = document.createElement("div");
+    card.style.cssText = "background:#fff;border-radius:14px;max-width:520px;width:100%;padding:22px 24px;box-shadow:0 18px 50px rgba(0,0,0,.3);max-height:85vh;overflow:auto";
+    const tt = h("div", null, "Você tem pendências de ajuste"); tt.style.cssText = "font-size:18px;font-weight:700;color:#6b2f37;margin-bottom:4px";
+    const sub = h("p", null, "Itens que precisam da sua atenção. Clique para abrir a lista completa em Notificações."); sub.style.cssText = "font-size:13px;color:#666;margin:0 0 14px";
+    card.appendChild(tt); card.appendChild(sub);
+    const lista = document.createElement("div"); lista.style.cssText = "display:flex;flex-direction:column;gap:8px;margin-bottom:18px";
+    grupos.forEach((g) => {
+      const row = document.createElement("button"); row.type = "button";
+      row.style.cssText = "display:flex;align-items:center;gap:12px;text-align:left;border:1px solid #e3dcd6;border-left:5px solid " + g.cor + ";border-radius:10px;padding:10px 14px;background:#fff;cursor:pointer;width:100%";
+      const num = h("div", null, String(g.n)); num.style.cssText = "font-size:22px;font-weight:700;color:" + g.cor + ";min-width:36px";
+      row.appendChild(num); row.appendChild(h("div", null, g.rot));
+      row.addEventListener("click", () => { ov.remove(); try { ativarAba("notificacoes"); } catch (e) { /* */ } });
+      lista.appendChild(row);
+    });
+    card.appendChild(lista);
+    const acoes = document.createElement("div"); acoes.style.cssText = "display:flex;gap:10px;justify-content:flex-end";
+    const bVer = h("button", null, "Ver notificações"); bVer.type = "button";
+    bVer.style.cssText = "background:#6b2f37;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer";
+    bVer.addEventListener("click", () => { ov.remove(); try { ativarAba("notificacoes"); } catch (e) { /* */ } });
+    const bFechar = h("button", null, "Agora não"); bFechar.type = "button";
+    bFechar.style.cssText = "background:#eee;color:#444;border:0;border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer";
+    bFechar.addEventListener("click", () => ov.remove());
+    acoes.appendChild(bFechar); acoes.appendChild(bVer);
+    card.appendChild(acoes); ov.appendChild(card);
+    ov.addEventListener("click", (e) => { if (e.target === ov) ov.remove(); });
+    (document.body || document.documentElement).appendChild(ov);
   }
 
   function configurarSinoNotificacoes() {
@@ -10698,6 +10847,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         const ident = window.BI.DB.estado.identidade;
         const bloqueado = window.BI.DB.estado.modoApi && ident && ident.acessoLiberado === false;
         if (!bloqueado) { try { montarDashboard(); } catch (e) { /* */ } ativarAba("dashboard"); }
+        // V 2.34 (Alexandre): ao entrar, abre a tela de notificações com as pendências do usuário.
+        if (!bloqueado) { try { mostrarNotificacoesAoEntrar(); } catch (e) { /* */ } }
       } catch (e) { /* mantém a aba padrão */ }
       // V 1.63: migra os dados cadastrais do cliente para a unidade (clientes com 1 unidade), em segundo plano.
       try { migrarCadastralParaUnidade(); } catch (e) { /* */ }

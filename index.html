@@ -282,6 +282,11 @@
     <div class="barra-origem-aba" id="origem-ergo" data-aba-origem="ergo"></div>
     <div class="grade">
 
+      <!-- V 2.36 (Alexandre): exportar o resumo de riscos em Excel formatado (padrão ElevaLife). -->
+      <div class="col-12 barra-resumo-riscos">
+        <button type="button" id="btn-resumo-riscos-excel" class="btn-exportar" title="Baixar uma planilha Excel (resumo) com todos os riscos: cliente, unidade, origem, análise, posto, fator, criticidade, probabilidade, graduação (pintada), ações e status — respeitando os filtros atuais.">⬇ Planilha de riscos (Excel)</button>
+      </div>
+
       <!-- V 1.39: cobertura - quantos postos (ou GHEs no Psicossocial) estao cadastrados e quantos ja foram avaliados -->
       <div class="cartao col-12 cartao-cobertura">
         <div class="cartao-titulo" id="cobertura-titulo">Cobertura das avaliações</div>
@@ -754,6 +759,8 @@
 <script src="vendor/libs/chartjs-plugin-datalabels.min.js" onerror="sigeCdnFallback('https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js')"></script>
 <script src="vendor/libs/jspdf.umd.min.js" onerror="sigeCdnFallback('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')"></script>
 <script src="vendor/libs/xlsx.full.min.js" onerror="sigeCdnFallback('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js')"></script>
+<!-- V 2.36 (Alexandre): ExcelJS para a planilha formatada (cores/estilo) do resumo de riscos. -->
+<script src="vendor/libs/exceljs.min.js" onerror="sigeCdnFallback('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js')"></script>
 <!-- pdf.js: usado so para extrair o TEXTO de um PDF de AET, pra classificacao
      por conteudo (ver js/app.js/extrairTextoPDF e js/calc.js/classificarTextoAET) -
      nunca pra exibir/renderizar o PDF. -->
@@ -845,11 +852,29 @@
         var row = document.createElement("div"); row.style.cssText = "display:flex;gap:10px;justify-content:flex-end";
         var bAgora = document.createElement("button"); bAgora.type = "button"; bAgora.textContent = "Já salvei — atualizar agora";
         bAgora.style.cssText = "background:#6b2f37;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer";
-        bAgora.onclick = function () { window.location.reload(); };
+        var recarregando = false; var timer = null;
+        function temPendencia() { try { return !!(window.BI && window.BI.DB && window.BI.DB.temGravacaoPendente && window.BI.DB.temGravacaoPendente()); } catch (e) { return false; } }
+        // V 2.33 (Alexandre): antes de recarregar, ESPERA o save terminar (fetch online em voo ou
+        // item na fila offline) para não perder a análise que o ergonomista acabou de salvar.
+        function recarregarComSeguranca() {
+          if (recarregando) return; recarregando = true;
+          if (timer) { clearInterval(timer); timer = null; }
+          var inicio = Date.now();
+          (function esperar() {
+            if (temPendencia() && (Date.now() - inicio) < 30000) {
+              tt.textContent = "Salvando antes de atualizar…";
+              p.textContent = "Estamos terminando de salvar o seu último lançamento. A página atualiza em seguida — não feche.";
+              bAgora.disabled = true; bAgora.style.opacity = "0.6"; bAgora.style.cursor = "default"; bAgora.textContent = "Salvando…";
+              setTimeout(esperar, 400); return;
+            }
+            window.location.reload();
+          })();
+        }
+        bAgora.onclick = recarregarComSeguranca;
         row.appendChild(bAgora); card.appendChild(tt); card.appendChild(p); card.appendChild(row); ov.appendChild(card);
         (document.body || document.documentElement).appendChild(ov);
-        function tick() { var mm = Math.floor(restante / 60), ss = restante % 60; cont.textContent = mm + ":" + String(ss).padStart(2, "0"); if (restante <= 0) { window.location.reload(); return; } restante -= 1; }
-        tick(); setInterval(tick, 1000);
+        function tick() { var mm = Math.floor(restante / 60), ss = restante % 60; cont.textContent = mm + ":" + String(ss).padStart(2, "0"); if (restante <= 0) { recarregarComSeguranca(); return; } restante -= 1; }
+        tick(); timer = setInterval(tick, 1000);
       }
       navigator.serviceWorker.register("/sw.js").then(function (reg) {
         try { reg.update(); } catch (e) { /* */ }
