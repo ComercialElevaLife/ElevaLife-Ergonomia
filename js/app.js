@@ -7441,14 +7441,19 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     cont.hidden = !admin || !p.total || !window.BI.DB.estado.disponivel;
     if (cont.hidden || cont.dataset.rodando === "1") return;
     cont.innerHTML = "";
-    const t = document.createElement("div"); t.className = "aep-migracao-titulo"; t.textContent = "Atualizar as avaliações para o novo formato";
+    // V 2.50 (Alexandre): texto mais claro. A migração NÃO apaga nem funde análises distintas —
+    // quando o mesmo posto já tinha uma avaliação, a mais recente é mantida e COMPLETADA com os
+    // dados das demais (e com o que foi subido), sem duplicar.
+    const t = document.createElement("div"); t.className = "aep-migracao-titulo"; t.textContent = "Organizar as avaliações (AEP) — uma por posto e cargo";
     const d = document.createElement("div"); d.className = "aep-migracao-texto";
-    d.textContent = [
+    d.textContent = "O que será ajustado: " + [
       p.comAtividade.length ? `${p.comAtividade.length} avaliação(ões) ainda com atividade` : "",
-      p.duplicadas.length ? `${p.duplicadas.length} posto(s)/cargo(s) com mais de uma avaliação (serão juntadas na mais recente)` : "",
+      p.duplicadas.length ? `${p.duplicadas.length} posto(s)/cargo(s) com mais de uma avaliação do mesmo posto` : "",
       p.semNumero.length ? `${p.semNumero.length} sem número` : "",
       p.fatoresComAtividade.length ? `${p.fatoresComAtividade.length} fator(es) do inventário com atividade` : "",
-    ].filter(Boolean).join(" · ") + ". A AEP passa a ser uma por posto e cargo, numerada por empresa.";
+    ].filter(Boolean).join(" · ") + ".";
+    const expl = document.createElement("div"); expl.className = "aep-migracao-texto aep-migracao-expl";
+    expl.textContent = "Fica uma AEP por posto e cargo, numerada por empresa. Quando o mesmo posto já tinha uma avaliação, a mais recente é mantida e COMPLETADA com as informações das demais (e com o que você subiu) — nada é apagado nem duplicado; só atualiza a que já existia com o que foi enviado.";
     const b = document.createElement("button"); b.type = "button"; b.className = "btn-cad-primario"; b.textContent = "Atualizar agora";
     const st = document.createElement("span"); st.className = "aep-migracao-status";
     b.addEventListener("click", async () => {
@@ -7458,7 +7463,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       catch (e) { st.textContent = "Falhou: " + (e && e.message ? e.message : e) + ". Pode clicar de novo: continua de onde parou."; b.disabled = false; b.dataset.armado = ""; b.textContent = "Atualizar agora"; }
       finally { cont.dataset.rodando = ""; renderizarTudo(); }
     });
-    cont.appendChild(t); cont.appendChild(d); cont.appendChild(b); cont.appendChild(st);
+    cont.appendChild(t); cont.appendChild(d); cont.appendChild(expl); cont.appendChild(b); cont.appendChild(st);
   }
   function semInternos(l) { const o = {}; Object.keys(l).forEach((k) => { if (k[0] !== "_" && k !== "id") o[k] = l[k]; }); return o; }
   async function migrarAEPs(progresso) {
