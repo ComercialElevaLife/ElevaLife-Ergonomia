@@ -1,26 +1,28 @@
 /* ==========================================================================
    S.I.G.E. - ElevaLife
-   V 2.50 (Alexandre - solicitação 2): aba BENCHMARK.
+   V 2.50 (Alexandre - solicitação 2) + ajustes: aba BENCHMARK.
 
-   Mostra a dashboard da empresa comparada com a base (todas as empresas e
+   Mostra os números da empresa comparados com a base (todas as empresas e
    unidades), de forma ANÔNIMA: nunca aparece nome nem número cru de outra
-   empresa — só a posição da empresa numa régua ("melhor que X% dos clientes")
-   e a média/mediana da base, com N mínimo.
+   empresa — só a posição numa régua ("melhor que X% dos clientes"), a média e a
+   mediana da base, com N mínimo.
 
-   - Régua geral no topo: posição geral do cliente frente aos demais.
-   - Mini-réguas por indicador (todos os indicadores da dashboard).
-   - Comparativo entre as unidades do próprio cliente.
-   - Equipe (Administrador/Consultor) vê também um RANKING identificado (no
-     escopo do papel) e pode alternar para "visão do cliente" (anônima).
-
-   Os dados vêm de GET /api/benchmark (ver api/src/functions/benchmark.js), que
-   calcula tudo no servidor e já aplica o escopo do papel.
+   - Régua geral no topo (posição geral frente aos demais).
+   - Indicadores agrupados (Cobertura, Riscos por nível, Plano de ação,
+     Absenteísmo, Restritos), com mini-réguas. Inclui níveis de risco separados
+     (muito alto, alto, moderado, baixo, trivial) e números brutos.
+   - Detalhe por UNIDADE: dá para ver a régua e os indicadores de uma unidade
+     específica (comparada com a base de unidades), além da pontuação de cada uma.
+   - Equipe (Administrador/Consultor) vê RANKING identificado (no escopo do papel)
+     e pode alternar para a "visão do cliente" (anônima).
+   - Cores: o marcador fica VERDE (acima da base), AMARELO (na média) ou VERMELHO
+     (abaixo), conforme a posição — a mesma cor do veredito.
    ========================================================================== */
 
 (function (global) {
   "use strict";
   const BI = global.BI = global.BI || {};
-  const estado = { dados: null, foco: null, anonimo: false, carregando: false };
+  const estado = { dados: null, foco: null, focoUnidade: null, anonimo: false, carregando: false };
 
   function el(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
   function ehEquipe() { const i = BI.DB && BI.DB.estado && BI.DB.estado.identidade; return !!(i && (i.papel === "Administrador" || i.papel === "Consultor")); }
@@ -30,6 +32,8 @@
     if (unidade === "%") return Math.round(v) + "%";
     if (unidade === "/100") return v.toFixed(1);
     if (unidade === "dias") return v.toFixed(1);
+    if (unidade === "num2") return v.toFixed(1);
+    if (unidade === "num") return String(Math.round(v));
     return String(v);
   }
   function verdito(p) {
@@ -39,16 +43,17 @@
     return { txt: "abaixo da média", cls: "ruim" };
   }
 
-  // Régua 0..100 (percentil já ajustado por direção: maior = melhor).
+  // Régua 0..100 (percentil já ajustado por direção: maior = melhor). O marcador
+  // ganha a cor do veredito (verde/amarelo/vermelho) — antes era sempre vinho.
   function regua(percentil, opcoes) {
     opcoes = opcoes || {};
-    const wrap = el("div", "bench-track" + (opcoes.grande ? " grande" : ""));
+    const wrap = el("div", "bench-track" + (opcoes.grande ? " grande" : "") + (opcoes.mini ? " mini" : ""));
     ["ruim", "medio", "bom"].forEach((z) => wrap.appendChild(el("div", "bench-zona z-" + z)));
-    // marcador da mediana da base (referência = 50% por construção do percentil)
     const med = el("div", "bench-mediana"); med.style.left = "50%"; med.title = "Mediana da base"; wrap.appendChild(med);
     if (percentil != null) {
-      const m = el("div", "bench-marker"); m.style.left = Math.max(0, Math.min(100, percentil)) + "%";
-      m.title = "Melhor que " + percentil + "% dos clientes";
+      const vd = verdito(percentil);
+      const m = el("div", "bench-marker " + vd.cls); m.style.left = Math.max(0, Math.min(100, percentil)) + "%";
+      m.title = "Melhor que " + percentil + "% da base";
       wrap.appendChild(m);
     } else {
       wrap.appendChild(el("div", "bench-sembase", "base insuficiente"));
@@ -56,28 +61,38 @@
     return wrap;
   }
 
-  function cardIndicador(ind, foco, base) {
-    const v = foco.valores[ind.chave];
-    const p = foco.percentis[ind.chave];
-    const b = base.indicadores[ind.chave] || {};
+  function cardIndicador(ind, ent, base) {
+    const v = ent.valores[ind.chave];
+    const p = ent.percentis[ind.chave];
+    const b = (base.indicadores && base.indicadores[ind.chave]) || {};
+    const vd = verdito(p);
     const card = el("div", "bench-ind");
     const topo = el("div", "bench-ind-topo");
-    topo.appendChild(el("span", "bench-ind-rot", ind.rotulo));
-    topo.appendChild(el("span", "bench-ind-val", fmtValor(v, ind.unidade)));
+    topo.appendChild(el("span", "bench-ind-rot", ind.rotulo + (ind.bruto ? " ⟐" : "")));
+    topo.appendChild(el("span", "bench-ind-val " + vd.cls, fmtValor(v, ind.unidade)));
     card.appendChild(topo);
     if (!b.suficiente) {
-      card.appendChild(el("div", "bench-ind-nobase", "Base insuficiente para comparar (menos de " + (estado.dados.minN) + " clientes com este dado)."));
+      card.appendChild(el("div", "bench-ind-nobase", "Base insuficiente para comparar (menos de " + estado.dados.minN + " na base com este dado)."));
       card.appendChild(regua(null));
       return card;
     }
     card.appendChild(regua(p));
     const rod = el("div", "bench-ind-rodape");
-    const vd = verdito(p);
-    const tag = el("span", "bench-tag " + vd.cls, p != null ? ("melhor que " + p + "% dos clientes · " + vd.txt) : vd.txt);
-    rod.appendChild(tag);
+    rod.appendChild(el("span", "bench-tag " + vd.cls, p != null ? ("melhor que " + p + "% da base · " + vd.txt) : vd.txt));
     rod.appendChild(el("span", "bench-ind-base", "média da base: " + fmtValor(b.media, ind.unidade) + " · mediana: " + fmtValor(b.mediana, ind.unidade)));
     card.appendChild(rod);
     return card;
+  }
+
+  // Entidade em foco (empresa inteira ou uma unidade) + a base correspondente.
+  function alvoAtual() {
+    const d = estado.dados;
+    if (estado.focoUnidade) {
+      const u = (d.unidades || []).find((x) => (x.empresaId + "::" + x.unidade) === estado.focoUnidade);
+      if (u) return { ent: u, base: d.baseUnidades, rotulo: u.nome + " · " + (u.unidade || "—"), tipo: "unidade" };
+    }
+    const e = d.empresas.find((x) => x.empresaId === estado.foco) || d.empresas[0];
+    return { ent: e, base: d.base, rotulo: e ? e.nome : "", tipo: "empresa" };
   }
 
   function desenhar(host) {
@@ -87,17 +102,29 @@
 
     const cab = el("div", "bench-cab");
     cab.appendChild(el("h2", "bench-titulo", "Benchmark — comparação com a base"));
-    cab.appendChild(el("p", "bench-sub", "Os números da sua empresa comparados, de forma anônima, com todas as empresas e unidades da base. Nenhum nome ou número de outro cliente é exibido — só a sua posição relativa."));
+    cab.appendChild(el("p", "bench-sub", "Os números da sua empresa comparados, de forma anônima, com todas as empresas e unidades da base. Nenhum nome ou número de outro cliente é exibido — só a sua posição relativa. ⟐ = número bruto (total), para comparar volume."));
     wrap.appendChild(cab);
 
-    // Seletor de empresa-foco (equipe) + alternância visão do cliente.
+    const foco = d.empresas.find((e) => e.empresaId === estado.foco) || d.empresas[0];
+    if (!foco) { wrap.appendChild(el("div", "bench-vazio", "Ainda não há dados suficientes da sua empresa para o benchmark.")); host.appendChild(wrap); return; }
+
+    // Barra: empresa (equipe) + detalhe por unidade + alternância visão do cliente.
     const barra = el("div", "bench-barra");
     if (d.empresas.length > 1) {
       const lab = el("label", "bench-sel-lab", "Empresa: ");
       const sel = el("select", "bench-sel");
       d.empresas.forEach((e) => { const o = el("option", null, e.nome); o.value = e.empresaId; if (e.empresaId === estado.foco) o.selected = true; sel.appendChild(o); });
-      sel.addEventListener("change", () => { estado.foco = sel.value; desenhar(host); });
+      sel.addEventListener("change", () => { estado.foco = sel.value; estado.focoUnidade = null; desenhar(host); });
       lab.appendChild(sel); barra.appendChild(lab);
+    }
+    const unisDaEmpresa = (d.unidades || []).filter((u) => u.empresaId === foco.empresaId);
+    if (unisDaEmpresa.length) {
+      const labU = el("label", "bench-sel-lab", "Detalhe: ");
+      const selU = el("select", "bench-sel");
+      const o0 = el("option", null, "Empresa inteira"); o0.value = ""; if (!estado.focoUnidade) o0.selected = true; selU.appendChild(o0);
+      unisDaEmpresa.forEach((u) => { const k = u.empresaId + "::" + u.unidade; const o = el("option", null, "Unidade: " + (u.unidade || "—")); o.value = k; if (estado.focoUnidade === k) o.selected = true; selU.appendChild(o); });
+      selU.addEventListener("change", () => { estado.focoUnidade = selU.value || null; desenhar(host); });
+      labU.appendChild(selU); barra.appendChild(labU);
     }
     if (ehEquipe()) {
       const btn = el("button", "bench-toggle" + (estado.anonimo ? " ativo" : ""), estado.anonimo ? "👁 Ver ranking (identificado)" : "🙈 Ver como cliente (anônimo)");
@@ -107,62 +134,69 @@
     }
     if (barra.children.length) wrap.appendChild(barra);
 
-    const foco = d.empresas.find((e) => e.empresaId === estado.foco) || d.empresas[0];
-    if (!foco) {
-      wrap.appendChild(el("div", "bench-vazio", "Ainda não há dados suficientes da sua empresa para o benchmark."));
-      host.appendChild(wrap); return;
-    }
+    const alvo = alvoAtual();
+    const ent = alvo.ent;
 
-    // Régua GERAL (posição no início da dash).
+    // Régua GERAL.
     const geral = el("div", "bench-regua-geral");
     const gcab = el("div", "bench-geral-cab");
-    gcab.appendChild(el("span", "bench-geral-tit", estado.anonimo || !ehEquipe() ? "Posição geral da sua empresa" : "Posição geral · " + foco.nome));
-    const vdG = verdito(foco.scoreGeral);
-    gcab.appendChild(el("span", "bench-geral-badge " + vdG.cls, foco.scoreGeral != null ? ("melhor que " + foco.scoreGeral + "% da base · " + vdG.txt) : "sem base suficiente"));
+    const nomeFoco = (estado.anonimo || !ehEquipe()) ? (alvo.tipo === "unidade" ? "a unidade " + (ent.unidade || "") : "a sua empresa") : alvo.rotulo;
+    gcab.appendChild(el("span", "bench-geral-tit", "Posição geral · " + nomeFoco));
+    const vdG = verdito(ent.scoreGeral);
+    gcab.appendChild(el("span", "bench-geral-badge " + vdG.cls, ent.scoreGeral != null ? ("melhor que " + ent.scoreGeral + "% da base · " + vdG.txt) : "sem base suficiente"));
     geral.appendChild(gcab);
-    geral.appendChild(regua(foco.scoreGeral, { grande: true }));
-    geral.appendChild(el("div", "bench-geral-leg", "← pior que a base    ·    mediana    ·    melhor que a base →"));
+    geral.appendChild(regua(ent.scoreGeral, { grande: true }));
+    geral.appendChild(el("div", "bench-geral-leg", "← abaixo da base    ·    mediana    ·    acima da base →"));
+    if (alvo.tipo === "unidade") geral.appendChild(el("div", "bench-geral-nota", "Comparando esta UNIDADE com a base de todas as unidades."));
     wrap.appendChild(geral);
 
-    // Mini-réguas por indicador.
-    const grade = el("div", "bench-grade");
-    d.indicadores.forEach((ind) => grade.appendChild(cardIndicador(ind, foco, d.base)));
-    wrap.appendChild(grade);
+    // Indicadores agrupados.
+    const ordemGrupos = [];
+    d.indicadores.forEach((ind) => { if (ordemGrupos.indexOf(ind.grupo) === -1) ordemGrupos.push(ind.grupo); });
+    ordemGrupos.forEach((g) => {
+      const sec = el("div", "bench-sec");
+      sec.appendChild(el("h3", "bench-sec-tit", g));
+      const grade = el("div", "bench-grade");
+      d.indicadores.filter((ind) => ind.grupo === g).forEach((ind) => grade.appendChild(cardIndicador(ind, ent, alvo.base)));
+      sec.appendChild(grade);
+      wrap.appendChild(sec);
+    });
 
-    // Comparativo entre as unidades do próprio cliente.
-    const unis = (d.unidades || []).filter((u) => u.empresaId === foco.empresaId);
-    if (unis.length) {
+    // Comparativo entre as unidades do próprio cliente (pontuação de cada + clicar para detalhar).
+    if (unisDaEmpresa.length) {
       const secUni = el("div", "bench-sec");
-      secUni.appendChild(el("h3", "bench-sec-tit", "Unidades da sua empresa — posição de cada uma na base"));
-      unis.forEach((u) => {
-        const linha = el("div", "bench-uni-linha");
+      secUni.appendChild(el("h3", "bench-sec-tit", "Unidades da sua empresa — posição de cada uma (clique para ver o detalhe)"));
+      unisDaEmpresa.slice().sort((a, b) => (b.scoreGeral || -1) - (a.scoreGeral || -1)).forEach((u) => {
+        const k = u.empresaId + "::" + u.unidade;
+        const linha = el("div", "bench-uni-linha" + (estado.focoUnidade === k ? " ativa" : ""));
         linha.appendChild(el("span", "bench-uni-nome", u.unidade || "—"));
-        const tk = regua(u.scoreGeral);
-        tk.classList.add("mini");
+        const tk = regua(u.scoreGeral, { mini: true });
         linha.appendChild(tk);
         linha.appendChild(el("span", "bench-uni-score", u.scoreGeral != null ? (u.scoreGeral + "%") : "—"));
+        linha.addEventListener("click", () => { estado.focoUnidade = k; desenhar(host); window.scrollTo({ top: 0, behavior: "smooth" }); });
         secUni.appendChild(linha);
       });
       wrap.appendChild(secUni);
     }
 
-    // Ranking identificado (só equipe e fora do modo anônimo).
+    // Ranking identificado (equipe, fora do modo anônimo).
     if (ehEquipe() && !estado.anonimo && d.empresas.length > 1) {
       const secR = el("div", "bench-sec");
       secR.appendChild(el("h3", "bench-sec-tit", "Ranking (empresas sob seu acesso)"));
       const scroll = el("div", "tabela-scroll");
       const tab = el("table", "tabela-dados bench-rank");
+      const colsRank = d.indicadores.filter((i) => !i.noScore);
       const thead = el("thead"); const trh = el("tr");
-      ["#", "Empresa", "Posição geral"].concat(d.indicadores.map((i) => i.rotulo)).forEach((c) => trh.appendChild(el("th", null, c)));
+      ["#", "Empresa", "Posição geral"].concat(colsRank.map((i) => i.rotulo)).forEach((c) => trh.appendChild(el("th", null, c)));
       thead.appendChild(trh); tab.appendChild(thead);
       const tb = el("tbody");
       d.empresas.forEach((e, i) => {
         const tr = el("tr"); if (e.empresaId === foco.empresaId) tr.className = "bench-rank-foco";
         tr.appendChild(el("td", null, String(i + 1)));
-        const tdNome = el("td", "bench-rank-nome", e.nome); tr.appendChild(tdNome);
+        tr.appendChild(el("td", "bench-rank-nome", e.nome));
         tr.appendChild(el("td", null, e.scoreGeral != null ? e.scoreGeral + "%" : "—"));
-        d.indicadores.forEach((ind) => tr.appendChild(el("td", null, fmtValor(e.valores[ind.chave], ind.unidade))));
-        tr.addEventListener("click", () => { estado.foco = e.empresaId; desenhar(host); });
+        colsRank.forEach((ind) => tr.appendChild(el("td", null, fmtValor(e.valores[ind.chave], ind.unidade))));
+        tr.addEventListener("click", () => { estado.foco = e.empresaId; estado.focoUnidade = null; desenhar(host); window.scrollTo({ top: 0, behavior: "smooth" }); });
         tb.appendChild(tr);
       });
       tab.appendChild(tb); scroll.appendChild(tab); secR.appendChild(scroll);
@@ -197,11 +231,11 @@
       host.appendChild(el("div", "bench-vazio", "Ainda não há dados suficientes para o benchmark."));
       return;
     }
-    // Foco inicial: cliente do filtro global, senão a primeira empresa do escopo.
     if (!estado.foco || !d.empresas.some((e) => e.empresaId === estado.foco)) {
       const fcli = (BI.filtros && BI.filtros.Cliente) || [];
       const porNome = fcli.length === 1 ? d.empresas.find((e) => e.nome === fcli[0]) : null;
       estado.foco = (porNome && porNome.empresaId) || d.empresas[0].empresaId;
+      estado.focoUnidade = null;
     }
     desenhar(host);
   }

@@ -2740,7 +2740,12 @@ body.modo-apresentacao::after {
 .bench-zona.z-medio { background: rgba(214, 169, 62, .30); }
 .bench-zona.z-bom { background: rgba(62, 123, 126, .32); }
 .bench-mediana { position: absolute; top: -2px; bottom: -2px; width: 0; border-left: 2px dashed var(--texto-secundario); opacity: .6; }
-.bench-marker { position: absolute; top: 50%; width: 15px; height: 15px; background: var(--vinho); border: 2px solid var(--card); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.bench-marker { position: absolute; top: 50%; width: 15px; height: 15px; background: var(--texto-secundario); border: 2px solid var(--card); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 1px 4px rgba(0,0,0,.3); z-index: 2; }
+/* V 2.50: marcador com a cor do veredito (verde acima, amarelo na média, vermelho abaixo). */
+.bench-marker.bom { background: #2f8f5f; }
+.bench-marker.medio { background: #d6a93e; }
+.bench-marker.ruim { background: #c0564e; }
+.bench-marker.neutro { background: var(--texto-secundario); }
 .bench-track.grande .bench-marker { width: 20px; height: 20px; }
 .bench-track.mini .bench-marker { width: 11px; height: 11px; }
 .bench-sembase { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--texto-secundario); }
@@ -2750,6 +2755,11 @@ body.modo-apresentacao::after {
 .bench-ind-topo { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; gap: 8px; }
 .bench-ind-rot { font-weight: 600; font-size: 13.5px; color: var(--texto); }
 .bench-ind-val { font-weight: 700; font-size: 17px; color: var(--vinho); }
+.bench-ind-val.bom { color: #2f8f5f; } .bench-ind-val.medio { color: #9a7718; } .bench-ind-val.ruim { color: #c0564e; } .bench-ind-val.neutro { color: var(--texto-secundario); }
+.bench-geral-nota { font-size: 11.5px; color: var(--texto-secundario); margin-top: 6px; }
+.bench-uni-linha { cursor: pointer; border-radius: 6px; padding: 4px 6px; }
+.bench-uni-linha:hover { background: var(--fundo-suave); }
+.bench-uni-linha.ativa { background: rgba(62,123,126,.14); }
 .bench-ind-rodape { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
 .bench-ind-base { font-size: 11.5px; color: var(--texto-secundario); }
 .bench-ind-nobase { font-size: 12px; color: var(--texto-secundario); margin-bottom: 8px; }

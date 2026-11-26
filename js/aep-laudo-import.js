@@ -273,14 +273,12 @@
     const nomes = (k) => Array.from(new Set(cargos.map((c) => c[k]).filter(Boolean)));
     return res.postos.map((p) => {
       const v = { Cliente: cli, Unidade: un, Setor: igualAo(nomes("Setor"), "Setor", p.dados.Setor || ""), "Posto Trabalho": igualAo(nomes("Posto Trabalho"), "Posto Trabalho", p.dados["Posto Trabalho"] || ""), Cargo: igualAo(nomes("Cargo"), "Cargo", p.dados.Cargo || "") };
-      let aep = aeps.find((a) => chavePosto(a) === chavePosto(v));
-      // sem correspondencia exata: sugere a AEP mais parecida (posto + cargo); o usuario confirma ou troca na conferencia
-      const tok = (t) => new Set(norm(t).split(/[^a-z0-9]+/).filter((w) => w.length > 1));
-      const simil = (a) => { const ta = tok([v.Setor, v["Posto Trabalho"], v.Cargo].join(" ")); const tb = tok([a.Setor, a["Posto Trabalho"], a.Cargo].join(" ")); let c = 0; ta.forEach((w) => { if (tb.has(w)) c++; }); return c / Math.max(ta.size, tb.size, 1); };
-      const escolhida = est.escolhas[p.secao];
-      if (escolhida === "__nova") aep = null;
-      else if (escolhida) aep = aeps.find((a) => a._id === escolhida) || aep;
-      else if (!aep) { const melhor = aeps.filter((a) => !un || a.Unidade === un).map((a) => [a, simil(a)]).sort((x1, x2) => x2[1] - x1[1])[0]; if (melhor && melhor[1] >= 0.75) aep = melhor[0]; }
+      // V 2.50 (Alexandre): sem "juntar análises". Cada posto/análise do PDF entra no SIGE como está
+      // no laudo. Só casa com uma AEP EXISTENTE quando é EXATAMENTE o mesmo posto (Setor+Posto+Cargo) —
+      // reimportação do MESMO laudo, para não duplicar; caso contrário, vira uma AEP nova. Não há mais
+      // sugestão por similaridade nem opção manual de ligar o posto a outra AEP (isso diminuía a
+      // quantidade de análises em relação ao PDF).
+      const aep = aeps.find((a) => chavePosto(a) === chavePosto(v)) || null;
       if (aep) Object.assign(v, { Unidade: aep.Unidade, Setor: aep.Setor, "Posto Trabalho": aep["Posto Trabalho"], Cargo: aep.Cargo });
       const fatsExist = (BI.dados.fatorRisco || []).filter((f) => chavePosto(f) === chavePosto(v));
       const fatores = p.fatores.map((f) => { const grupo = grupoSige(f.grupoLaudo); const nome = fatorSige(grupo, f.Fator); const ex = fatsExist.find((x) => norm(x.Fator) === norm(nome) && (!x["Circunstancia Geradora"] || !f["Circunstancia Geradora"] || norm(x["Circunstancia Geradora"]) === norm(f["Circunstancia Geradora"]))) || fatsExist.find((x) => norm(x.Fator) === norm(nome)); return { f, grupo, nome, ex }; });
@@ -309,26 +307,26 @@
     // V 1.46: sem opcoes - a importacao traz tudo (campos, fotos, fatores e acoes) automaticamente.
     if (res.avisos.length) { const av = h("div", "aet-msg"); av.textContent = "Atenção: " + res.avisos.slice(0, 5).join(" "); card.appendChild(av); }
     const wrap = h("div", "tabela-scroll"); const tb = h("table", "tabela-dados tabela-secao"); const tr0 = h("tr");
-    ["Seção", "Setor › posto › cargo", "AEP no SIGE", "Campos", "Fotos", "Fatores (existentes / novos)"].forEach((c) => tr0.appendChild(h("th", null, c)));
+    ["Seção", "Setor › posto › cargo", "No SIGE", "Campos", "Fotos", "Fatores (existentes / novos)"].forEach((c) => tr0.appendChild(h("th", null, c)));
     const th = h("thead"); th.appendChild(tr0); tb.appendChild(th); const tbody = h("tbody");
     plano.forEach((x) => {
       const tr = h("tr");
       const campos = ["Data Avaliacao", "Jornada de Trabalho", "Pausas", "Rodizio", "Caracteristicas Trabalhadores", "Historico Acidentes", "Descricao Atividade Observada", "Descricao Setor"].filter((k) => x.p.dados[k]).length;
       const nEx = x.fatores.filter((f) => f.ex).length;
       [x.p.secao, [x.p.dados.Setor, x.p.dados["Posto Trabalho"], x.p.dados.Cargo].join(" › ")].forEach((c) => tr.appendChild(h("td", null, c)));
-      // AEP do SIGE ligada a este posto (sugerida; pode trocar ou mandar criar nova)
-      const td = h("td"); const sel = h("select", "laudo-antigo-aep");
-      const nr = (a) => (a["Nr Avaliacao"] ? "AEP-" + String(a["Nr Avaliacao"]).padStart(3, "0") + " · " : "");
-      [["__nova", "Criar AEP nova"]].concat(aepsDoCliente(est.cliente).filter((a) => !est.unidade || a.Unidade === est.unidade).sort((a, b) => String(a["Posto Trabalho"]).localeCompare(String(b["Posto Trabalho"]), "pt-BR")).map((a) => [a._id, `${nr(a)}${a.Setor} › ${a["Posto Trabalho"]} › ${a.Cargo}`])).forEach(([v0, t0]) => { const o = h("option", null, t0); o.value = v0; sel.appendChild(o); });
-      sel.value = x.aep ? x.aep._id : "__nova"; sel.addEventListener("change", () => { est.escolhas[x.p.secao] = sel.value; montar(el); });
-      td.appendChild(sel); tr.appendChild(td);
+      // V 2.50 (Alexandre): sem opção de "juntar análises". Só mostra se o posto será uma AEP NOVA
+      // (como no PDF) ou se é exatamente o MESMO posto de uma AEP já existente (reimportação = atualiza).
+      const td = h("td");
+      if (x.aep) { const nr = x.aep["Nr Avaliacao"] ? "AEP-" + String(x.aep["Nr Avaliacao"]).padStart(3, "0") : "AEP existente"; td.textContent = "Atualiza " + nr + " (mesmo posto)"; td.className = "laudo-antigo-atualiza"; }
+      else { td.textContent = "Nova AEP (como no PDF)"; td.className = "laudo-antigo-nova-cel"; }
+      tr.appendChild(td);
       [String(campos), String(x.p.imagens.length), `${nEx} / ${x.fatores.length - nEx}`].forEach((c) => tr.appendChild(h("td", null, c)));
       if (!x.aep) tr.classList.add("laudo-antigo-nova");
       tbody.appendChild(tr);
     });
     tb.appendChild(tbody); wrap.appendChild(tb); card.appendChild(wrap);
     const novas = plano.filter((x) => !x.aep).length;
-    card.appendChild(h("p", "aet-nota", `${plano.length - novas} posto(s) ligados a AEPs existentes${novas ? `; ${novas} AEP(s) nova(s) — confira se setor, posto e cargo batem com a planilha antes de migrar` : ""}.`));
+    card.appendChild(h("p", "aet-nota", `${novas} AEP(s) nova(s) (como no PDF)${plano.length - novas ? `; ${plano.length - novas} já existe(m) no SIGE com o mesmo posto e será(ão) atualizada(s) sem duplicar` : ""}. Cada posto/análise do laudo entra como está no PDF.`));
     const barra = h("div", "reav-barra"); const b = h("button", "btn-cad-primario", est.ocupado ? "Migrando…" : "Migrar laudo para o SIGE"); b.type = "button"; b.disabled = est.ocupado || !est.unidade; barra.appendChild(b); card.appendChild(barra);
     const log = h("div", "laudo-antigo-log"); est.log.forEach((t) => log.appendChild(h("div", null, t))); card.appendChild(log);
     b.addEventListener("click", () => migrar(el));

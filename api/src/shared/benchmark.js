@@ -18,14 +18,32 @@
 
 const MIN_N = 4; // N mínimo para divulgar a distribuição de um indicador (anonimato).
 
+// unidade: "%", "dias" (1 casa), "num" (inteiro bruto), "num2" (2 casas), "/100" (1 casa).
+// noScore: não entra na nota geral (régua geral) — vale para os níveis de risco separados
+//   (evita contar o mesmo sinal 5x) e para os números BRUTOS (dependem do tamanho da empresa).
+// bruto: número absoluto (não normalizado) — comparação de volume entre empresas.
 const INDICADORES = [
-  { chave: "cobertura", rotulo: "Cobertura de avaliações", unidade: "%", melhorEhMenor: false },
-  { chave: "coberturaPsico", rotulo: "Cobertura psicossocial", unidade: "%", melhorEhMenor: false },
-  { chave: "riscoAlto", rotulo: "Riscos altos / altíssimos", unidade: "%", melhorEhMenor: true },
-  { chave: "acoesConcluidas", rotulo: "Ações concluídas", unidade: "%", melhorEhMenor: false },
-  { chave: "acoesAtraso", rotulo: "Ações em atraso", unidade: "%", melhorEhMenor: true },
-  { chave: "absenteismo", rotulo: "Dias perdidos por colaborador", unidade: "dias", melhorEhMenor: true },
-  { chave: "restritos", rotulo: "Restritos por 100 colaboradores", unidade: "/100", melhorEhMenor: true },
+  { chave: "cobertura", rotulo: "Cobertura de avaliações", unidade: "%", melhorEhMenor: false, grupo: "Cobertura" },
+  { chave: "coberturaPsico", rotulo: "Cobertura psicossocial", unidade: "%", melhorEhMenor: false, grupo: "Cobertura" },
+
+  { chave: "riscoSevero", rotulo: "Riscos altos + altíssimos (total)", unidade: "%", melhorEhMenor: true, grupo: "Riscos (fatores de risco)" },
+  { chave: "nivelMuitoAlto", rotulo: "Riscos muito altos / altíssimos", unidade: "%", melhorEhMenor: true, grupo: "Riscos (fatores de risco)", noScore: true },
+  { chave: "nivelAlto", rotulo: "Riscos altos", unidade: "%", melhorEhMenor: true, grupo: "Riscos (fatores de risco)", noScore: true },
+  { chave: "nivelModerado", rotulo: "Riscos moderados", unidade: "%", melhorEhMenor: true, grupo: "Riscos (fatores de risco)", noScore: true },
+  { chave: "nivelBaixo", rotulo: "Riscos baixos", unidade: "%", melhorEhMenor: false, grupo: "Riscos (fatores de risco)", noScore: true },
+  { chave: "nivelTrivial", rotulo: "Riscos triviais", unidade: "%", melhorEhMenor: false, grupo: "Riscos (fatores de risco)", noScore: true },
+
+  { chave: "acoesConcluidas", rotulo: "Ações concluídas", unidade: "%", melhorEhMenor: false, grupo: "Plano de ação" },
+  { chave: "acoesAtraso", rotulo: "Ações em atraso", unidade: "%", melhorEhMenor: true, grupo: "Plano de ação" },
+  { chave: "acoesNaoIniciadas", rotulo: "Ações não iniciadas", unidade: "%", melhorEhMenor: true, grupo: "Plano de ação" },
+
+  { chave: "absDiasColab", rotulo: "Dias perdidos por colaborador", unidade: "dias", melhorEhMenor: true, grupo: "Absenteísmo" },
+  { chave: "absDiasTotal", rotulo: "Dias perdidos (total)", unidade: "num", melhorEhMenor: true, grupo: "Absenteísmo", noScore: true, bruto: true },
+  { chave: "atestadosColab", rotulo: "Atestados por colaborador", unidade: "num2", melhorEhMenor: true, grupo: "Absenteísmo" },
+  { chave: "atestadosTotal", rotulo: "Atestados (total)", unidade: "num", melhorEhMenor: true, grupo: "Absenteísmo", noScore: true, bruto: true },
+
+  { chave: "restritosPor100", rotulo: "Restritos por 100 colaboradores", unidade: "/100", melhorEhMenor: true, grupo: "Restritos" },
+  { chave: "restritosBruto", rotulo: "Restritos (quantidade)", unidade: "num", melhorEhMenor: true, grupo: "Restritos", noScore: true, bruto: true },
 ];
 
 function norm(s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim(); }
@@ -72,25 +90,49 @@ function metricasDoRecorte(d, hojeMs) {
   let ghePsico = 0; universoGHE.forEach((k) => { if (comPsico.has(k)) ghePsico += 1; });
   const coberturaPsico = universoGHE.size ? (ghePsico / universoGHE.size) * 100 : null;
 
-  // 3) % de fatores ativos graduados classificados como Alto/Altíssimo.
+  // 3) Riscos por nível, a partir dos fatores ativos graduados (inventário de riscos).
+  // Separado por nível (muito alto, alto, moderado, baixo, trivial) + o total alto/altíssimo.
   const fativos = (d.fatorRisco || []).filter((f) => fatorAtivo(f) && temGraduacao(f));
-  const altos = fativos.filter((f) => nivelRank(f["Graduacao Risco"]) >= 4).length;
-  const riscoAlto = fativos.length ? (altos / fativos.length) * 100 : null;
+  const porRank = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  fativos.forEach((f) => { const r = nivelRank(f["Graduacao Risco"]); if (r) porRank[r] += 1; });
+  const nf = fativos.length;
+  const pctN = (c) => (nf ? (c / nf) * 100 : null);
+  const riscoSevero = pctN(porRank[5] + porRank[4]);
+  const nivelMuitoAlto = pctN(porRank[5]);
+  const nivelAlto = pctN(porRank[4]);
+  const nivelModerado = pctN(porRank[3]);
+  const nivelBaixo = pctN(porRank[2]);
+  const nivelTrivial = pctN(porRank[1]);
 
-  // 4/5) Ações concluídas / em atraso.
+  // 4) Ações: concluídas / em atraso / não iniciadas.
   const acoes = d.planoAcao || [];
   const concl = acoes.filter((a) => String(a["Dt Conclusao"] || "").trim()).length;
   const acoesConcluidas = acoes.length ? (concl / acoes.length) * 100 : null;
   const emAtraso = acoes.filter((a) => !String(a["Dt Conclusao"] || "").trim() && venceu(a["Dt Programada"], hojeMs)).length;
   const acoesAtraso = acoes.length ? (emAtraso / acoes.length) * 100 : null;
+  const naoIni = acoes.filter((a) => norm(a["Status Execucao"]) === "nao iniciada").length;
+  const acoesNaoIniciadas = acoes.length ? (naoIni / acoes.length) * 100 : null;
 
-  // 6/7) Absenteísmo (dias perdidos por colaborador) e restritos por 100 colaboradores.
+  // 5) Absenteísmo: dias perdidos (por colaborador e total) e atestados (por colaborador e total).
   const nColab = (d.colaborador || []).length || null;
   const diasPerdidos = (d.absenteismo || []).reduce((s, a) => s + (Number(a["Qtd Dias"]) || 0), 0);
-  const absenteismo = nColab ? diasPerdidos / nColab : null;
-  const restritos = nColab ? ((d.compativeis || []).length / nColab) * 100 : null;
+  const nAtestados = (d.absenteismo || []).length;
+  const absDiasColab = nColab ? diasPerdidos / nColab : null;
+  const absDiasTotal = diasPerdidos;
+  const atestadosColab = nColab ? nAtestados / nColab : null;
+  const atestadosTotal = nAtestados;
 
-  return { cobertura, coberturaPsico, riscoAlto, acoesConcluidas, acoesAtraso, absenteismo, restritos };
+  // 6) Restritos: por 100 colaboradores e quantidade bruta.
+  const restritosBruto = (d.compativeis || []).length;
+  const restritosPor100 = nColab ? (restritosBruto / nColab) * 100 : null;
+
+  return {
+    cobertura, coberturaPsico,
+    riscoSevero, nivelMuitoAlto, nivelAlto, nivelModerado, nivelBaixo, nivelTrivial,
+    acoesConcluidas, acoesAtraso, acoesNaoIniciadas,
+    absDiasColab, absDiasTotal, atestadosColab, atestadosTotal,
+    restritosPor100, restritosBruto,
+  };
 }
 
 // Agrupa linhas por uma chave (EmpresaId, ou EmpresaId::Unidade).
@@ -177,7 +219,7 @@ function calcularBenchmark(dados, opcoes = {}) {
     const m = metEmpresa[eid];
     const percentis = {};
     INDICADORES.forEach((ind) => { percentis[ind.chave] = percentilMelhor(m[ind.chave], valoresEmpresa[ind.chave], ind.melhorEhMenor); });
-    const ps = INDICADORES.map((i) => percentis[i.chave]).filter((x) => x != null);
+    const ps = INDICADORES.filter((i) => !i.noScore).map((i) => percentis[i.chave]).filter((x) => x != null);
     empresasOut.push({ empresaId: eid, nome: nomePorId[eid] || eid, valores: m, percentis, scoreGeral: ps.length ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) : null });
   });
   empresasOut.sort((a, b) => (b.scoreGeral || -1) - (a.scoreGeral || -1));
@@ -189,7 +231,7 @@ function calcularBenchmark(dados, opcoes = {}) {
     const m = metUnidade[k];
     const percentis = {};
     INDICADORES.forEach((ind) => { percentis[ind.chave] = percentilMelhor(m[ind.chave], valoresUnidade[ind.chave], ind.melhorEhMenor); });
-    const ps = INDICADORES.map((i) => percentis[i.chave]).filter((x) => x != null);
+    const ps = INDICADORES.filter((i) => !i.noScore).map((i) => percentis[i.chave]).filter((x) => x != null);
     unidadesOut.push({ empresaId: eid, nome: nomePorId[eid] || eid, unidade: uni, valores: m, percentis, scoreGeral: ps.length ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) : null });
   });
   unidadesOut.sort((a, b) => (b.scoreGeral || -1) - (a.scoreGeral || -1));
