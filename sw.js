@@ -20,7 +20,7 @@
 
 "use strict";
 
-const VERSAO = "sige-v164";
+const VERSAO = "sige-v165";
 const CACHE_SITE = `${VERSAO}-site`;
 const CACHE_EXTERNO = `${VERSAO}-externo`;
 
@@ -64,6 +64,7 @@ const ARQUIVOS_BASE = [
   "/js/contratos-dados.js",
   "/js/contratos.js",
   "/js/absenteismo-laudo.js",
+  "/js/benchmark.js",
   "/js/app.js",
   "/vendor/libs/chart.umd.min.js",
   "/vendor/libs/chartjs-plugin-datalabels.min.js",

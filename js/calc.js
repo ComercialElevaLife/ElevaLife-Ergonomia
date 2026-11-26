@@ -1291,10 +1291,15 @@
   // logica dos diagramas de Med Ocup, mas contando ocorrencias, nao dias.
   // V 1.31: segmentos fora do corpo, em todas as listas de segmento e nos graficos
   const SEGMENTOS_GERAIS = ["Psicossocial", "Não identificado"];
-  function contagemPorRegiao(compativeisF, regioes) {
+  // V 2.50: aceita semLado (igual somaDiasPorRegiao do absenteismo). Antes exigia
+  // match EXATO com a regiao lateralizada ("Ombro Direito"), entao um restrito
+  // cadastrado como "Ombro" (sem lado) nao era contado e o diagrama ficava zerado.
+  // Agora colapsa a lateralidade, contando o segmento sem lado na regiao do corpo.
+  function contagemPorRegiao(compativeisF, regioes, semLado) {
     const mapa = {};
-    regioes.concat(SEGMENTOS_GERAIS).forEach((r) => (mapa[r] = 0));
-    compativeisF.forEach((l) => { if (l["Segmento Corporal"] in mapa) mapa[l["Segmento Corporal"]] += 1; });
+    const norm = semLado ? regiaoSemLado : (r) => r;
+    (semLado ? regioesSemLado(regioes) : regioes).concat(SEGMENTOS_GERAIS).forEach((r) => (mapa[r] = 0));
+    compativeisF.forEach((l) => { const r = norm(l["Segmento Corporal"]); if (r in mapa) mapa[r] += 1; });
     return mapa;
   }
 

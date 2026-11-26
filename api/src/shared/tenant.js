@@ -47,7 +47,7 @@ async function resolverIdentidade(request) {
   const doc = resources[0];
 
   if (!doc) {
-    return { email, papel: null, empresasVinculadas: [], unidadesVinculadas: [], fonteUsuario: true };
+    return { email, papel: null, empresasVinculadas: [], unidadesVinculadas: [], setoresVinculados: [], clientesGestao: [], fonteUsuario: true };
   }
 
   // V 2.08 (Alexandre): usuário DESLIGADO perde o acesso (papel nulo = bloqueado), mas o
@@ -60,6 +60,15 @@ async function resolverIdentidade(request) {
     empresasVinculadas: Array.isArray(doc.EmpresasVinculadas) ? doc.EmpresasVinculadas : [],
     // V 1.55 (Alexandre): vínculo por unidade. Chaves no formato "EmpresaId::Unidade".
     unidadesVinculadas: Array.isArray(doc.UnidadesVinculadas) ? doc.UnidadesVinculadas : [],
+    // V 2.50 (Alexandre): nível 2 - vínculo por SETOR. Chaves "EmpresaId::Unidade::Setor".
+    // Nível de acesso do cliente é automático pelo que estiver vinculado:
+    //   só empresa  -> nível 0 (vê tudo da empresa)
+    //   unidade(s)  -> nível 1 (vê só as unidades vinculadas)
+    //   setor(es)   -> nível 2 (vê só os setores vinculados)
+    setoresVinculados: Array.isArray(doc.SetoresVinculados) ? doc.SetoresVinculados : [],
+    // V 2.50 (Alexandre): carteira de cobrança do ADM (clientes que ele gere). O ADM continua
+    // vendo tudo; isto só restringe as notificações/e-mails de cobrança (ver notificações).
+    clientesGestao: Array.isArray(doc.ClientesGestao) ? doc.ClientesGestao : [],
     // marca que esta identidade veio da coleção de usuários (login na interface) -
     // só nesses casos a restrição por unidade vale (chaves de API não são afetadas).
     fonteUsuario: true,
@@ -96,24 +105,44 @@ function unidadesDaEmpresa(identidade, empresaId) {
   const pref = String(empresaId) + "::";
   return (identidade.unidadesVinculadas || [])
     .filter((k) => String(k).indexOf(pref) === 0)
-    .map((k) => String(k).slice(pref.length));
+    .map((k) => String(k).slice(pref.length))
+    .filter(Boolean);
 }
-// Regra de unidade para um documento. Para quem não é restrito, sempre passa
-// (a checagem de empresa continua valendo à parte).
+// V 2.50 (Alexandre): setores vinculados naquela empresa (chaves "EmpresaId::Unidade::Setor").
+// Devolve pares "Unidade::Setor".
+function setoresDaEmpresa(identidade, empresaId) {
+  const pref = String(empresaId) + "::";
+  return (identidade.setoresVinculados || [])
+    .filter((k) => String(k).indexOf(pref) === 0)
+    .map((k) => String(k).slice(pref.length))
+    .filter((k) => k.indexOf("::") !== -1);
+}
+// Regra de unidade/setor para um documento. Para quem não é restrito, sempre passa
+// (a checagem de empresa continua valendo à parte). O nível é automático pelo vínculo:
+//   só empresa  -> nível 0: vê tudo da empresa
+//   unidade(s)  -> nível 1: vê só as unidades vinculadas (todos os setores delas)
+//   setor(es)   -> nível 2: vê só os setores vinculados (daquela unidade)
 function podeVerUnidadeDoc(identidade, colecao, doc) {
   if (!restritoPorUnidade(identidade)) return true;
   const empresaId = empresaIdDoDocumento(colecao, doc);
-  const minhas = unidadesDaEmpresa(identidade, empresaId);
-  // V 1.73 (Alexandre): se o usuário está vinculado à EMPRESA mas não marcou nenhuma
-  // UNIDADE nela, passa a ter acesso no nível da empresa (vê todas as unidades dela).
-  // Antes isso devolvia false e o usuário (ex.: Ergonomista vinculado só à empresa) não
-  // via NADA no dashboard. A restrição por unidade só vale quando ele marca unidades.
-  if (!minhas.length) return true;
-  if (colecao === "cliente") return true; // a empresa aparece porque o usuário tem ≥1 unidade nela
-  if (colecao === "unidade") return minhas.indexOf(doc.Unidade) !== -1;
+  const unidades = unidadesDaEmpresa(identidade, empresaId); // nível 1 (unidade plena)
+  const setores = setoresDaEmpresa(identidade, empresaId);   // nível 2 (par "Unidade::Setor")
+  // V 1.73 (Alexandre): vinculado só à EMPRESA (sem unidade e sem setor) = nível 0, vê tudo dela.
+  if (!unidades.length && !setores.length) return true;
+  if (colecao === "cliente") return true; // a empresa aparece porque o usuário tem vínculo nela
   const u = doc.Unidade;
-  if (u == null || u === "") return true; // documento sem unidade (empresa já liberada por ter ≥1 unidade)
-  return minhas.indexOf(u) !== -1;
+  // Unidades que o usuário pode ao menos navegar: as plenas (nível 1) e as que contêm
+  // algum setor vinculado (nível 2) - para enxergar a unidade e chegar ao seu setor.
+  const unidadesDosSetores = setores.map((s) => s.split("::")[0]);
+  const unidadesVisiveis = new Set([].concat(unidades, unidadesDosSetores));
+  if (colecao === "unidade") return unidadesVisiveis.has(doc.Unidade);
+  if (u == null || u === "") return true; // documento no nível da empresa toda
+  if (!unidadesVisiveis.has(u)) return false;
+  if (unidades.indexOf(u) !== -1) return true; // nível 1 nessa unidade: vê todos os setores dela
+  // nível 2 nessa unidade: só os setores vinculados.
+  const s = doc.Setor;
+  if (s == null || s === "") return true; // nós da hierarquia acima do setor (ex.: a própria unidade)
+  return setores.indexOf(u + "::" + s) !== -1;
 }
 
 function podeVerDocumento(identidade, colecao, doc) {
@@ -130,4 +159,5 @@ module.exports = {
   restritoPorUnidade,
   podeVerUnidadeDoc,
   unidadesDaEmpresa,
+  setoresDaEmpresa,
 };

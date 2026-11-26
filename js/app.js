@@ -412,10 +412,15 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // Cadastros - ver CADASTROS_CONFIG mais abaixo neste arquivo)
   function colunasDrillDown(chave) {
     // V 1.29: risco dos postos calculado pelo Inventario (maior graduacao dos fatores).
-    if (chave === "riscoPosto") return { colunas: ["Origem", "Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Risco Global", "Fator Mais Grave", "Fatores", "Dt Avaliacao"], colunasData: ["Dt Avaliacao"] };
+    if (chave === "riscoPosto") return { colunas: ["Origem", "Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo", "Risco Global", "Fator Mais Grave", "Fatores", "Dt Avaliacao"], colunasData: ["Dt Avaliacao"], cfg: null };
     const cfg = CADASTROS_CONFIG[chave];
     const extra = chave === "planoAcao" ? ["Status Acao"] : [];
-    return { colunas: cfg.colunasTabela.concat(extra), colunasData: cfg.colunasData || [] };
+    // V 2.50 (Alexandre - solicitação 6): no drill-down dos gráficos de Avaliações mostra
+    // também quem criou (ergonomista) e quando. A AEP já tem essas colunas no cadastro; a AET
+    // ganha-as só aqui (ver colunasVirtuais da coleção aet).
+    const autor = (chave === "aet" || chave === "avaliacaoErgonomica") ? ["Cadastrado Em", "Cadastrado Por"] : [];
+    const colunas = cfg.colunasTabela.concat(extra, autor.filter((c) => cfg.colunasTabela.indexOf(c) === -1));
+    return { colunas, colunasData: cfg.colunasData || [], cfg };
   }
 
   function celulaFormatada(col, linha, colunasData) {
@@ -477,7 +482,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       vazio.textContent = "Nenhum registro para esta seleção.";
       corpo.appendChild(vazio);
     } else {
-      const { colunas, colunasData } = colunasDrillDown(chave);
+      const { colunas, colunasData, cfg: cfgDrill } = colunasDrillDown(chave);
       const hoje = hojeMeiaNoite();
       const scroll = document.createElement("div");
       scroll.className = "tabela-scroll";
@@ -493,7 +498,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         colunas.forEach((c) => {
           const td = document.createElement("td");
           if (c === "Status Acao") td.appendChild(noCelulaStatusAcao(window.BI.Calc.statusDaLinhaAcao(linha, hoje)));
-          else td.appendChild(noCelula(c, linha, colunasData));
+          else if (cfgDrill && cfgDrill.colunasVirtuais && cfgDrill.colunasVirtuais[c]) {
+            // V 2.50: aplica as colunas virtuais (ex.: "Cadastrado Por" = ergonomista) também
+            // no drill-down dos gráficos - antes lia o campo cru e saía sempre "-".
+            const v = valorColuna(cfgDrill, c, linha);
+            td.textContent = /^\d{4}-\d{2}-\d{2}/.test(String(v || "")) ? formatarDataBR(String(v).slice(0, 10)) : (v == null || v === "" ? "-" : T(String(v)));
+          } else td.appendChild(noCelula(c, linha, colunasData));
           tr.appendChild(td);
         });
         tbody.appendChild(tr);
@@ -1214,9 +1224,52 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     renderizarLegenda(legendaId, labels.map((l, i) => ({ label: `${l} (${valores[i]}${total ? ", " + ((valores[i] / total) * 100).toFixed(0) + "%" : ""})`, cor: cores[i] })));
   }
 
-  function renderLinhaMensal(canvasId, serie, nomeSerie, cor, linhasFonte, campoData, chaveDrill) {
-    const labels = serie.map((s) => window.BI.Calc.formatarMesLabel(s.mes));
-    const valores = serie.map((s) => s.qtd);
+  // V 2.50 (Alexandre - solicitação 6): filtro multi-seleção de meses nos gráficos de
+  // Avaliações. A seleção (por canvas) é guardada aqui para sobreviver aos re-renders do
+  // dashboard (filtros globais). Vazio = mostra todos os meses.
+  const estadoFiltroMeses = {};
+  function montarFiltroMeses(canvasId, serie, aoMudar) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas.parentNode) return;
+    const host = canvas.parentNode;
+    const sel = estadoFiltroMeses[canvasId] || (estadoFiltroMeses[canvasId] = new Set());
+    const meses = serie.map((s) => s.mes);
+    // tira da seleção meses que não existem mais (ex.: trocou de cliente no filtro geral)
+    Array.from(sel).forEach((m) => { if (meses.indexOf(m) === -1) sel.delete(m); });
+    let wrap = Array.from(host.children).find((c) => c.classList && c.classList.contains("filtro-meses") && c.dataset.para === canvasId);
+    if (!wrap) {
+      wrap = document.createElement("details");
+      wrap.className = "filtro-meses"; wrap.dataset.para = canvasId;
+      wrap.appendChild(document.createElement("summary"));
+      const lista = document.createElement("div"); lista.className = "filtro-meses-lista"; wrap.appendChild(lista);
+      host.insertBefore(wrap, canvas);
+    }
+    const sum = wrap.querySelector("summary");
+    const lista = wrap.querySelector(".filtro-meses-lista");
+    sum.textContent = "📅 Meses: " + (sel.size ? sel.size + " selecionado(s)" : "todos");
+    lista.innerHTML = "";
+    const btnTodos = document.createElement("button");
+    btnTodos.type = "button"; btnTodos.className = "filtro-meses-todos";
+    btnTodos.textContent = sel.size ? "Limpar (ver todos)" : "Todos os meses";
+    btnTodos.disabled = !sel.size;
+    btnTodos.addEventListener("click", (ev) => { ev.preventDefault(); sel.clear(); aoMudar(); });
+    lista.appendChild(btnTodos);
+    meses.slice().reverse().forEach((m) => {
+      const lab = document.createElement("label"); lab.className = "filtro-meses-item";
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = sel.size > 0 && sel.has(m);
+      cb.addEventListener("change", () => { if (cb.checked) sel.add(m); else sel.delete(m); aoMudar(); });
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(" " + window.BI.Calc.formatarMesLabel(m)));
+      lista.appendChild(lab);
+    });
+  }
+
+  function renderLinhaMensal(canvasId, serie, nomeSerie, cor, linhasFonte, campoData, chaveDrill, comFiltroMeses) {
+    // V 2.50: filtro multi-mês (opt-in). serieVis = só os meses marcados (vazio = todos).
+    if (comFiltroMeses) montarFiltroMeses(canvasId, serie, () => renderLinhaMensal(canvasId, serie, nomeSerie, cor, linhasFonte, campoData, chaveDrill, comFiltroMeses));
+    const sel = comFiltroMeses ? estadoFiltroMeses[canvasId] : null;
+    const serieVis = (sel && sel.size) ? serie.filter((s) => sel.has(s.mes)) : serie;
+    const labels = serieVis.map((s) => window.BI.Calc.formatarMesLabel(s.mes));
+    const valores = serieVis.map((s) => s.qtd);
     criarOuAtualizarGrafico(canvasId, {
       type: "line",
       data: {
@@ -1235,7 +1288,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           y: { beginAtZero: true, grid: { color: corGrid() }, border: { display: false }, ticks: { precision: 0 } },
         },
       }, (el) => {
-        const mes = serie[el.index].mes;
+        const mes = serieVis[el.index].mes;
         return {
           titulo: `${nomeSerie} - ${window.BI.Calc.formatarMesLabel(mes)}`, subtitulo: `${valores[el.index]} registro(s)`, chave: chaveDrill || "planoAcao",
           linhas: linhasFonte.filter((l) => l[campoData] && String(l[campoData]).slice(0, 7) === mes),
@@ -2048,19 +2101,33 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
 
   function renderDiagramasCompativeis(compativeisF) {
-    const meta = window.BI.dados._meta;
+    const C = window.BI.Calc, meta = window.BI.dados._meta;
+    // V 2.50: colapsa a lateralidade (semLado) igual ao diagrama de absenteismo,
+    // para contar restritos cadastrados sem lado ("Ombro", "Punho"...).
+    const frente = C.contagemPorRegiao(compativeisF, meta.regioes_frente, true);
+    const costas = C.contagemPorRegiao(compativeisF, meta.regioes_tras, true);
+    // V 2.50: segmentos que nao caem em NENHUMA regiao anatomica do corpo nem em
+    // Psicossocial (ex.: "Coluna", "Membros Superiores", valores livres antigos)
+    // vao para "Nao identificado", para nunca sumirem silenciosamente do grafico.
+    const regioesTodas = new Set(C.regioesSemLado([].concat(meta.regioes_frente || [], meta.regioes_tras || [])));
+    let naoId = 0;
+    (compativeisF || []).forEach((l) => {
+      const r = C.regiaoSemLado(l["Segmento Corporal"]);
+      if (!regioesTodas.has(r) && r !== "Psicossocial" && r !== "Não identificado") naoId += 1;
+    });
+    frente["Não identificado"] = (frente["Não identificado"] || 0) + naoId;
     window.BI.Diagramas.renderizar(
       "diagrama-compat-frente", "frente",
-      window.BI.Calc.contagemPorRegiao(compativeisF, meta.regioes_frente),
-      { extras: window.BI.Calc.SEGMENTOS_GERAIS, formatarValor: (v) => `${v} restr.`, titulo: "Restrições por região - vista frontal" }
+      frente,
+      { semLado: true, extras: window.BI.Calc.SEGMENTOS_GERAIS, formatarValor: (v) => `${v} restr.`, titulo: "Restrições por região - vista frontal" }
     );
     window.BI.Diagramas.renderizar(
       "diagrama-compat-costas", "costas",
-      window.BI.Calc.contagemPorRegiao(compativeisF, meta.regioes_tras),
-      { formatarValor: (v) => `${v} restr.`, titulo: "Restrições por região - vista posterior" }
+      costas,
+      { semLado: true, formatarValor: (v) => `${v} restr.`, titulo: "Restrições por região - vista posterior" }
     );
-    ligarCliqueDiagrama("diagrama-compat-frente", compativeisF, "Segmento Corporal", "compativeis");
-    ligarCliqueDiagrama("diagrama-compat-costas", compativeisF, "Segmento Corporal", "compativeis");
+    ligarCliqueDiagrama("diagrama-compat-frente", compativeisF, "Segmento Corporal", "compativeis", true);
+    ligarCliqueDiagrama("diagrama-compat-costas", compativeisF, "Segmento Corporal", "compativeis", true);
   }
 
   // ------------------------------------------------------------------
@@ -3477,26 +3544,37 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         const nomeWord = nomeArquivo.replace(/\.pdf$/, ".docx");
         const arquivoWord = new File([bufferDocx], nomeWord, { type: TIPO_DOCX });
 
+        const baixarBlob = (buf, nome, tipo) => {
+          const url = URL.createObjectURL(new Blob([buf], { type: tipo }));
+          const link = document.createElement("a");
+          link.href = url; link.download = nome;
+          document.body.appendChild(link); link.click(); document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        };
         const campoArquivo = form._campos["Arquivo Url"];
-        if (campoArquivo && campoArquivo.anexarArquivos) {
-          if (!window.BI.DB.estado.modoApi) {
-            mostrarAviso("Laudo gerado. O upload automático só funciona na versão publicada (produção). Baixando o PDF e o Word...");
-            const url = URL.createObjectURL(new Blob([bufferPDF], { type: "application/pdf" }));
-            const link = document.createElement("a");
-            link.href = url; link.download = nomeArquivo;
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            const urlW = URL.createObjectURL(new Blob([bufferDocx], { type: TIPO_DOCX }));
-            const linkW = document.createElement("a");
-            linkW.href = urlW; linkW.download = nomeWord;
-            document.body.appendChild(linkW); linkW.click(); document.body.removeChild(linkW);
-            URL.revokeObjectURL(urlW);
-          } else {
-            await campoArquivo.anexarArquivos([arquivoGerado], empresaId || "GLOBAL");
-            const campoWord = form._campos["Arquivo Word"];
-            if (!campoWord || !campoWord.anexarArquivos) throw new Error("Campo do Word não encontrado no formulário.");
-            await campoWord.anexarArquivos([arquivoWord], empresaId || "GLOBAL");
-            geradoEAnexado = true;
+        const campoWord = form._campos["Arquivo Word"];
+        if (!window.BI.DB.estado.modoApi) {
+          // Sem banco (pré-visualização local): baixa os arquivos; nada é registrado.
+          mostrarAviso("Laudo gerado. O upload/registro automático só funciona na versão publicada (produção). Baixando o PDF e o Word...");
+          baixarBlob(bufferPDF, nomeArquivo, "application/pdf");
+          baixarBlob(bufferDocx, nomeWord, TIPO_DOCX);
+        } else {
+          // V 2.50 (Alexandre - "o laudo não está ficando salvo no histórico"): o
+          // registro do laudo passa a acontecer SEMPRE, mesmo que o upload de um
+          // arquivo falhe. Antes, qualquer falha no anexo (PDF ou Word) lançava erro e
+          // NADA era registrado - o laudo era gerado mas sumia do histórico. Agora
+          // seguimos a mesma robustez do laudo da AET (js/laudo-aet.js): tenta anexar
+          // cada arquivo isoladamente e grava o registro de qualquer forma.
+          let falhouUpload = false;
+          try { if (campoArquivo && campoArquivo.anexarArquivos) await campoArquivo.anexarArquivos([arquivoGerado], empresaId || "GLOBAL"); else falhouUpload = true; }
+          catch (e) { falhouUpload = true; console.error("Upload PDF do laudo", e); }
+          try { if (campoWord && campoWord.anexarArquivos) await campoWord.anexarArquivos([arquivoWord], empresaId || "GLOBAL"); else falhouUpload = true; }
+          catch (e) { falhouUpload = true; console.error("Upload Word do laudo", e); }
+          geradoEAnexado = true; // o registro do laudo acontece de qualquer forma
+          if (falhouUpload) {
+            mostrarAviso("Laudo registrado no histórico, mas um arquivo não subiu. Baixando o PDF e o Word para você guardar/anexar depois.", true);
+            baixarBlob(bufferPDF, nomeArquivo, "application/pdf");
+            baixarBlob(bufferDocx, nomeWord, TIPO_DOCX);
           }
         }
         if (form._campos["Emitido Em"] && !form._campos["Emitido Em"].value) {
@@ -5425,6 +5503,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       titulo: "AETs anexadas (arquivos de análises feitas fora do sistema)",
       colunasTabela: ["Cliente", "Setor", "Posto Trabalho", "Cargo", "Data Analise"],
       colunasData: ["Data Analise"], camposData: ["Data Analise"],
+      // V 2.50 (Alexandre - solicitação 6): quem criou a AET (ergonomista) e quando, para o
+      // drill-down do gráfico "Avaliações (AEP/AET)". Vem da auditoria do servidor (_criadoPor/_criadoEm).
+      colunasVirtuais: {
+        "Cadastrado Por": (l) => nomeDoUsuario(l._criadoPor),
+        "Cadastrado Em": (l) => (l._criadoEm ? String(l._criadoEm).slice(0, 10) : (l["Data Analise"] || "")),
+      },
       campos: camposAET(),
       aoConstruir: comCascata(null),
     },
@@ -5708,6 +5792,51 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     }
     wrap.appendChild(input);
     return wrap;
+  }
+
+  // V 2.50 (Alexandre - solicitação final): corretor ortográfico NATIVO do navegador (pt-BR).
+  // Liga o spellcheck nos campos de texto livre (textarea e input de texto) e o desliga nos
+  // campos técnicos (máscara, código, e-mail, número, data) para não grifar o que não é texto.
+  function ativarCorretorOrtografico(el, def) {
+    try {
+      const alvo = (el && el.tagName) ? el : (el && el.elementoDOM && el.elementoDOM.tagName ? el.elementoDOM : null);
+      if (!alvo) return;
+      const tag = alvo.tagName;
+      const tipo = (alvo.getAttribute && alvo.getAttribute("type")) || alvo.type || "text";
+      const ehTextoLivre = tag === "TEXTAREA" || (tag === "INPUT" && (tipo === "text" || tipo === ""));
+      if (!ehTextoLivre) { try { alvo.setAttribute("spellcheck", "false"); } catch (_) {} return; }
+      const campo = (def && def.campo) || (alvo.dataset && alvo.dataset.campo) || "";
+      const tecnico = (def && (def.mascara || def.tipo === "calculado"))
+        || (alvo.inputMode === "numeric")
+        || /mail|cnpj|cep|telefone|c[óo]digo|registro|url|hash|senha/i.test(campo);
+      alvo.setAttribute("spellcheck", tecnico ? "false" : "true");
+      if (!tecnico) alvo.setAttribute("lang", "pt-BR");
+    } catch (_) { /* nunca quebra o render por causa do corretor */ }
+  }
+
+  // Liga o corretor em TODAS as caixas de texto longo (textarea) de qualquer tela — AET, editor
+  // de laudo, reavaliações, etc. — inclusive nas criadas dinamicamente (MutationObserver). Texto
+  // longo é sempre redação livre, então é seguro ligar em todas.
+  function iniciarCorretorOrtograficoGlobal() {
+    try { document.documentElement.lang = "pt-BR"; } catch (_) {}
+    const ligarTextareas = (raiz) => {
+      try {
+        (raiz.querySelectorAll ? raiz.querySelectorAll("textarea") : []).forEach((t) => {
+          if (t.getAttribute("spellcheck") == null) { t.setAttribute("spellcheck", "true"); t.setAttribute("lang", "pt-BR"); }
+        });
+      } catch (_) {}
+    };
+    ligarTextareas(document);
+    try {
+      const obs = new MutationObserver((muts) => {
+        muts.forEach((m) => m.addedNodes && m.addedNodes.forEach((n) => {
+          if (n.nodeType !== 1) return;
+          if (n.tagName === "TEXTAREA" && n.getAttribute("spellcheck") == null) { n.setAttribute("spellcheck", "true"); n.setAttribute("lang", "pt-BR"); }
+          else ligarTextareas(n);
+        }));
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+    } catch (_) { /* navegador sem MutationObserver: os campos dos formulários já são cobertos */ }
   }
 
   function montarFormulario(cfg, chave, valoresIniciais) {
@@ -6061,6 +6190,10 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       }
       el.dataset.campo = def.campo;
       if (def.obrigatorio && def.tipo !== "calculado") el.required = true;
+      // V 2.50 (Alexandre): corretor ortográfico nativo (pt-BR) nos campos de texto livre.
+      // Liga em textarea e input de texto comum; desliga em campos técnicos (máscara/código/
+      // e-mail/número/data), onde o corretor só atrapalharia.
+      ativarCorretorOrtografico(el, def);
       campoDiv.appendChild(el.elementoDOM || el);
       form._campos[def.campo] = el;
       grade.appendChild(campoDiv);
@@ -7639,7 +7772,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     const SETORES = []; const POSTOS = [];
     UNIDADES.forEach((u) => u.setores.forEach((s) => { SETORES.push({ un: u.un, setor: s.setor, g: s.g }); s.postos.forEach(([posto, cargo]) => POSTOS.push({ un: u.un, setor: s.setor, g: s.g, posto, cargo })); }));
     const niveis = Calc.niveisDaMatriz(MZ);
-    const CIDS = [["M54.5", "Lombar"], ["M75.1", "Ombro"], ["M65.9", "Punho"], ["M23.2", "Joelho"], ["M54.2", "Cervical"], ["M51.1", "Coluna"], ["G56.0", "Mao"], ["M70.0", "Membros Superiores"], ["M77.1", "Cotovelo"], ["M62.6", "Membros Inferiores"]];
+    // V 2.50: segmentos usam regioes VALIDAS do diagrama (antes havia "Coluna",
+    // "Membros Superiores/Inferiores", que nao existem no corpo e nao eram contados).
+    const CIDS = [["M54.5", "Lombar"], ["M75.1", "Ombro Direito"], ["M65.9", "Punho Direito"], ["M23.2", "Joelho Direito"], ["M54.2", "Cervical"], ["M51.1", "Dorsal"], ["G56.0", "Punho Esquerdo"], ["M70.0", "Mao Esquerda"], ["M77.1", "Cotovelo Direito"], ["M62.6", "Quadril Esquerdo"]];
     let nAEP = 0, nFat = 0, nAc = 0, fatSeq = 0, nrAcao = 0, acCenario = 0, nAET = 0, aetFatSeq = 0;
     try {
       setBtn("Limpando demo anterior…");
@@ -8412,6 +8547,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     if (aba === "cases" && window.BI.Cases) { try { window.BI.Cases.render(); } catch (e) { console.error(e); } }
     if (aba === "notificacoes") { try { renderNotificacoes(); } catch (e) { console.error(e); } }
     if (aba === "dashboard") { try { montarDashboard(); mostrarDash(dashAtual); } catch (e) { console.error(e); } }
+    if (aba === "benchmark" && window.BI.Benchmark) { try { window.BI.Benchmark.render(); } catch (e) { console.error(e); } }
     // V 1.80 (Alexandre - desempenho): as tabelas de cadastro (e a lista do Plano de Ação) não são
     // reconstruídas a cada filtro quando a aba delas está fechada. Ao ABRIR uma aba de cadastro,
     // renderiza o grupo dela com os filtros atuais (assim o filtro "vale" em todos os serviços).
@@ -9024,11 +9160,21 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // análises (AEP/AET) dos clientes visíveis que estão faltando informações ou fotos.
   // ------------------------------------------------------------------
   function ehEquipeNotif() { const i = window.BI.DB && window.BI.DB.estado.identidade; return !!(i && (i.papel === "Administrador" || i.papel === "Consultor")); }
+  // V 2.50 (Alexandre - solicitação 5): carteira de cobrança do ADM. Se o usuário é Administrador
+  // E definiu "Clientes sob gestão", as notificações (sininho/aba) mostram SÓ os clientes da carteira.
+  // Carteira vazia, ou outro papel, = todos (o Consultor já recebe os dados filtrados pelo servidor).
+  function filtrarCarteiraNotif(linhas) {
+    const i = window.BI.DB && window.BI.DB.estado && window.BI.DB.estado.identidade;
+    const carteira = (i && i.papel === "Administrador" && Array.isArray(i.clientesGestao)) ? i.clientesGestao.filter(Boolean) : [];
+    if (!carteira.length) return linhas || [];
+    const set = new Set(carteira);
+    return (linhas || []).filter((l) => set.has(l.EmpresaId));
+  }
   function contarNotificacoes() {
     const norma = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
     const hoje = new Date(); const hojeMs = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
     const prazoMs = (p) => { const m = String(p["Dt Programada"] || "").slice(0, 10).split("-").map(Number); if (m.length !== 3 || m.some(Number.isNaN)) return null; return Date.UTC(m[0], m[1] - 1, m[2]); };
-    const planos = (window.BI.dados.planoAcao || []).filter((p) => !p["Dt Conclusao"] && !acaoOrfaCad(p));
+    const planos = filtrarCarteiraNotif(window.BI.dados.planoAcao || []).filter((p) => !p["Dt Conclusao"] && !acaoOrfaCad(p));
     const naoIniciadas = planos.filter((p) => norma(p["Status Execucao"]) === "nao iniciada");
     const atrasadas = planos.filter((p) => { const d = prazoMs(p); return d != null && d < hojeMs; });
     const perto = planos.filter((p) => { const d = prazoMs(p); return d != null && d >= hojeMs && (d - hojeMs) <= 7 * 86400000; });
@@ -9036,12 +9182,12 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
   function analisesIncompletasNotif() {
     const out = [];
-    (window.BI.dados.avaliacaoErgonomica || []).forEach((a) => {
+    filtrarCarteiraNotif(window.BI.dados.avaliacaoErgonomica || []).forEach((a) => {
       const semFoto = !(Array.isArray(a.Fotos) && a.Fotos.length);
       const semInfo = !String(a["Descricao Atividade Observada"] || "").trim();
       if (semFoto || semInfo) out.push({ tipo: "AEP", id: a._id || a.id, nr: Number(a["Nr Avaliacao"]) || null, cliente: a.Cliente || "-", unidade: a.Unidade || "-", local: [a.Setor, a["Posto Trabalho"], window.BI.Calc.rotuloCargos(a)].filter(Boolean).join(" › "), faltas: [semFoto ? "sem fotos" : "", semInfo ? "sem descrição da atividade" : ""].filter(Boolean) });
     });
-    (window.BI.dados.aet || []).forEach((a) => {
+    filtrarCarteiraNotif(window.BI.dados.aet || []).forEach((a) => {
       const ats = a.Atividades || [];
       const semFotoGeral = !(Array.isArray(a["Foto Geral"]) && a["Foto Geral"].length);
       const semFotoAtiv = !ats.some((at) => Array.isArray(at.fotos) && at.fotos.length);
@@ -9057,7 +9203,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   function pendenciasImportacaoNotif() {
     const out = [];
     [["absenteismo", "Absenteísmo"], ["compativeis", "Restritos"]].forEach(([col, rot]) => {
-      (window.BI.dados[col] || []).forEach((r) => {
+      filtrarCarteiraNotif(window.BI.dados[col] || []).forEach((r) => {
         if (r && r["Pendencia Importacao"]) out.push({ colecao: col, tipo: rot, id: r._id || r.id, cliente: r.Cliente || "-", unidade: r.Unidade || "-", local: [r.Setor, r["Posto Trabalho"], r.Cargo].filter(Boolean).join(" › "), falta: r["Pendencia Importacao"] });
       });
     });
@@ -9068,9 +9214,9 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // Os dados já vêm filtrados pelos clientes de cada ergonomista, então cada um vê só os seus.
   function avaliacoesSemFatorNotif() {
     const C = window.BI.Calc; if (!C || !C.riscoDasAvaliacoes) return [];
-    const fatores = window.BI.dados.fatorRisco || [];
-    const analises = (window.BI.dados.avaliacaoErgonomica || []).map((a) => Object.assign({ _org: "AEP", _tipo: "AEP" }, a))
-      .concat((window.BI.dados.aet || []).map((a) => Object.assign({ _org: "AET", _tipo: "AET" }, a)));
+    const fatores = filtrarCarteiraNotif(window.BI.dados.fatorRisco || []);
+    const analises = filtrarCarteiraNotif(window.BI.dados.avaliacaoErgonomica || []).map((a) => Object.assign({ _org: "AEP", _tipo: "AEP" }, a))
+      .concat(filtrarCarteiraNotif(window.BI.dados.aet || []).map((a) => Object.assign({ _org: "AET", _tipo: "AET" }, a)));
     const ra = C.riscoDasAvaliacoes(analises, fatores);
     return ra.semFator.map((a) => ({
       tipo: a._tipo, id: a._id || a.id, nr: Number(a["Nr Avaliacao"] || a["Nr AET"]) || null,
@@ -9083,7 +9229,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   // gráficos; o ergonomista precisa lançar a graduação. (Dados já vêm filtrados por cliente.)
   function fatoresSemGraduacaoNotif() {
     const C = window.BI.Calc; if (!C || !C.temGraduacao) return [];
-    return (window.BI.dados.fatorRisco || []).filter((f) => C.riscoAtivo(f) && !C.temGraduacao(f)).map((f) => ({
+    return filtrarCarteiraNotif(window.BI.dados.fatorRisco || []).filter((f) => C.riscoAtivo(f) && !C.temGraduacao(f)).map((f) => ({
       id: f._id || f.id, cliente: f.Cliente || "-", unidade: f.Unidade || "-",
       local: [f.Setor, f["Posto Trabalho"], C.rotuloCargos ? C.rotuloCargos(f) : f.Cargo].filter(Boolean).join(" › "),
       fator: f.Fator || f["Fator Risco Nome"] || "-", origem: C.origemDe(f),
@@ -9107,7 +9253,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
   function fatoresSemCriticidadeNotif() {
     const C = window.BI.Calc; if (!C || !C.temGraduacao) return [];
-    return (window.BI.dados.fatorRisco || []).filter((f) => C.riscoAtivo(f) && C.temGraduacao(f) && !f.Criticidade && fatorPrecisaCriticidade(f)).map((f) => ({
+    return filtrarCarteiraNotif(window.BI.dados.fatorRisco || []).filter((f) => C.riscoAtivo(f) && C.temGraduacao(f) && !f.Criticidade && fatorPrecisaCriticidade(f)).map((f) => ({
       id: f._id || f.id, cliente: f.Cliente || "-", unidade: f.Unidade || "-",
       local: [f.Setor, f["Posto Trabalho"], C.rotuloCargos ? C.rotuloCargos(f) : f.Cargo].filter(Boolean).join(" › "),
       fator: f.Fator || f["Fator Risco Nome"] || "-", origem: C.origemDe(f),
@@ -9780,8 +9926,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         canvasId: "vg-aval", canvasTitulo: "AEPs criadas mês a mês",
         canvas2Id: "vg-aval-aet", canvas2Titulo: "AETs criadas mês a mês",
         render: () => {
-          renderLinhaMensal("vg-aval", Calc.serieMensal(avaliacaoArr, "Data Avaliacao"), "AEPs criadas", teal, avaliacaoArr, "Data Avaliacao", "avaliacaoErgonomica");
-          renderLinhaMensal("vg-aval-aet", Calc.serieMensal(aetArr, "Data Analise"), "AETs criadas", vinho, aetArr, "Data Analise", "aet");
+          renderLinhaMensal("vg-aval", Calc.serieMensal(avaliacaoArr, "Data Avaliacao"), "AEPs criadas", teal, avaliacaoArr, "Data Avaliacao", "avaliacaoErgonomica", true);
+          renderLinhaMensal("vg-aval-aet", Calc.serieMensal(aetArr, "Data Analise"), "AETs criadas", vinho, aetArr, "Data Analise", "aet", true);
         },
       });
 
@@ -10484,8 +10630,8 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     // avaliacaoMesF já é só-AEP/vazio e aetF só-AET/vazio conforme a origem, então a união cobre os 3 casos
     // (Todas = AEP+AET, AEP = só AEP, AET = só AET).
     renderTilesAvaliacaoCobertura(Calc.coberturaAvaliacao(avaliacaoMesF.concat(aetF), Calc.filtrar(window.BI.dados.cargo || [], filtros, [])));
-    renderLinhaMensal("chart-aep-mensal", Calc.serieMensal(avaliacaoMesF, "Data Avaliacao"), "AEPs realizadas", Calc.resolverCorCSS("var(--teal)"), avaliacaoMesF, "Data Avaliacao", "avaliacaoErgonomica");
-    renderLinhaMensal("chart-aet-mensal", Calc.serieMensal(aetF, "Data Analise"), "AETs realizadas", Calc.resolverCorCSS("var(--vinho-medio)"), aetF, "Data Analise", "aet");
+    renderLinhaMensal("chart-aep-mensal", Calc.serieMensal(avaliacaoMesF, "Data Avaliacao"), "AEPs realizadas", Calc.resolverCorCSS("var(--teal)"), avaliacaoMesF, "Data Avaliacao", "avaliacaoErgonomica", true);
+    renderLinhaMensal("chart-aet-mensal", Calc.serieMensal(aetF, "Data Analise"), "AETs realizadas", Calc.resolverCorCSS("var(--vinho-medio)"), aetF, "Data Analise", "aet", true);
 
     try { if (window.BI.AET) window.BI.AET.renderPainel(); } catch (e) { console.error("AET", e); }
     // V 1.80 (Alexandre - desempenho): a lista do Plano de Ação (pesada) é reconstruída só
@@ -10619,6 +10765,43 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
             .sort((a, b) => String(a.sub).localeCompare(String(b.sub), "pt-BR") || String(a.label).localeCompare(String(b.label), "pt-BR"));
         },
         nota: "Mostra só as unidades das empresas marcadas acima. Se você marcar a empresa mas NENHUMA unidade dela, o usuário vê a empresa inteira (todas as unidades). Se marcar unidades, ele vê só essas. O Administrador vê tudo, independente desta lista.",
+      },
+      // V 2.50 (Alexandre - solicitação 4): nível 2 de acesso = vínculo por SETOR. A lista mostra
+      // só os setores das UNIDADES marcadas acima. Se marcar setores, o usuário vê SÓ esses setores
+      // (da unidade). Nível automático: só empresa = vê tudo; unidade(s) = só elas; setor(es) = só eles.
+      {
+        campo: "SetoresVinculados",
+        rotulo: "Setores vinculados (nível 2)",
+        tipo: "checklist", busca: true, placeholderBusca: "Buscar setor…",
+        dependeDe: "UnidadesVinculadas",
+        vazio: "Marque uma ou mais unidades acima para listar os setores. Deixe em branco para o usuário ver a unidade inteira.",
+        opcoes: (unidadesSel) => {
+          const sel = Array.isArray(unidadesSel) ? unidadesSel : [];
+          if (!sel.length) return [];
+          const selSet = new Set(sel);
+          const nomeEmp = {}; (window.BI.dados.cliente || []).forEach((c) => { nomeEmp[c.id || c._id] = c.Cliente; });
+          const eidDe = (r) => r.EmpresaId || (window.BI.DB.idSetor ? "" : "");
+          return (window.BI.dados.setor || [])
+            .filter((s) => selSet.has((s.EmpresaId || "") + "::" + s.Unidade))
+            .map((s) => { const eid = s.EmpresaId || ""; return { valor: eid + "::" + s.Unidade + "::" + s.Setor, label: s.Setor, sub: (s.Unidade || "") + " · " + (nomeEmp[eid] || s.Cliente || eid) }; })
+            .sort((a, b) => String(a.sub).localeCompare(String(b.sub), "pt-BR") || String(a.label).localeCompare(String(b.label), "pt-BR"));
+        },
+        nota: "Nível de acesso automático: só empresa marcada → vê tudo dela (nível 0); unidade(s) sem setor → vê as unidades inteiras (nível 1); setor(es) aqui → vê SÓ esses setores da unidade (nível 2). O Administrador vê tudo.",
+      },
+      // V 2.50 (Alexandre - solicitação 5): carteira de cobrança do Administrador. Ele continua
+      // vendo TUDO; isto só limita de quais clientes ele recebe notificações/e-mails de cobrança.
+      {
+        campo: "ClientesGestao",
+        rotulo: "Clientes sob gestão (carteira de cobrança — só Administrador)",
+        tipo: "checklist", busca: true, placeholderBusca: "Buscar empresa…",
+        dependeDe: "Papel",
+        vazio: "Disponível apenas para o papel Administrador.",
+        opcoes: (papelSel) => {
+          if (papelSel !== "Administrador") return [];
+          return (window.BI.dados.cliente || []).map((c) => ({ valor: c.id || c._id, label: c.Cliente, sub: c.CNPJ || "" }))
+            .sort((a, b) => String(a.label).localeCompare(String(b.label), "pt-BR"));
+        },
+        nota: "Só para o Administrador: ele continua vendo tudo, mas só recebe notificações e e-mails de cobrança dos clientes marcados aqui. Em branco = recebe de todos.",
       },
     ];
   }
@@ -11255,6 +11438,7 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
       configurarSidebar();
       configurarAbas();
       configurarToggleReferencia();
+      iniciarCorretorOrtograficoGlobal();
       if (window.BI.Indicadores) window.BI.Indicadores.instalarBotoesInfo();
       if (window.BI.Ajuda) window.BI.Ajuda.montar();
       const spanVersao = document.getElementById("versao-sistema");

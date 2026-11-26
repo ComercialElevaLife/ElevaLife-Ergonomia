@@ -87,13 +87,23 @@ async function buscarAcoesAbertas(container) {
   return resources;
 }
 
-async function buscarEmailsAdmin() {
+// V 2.50 (Alexandre - solicitação 5): além do e-mail, carrega a carteira de cobrança do ADM
+// (ClientesGestao = ids de cliente). O ADM continua vendo tudo no sistema; isto só decide de
+// QUAIS clientes ele recebe os e-mails de cobrança. Carteira vazia = recebe de todos (comportamento antigo).
+async function buscarAdmins() {
   const container = obterContainer("usuarios");
   const { resources } = await container.items.query("SELECT * FROM c WHERE c.Papel = 'Administrador'").fetchAll();
   return resources
     .filter((u) => (u.StatusConta || (u.SenhaHash ? "Ativo" : "Convidado")) === "Ativo")
-    .map((u) => u.Email)
-    .filter(Boolean);
+    .filter((u) => u.Email)
+    .map((u) => ({ email: u.Email, carteira: Array.isArray(u.ClientesGestao) ? u.ClientesGestao.filter(Boolean) : [] }));
+}
+
+// E-mails dos ADMs que devem receber a cobrança desta empresa-cliente (EmpresaId).
+function emailsAdminParaEmpresa(admins, empresaId) {
+  return (admins || [])
+    .filter((a) => !a.carteira.length || (empresaId && a.carteira.indexOf(empresaId) !== -1))
+    .map((a) => a.email);
 }
 
 async function enviarEstagio({ estagio, acao, paraResponsavel, emailsAdmin, ehEstagioDeAtraso }) {
@@ -129,9 +139,11 @@ async function enviarEstagio({ estagio, acao, paraResponsavel, emailsAdmin, ehEs
 // opcoes.enviar: troca o envio real (usado pela simulacao, que so registra);
 // opcoes.gravar=false: nao grava "_notif" no banco - o estado fica so em
 // memoria, no proprio objeto "acao" (a simulacao trabalha numa copia).
-async function processarAcao(container, acao, hojeMs, emailsAdmin, context, opcoes = {}) {
+async function processarAcao(container, acao, hojeMs, admins, context, opcoes = {}) {
   const enviar = opcoes.enviar || enviarEstagio;
   const gravar = opcoes.gravar !== false;
+  // V 2.50: só os ADMs cuja carteira cobre esta empresa recebem a cópia de cobrança.
+  const emailsAdmin = emailsAdminParaEmpresa(admins, acao.EmpresaId);
   const dtProgramadaMs = paraDataUTC(acao["Dt Programada"]);
   if (dtProgramadaMs === null) return false;
 
@@ -195,8 +207,10 @@ async function buscarDispensasPendentes(container) {
   return resources;
 }
 
-async function processarEvidencia(container, acao, hojeMs, emailsAdmin, context, opcoes = {}) {
+async function processarEvidencia(container, acao, hojeMs, admins, context, opcoes = {}) {
   const enviar = opcoes.enviar || enviarEstagio;
+  // V 2.50: cópia de cobrança só para os ADMs cuja carteira cobre esta empresa.
+  const emailsAdmin = emailsAdminParaEmpresa(admins, acao.EmpresaId);
   const d = acao._dispensa;
   const prazoMs = paraDataUTC(d && d.prazo);
   if (prazoMs === null) return false;
@@ -251,13 +265,13 @@ async function executarLembretes(context) {
   const container = obterContainer("planoAcao");
   const hojeMs = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
 
-  const [acoes, emailsAdmin] = await Promise.all([buscarAcoesAbertas(container), buscarEmailsAdmin()]);
-  context.log(`Lembretes Plano de Acao: ${acoes.length} acao(oes) em aberto, ${emailsAdmin.length} administrador(es) ativo(s).`);
+  const [acoes, admins] = await Promise.all([buscarAcoesAbertas(container), buscarAdmins()]);
+  context.log(`Lembretes Plano de Acao: ${acoes.length} acao(oes) em aberto, ${admins.length} administrador(es) ativo(s).`);
 
-  const resumo = { data: new Date(hojeMs).toISOString().slice(0, 10), acoesEmAberto: acoes.length, administradores: emailsAdmin.length, acoesNotificadas: 0, falhas: 0 };
+  const resumo = { data: new Date(hojeMs).toISOString().slice(0, 10), acoesEmAberto: acoes.length, administradores: admins.length, acoesNotificadas: 0, falhas: 0 };
   for (const acao of acoes) {
     try {
-      if (await processarAcao(container, acao, hojeMs, emailsAdmin, context)) resumo.acoesNotificadas += 1;
+      if (await processarAcao(container, acao, hojeMs, admins, context)) resumo.acoesNotificadas += 1;
     } catch (erro) {
       resumo.falhas += 1;
       context.error(`Falha ao processar lembretes do Plano de Acao ${acao.id}`, erro);
@@ -271,7 +285,7 @@ async function executarLembretes(context) {
     resumo.evidenciasPendentes = pendentes.length;
     for (const acao of pendentes) {
       try {
-        if (await processarEvidencia(container, acao, hojeMs, emailsAdmin, context)) resumo.evidenciasNotificadas += 1;
+        if (await processarEvidencia(container, acao, hojeMs, admins, context)) resumo.evidenciasNotificadas += 1;
       } catch (erro) {
         resumo.falhas += 1;
         context.error(`Falha ao processar evidencia pendente ${acao.id}`, erro);
@@ -282,7 +296,7 @@ async function executarLembretes(context) {
   }
   // V 1.35: certificados de calibracao - aviso aos Administradores 30 dias antes de vencer (e no vencimento).
   try {
-    Object.assign(resumo, await executarCertificados(hojeMs, emailsAdmin, context));
+    Object.assign(resumo, await executarCertificados(hojeMs, admins, context));
   } catch (erro) {
     context.error("Falha ao verificar certificados de calibracao", erro);
   }
@@ -292,7 +306,10 @@ async function executarLembretes(context) {
 // V 1.35: certificados de calibracao (colecao global). Cada certificado guarda em "_notifVenc" a validade
 // avisada e os estagios enviados ("antes30", "vencido"); trocando a validade (certificado renovado), os avisos
 // recomecam. Rodar 2x no dia nao duplica e-mail.
-async function executarCertificados(hojeMs, emailsAdmin, context, opcoes = {}) {
+async function executarCertificados(hojeMs, admins, context, opcoes = {}) {
+  // Certificado de calibração é global (não tem empresa-cliente), então avisa TODOS os ADMs
+  // ativos, independentemente da carteira de cobrança. Aceita lista de objetos {email} ou de strings.
+  const emailsAdmin = (admins || []).map((a) => (a && a.email) ? a.email : a).filter(Boolean);
   const container = obterContainer("certificadoCalibracao");
   const { resources } = await container.items.query("SELECT * FROM c").fetchAll();
   const out = { certificados: resources.length, certificadosAvisados: 0 };
@@ -434,7 +451,7 @@ const EMAIL_VALIDO = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 async function executarSimulacao(dias, context) {
   const container = obterContainer("planoAcao");
-  const [acoesReais, emailsAdmin] = await Promise.all([buscarAcoesAbertas(container), buscarEmailsAdmin()]);
+  const [acoesReais, admins] = await Promise.all([buscarAcoesAbertas(container), buscarAdmins()]);
   const acoes = acoesReais.map((a) => JSON.parse(JSON.stringify(a)));
   const hoje = new Date();
   const inicioMs = Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate());
@@ -462,7 +479,7 @@ async function executarSimulacao(dias, context) {
           copiaAdmins: ehEstagioDeAtraso ? adms : [],
         });
       };
-      await processarAcao(null, acao, diaMs, emailsAdmin, context, { enviar: registrar, gravar: false });
+      await processarAcao(null, acao, diaMs, admins, context, { enviar: registrar, gravar: false });
     }
   }
 
@@ -474,7 +491,7 @@ async function executarSimulacao(dias, context) {
     modo: "simulacao",
     periodo: { de: new Date(inicioMs).toISOString().slice(0, 10), ate: new Date(inicioMs + dias * UM_DIA_MS).toISOString().slice(0, 10), dias },
     acoesEmAberto: acoesReais.length,
-    administradores: emailsAdmin,
+    administradores: admins.map((a) => a.email),
     totalNotificacoes: eventos.length,
     totalEmails,
     porEstagio,

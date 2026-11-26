@@ -2,6 +2,26 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.50 — 26/11/2026
+
+Lote de 6 solicitações (Alexandre):
+
+**1. Restritos — gráfico "Restrições por região":** o diagrama agora conta **todos** os restritos por segmento, não só Lombar/Cervical. Antes exigia o nome exato com lado ("Ombro Direito"); um restrito cadastrado como "Ombro" (sem lado) não era contado e o gráfico ficava zerado. Agora colapsa a lateralidade (como o diagrama de absenteísmo) e joga segmentos que não existem no corpo (ex.: "Coluna", "Membros Superiores") em **"Não identificado"**, para nunca sumirem. A empresa demonstrativa passou a usar regiões válidas. *(`js/calc.js`, `js/app.js`.)*
+
+**2. Nova aba Benchmark:** compara os indicadores da empresa com a **base inteira** (todas as empresas e unidades), de forma **anônima** — nunca mostra nome nem número de outro cliente, só a posição numa régua ("melhor que X% dos clientes"), com N mínimo. Régua geral no topo + **mini-réguas por indicador** (cobertura, cobertura psicossocial, riscos altos, ações concluídas, ações em atraso, absenteísmo, restritos) + comparativo entre as **unidades do próprio cliente**. A **equipe** (Administrador/Consultor) vê também um **ranking identificado** (no escopo do papel) e pode alternar para a **visão do cliente** (anônima). *(`api/src/shared/benchmark.js`, `api/src/functions/benchmark.js`, `api/src/functions/entidades.js`, `js/benchmark.js`, `index.html`, `css/style.css`.)*
+
+**3. Laudo agora fica salvo no histórico:** o laudo da AEP passa a ser **registrado no histórico de qualquer forma**, mesmo que o upload de um arquivo (PDF/Word) falhe — antes, qualquer falha no anexo cancelava o registro inteiro e o laudo sumia. Mesma robustez que o laudo da AET já tinha. *(`js/app.js`.)*
+
+**4. Níveis de acesso do usuário cliente (automáticos pelo vínculo):** só a **empresa** marcada → vê tudo dela (nível 0); **unidade(s)** → só elas (nível 1); **setor(es)** → só esses setores da unidade (nível 2). Novo campo "Setores vinculados" no cadastro de usuário. *(`api/src/shared/tenant.js`, `api/src/functions/auth.js`, `api/src/functions/usuarios.js`, `js/app.js`.)*
+
+**5. Carteira de cobrança do Administrador:** novo campo "Clientes sob gestão". O ADM continua **vendo tudo**, mas só recebe **notificações e e-mails de cobrança** dos clientes da carteira dele (em branco = recebe de todos). *(`api/src/functions/lembretesPlanoAcao.js`, `api/src/functions/me.js`, `api/src/shared/tenant.js`, `api/src/functions/auth.js`, `api/src/functions/usuarios.js`, `js/app.js`.)*
+
+**6. Gráfico Avaliações (AEP/AET):** **filtro multi-mês** (seleção de um ou mais meses) e, ao clicar na bolinha, o **ergonomista que criou** a análise. A AEP já gravava o autor (auditoria do servidor) mas não aparecia no drill-down (coluna virtual não era aplicada); a AET ganhou as colunas de autor. Análises antigas mostram "-"; as novas gravam o autor. *(`js/app.js`, `css/style.css`.)*
+
+**7. Corretor ortográfico (pt-BR) no sistema:** ligado o corretor **nativo do navegador** em português nos campos de **texto livre** (descrições, observações, texto do laudo, ações recomendadas, diagnósticos, etc.) — grifa o erro e sugere a correção ao clicar com o botão direito. Fica **desligado** nos campos técnicos (CNPJ, CEP, telefone, e-mail, códigos, datas e números), onde só atrapalharia. Vale em qualquer tela, inclusive nas caixas de texto criadas dinamicamente (AET, editor de laudo). *(`js/app.js`.)*
+
+Service worker subiu para `sige-v165`.
+
 ## V 2.49 — 24/11/2026
 
 Aviso de atualização com "Minimizar" (Alexandre):

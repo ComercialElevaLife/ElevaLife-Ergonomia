@@ -35,6 +35,9 @@ async function tratar(request, context) {
       email: identidade.email,
       papel: identidade.papel,
       empresasVinculadas: identidade.empresasVinculadas,
+      // V 2.50 (Alexandre - solicitação 5): carteira de cobrança do ADM (ids de cliente). O ADM
+      // vê tudo, mas o front usa isto para mostrar as notificações de cobrança só da carteira dele.
+      clientesGestao: identidade.clientesGestao || [],
       acessoLiberado: Boolean(identidade.papel),
     },
   };

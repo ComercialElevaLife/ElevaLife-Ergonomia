@@ -61,6 +61,7 @@ async function tratar(request, context) {
         // tela de Usuarios (e-mail, papel, empresas, status da conta).
         const semSegredos = resources.map((u) => ({
           id: u.id, Nome: u.Nome || "", Email: u.Email, Papel: u.Papel, EmpresasVinculadas: u.EmpresasVinculadas, UnidadesVinculadas: u.UnidadesVinculadas,
+          SetoresVinculados: u.SetoresVinculados || [], ClientesGestao: u.ClientesGestao || [],
           StatusConta: u.StatusConta || (u.SenhaHash ? "Ativo" : "Convidado"),
         }));
         return { jsonBody: semSegredos };
@@ -71,7 +72,7 @@ async function tratar(request, context) {
         const resultado = await criarOuConvidarUsuario(request, container, corpo, identidade);
         if (resultado.erro) return resultado.erro;
         const { doc, link, avisoEmail } = resultado;
-        return { status: 201, jsonBody: { id: doc.id, Nome: doc.Nome || "", Email: doc.Email, Papel: doc.Papel, EmpresasVinculadas: doc.EmpresasVinculadas, UnidadesVinculadas: doc.UnidadesVinculadas, StatusConta: doc.StatusConta, linkConvite: link, avisoEmail } };
+        return { status: 201, jsonBody: { id: doc.id, Nome: doc.Nome || "", Email: doc.Email, Papel: doc.Papel, EmpresasVinculadas: doc.EmpresasVinculadas, UnidadesVinculadas: doc.UnidadesVinculadas, SetoresVinculados: doc.SetoresVinculados || [], ClientesGestao: doc.ClientesGestao || [], StatusConta: doc.StatusConta, linkConvite: link, avisoEmail } };
       }
 
       case "PUT": {
@@ -98,11 +99,14 @@ async function tratar(request, context) {
           Papel: corpo.Papel || existente.Papel,
           EmpresasVinculadas: Array.isArray(corpo.EmpresasVinculadas) ? corpo.EmpresasVinculadas : existente.EmpresasVinculadas,
           UnidadesVinculadas: Array.isArray(corpo.UnidadesVinculadas) ? corpo.UnidadesVinculadas : existente.UnidadesVinculadas,
+          // V 2.50 (Alexandre): nível 2 (setores) e carteira de cobrança do ADM (clientes sob gestão).
+          SetoresVinculados: Array.isArray(corpo.SetoresVinculados) ? corpo.SetoresVinculados : (existente.SetoresVinculados || []),
+          ClientesGestao: Array.isArray(corpo.ClientesGestao) ? corpo.ClientesGestao : (existente.ClientesGestao || []),
           StatusConta: statusNovo,
           id,
         });
         const { resource } = await container.item(id, id).replace(doc);
-        return { jsonBody: { id: resource.id, Nome: resource.Nome || "", Email: resource.Email, Papel: resource.Papel, EmpresasVinculadas: resource.EmpresasVinculadas, UnidadesVinculadas: resource.UnidadesVinculadas, StatusConta: resource.StatusConta } };
+        return { jsonBody: { id: resource.id, Nome: resource.Nome || "", Email: resource.Email, Papel: resource.Papel, EmpresasVinculadas: resource.EmpresasVinculadas, UnidadesVinculadas: resource.UnidadesVinculadas, SetoresVinculados: resource.SetoresVinculados || [], ClientesGestao: resource.ClientesGestao || [], StatusConta: resource.StatusConta } };
       }
 
       case "DELETE": {

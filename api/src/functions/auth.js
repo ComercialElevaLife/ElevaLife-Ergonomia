@@ -118,7 +118,7 @@ async function enviarConvite(request, container, doc, { reenvio }) {
 // SEMPRE dispara um convite por e-mail agora, nao existe mais "criar sem
 // convidar" (pedido do Leo: toda pessoa nova tem que receber o convite).
 // Faz upsert pelo e-mail (nunca cria um segundo documento pro mesmo e-mail).
-async function criarOuConvidarUsuario(request, container, { Email, Nome, Papel, EmpresasVinculadas, UnidadesVinculadas, id }, identidade) {
+async function criarOuConvidarUsuario(request, container, { Email, Nome, Papel, EmpresasVinculadas, UnidadesVinculadas, SetoresVinculados, ClientesGestao, id }, identidade) {
   const crypto = require("crypto");
   const email = normalizarEmail(Email);
   if (!email) return { erro: { status: 400, jsonBody: { erro: "E-mail é obrigatório." } } };
@@ -129,6 +129,10 @@ async function criarOuConvidarUsuario(request, container, { Email, Nome, Papel, 
   // V 1.89 (Alexandre): vínculo por UNIDADE também é persistido (antes era ignorado no
   // convite/criação). Cada item vem como "<EmpresaId>::<Unidade>" (ver camposUsuario no app.js).
   const unidades = Array.isArray(UnidadesVinculadas) ? UnidadesVinculadas.filter((e) => typeof e === "string" && e) : [];
+  // V 2.50 (Alexandre): nível 2 - vínculo por SETOR ("<EmpresaId>::<Unidade>::<Setor>").
+  const setores = Array.isArray(SetoresVinculados) ? SetoresVinculados.filter((e) => typeof e === "string" && e) : [];
+  // V 2.50 (Alexandre): carteira de cobrança do ADM (ids de cliente).
+  const clientesGestao = Array.isArray(ClientesGestao) ? ClientesGestao.filter((e) => typeof e === "string" && e) : [];
 
   // V 1.7 (revisao de seguranca): so o Administrador define papeis altos e
   // vincula empresas livremente. Um Consultor so convida UsuarioCliente e
@@ -163,6 +167,8 @@ async function criarOuConvidarUsuario(request, container, { Email, Nome, Papel, 
   doc.Papel = Papel;
   doc.EmpresasVinculadas = empresas;
   doc.UnidadesVinculadas = unidades;
+  doc.SetoresVinculados = setores;
+  doc.ClientesGestao = clientesGestao;
 
   const { link, avisoEmail } = await enviarConvite(request, container, doc, { reenvio: Boolean(existente) });
   return { doc, link, avisoEmail };

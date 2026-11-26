@@ -22,6 +22,7 @@ const { app } = require("@azure/functions");
 const { obterContainer, garantirContainer } = require("../shared/cosmos");
 const { resolverIdentidade, empresasVisiveis, podeVerEmpresa, podeVerDocumento, empresaIdDoDocumento, restritoPorUnidade, podeVerUnidadeDoc } = require("../shared/tenant");
 const rotaMe = require("./me");
+const rotaBenchmark = require("./benchmark");
 const rotaUsuarios = require("./usuarios");
 const rotaArquivos = require("./arquivos");
 const rotaApiKeysAdmin = require("./apiKeysAdmin");
@@ -162,6 +163,8 @@ const ROTAS_ESPECIAIS = {
   manutencao: tratarManutencao,
   // V 1.74: POST /api/mover-unidade - move uma unidade (e seus dados) para outra empresa (so Administrador).
   "mover-unidade": tratarMoverUnidade,
+  // V 2.50 (Alexandre - solicitação 2): GET /api/benchmark - comparação anônima entre clientes.
+  benchmark: rotaBenchmark.tratar,
 };
 
 // V 1.37: colecoes com dados por empresa (tudo o que sai junto quando a empresa-cliente e excluida).
