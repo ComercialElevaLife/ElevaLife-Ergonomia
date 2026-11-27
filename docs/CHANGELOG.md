@@ -2,6 +2,19 @@
 
 A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodapé do sistema e em Ajuda › Versão (constante `BI.VERSAO` em `js/indicadores.js`).
 
+## V 2.51 — 27/11/2026
+
+**Importação de AET por planilha (Inventário de Riscos) — Ultragaz.** Novo caminho para subir várias AETs de laudo externo de uma vez, por planilha, **centralizado em AET** (sem passar pela AEP):
+
+- **Ponto de entrada na aba AET:** em **AET › Importar AET** há agora, além do leitor de PDF/Word, o botão **"🧩 Importar Inventário de Riscos (planilha)"**. *(`js/app.js`.)*
+- **Fluxo 100% AET quando a planilha tem `Origem = AET`:** a importação cria os **fatores de risco** (Origem AET → aparecem em Gestão de Riscos e na dashboard), as **ações no Plano de Ação** (coluna "Ação de Eliminação" → Engenharia; "Controles Administrativos" → Organizacional; numeração sequencial por cliente; sem duplicar) e **uma avaliação de AET por posto** (aparece na aba AET e no gráfico de Avaliações). **Não cria AEP** nesse caso. *(`js/importador.js`, `js/app.js`.)*
+- **A importação de AEP do sistema antigo continua igual.** O passo "não criar AEP" é acionado **apenas** quando todas as linhas da planilha são `Origem = AET`; planilha de inventário AEP (ou sem Origem) segue criando a **avaliação AEP** derivada como antes, e o import de laudo AEP em PDF (aba AEP › Importar Excel) está inalterado. *(`js/importador.js`.)*
+- **Severidade/Probabilidade opcionais:** as colunas **Criticidade** e **Probabilidade** passam a ser **opcionais** — em branco, o fator entra **sem graduação**, para a ergonomista classificar (o sistema gera a notificação). Útil para as AETs narrativas, em que o laudo externo não traz a matriz. *(`js/app.js`.)*
+
+Campos que a planilha não traz (Data da Análise, Ergonomista) ficam para a ergonomista completar; a Data da Análise usa a Dt Identificação da planilha ou, na falta, a data de importação (para a avaliação já entrar no gráfico). Os PDFs de cada unidade são anexados como laudo da AET à parte.
+
+Service worker subiu para `sige-v166`.
+
 ## V 2.50 — 26/11/2026
 
 Lote de 6 solicitações (Alexandre):

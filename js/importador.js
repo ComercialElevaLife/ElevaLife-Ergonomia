@@ -926,6 +926,8 @@
       if (!a || !(def.derivados || []).length || !ctx.existentesDe) return [];
       const ativos = a.itens.filter((i) => (i.acao === "novo" || i.acao === "atualiza"));
       return def.derivados.map((d) => {
+        // V 2.51: derivado pode ter predicado "quando" (ex.: nao criar a AEP quando o inventario e de AET).
+        if (d.quando && !d.quando(ativos)) return null;
         const existentes = new Set((ctx.existentesDe(d.colecao) || []).map((x) => d.chave.map((k) => norm(x[k] || "")).join("¦")));
         const mapa = new Map();
         ativos.forEach((i) => {
@@ -938,7 +940,7 @@
         const jaExistem = new Set();
         ativos.forEach((i) => { const chave = d.chave.map((k) => norm(i.valores[k] || "")).join("¦"); if (existentes.has(chave)) jaExistem.add(chave); });
         return { spec: d, itens: Array.from(mapa.values()), jaExistem: jaExistem.size, ativo: estado.derivados[d.colecao] !== false };
-      });
+      }).filter(Boolean);
     }
 
     const overlay = el("div", "imp-overlay");
@@ -1540,6 +1542,17 @@
       const falhouIdx = new Set(resultado.falhas.map((f) => f.indice));
       let criados = 0, atualizados = 0;
       lote.forEach((l, idx) => { if (falhouIdx.has(idx)) return; if (l.criar) criados++; else atualizados++; });
+      // V 2.50 (Alexandre): gancho pós-gravação. O Inventário de Riscos usa isto para criar as AÇÕES
+      // no Plano de Ação a partir de "Acao Eliminacao"/"Controles Administrativos" de cada fator importado.
+      if (def.aposGravar) {
+        const salvos = lote.filter((_, idx) => !falhouIdx.has(idx)).map((l) => ({ id: l.id, dados: l.dados, criado: l.criar }));
+        // V 2.51: aposGravar pode devolver um número (ex.: nº de ações) ou uma lista [{rotulo, qtd}].
+        try {
+          const r = await def.aposGravar(salvos, ctx);
+          const arr = Array.isArray(r) ? r : (r ? [{ rotulo: "ações no Plano de Ação", qtd: r }] : []);
+          arr.forEach((x) => { if (x && x.qtd) derivadosCriados.push(x); });
+        } catch (e) { console.error("aposGravar da importação", e); }
+      }
       telaFinal({ criados, atualizados, cadastros: cadastrosCriados, derivados: derivadosCriados, falhas: falhasCadastro.concat(falhas), naoGravados: bloqueadas });
     }
 

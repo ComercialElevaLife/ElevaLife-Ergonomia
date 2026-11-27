@@ -4453,6 +4453,74 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
   }
   window.BI.carimbarRevisaoAcoes = carimbarRevisaoAcoes;
 
+  // V 2.50 (Alexandre): cria as AÇÕES no Plano de Ação a partir dos fatores recém-importados pelo
+  // Inventário de Riscos (gancho def.aposGravar do importador). "Acao Eliminacao" vira ação de
+  // ENGENHARIA e "Controles Administrativos" vira ação ORGANIZACIONAL — mesma regra do import de laudo
+  // AEP. Não duplica (pula fator que já tem ação) e não cria ação de fator sem texto de ação.
+  async function gerarAcoesDoInventario(salvos) {
+    const VAZIO = /^(-+|n[aã]o( h[aá])?\.?|nenhum[ao]?\.?|n\/a|sim|n[aã]o)$/i;
+    let n = 0;
+    for (const s of (salvos || [])) {
+      const f = (s && s.dados) || {}; const fatorId = s && s.id;
+      if (!fatorId) continue;
+      if ((window.BI.dados.planoAcao || []).some((a) => a["Fator Risco Id"] === fatorId)) continue;
+      const textos = [["Engenharia", f["Acao Eliminacao"]], ["Organizacional", f["Controles Administrativos"]]]
+        .filter(([, t]) => t && !VAZIO.test(String(t).trim()));
+      if (!textos.length) continue;
+      const base = { Cliente: f.Cliente, Unidade: f.Unidade || "", Setor: f.Setor || "", "Posto Trabalho": f["Posto Trabalho"] || "", Cargo: f.Cargo || "" };
+      const origem = String(f.Origem || "").toUpperCase() === "AET" ? "AET" : "AEP";
+      for (const [tipo, txt] of textos) {
+        const nrs = (window.BI.dados.planoAcao || []).filter((a) => a.Cliente === f.Cliente).map((a) => Number(a["Nr Acao"]) || 0);
+        try {
+          await window.BI.DB.salvar("planoAcao", null, Object.assign({}, base, {
+            Origem: origem, "Nr Acao": (nrs.length ? Math.max.apply(null, nrs) : 0) + 1,
+            "Fator Risco Id": fatorId, "Fator Risco Nome": f.Fator || "", "Status Execucao": "Nao iniciada",
+            "Tipo Acao": tipo, "Acao Recomendada": String(txt).trim(),
+            "Categoria Acao": window.BI.Acoes && window.BI.Acoes.categoriaDoTipo ? window.BI.Acoes.categoriaDoTipo(tipo) : null,
+            "Gestao Acao": "ElevaLife", "Segmento Corporal": f["Segmento Corporal"] || null,
+            "Risco Atual Segmento": f["Graduacao Risco"] || null, "Reduz Risco": "Nao", "Importado Laudo Anterior": true,
+          }, true));
+          n++;
+        } catch (e) { console.error("criar ação do inventário", e); }
+      }
+    }
+    return n;
+  }
+
+  // V 2.51 (Alexandre): quando o inventário importado é de AET (coluna Origem = AET), cria UMA
+  // avaliação de AET por posto (Cliente+Unidade+Setor+Posto+Cargo) — assim a análise aparece na
+  // aba AET, no gráfico de avaliações e na dashboard, sem passar pela AEP. Campos que a planilha
+  // não traz (Data da Análise, Ergonomista) ficam para a ergonomista completar; a Data da Análise
+  // usa a Dt Identificação da planilha ou, na falta, a data de importação (para já entrar no gráfico).
+  async function gerarAETsDoInventario(salvos) {
+    const chaves = ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"];
+    const nk = (o) => chaves.map((k) => String((o && o[k]) || "").trim().toLowerCase()).join("¦");
+    const hoje = new Date().toISOString().slice(0, 10);
+    const vistos = new Set();
+    let n = 0;
+    for (const s of (salvos || [])) {
+      const f = (s && s.dados) || {};
+      if (String(f.Origem || "").toUpperCase() !== "AET") continue;
+      const chave = nk(f);
+      if (vistos.has(chave)) continue;
+      vistos.add(chave);
+      if ((window.BI.dados.aet || []).some((a) => nk(a) === chave)) continue;
+      try {
+        await window.BI.DB.salvar("aet", null, {
+          Cliente: f.Cliente, Unidade: f.Unidade || "", Setor: f.Setor || "",
+          "Posto Trabalho": f["Posto Trabalho"] || "", Cargo: f.Cargo || "",
+          Atividade: f.Atividade || f["Circunstancia Geradora"] || "",
+          "Data Analise": f["Dt Identificacao"] || f["Data Analise"] || hoje,
+          "Ergonomista Responsavel": f["Ergonomista Responsavel"] || f.Ergonomista || "",
+          "Metodologia AET": f["Metodologia AET"] || "AET (laudo externo)",
+          Observacoes: f.Consequencia ? ("Segmento de maior sobrecarga: " + (f["Segmento Corporal"] || "-") + ". Queixa: " + f.Consequencia) : "",
+        }, true);
+        n++;
+      } catch (e) { console.error("criar AET do inventário", e); }
+    }
+    return n;
+  }
+
   async function registrarAtualizacaoAEP(linhaAval, resumo) {
     if (!linhaAval || !linhaAval._id || !window.BI.DB.estado.disponivel) return;
     const atual = (window.BI.dados.avaliacaoErgonomica || []).find((a) => a._id === linhaAval._id) || linhaAval;
@@ -5428,7 +5496,11 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
         },
         // V 1.11: Data da identificacao NAO e obrigatoria na importacao (o sistema anterior
         // nao traz). V 1.28: a AEP nao usa mais Atividade.
-        opcionais: ["Dt Identificacao"],
+        // V 2.50 (Alexandre): Severidade (Criticidade) e Probabilidade tambem sao opcionais na
+        // importacao. Assim da para importar fatores de AETs narrativas SEM graduacao (a ergonomista
+        // classifica depois — o sistema ja notifica "fator sem graduacao/criticidade"). Quando a
+        // planilha trouxer os dois, a graduacao e calculada normalmente pela matriz do cliente.
+        opcionais: ["Dt Identificacao", "Criticidade", "Probabilidade"],
         padroes: [
           { campo: "Dt Identificacao", rotulo: "Data de identificação para as linhas sem data (opcional – em branco, não preenche)", sugestao: "" },
         ],
@@ -5455,12 +5527,24 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
           matrizDiverge: { chip: "matriz do cliente ≠ legado", rotulo: "Matriz do cliente difere da do legado" },
         },
         validarLinha: validarLinhaInventarioLegado,
-        // V 1.13: importacao unica - alem dos fatores e dos cadastros, cria a AEP (V 1.28: uma por posto+cargo) a que eles pertencem
+        // V 2.50 (Alexandre): após gravar os fatores, cria as AÇÕES no Plano de Ação a partir de
+        // "Acao Eliminacao" (Engenharia) e "Controles Administrativos" (Organizacional). Assim as ações
+        // das AETs importadas por planilha aparecem no Plano de Ação (antes o import só criava os fatores).
+        // V 2.51 (Alexandre): após gravar, cria as AÇÕES (sempre) e, quando o inventário é de AET
+        // (coluna Origem = AET), também UMA avaliação de AET por posto — centralizando tudo em AET.
+        aposGravar: async (salvos) => {
+          const nAc = await gerarAcoesDoInventario(salvos);
+          const nAet = await gerarAETsDoInventario(salvos);
+          return [{ rotulo: "ações no Plano de Ação", qtd: nAc }, { rotulo: "avaliações de AET", qtd: nAet }];
+        },
+        // V 1.13: importacao unica - alem dos fatores e dos cadastros, cria a AEP (V 1.28: uma por posto+cargo) a que eles pertencem.
+        // V 2.51: NAO cria a AEP quando o inventario e de AET (nesse caso a avaliacao derivada e uma AET - ver gerarAETsDoInventario).
         derivados: [{
           colecao: "avaliacaoErgonomica",
           rotulo: "avaliações de AEP",
           descricao: "O inventário pertence a uma avaliação (AEP) de cada posto e cargo. O SIGE cria a avaliação com os dados que a planilha tem (jornada, pausas e rodízio ficam para preencher depois) e reaproveita as que já existem.",
           chave: ["Cliente", "Unidade", "Setor", "Posto Trabalho", "Cargo"],
+          quando: (ativos) => !(ativos && ativos.length) || !ativos.every((i) => String((i.valores || {}).Origem || "").toUpperCase() === "AET"),
         }],
         descricao: "Importe o Inventário de Riscos exportado do sistema anterior (uma linha por fator de risco). Cliente, Unidade, Setor, Posto e Cargo que ainda não existirem podem ser criados automaticamente. A Graduação do Risco é mantida como veio do sistema anterior (as linhas em que ela difere da matriz do SIGE ficam marcadas). Linhas repetidas e nomes parecidos são apresentados para revisão. Antes de gravar nada, você confere tudo na prévia.",
       },
@@ -6346,7 +6430,22 @@ const GRAUS_RISCO_NR4 = ["1", "2", "3", "4"];
     aepImportar: { grupo: "aep", icone: "⬆", tituloMenu: "Importar Excel", visivel: souEquipe, montar: montarImportarAEP },
     aetLista: { grupo: "aet", icone: "📊", tituloMenu: "AETs", montar: (el) => { el.id = "aet-modulo"; el.classList.add("grade"); }, aoAbrir: () => { if (window.BI.AET) window.BI.AET.renderPainel(); } },
     aetLaudos: { grupo: "aet", icone: "📄", tituloMenu: "Laudos", montar: (el) => { el.id = "aet-laudos"; }, aoAbrir: () => { if (window.BI.LaudoAET) window.BI.LaudoAET.renderAba(document.getElementById("aet-laudos")); } },
-    aetImportar: { grupo: "aet", icone: "⬆", tituloMenu: "Importar AET", visivel: souEquipe, montar: (el) => { el.id = "aet-importar"; }, aoAbrir: () => { if (window.BI.AETImport) window.BI.AETImport.renderAba(document.getElementById("aet-importar")); } },
+    aetImportar: { grupo: "aet", icone: "⬆", tituloMenu: "Importar AET", visivel: souEquipe, montar: (el) => { el.id = "aet-importar"; }, aoAbrir: () => {
+      const cont = document.getElementById("aet-importar");
+      if (window.BI.AETImport) window.BI.AETImport.renderAba(cont);
+      // V 2.51 (Alexandre): importar AET por PLANILHA (Inventário de Riscos). Fluxo 100% AET — cria os
+      // fatores (Origem AET), as ações no Plano de Ação e UMA avaliação de AET por posto (sem AEP).
+      // Útil para subir em lote AETs de laudo externo (ex.: Ultragaz) convertidas em planilha.
+      if (cont && !cont.querySelector(".aet-import-planilha")) {
+        const card = document.createElement("div"); card.className = "cartao aet-import-planilha"; card.style.marginTop = "16px";
+        const t = document.createElement("div"); t.className = "cartao-titulo"; t.textContent = "Importar AET por planilha (Inventário de Riscos)";
+        const p = document.createElement("p"); p.className = "aet-ajuda";
+        p.textContent = "Sobe várias AETs de uma vez a partir de uma planilha de Inventário de Riscos (coluna Origem = AET). Cria os fatores de risco, as ações no Plano de Ação e uma avaliação de AET por posto. Severidade/Probabilidade em branco ficam para a ergonomista classificar (gera notificação).";
+        const b = document.createElement("button"); b.type = "button"; b.className = "btn-cad-primario"; b.textContent = "🧩 Importar Inventário de Riscos (planilha)";
+        b.addEventListener("click", () => abrirImportacao("fatorRisco"));
+        card.appendChild(t); card.appendChild(p); card.appendChild(b); cont.appendChild(card);
+      }
+    } },
     aetEditor: { grupo: "aet", icone: "📝", tituloMenu: "Editor de texto", visivel: souEquipe, montar: (el) => { el.id = "aet-editor-texto"; }, aoAbrir: () => { if (window.BI.LaudoAET) window.BI.LaudoAET.renderEditorTexto(document.getElementById("aet-editor-texto")); } },
     usuarios: { grupo: "interno", icone: "👥", tituloMenu: "Usuários", visivel: () => { const i = window.BI.DB && window.BI.DB.estado.identidade; return !!(i && (i.papel === "Administrador" || i.papel === "Consultor")); },
       montar: (el) => { const card = document.querySelector("#aba-usuarios > .bloco-cadastro"); if (card) el.appendChild(card); }, aoAbrir: () => { try { configurarUsuarios(); } catch (_) { /* sem sessao */ } } },
