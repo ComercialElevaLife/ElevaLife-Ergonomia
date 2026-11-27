@@ -121,7 +121,7 @@
       tb.appendChild(tr);
     });
     tab.appendChild(tb); scroll.appendChild(tab); secR.appendChild(scroll);
-    secR.appendChild(el("p", "bench-rank-nota", "Clique numa empresa para ver a régua dela. Este ranking respeita o seu acesso (o cliente não o vê)."));
+    secR.appendChild(el("p", "bench-rank-nota", "Clique numa empresa para ver a régua dela. O ranking mostra todas as empresas da base (o cliente vê apenas a versão anônima, sem nomes)."));
     return secR;
   }
 

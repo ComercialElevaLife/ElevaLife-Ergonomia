@@ -37,9 +37,8 @@ const INDICADORES = [
   { chave: "acoesAtraso", rotulo: "Ações em atraso", unidade: "%", melhorEhMenor: true, grupo: "Plano de ação" },
   { chave: "acoesNaoIniciadas", rotulo: "Ações não iniciadas", unidade: "%", melhorEhMenor: true, grupo: "Plano de ação" },
 
-  { chave: "absDiasColab", rotulo: "Dias perdidos por colaborador", unidade: "dias", melhorEhMenor: true, grupo: "Absenteísmo" },
+  { chave: "taxaFrequencia", rotulo: "Taxa de frequência", unidade: "num", melhorEhMenor: true, grupo: "Absenteísmo" },
   { chave: "absDiasTotal", rotulo: "Dias perdidos (total)", unidade: "num", melhorEhMenor: true, grupo: "Absenteísmo", noScore: true, bruto: true },
-  { chave: "atestadosColab", rotulo: "Atestados por colaborador", unidade: "num2", melhorEhMenor: true, grupo: "Absenteísmo" },
   { chave: "atestadosTotal", rotulo: "Atestados (total)", unidade: "num", melhorEhMenor: true, grupo: "Absenteísmo", noScore: true, bruto: true },
 
   { chave: "restritosPor100", rotulo: "Restritos por 100 colaboradores", unidade: "/100", melhorEhMenor: true, grupo: "Restritos" },
@@ -117,10 +116,12 @@ function metricasDoRecorte(d, hojeMs) {
   const nColab = (d.colaborador || []).length || null;
   const diasPerdidos = (d.absenteismo || []).reduce((s, a) => s + (Number(a["Qtd Dias"]) || 0), 0);
   const nAtestados = (d.absenteismo || []).length;
-  const absDiasColab = nColab ? diasPerdidos / nColab : null;
   const absDiasTotal = diasPerdidos;
-  const atestadosColab = nColab ? nAtestados / nColab : null;
   const atestadosTotal = nAtestados;
+  // Taxa de frequência = (nº de atestados / HHT) × 1.000.000, com HHT = Σ (Qtd Colaboradores ×
+  // Qtd Dias Úteis × 8h) das linhas de Dias Úteis (mesma metodologia do Med Ocup — NBR 14280).
+  const hht = (d.diasUteis || []).reduce((s, l) => s + (Number(l["Qtd Colaboradores"]) || 0) * (Number(l["Qtd Dias Uteis"]) || 0) * 8, 0);
+  const taxaFrequencia = hht ? (nAtestados / hht) * 1000000 : null;
 
   // 6) Restritos: por 100 colaboradores e quantidade bruta.
   const restritosBruto = (d.compativeis || []).length;
@@ -130,7 +131,7 @@ function metricasDoRecorte(d, hojeMs) {
     cobertura, coberturaPsico,
     riscoSevero, nivelMuitoAlto, nivelAlto, nivelModerado, nivelBaixo, nivelTrivial,
     acoesConcluidas, acoesAtraso, acoesNaoIniciadas,
-    absDiasColab, absDiasTotal, atestadosColab, atestadosTotal,
+    taxaFrequencia, absDiasTotal, atestadosTotal,
     restritosPor100, restritosBruto,
   };
 }
@@ -170,7 +171,7 @@ function percentilMelhor(v, valores, melhorEhMenor) {
 // opcoes: { empresasVisiveis: null|string[], podeVerUnidade: (empresaId, unidade)=>bool, hojeMs }
 function calcularBenchmark(dados, opcoes = {}) {
   const hojeMs = opcoes.hojeMs || Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
-  const colecoes = ["cargo", "avaliacaoErgonomica", "aet", "fatorRisco", "planoAcao", "absenteismo", "compativeis", "colaborador", "setor"];
+  const colecoes = ["cargo", "avaliacaoErgonomica", "aet", "fatorRisco", "planoAcao", "absenteismo", "compativeis", "colaborador", "setor", "diasUteis"];
   const empresas = dados.cliente || [];
   const nomePorId = {}; empresas.forEach((c) => { nomePorId[c.id || c._id] = c.Cliente || c.id; });
 

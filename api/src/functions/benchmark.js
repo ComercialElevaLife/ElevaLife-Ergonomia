@@ -18,7 +18,7 @@ const { obterContainer } = require("../shared/cosmos");
 const { resolverIdentidade, empresasVisiveis, podeVerUnidadeDoc } = require("../shared/tenant");
 const { calcularBenchmark } = require("../shared/benchmark");
 
-const COLECOES_BENCH = ["cliente", "cargo", "avaliacaoErgonomica", "aet", "fatorRisco", "planoAcao", "absenteismo", "compativeis", "colaborador", "setor"];
+const COLECOES_BENCH = ["cliente", "cargo", "avaliacaoErgonomica", "aet", "fatorRisco", "planoAcao", "absenteismo", "compativeis", "colaborador", "setor", "diasUteis"];
 
 async function carregarTudo(col) {
   const { resources } = await obterContainer(col).items.query("SELECT * FROM c").fetchAll();
@@ -48,9 +48,14 @@ async function tratar(request, context) {
     dados.cliente = (dados.cliente || []).filter((c) => !foraSet.has(c.id || c._id));
     COLECOES_BENCH.filter((col) => col !== "cliente").forEach((col) => { dados[col] = (dados[col] || []).filter((r) => !foraSet.has(r.EmpresaId)); });
 
+    // V 2.50 (Alexandre): o RANKING identificado mostra TODAS as empresas para a EQUIPE
+    // (Administrador e Consultor), independentemente da carteira/acesso de cada um. O
+    // UsuarioCliente continua restrito à própria empresa — e no front ele só vê a versão
+    // ANÔNIMA (régua/base), nunca o ranking com nomes.
+    const ehCliente = identidade.papel === "UsuarioCliente";
     const resultado = calcularBenchmark(dados, {
-      empresasVisiveis: empresasVisiveis(identidade), // null = Administrador (vê todas)
-      podeVerUnidade: (empresaId, unidade) => podeVerUnidadeDoc(identidade, "unidade", { EmpresaId: empresaId, Unidade: unidade }),
+      empresasVisiveis: ehCliente ? empresasVisiveis(identidade) : null, // equipe = todas; cliente = só a própria
+      podeVerUnidade: (empresaId, unidade) => (ehCliente ? podeVerUnidadeDoc(identidade, "unidade", { EmpresaId: empresaId, Unidade: unidade }) : true),
     });
     // Identificação do papel para o front decidir o que mostrar (ranking x só a régua).
     resultado.papel = identidade.papel;
