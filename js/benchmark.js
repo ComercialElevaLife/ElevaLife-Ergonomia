@@ -22,7 +22,7 @@
 (function (global) {
   "use strict";
   const BI = global.BI = global.BI || {};
-  const estado = { dados: null, foco: null, focoUnidade: null, anonimo: false, carregando: false };
+  const estado = { dados: null, foco: null, focoUnidade: null, focoTotal: false, anonimo: false, carregando: false };
 
   function el(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
   function ehEquipe() { const i = BI.DB && BI.DB.estado && BI.DB.estado.identidade; return !!(i && (i.papel === "Administrador" || i.papel === "Consultor")); }
@@ -84,6 +84,47 @@
     return card;
   }
 
+  // Card do cenário TOTAL (sem régua/percentil — ele É a base): valor somado + referência.
+  function cardTotal(ind, totalVals, base) {
+    const v = totalVals[ind.chave];
+    const b = (base.indicadores && base.indicadores[ind.chave]) || {};
+    const card = el("div", "bench-ind");
+    const topo = el("div", "bench-ind-topo");
+    topo.appendChild(el("span", "bench-ind-rot", ind.rotulo + (ind.bruto ? " ⟐" : "")));
+    topo.appendChild(el("span", "bench-ind-val", fmtValor(v, ind.unidade)));
+    card.appendChild(topo);
+    const rod = el("div", "bench-ind-rodape");
+    rod.appendChild(el("span", "bench-ind-base", ind.bruto ? "soma de todas as empresas" : ("média por empresa: " + fmtValor(b.media, ind.unidade) + " · mediana: " + fmtValor(b.mediana, ind.unidade))));
+    card.appendChild(rod);
+    return card;
+  }
+
+  // Ranking identificado (equipe, fora do modo anônimo). focoId destaca a linha (ou null).
+  function secaoRanking(d, focoId) {
+    if (!(ehEquipe() && !estado.anonimo && d.empresas.length > 1)) return null;
+    const secR = el("div", "bench-sec");
+    secR.appendChild(el("h3", "bench-sec-tit", "Ranking (empresas sob seu acesso)"));
+    const scroll = el("div", "tabela-scroll");
+    const tab = el("table", "tabela-dados bench-rank");
+    const colsRank = d.indicadores.filter((i) => !i.noScore);
+    const thead = el("thead"); const trh = el("tr");
+    ["#", "Empresa", "Posição geral"].concat(colsRank.map((i) => i.rotulo)).forEach((c) => trh.appendChild(el("th", null, c)));
+    thead.appendChild(trh); tab.appendChild(thead);
+    const tb = el("tbody");
+    d.empresas.forEach((e, i) => {
+      const tr = el("tr"); if (focoId && e.empresaId === focoId) tr.className = "bench-rank-foco";
+      tr.appendChild(el("td", null, String(i + 1)));
+      tr.appendChild(el("td", "bench-rank-nome", e.nome));
+      tr.appendChild(el("td", null, e.scoreGeral != null ? e.scoreGeral + "%" : "—"));
+      colsRank.forEach((ind) => tr.appendChild(el("td", null, fmtValor(e.valores[ind.chave], ind.unidade))));
+      tr.addEventListener("click", () => { estado.foco = e.empresaId; estado.focoTotal = false; estado.focoUnidade = null; const host = document.getElementById("benchmark-conteudo"); desenhar(host); window.scrollTo({ top: 0, behavior: "smooth" }); });
+      tb.appendChild(tr);
+    });
+    tab.appendChild(tb); scroll.appendChild(tab); secR.appendChild(scroll);
+    secR.appendChild(el("p", "bench-rank-nota", "Clique numa empresa para ver a régua dela. Este ranking respeita o seu acesso (o cliente não o vê)."));
+    return secR;
+  }
+
   // Entidade em foco (empresa inteira ou uma unidade) + a base correspondente.
   function alvoAtual() {
     const d = estado.dados;
@@ -110,15 +151,18 @@
 
     // Barra: empresa (equipe) + detalhe por unidade + alternância visão do cliente.
     const barra = el("div", "bench-barra");
-    if (d.empresas.length > 1) {
+    const temTotal = ehEquipe() && d.total && d.empresas.length > 1;
+    if (d.empresas.length > 1 || temTotal) {
       const lab = el("label", "bench-sel-lab", "Empresa: ");
       const sel = el("select", "bench-sel");
-      d.empresas.forEach((e) => { const o = el("option", null, e.nome); o.value = e.empresaId; if (e.empresaId === estado.foco) o.selected = true; sel.appendChild(o); });
-      sel.addEventListener("change", () => { estado.foco = sel.value; estado.focoUnidade = null; desenhar(host); });
+      // V 2.50 (Alexandre): cenário TOTAL da ElevaLife (todas as empresas somadas) — só para a equipe.
+      if (temTotal) { const o = el("option", null, "★ Total ElevaLife (todas as empresas)"); o.value = "__total"; if (estado.focoTotal) o.selected = true; sel.appendChild(o); }
+      d.empresas.forEach((e) => { const o = el("option", null, e.nome); o.value = e.empresaId; if (!estado.focoTotal && e.empresaId === estado.foco) o.selected = true; sel.appendChild(o); });
+      sel.addEventListener("change", () => { if (sel.value === "__total") { estado.focoTotal = true; } else { estado.focoTotal = false; estado.foco = sel.value; } estado.focoUnidade = null; desenhar(host); });
       lab.appendChild(sel); barra.appendChild(lab);
     }
     const unisDaEmpresa = (d.unidades || []).filter((u) => u.empresaId === foco.empresaId);
-    if (unisDaEmpresa.length) {
+    if (!estado.focoTotal && unisDaEmpresa.length) {
       const labU = el("label", "bench-sel-lab", "Detalhe: ");
       const selU = el("select", "bench-sel");
       const o0 = el("option", null, "Empresa inteira"); o0.value = ""; if (!estado.focoUnidade) o0.selected = true; selU.appendChild(o0);
@@ -133,6 +177,28 @@
       barra.appendChild(btn);
     }
     if (barra.children.length) wrap.appendChild(barra);
+
+    // ---- Cenário TOTAL da ElevaLife (todas as empresas somadas).
+    if (estado.focoTotal && d.total) {
+      const cabT = el("div", "bench-regua-geral");
+      cabT.appendChild(el("div", "bench-geral-tit", "Cenário total ElevaLife"));
+      cabT.appendChild(el("div", "bench-geral-nota", "Agregado de " + d.total.nEmpresas + " empresa(s) e " + d.total.nUnidades + " unidade(s), somando todas as empresas. Não inclui a Empresa Demonstrativa nem empresas excluídas. (“média por empresa” = média da base.)"));
+      wrap.appendChild(cabT);
+      const gruposT = [];
+      d.indicadores.forEach((ind) => { if (gruposT.indexOf(ind.grupo) === -1) gruposT.push(ind.grupo); });
+      gruposT.forEach((g) => {
+        const sec = el("div", "bench-sec");
+        sec.appendChild(el("h3", "bench-sec-tit", g));
+        const grade = el("div", "bench-grade");
+        d.indicadores.filter((ind) => ind.grupo === g).forEach((ind) => grade.appendChild(cardTotal(ind, d.total.valores, d.base)));
+        sec.appendChild(grade);
+        wrap.appendChild(sec);
+      });
+      const rT = secaoRanking(d, null);
+      if (rT) wrap.appendChild(rT);
+      host.appendChild(wrap);
+      return;
+    }
 
     const alvo = alvoAtual();
     const ent = alvo.ent;
@@ -180,29 +246,8 @@
     }
 
     // Ranking identificado (equipe, fora do modo anônimo).
-    if (ehEquipe() && !estado.anonimo && d.empresas.length > 1) {
-      const secR = el("div", "bench-sec");
-      secR.appendChild(el("h3", "bench-sec-tit", "Ranking (empresas sob seu acesso)"));
-      const scroll = el("div", "tabela-scroll");
-      const tab = el("table", "tabela-dados bench-rank");
-      const colsRank = d.indicadores.filter((i) => !i.noScore);
-      const thead = el("thead"); const trh = el("tr");
-      ["#", "Empresa", "Posição geral"].concat(colsRank.map((i) => i.rotulo)).forEach((c) => trh.appendChild(el("th", null, c)));
-      thead.appendChild(trh); tab.appendChild(thead);
-      const tb = el("tbody");
-      d.empresas.forEach((e, i) => {
-        const tr = el("tr"); if (e.empresaId === foco.empresaId) tr.className = "bench-rank-foco";
-        tr.appendChild(el("td", null, String(i + 1)));
-        tr.appendChild(el("td", "bench-rank-nome", e.nome));
-        tr.appendChild(el("td", null, e.scoreGeral != null ? e.scoreGeral + "%" : "—"));
-        colsRank.forEach((ind) => tr.appendChild(el("td", null, fmtValor(e.valores[ind.chave], ind.unidade))));
-        tr.addEventListener("click", () => { estado.foco = e.empresaId; estado.focoUnidade = null; desenhar(host); window.scrollTo({ top: 0, behavior: "smooth" }); });
-        tb.appendChild(tr);
-      });
-      tab.appendChild(tb); scroll.appendChild(tab); secR.appendChild(scroll);
-      secR.appendChild(el("p", "bench-rank-nota", "Clique numa empresa para ver a régua dela. Este ranking respeita o seu acesso (o cliente não o vê)."));
-      wrap.appendChild(secR);
-    }
+    const secR = secaoRanking(d, foco.empresaId);
+    if (secR) wrap.appendChild(secR);
 
     host.appendChild(wrap);
   }

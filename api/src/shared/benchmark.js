@@ -236,6 +236,15 @@ function calcularBenchmark(dados, opcoes = {}) {
   });
   unidadesOut.sort((a, b) => (b.scoreGeral || -1) - (a.scoreGeral || -1));
 
+  // V 2.50 (Alexandre): cenário TOTAL da ElevaLife — os mesmos indicadores calculados sobre
+  // TODAS as empresas somadas (já sem a demo e sem as excluídas, que a rota removeu). É o retrato
+  // agregado da base; não tem percentil (ele É a base).
+  const total = {
+    valores: metricasDoRecorte(dados, hojeMs),
+    nEmpresas: Object.keys(metEmpresa).length,
+    nUnidades: Object.keys(metUnidade).length,
+  };
+
   return {
     indicadores: INDICADORES,
     minN: MIN_N,
@@ -243,6 +252,7 @@ function calcularBenchmark(dados, opcoes = {}) {
     baseUnidades: montarBase(valoresUnidade, Object.keys(metUnidade).length),
     empresas: empresasOut,
     unidades: unidadesOut,
+    total,
   };
 }
 

@@ -39,6 +39,15 @@ async function tratar(request, context) {
     const dados = {};
     await Promise.all(COLECOES_BENCH.map(async (col) => { dados[col] = await carregarTudo(col); }));
 
+    // V 2.50 (Alexandre): o benchmark NÃO conta a Empresa Demonstrativa nem empresas excluídas
+    // (lixeira). A rota lê tudo com SELECT *, então aqui removemos esses EmpresaIds de todas as
+    // coleções (o GET normal do app já esconde essas empresas, mas o benchmark lia o cru).
+    const DEMO_ID = "empresa-demo";
+    const foraSet = new Set([DEMO_ID]);
+    (dados.cliente || []).forEach((c) => { const eid = c.id || c._id; if (c.Excluida || eid === DEMO_ID) foraSet.add(eid); });
+    dados.cliente = (dados.cliente || []).filter((c) => !foraSet.has(c.id || c._id));
+    COLECOES_BENCH.filter((col) => col !== "cliente").forEach((col) => { dados[col] = (dados[col] || []).filter((r) => !foraSet.has(r.EmpresaId)); });
+
     const resultado = calcularBenchmark(dados, {
       empresasVisiveis: empresasVisiveis(identidade), // null = Administrador (vê todas)
       podeVerUnidade: (empresaId, unidade) => podeVerUnidadeDoc(identidade, "unidade", { EmpresaId: empresaId, Unidade: unidade }),
