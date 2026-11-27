@@ -13,6 +13,8 @@ A partir de 04/10/2026 o S.I.G.E é versionado. A versão atual aparece no rodap
 
 Campos que a planilha não traz (Data da Análise, Ergonomista) ficam para a ergonomista completar; a Data da Análise usa a Dt Identificação da planilha ou, na falta, a data de importação (para a avaliação já entrar no gráfico). Os PDFs de cada unidade são anexados como laudo da AET à parte.
 
+**Benchmark — tamanho da base de comparação:** o Benchmark passa a mostrar **quantas empresas e unidades** estão entrando na comparação. Há uma linha no topo ("Base de comparação atual: X empresa(s) · Y unidade(s)") e, na régua geral, a nota indica contra **quantas unidades/empresas** aquela posição está sendo comparada. *(`js/benchmark.js`, `css/style.css`.)*
+
 Service worker subiu para `sige-v166`.
 
 ## V 2.50 — 26/11/2026

@@ -144,6 +144,11 @@
     const cab = el("div", "bench-cab");
     cab.appendChild(el("h2", "bench-titulo", "Benchmark — comparação com a base"));
     cab.appendChild(el("p", "bench-sub", "Os números da sua empresa comparados, de forma anônima, com todas as empresas e unidades da base. Nenhum nome ou número de outro cliente é exibido — só a sua posição relativa. ⟐ = número bruto (total), para comparar volume."));
+    // V 2.51 (Alexandre): mostra o TAMANHO da base de comparação (quantas empresas e unidades
+    // estão entrando na comparação neste momento). Vem do payload (base.totalN / baseUnidades.totalN).
+    const nEmp = (d.base && d.base.totalN) || 0;
+    const nUni = (d.baseUnidades && d.baseUnidades.totalN) || 0;
+    cab.appendChild(el("div", "bench-base-cont", "Base de comparação atual: " + nEmp + " empresa(s) · " + nUni + " unidade(s)."));
     wrap.appendChild(cab);
 
     const foco = d.empresas.find((e) => e.empresaId === estado.foco) || d.empresas[0];
@@ -213,7 +218,10 @@
     geral.appendChild(gcab);
     geral.appendChild(regua(ent.scoreGeral, { grande: true }));
     geral.appendChild(el("div", "bench-geral-leg", "← abaixo da base    ·    mediana    ·    acima da base →"));
-    if (alvo.tipo === "unidade") geral.appendChild(el("div", "bench-geral-nota", "Comparando esta UNIDADE com a base de todas as unidades."));
+    // V 2.51 (Alexandre): diz contra quantas unidades/empresas esta posição está sendo comparada.
+    const nBase = (alvo.base && alvo.base.totalN) || 0;
+    if (alvo.tipo === "unidade") geral.appendChild(el("div", "bench-geral-nota", "Comparando esta UNIDADE com a base de " + nBase + " unidade(s)."));
+    else geral.appendChild(el("div", "bench-geral-nota", "Comparando esta EMPRESA com a base de " + nBase + " empresa(s)."));
     wrap.appendChild(geral);
 
     // Indicadores agrupados.
